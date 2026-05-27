@@ -10,7 +10,7 @@ npm install
 npm run dev
 ```
 
-Ouvre <http://localhost:5173>
+Ouvre http://localhost:5173
 
 ## Build production
 
@@ -18,18 +18,18 @@ Ouvre <http://localhost:5173>
 npm run build
 ```
 
-Le dossier `dist/` contient l’app prête à déployer.
+Le dossier `dist/` contient l'app prête à déployer.
 
 ## Déploiement Vercel
 
 ### Méthode 1 — Via interface web (recommandée)
 
 1. Push ces fichiers sur ton repo GitHub `EA-PropFirm-Pro`
-1. Va sur <https://vercel.com> → “Add New Project”
-1. Importe ton repo GitHub
-1. Vercel détecte automatiquement Vite — ne change rien
-1. Clique “Deploy”
-1. URL disponible en ~1 minute : `ea-propfirm-pro.vercel.app`
+2. Va sur https://vercel.com → "Add New Project"
+3. Importe ton repo GitHub
+4. Vercel détecte automatiquement Vite — ne change rien
+5. Clique "Deploy"
+6. URL disponible en ~1 minute : `ea-propfirm-pro.vercel.app`
 
 ### Méthode 2 — Via CLI
 
@@ -38,25 +38,25 @@ npm install -g vercel
 vercel
 ```
 
-Suis les instructions, c’est tout.
+Suis les instructions, c'est tout.
 
 ## Installation sur iPhone
 
-1. Ouvre l’URL Vercel dans Safari (pas Chrome)
-1. Bouton Partager (carré + flèche)
-1. “Sur l’écran d’accueil”
-1. L’icône apparaît, ouvre comme une vraie app
+1. Ouvre l'URL Vercel dans Safari (pas Chrome)
+2. Bouton Partager (carré + flèche)
+3. "Sur l'écran d'accueil"
+4. L'icône apparaît, ouvre comme une vraie app
 
 ## Installation sur Android
 
-1. Ouvre l’URL dans Chrome
-1. Menu (3 points) → “Installer l’application”
-1. Confirme
+1. Ouvre l'URL dans Chrome
+2. Menu (3 points) → "Installer l'application"
+3. Confirme
 
 ## Mise à jour
 
 Push tes modifications sur GitHub → Vercel rebuilds automatiquement.
-L’app se met à jour seule sur le téléphone à la prochaine ouverture.
+L'app se met à jour seule sur le téléphone à la prochaine ouverture.
 
 ## Structure
 
@@ -81,4 +81,4 @@ L’app se met à jour seule sur le téléphone à la prochaine ouverture.
 - vite-plugin-pwa (service worker auto)
 - recharts pour les graphiques
 
-Aucune modification du code App.jsx — l’artefact original est préservé tel quel.
+Aucune modification du code App.jsx — l'artefact original est préservé tel quel.
