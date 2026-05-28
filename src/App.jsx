@@ -262,20 +262,43 @@ function simulateFunded(capital, months, model, p, split) {
 }
 
 export default function App() {
-  const [modelKey, setModelKey] = useState("2step");
-  const [capital, setCapital] = useState(25000);
-  const [riskPct, setRiskPct] = useState(0.2);
-  const [dailyTargetPct, setDailyTargetPct] = useState(0.25);
-  const [winrate, setWinrate] = useState(55);
-  const [tradesPerDay, setTradesPerDay] = useState(3);
-  const [clusteringPct, setClusteringPct] = useState(40);
-  const [maxConsecLosses, setMaxConsecLosses] = useState(4);
-  const [split, setSplit] = useState(80);
-  const [fundedMonths, setFundedMonths] = useState(12);
+  // SAUVEGARDE AUTO : charge les params depuis localStorage (fonctionne sur la PWA Vercel)
+  const loadSaved = () => {
+    try {
+      const raw = localStorage.getItem("eapropfirm_config");
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+  };
+  const saved = loadSaved();
+
+  const [modelKey, setModelKey] = useState(saved.modelKey ?? "2step");
+  const [capital, setCapital] = useState(saved.capital ?? 25000);
+  const [riskPct, setRiskPct] = useState(saved.riskPct ?? 0.2);
+  const [dailyTargetPct, setDailyTargetPct] = useState(saved.dailyTargetPct ?? 0.25);
+  const [winrate, setWinrate] = useState(saved.winrate ?? 55);
+  const [tradesPerDay, setTradesPerDay] = useState(saved.tradesPerDay ?? 3);
+  const [clusteringPct, setClusteringPct] = useState(saved.clusteringPct ?? 40);
+  const [maxConsecLosses, setMaxConsecLosses] = useState(saved.maxConsecLosses ?? 4);
+  const [split, setSplit] = useState(saved.split ?? 80);
+  const [fundedMonths, setFundedMonths] = useState(saved.fundedMonths ?? 12);
   const [tab, setTab] = useState("challenge");
   const [sim, setSim] = useState(null);
   const [seed, setSeed] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("");
+
+  // SAUVEGARDE AUTO : enregistre a chaque changement de parametre
+  useEffect(() => {
+    try {
+      localStorage.setItem("eapropfirm_config", JSON.stringify({
+        modelKey, capital, riskPct, dailyTargetPct, winrate,
+        tradesPerDay, clusteringPct, maxConsecLosses, split, fundedMonths
+      }));
+      setSaveStatus("Enregistre");
+      const t = setTimeout(() => setSaveStatus(""), 1500);
+      return () => clearTimeout(t);
+    } catch (e) { /* localStorage indisponible (artefact) - ignore */ }
+  }, [modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, split, fundedMonths]);
 
   const model = MODELS[modelKey];
   const risk = riskPct / 100;
@@ -579,7 +602,7 @@ export default function App() {
   const clColor = clusteringPct <= 25 ? "#6ee7b7" : clusteringPct <= 55 ? "#fbbf24" : "#ef4444";
 
   return (
-    <div style={{ fontFamily: "system-ui, sans-serif", background: "#080810", minHeight: "100vh", color: "#e2e8f0", padding: "14px", maxWidth: 480, margin: "0 auto" }}>
+    <div style={{ fontFamily: "system-ui, sans-serif", background: "#080810", minHeight: "100vh", color: "#e2e8f0", padding: "14px", paddingTop: "calc(14px + env(safe-area-inset-top))", paddingBottom: "calc(14px + env(safe-area-inset-bottom))", maxWidth: 480, margin: "0 auto" }}>
       <style>{`
         * { box-sizing: border-box; }
         .card { background: #111118; border: 1px solid #1e1e2e; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
@@ -600,6 +623,9 @@ export default function App() {
       <div style={{ textAlign: "center", marginBottom: 14 }}>
         <div style={{ fontSize: 19, fontWeight: 800, color: "#6ee7b7" }}>FundedNext Simulator</div>
         <div style={{ fontSize: 10, color: "#475569", marginTop: 2 }}>Moteur trade-par-trade realiste - Stellar 2026</div>
+        <div style={{ height: 14, marginTop: 2 }}>
+          {saveStatus && <span style={{ fontSize: 10, color: "#6ee7b7", opacity: 0.8 }}>✓ {saveStatus}</span>}
+        </div>
       </div>
 
       {/* MODELE */}
@@ -871,7 +897,7 @@ export default function App() {
 
       {/* TABS */}
       <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
-        {[{ id: "challenge", label: "Challenge" }, { id: "funded", label: "Funded" }, { id: "montecarlo", label: "Monte Carlo" }]
+        {[{ id: "challenge", label: "Challenge" }, { id: "funded", label: "Funded" }, { id: "montecarlo", label: "Monte Carlo" }, { id: "trades", label: "Mes Trades" }]
           .map(t => <button key={t.id} className={"tab-btn " + (tab === t.id ? "on" : "off")} onClick={() => setTab(t.id)}>{t.label}</button>)}
       </div>
 
@@ -1059,6 +1085,12 @@ export default function App() {
           splitRate={splitRate} winrate={winrate} fee={fee} clusteringPct={clusteringPct} />
       )}
 
+
+      {/* TAB MES TRADES */}
+      {tab === "trades" && (
+        <MesTradesTab sim={sim} capital={capital} fundedMonths={fundedMonths} winrate={winrate} riskPct={riskPct} dailyTargetPct={dailyTargetPct} model={model} />
+      )}
+
       <div style={{ textAlign: "center", fontSize: 10, color: "#1e1e2e", marginTop: 12, paddingBottom: 8 }}>
         Regles FundedNext Stellar 2026 - Simulation indicative - Pas une garantie
       </div>
@@ -1229,6 +1261,393 @@ function MonteCarloTab({ modelKey, capital, p, fundedMonths, splitRate, winrate,
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ─── COMPOSANT MES TRADES ──────────────────────────────────────────────────────
+function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTargetPct, model }) {
+  const loadTrades = () => {
+    try {
+      const raw = localStorage.getItem("eapropfirm_trades");
+      return raw ? JSON.parse(raw) : { trades: [], filename: null };
+    } catch (e) { return { trades: [], filename: null }; }
+  };
+  const savedTrades = loadTrades();
+
+  const [trades, setTrades] = useState(savedTrades.trades || []);
+  const [parseError, setParseError] = useState(null);
+  const [filename, setFilename] = useState(savedTrades.filename || null);
+  const [alerts, setAlerts] = useState([]);
+
+  // Recalculer les alertes au chargement si trades sauvegardes
+  useEffect(() => {
+    if (trades.length > 0) {
+      const initBal = trades[0].balance - trades[0].profit;
+      computeAlerts(trades, initBal);
+    }
+  }, []);
+
+  // Sauvegarde auto des trades
+  useEffect(() => {
+    try {
+      localStorage.setItem("eapropfirm_trades", JSON.stringify({ trades, filename }));
+    } catch (e) { /* indispo */ }
+  }, [trades, filename]);
+
+  // PARSER CSV MT4/MT5 multi-format
+  const parseCSV = (text) => {
+    const lines = text.trim().split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+    if (lines.length < 2) return { error: "Fichier vide ou invalide" };
+
+    const header = lines[0].toLowerCase().replace(/"/g, '');
+    const cols = header.split(/[,;\t]/);
+
+    // Detecter le format
+    let format = null;
+    let profitIdx = -1, timeIdx = -1, typeIdx = -1, balanceIdx = -1, commIdx = -1, swapIdx = -1;
+
+    // Format MT4 classique
+    if (cols.some(c => c.includes('ticket')) && cols.some(c => c.includes('profit'))) {
+      format = 'mt4';
+      timeIdx = cols.findIndex(c => c.includes('close time') || (c.includes('time') && cols.indexOf(c) > 0));
+      if (timeIdx === -1) timeIdx = cols.findIndex(c => c.includes('time'));
+      typeIdx = cols.findIndex(c => c.includes('type'));
+      profitIdx = cols.findIndex(c => c.trim() === 'profit' || c.includes('profit'));
+      commIdx = cols.findIndex(c => c.includes('commission') || c.includes('comm'));
+      swapIdx = cols.findIndex(c => c.includes('swap'));
+      balanceIdx = cols.findIndex(c => c.includes('balance'));
+    }
+    // Format MT5 avec Position
+    else if (cols.some(c => c.includes('position')) && cols.some(c => c.includes('profit'))) {
+      format = 'mt5';
+      timeIdx = cols.findIndex(c => c.includes('time'));
+      typeIdx = cols.findIndex(c => c.includes('type'));
+      profitIdx = cols.findIndex(c => c.trim() === 'profit' || c.includes('profit'));
+      commIdx = cols.findIndex(c => c.includes('commission') || c.includes('comm'));
+      swapIdx = cols.findIndex(c => c.includes('swap'));
+      balanceIdx = cols.findIndex(c => c.includes('balance'));
+    }
+    // Format simple Date,Profit,Balance
+    else if (cols.some(c => c.includes('date')) && cols.some(c => c.includes('profit'))) {
+      format = 'simple';
+      timeIdx = cols.findIndex(c => c.includes('date') || c.includes('time'));
+      profitIdx = cols.findIndex(c => c.includes('profit'));
+      balanceIdx = cols.findIndex(c => c.includes('balance'));
+    }
+    // Format encore plus simple : juste des profits/balances
+    else if (cols.length >= 2) {
+      format = 'minimal';
+      timeIdx = 0;
+      profitIdx = cols.findIndex(c => c.includes('profit') || c.includes('pnl') || c.includes('gain'));
+      if (profitIdx === -1) profitIdx = 1;
+      balanceIdx = cols.findIndex(c => c.includes('balance') || c.includes('equity'));
+    }
+
+    if (!format) return { error: "Format non reconnu. Attendu : export MT4/MT5 ou colonnes Date,Profit,Balance" };
+    if (profitIdx === -1) return { error: "Colonne Profit introuvable dans le CSV" };
+
+    const parsed = [];
+    let runningBalance = capital;
+    let initBalance = null;
+
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i].replace(/"/g, '').split(/[,;\t]/);
+      if (row.length < 2) continue;
+
+      const profitRaw = parseFloat(row[profitIdx]);
+      if (isNaN(profitRaw)) continue;
+
+      const comm = commIdx >= 0 ? parseFloat(row[commIdx]) || 0 : 0;
+      const swap = swapIdx >= 0 ? parseFloat(row[swapIdx]) || 0 : 0;
+      const netProfit = profitRaw + comm + swap;
+
+      let balance = balanceIdx >= 0 ? parseFloat(row[balanceIdx]) : NaN;
+      if (isNaN(balance)) {
+        runningBalance += netProfit;
+        balance = runningBalance;
+      }
+      if (initBalance === null) initBalance = balance - netProfit;
+
+      const timeRaw = timeIdx >= 0 ? row[timeIdx] : '';
+      const type = typeIdx >= 0 ? row[typeIdx] : '';
+
+      parsed.push({
+        idx: i,
+        time: timeRaw.trim(),
+        type: type.trim(),
+        profit: netProfit,
+        balance,
+      });
+    }
+
+    if (parsed.length === 0) return { error: "Aucun trade valide trouve dans le fichier" };
+    return { trades: parsed, format, initBalance: initBalance || capital };
+  };
+
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setFilename(file.name);
+    setParseError(null);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = parseCSV(ev.target.result);
+      if (result.error) { setParseError(result.error); setTrades([]); return; }
+      setTrades(result.trades);
+      computeAlerts(result.trades, result.initBalance);
+    };
+    reader.readAsText(file);
+  };
+
+  // CALCUL DES ALERTES
+  const computeAlerts = (trades, initBalance) => {
+    const newAlerts = [];
+    if (!trades.length) return;
+
+    const totalPnl = trades.reduce((s, t) => s + t.profit, 0);
+    const wins = trades.filter(t => t.profit > 0).length;
+    const losses = trades.filter(t => t.profit < 0).length;
+    const realWR = trades.length > 0 ? (wins / trades.length) * 100 : 0;
+    const lastBalance = trades[trades.length - 1].balance;
+    const ddPct = ((initBalance - lastBalance) / initBalance) * 100;
+    const ddDayLimit = initBalance * (model ? model.dailyDD : 0.05);
+
+    // Check max perte en 1 trade
+    const maxLoss = Math.min(...trades.map(t => t.profit));
+    if (Math.abs(maxLoss) > ddDayLimit * 0.8) {
+      newAlerts.push({
+        level: "danger",
+        msg: "Trade a " + Math.abs(maxLoss).toFixed(0) + "$ de perte - proche du DD journalier (" + ddDayLimit.toFixed(0) + "$)"
+      });
+    }
+
+    // Check winrate vs simulation
+    if (realWR < winrate - 10) {
+      newAlerts.push({
+        level: "warning",
+        msg: "Winrate reel " + realWR.toFixed(0) + "% < simulation " + winrate + "% - performance en dessous des attentes"
+      });
+    }
+
+    // Check DD total
+    if (ddPct > (model ? model.totalDD * 100 * 0.7 : 7)) {
+      newAlerts.push({
+        level: "danger",
+        msg: "DD cumule " + ddPct.toFixed(2) + "% - dangereux, proche de la limite " + (model ? model.totalDD * 100 : 10) + "%"
+      });
+    } else if (ddPct > (model ? model.totalDD * 100 * 0.4 : 4)) {
+      newAlerts.push({
+        level: "warning",
+        msg: "DD cumule " + ddPct.toFixed(2) + "% - surveillance requise"
+      });
+    }
+
+    // Check objectif journalier
+    const avgProfit = totalPnl / trades.length;
+    const targetPerTrade = (capital * dailyTargetPct / 100) / 3;
+    if (avgProfit < targetPerTrade * 0.5) {
+      newAlerts.push({
+        level: "info",
+        msg: "Profit moyen/trade " + avgProfit.toFixed(0) + "$ < objectif " + targetPerTrade.toFixed(0) + "$ - revois le RR ou la config"
+      });
+    }
+
+    // Check series de pertes
+    let maxConsec = 0, cur = 0;
+    trades.forEach(t => { if (t.profit < 0) { cur++; if (cur > maxConsec) maxConsec = cur; } else cur = 0; });
+    if (maxConsec > 6) {
+      newAlerts.push({ level: "warning", msg: "Serie de " + maxConsec + " pertes consecutives detectee - verifie ton EA" });
+    }
+
+    if (newAlerts.length === 0) {
+      newAlerts.push({ level: "ok", msg: "Aucune anomalie detectee - performances coherentes avec la simulation" });
+    }
+
+    setAlerts(newAlerts);
+  };
+
+  // STATS REELLES
+  const stats = trades.length > 0 ? (() => {
+    const wins = trades.filter(t => t.profit > 0);
+    const losses = trades.filter(t => t.profit < 0);
+    const totalPnl = trades.reduce((s, t) => s + t.profit, 0);
+    const initBal = trades[0].balance - trades[0].profit;
+    const finalBal = trades[trades.length - 1].balance;
+    const wr = (wins.length / trades.length) * 100;
+    const avgWin = wins.length > 0 ? wins.reduce((s, t) => s + t.profit, 0) / wins.length : 0;
+    const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((s, t) => s + t.profit, 0) / losses.length) : 0;
+    const rr = avgLoss > 0 ? avgWin / avgLoss : 0;
+    const ddPct = ((initBal - Math.min(...trades.map(t => t.balance))) / initBal) * 100;
+    return { wins: wins.length, losses: losses.length, total: trades.length, totalPnl, wr, avgWin, avgLoss, rr, ddPct, initBal, finalBal };
+  })() : null;
+
+  // DONNEES GRAPHIQUE : superposer courbe reelle vs simulation
+  const chartData = (() => {
+    if (!trades.length || !sim || !sim.funded) return [];
+    const simData = sim.funded.data;
+    // Normaliser les trades en "points" reguliers
+    const step = Math.max(1, Math.floor(trades.length / Math.max(fundedMonths, 12)));
+    const result = [];
+    for (let i = 0; i < Math.min(trades.length, fundedMonths * step * 2); i += step) {
+      const t = trades[Math.min(i, trades.length - 1)];
+      const simIdx = Math.min(Math.floor(i / step), simData.length - 1);
+      result.push({
+        pt: i + 1,
+        reel: +t.balance.toFixed(2),
+        simulation: simIdx >= 0 ? simData[simIdx].equity : capital,
+      });
+    }
+    return result;
+  })();
+
+  const alertColor = (level) => level === "danger" ? "#ef4444" : level === "warning" ? "#fbbf24" : level === "ok" ? "#6ee7b7" : "#93c5fd";
+  const alertBg = (level) => level === "danger" ? "#2d0808" : level === "warning" ? "#2d1f08" : level === "ok" ? "#062318" : "#0c1a3d";
+  const alertIcon = (level) => level === "danger" ? "\u26A0\uFE0F" : level === "warning" ? "\uD83D\uDFE1" : level === "ok" ? "\u2705" : "\uD83D\uDCA1";
+
+  return (
+    <div>
+      {/* UPLOAD */}
+      <div className="card" style={{ borderLeft: "3px solid #6ee7b7" }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#6ee7b7", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
+          Import trades MT4 / MT5
+        </div>
+        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10, lineHeight: 1.5 }}>
+          MT4 : Historique des comptes → clic droit → Enregistrer en CSV<br />
+          MT5 : Historique → Rapport → Exporter en CSV<br />
+          Accepte aussi : Date,Profit,Balance (format simplifie)
+        </div>
+        <label style={{ display: "block", background: "#0a0a14", border: "2px dashed #2d2d3d", borderRadius: 10, padding: "16px", textAlign: "center", cursor: "pointer" }}>
+          <div style={{ fontSize: 28, marginBottom: 6 }}>📂</div>
+          <div style={{ fontSize: 13, color: "#6ee7b7", fontWeight: 700 }}>
+            {filename ? filename : "Appuie pour choisir le fichier CSV"}
+          </div>
+          <div style={{ fontSize: 10, color: "#475569", marginTop: 4 }}>
+            {trades.length > 0 ? trades.length + " trades charges" : "Aucun fichier"}
+          </div>
+          <input type="file" accept=".csv,.txt,.tsv" onChange={handleFile} style={{ display: "none" }} />
+        </label>
+        {parseError && (
+          <div style={{ marginTop: 8, background: "#2d0808", border: "1px solid #ef444440", borderRadius: 8, padding: 10, fontSize: 12, color: "#fca5a5" }}>
+            {parseError}
+          </div>
+        )}
+        {trades.length > 0 && (
+          <button onClick={() => { setTrades([]); setFilename(null); setAlerts([]); try { localStorage.removeItem("eapropfirm_trades"); } catch (e) {} }}
+            style={{ marginTop: 8, width: "100%", padding: 8, background: "#2d0808", border: "1px solid #ef444440", borderRadius: 8, color: "#fca5a5", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+            Effacer les trades importes
+          </button>
+        )}
+      </div>
+
+      {trades.length > 0 && stats && (
+        <>
+          {/* ALERTES */}
+          <div className="card">
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#e2e8f0", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>
+              Alertes & Diagnostics
+            </div>
+            {alerts.map((a, i) => (
+              <div key={i} style={{ background: alertBg(a.level), border: "1px solid " + alertColor(a.level) + "30", borderRadius: 8, padding: "9px 12px", marginBottom: 8, fontSize: 12, color: alertColor(a.level), lineHeight: 1.5, display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <span>{alertIcon(a.level)}</span>
+                <span>{a.msg}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* STATS COMPARATIVES */}
+          <div className="card">
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#e2e8f0", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>
+              Reel vs Simulation
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2, marginBottom: 6 }}>
+              <div style={{ fontSize: 10, color: "#64748b", textAlign: "center", paddingBottom: 4 }}>Indicateur</div>
+              <div style={{ fontSize: 10, color: "#6ee7b7", textAlign: "center", fontWeight: 700 }}>Reel</div>
+              <div style={{ fontSize: 10, color: "#93c5fd", textAlign: "center", fontWeight: 700 }}>Simulation</div>
+            </div>
+            {[
+              { label: "Trades", real: stats.total, sim2: "-" },
+              { label: "Winrate", real: stats.wr.toFixed(0) + "%", sim2: winrate + "%", ok: stats.wr >= winrate - 5 },
+              { label: "Moy. gain", real: "$" + stats.avgWin.toFixed(0), sim2: "-" },
+              { label: "Moy. perte", real: "$" + stats.avgLoss.toFixed(0), sim2: "$" + (capital * riskPct / 100).toFixed(0), ok: stats.avgLoss <= capital * riskPct / 100 * 1.2 },
+              { label: "RR reel", real: "1:" + stats.rr.toFixed(2), sim2: "-" },
+              { label: "P&L total", real: "$" + stats.totalPnl.toFixed(0), sim2: sim && sim.funded ? "$" + (sim.funded.cumulPayout).toFixed(0) : "-" },
+              { label: "DD max", real: stats.ddPct.toFixed(2) + "%", sim2: (model ? model.totalDD * 100 : 10) + "% max", ok: stats.ddPct < (model ? model.totalDD * 100 * 0.7 : 7) },
+            ].map(row => (
+              <div key={row.label} className="row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2 }}>
+                <span style={{ color: "#64748b", fontSize: 11 }}>{row.label}</span>
+                <span style={{ textAlign: "center", fontWeight: 700, fontSize: 11, color: row.ok === false ? "#ef4444" : row.ok === true ? "#6ee7b7" : "#e2e8f0" }}>{row.real}</span>
+                <span style={{ textAlign: "center", fontSize: 11, color: "#475569" }}>{row.sim2}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* GRAPHIQUE SUPERPOSE */}
+          {chartData.length > 0 && (
+            <div className="card">
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#e2e8f0", marginBottom: 4, textTransform: "uppercase", letterSpacing: 1 }}>
+                Courbe Equity — Reel vs Simulation
+              </div>
+              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 12 }}>
+                Vert = reel · Bleu = simulation
+              </div>
+              <ResponsiveContainer width="100%" height={220}>
+                <ComposedChart data={chartData}>
+                  <defs>
+                    <linearGradient id="greel" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.2} />
+                      <stop offset="100%" stopColor="#6ee7b7" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gsim" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#93c5fd" stopOpacity={0.15} />
+                      <stop offset="100%" stopColor="#93c5fd" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1a1a28" />
+                  <XAxis dataKey="pt" tick={{ fontSize: 9, fill: "#475569" }} tickFormatter={v => "#" + v} />
+                  <YAxis tick={{ fontSize: 9, fill: "#475569" }} tickFormatter={v => "$" + (v / 1000).toFixed(1) + "k"} domain={["auto", "auto"]} />
+                  <Tooltip
+                    formatter={(v, name) => ["$" + Number(v).toFixed(0), name]}
+                    contentStyle={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 8, fontSize: 11 }}
+                  />
+                  <ReferenceLine y={capital} stroke="#475569" strokeDasharray="4 2" />
+                  <Area type="monotone" dataKey="simulation" stroke="#93c5fd" strokeWidth={1.5} fill="url(#gsim)" dot={false} name="Simulation" strokeDasharray="4 2" />
+                  <Area type="monotone" dataKey="reel" stroke="#6ee7b7" strokeWidth={2.5} fill="url(#greel)" dot={false} name="Reel" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* TABLE TRADES */}
+          <div className="card">
+            <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 10, color: "#fbbf24" }}>
+              Dernieres {Math.min(trades.length, 30)} operations
+            </div>
+            <div style={{ overflowY: "auto", maxHeight: 280 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #1e1e2e" }}>
+                    {["#", "Profit", "Balance"].map(h => (
+                      <th key={h} style={{ padding: "5px 6px", color: "#64748b", textAlign: "right", fontWeight: 700, fontSize: 10 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {trades.slice(-30).reverse().map((t, i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid #0f0f18" }}>
+                      <td style={{ padding: "4px 6px", color: "#64748b", textAlign: "right" }}>{t.idx}</td>
+                      <td style={{ padding: "4px 6px", textAlign: "right", fontWeight: 700, color: t.profit >= 0 ? "#6ee7b7" : "#ef4444" }}>
+                        {(t.profit >= 0 ? "+" : "") + "$" + t.profit.toFixed(0)}
+                      </td>
+                      <td style={{ padding: "4px 6px", color: "#e2e8f0", textAlign: "right" }}>{"$" + t.balance.toFixed(0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
