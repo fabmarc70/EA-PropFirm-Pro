@@ -176,13 +176,28 @@ function simulateFunded(capital, months, model, p, split) {
   let payoutsInStreak = 0;
   let currentSplit = split; // split evolue apres scaling (80% -> 90%)
 
+  const dailyLog = []; // P&L jour par jour pour le calendrier
+  let globalDay = 0;
+
   for (let m = 1; m <= months; m++) {
     const monthStart = equity;
     let monthFailed = null;
 
     for (let d = 0; d < TD_MONTH; d++) {
+      const dayStart = equity;
       const res = simulateDay(equity, p.tradesPerDay, riskAmount, p.rr, nextTrade, dailyDDLimit);
       equity = res.dayEquity;
+      globalDay++;
+      dailyLog.push({
+        globalDay,
+        month: m,
+        dayOfMonth: d + 1,
+        pnl: +(equity - dayStart).toFixed(2),
+        equity: +equity.toFixed(2),
+        wins: res.wins,
+        losses: res.losses,
+        breached: res.breached,
+      });
       const dd = (currentCapital - equity) / currentCapital;
       if (dd > maxDD) maxDD = dd;
       if (res.breached) { monthFailed = "failed_daily_dd"; break; }
@@ -258,6 +273,7 @@ function simulateFunded(capital, months, model, p, split) {
     maxDD: maxDD * 100,
     maxDDAmount: maxDD * currentCapital,
     finalSplit: Math.round(currentSplit * 100),
+    dailyLog,
   };
 }
 
@@ -1033,6 +1049,9 @@ export default function App() {
               </ResponsiveContainer>
             </div>
 
+            {/* CALENDRIER PnL */}
+            <CalendrierPnL dailyLog={sim.funded.dailyLog} />
+
             <div className="card">
               <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 10, color: "#fbbf24" }}>Detail Mensuel</div>
               <div style={{ overflowY: "auto", maxHeight: 300 }}>
@@ -1648,6 +1667,147 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ─── CALENDRIER PnL JOUR PAR JOUR ──────────────────────────────────────────────
+function CalendrierPnL({ dailyLog }) {
+  const [selectedMonth, setSelectedMonth] = useState(1);
+
+  if (!dailyLog || dailyLog.length === 0) return null;
+
+  const months = [...new Set(dailyLog.map(d => d.month))];
+  const monthDays = dailyLog.filter(d => d.month === selectedMonth);
+
+  // Stats du mois
+  const monthPnl = monthDays.reduce((s, d) => s + d.pnl, 0);
+  const winDays = monthDays.filter(d => d.pnl > 0).length;
+  const lossDays = monthDays.filter(d => d.pnl < 0).length;
+  const bestDay = monthDays.length ? Math.max(...monthDays.map(d => d.pnl)) : 0;
+  const worstDay = monthDays.length ? Math.min(...monthDays.map(d => d.pnl)) : 0;
+
+  // Construire une grille 7 colonnes (5 jours trading + week-end vides pour realisme)
+  // On simule un mois calendaire : 21 jours trading repartis lun-ven sur ~30 jours
+  const buildCalendarGrid = () => {
+    const grid = [];
+    let tradingIdx = 0;
+    let dayNum = 1;
+    // ~30 jours, on skip les week-ends (chaque 6e et 7e jour)
+    while (tradingIdx < monthDays.length && dayNum <= 31) {
+      const dow = (dayNum - 1) % 7; // 0-4 = semaine, 5-6 = weekend
+      if (dow < 5 && tradingIdx < monthDays.length) {
+        grid.push({ dayNum, trading: true, data: monthDays[tradingIdx] });
+        tradingIdx++;
+      } else {
+        grid.push({ dayNum, trading: false, data: null });
+      }
+      dayNum++;
+    }
+    return grid;
+  };
+  const grid = buildCalendarGrid();
+
+  const cellColor = (pnl) => {
+    if (pnl === undefined || pnl === null) return { bg: "#1a1a24", fg: "#475569", border: "transparent" };
+    if (pnl > 0) {
+      const intensity = Math.min(1, Math.abs(pnl) / 200);
+      return { bg: intensity > 0.6 ? "#10b981" : "#0d3d2f", fg: intensity > 0.6 ? "#062318" : "#6ee7b7", border: "#10b98140" };
+    }
+    if (pnl < 0) {
+      const intensity = Math.min(1, Math.abs(pnl) / 200);
+      return { bg: intensity > 0.6 ? "#ef4444" : "#3d1515", fg: intensity > 0.6 ? "#2d0808" : "#fca5a5", border: "#ef444440" };
+    }
+    return { bg: "#1e1e2e", fg: "#94a3b8", border: "transparent" };
+  };
+
+  return (
+    <div className="card">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div style={{ fontWeight: 800, fontSize: 14, color: "#e2e8f0" }}>Calendrier PnL</div>
+        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          <button onClick={() => setSelectedMonth(Math.max(1, selectedMonth - 1))}
+            disabled={selectedMonth <= 1}
+            style={{ background: "#1e1e2e", border: "none", borderRadius: 6, color: selectedMonth <= 1 ? "#475569" : "#6ee7b7", width: 28, height: 28, fontSize: 16, fontWeight: 800, cursor: "pointer" }}>
+            ‹
+          </button>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#6ee7b7", minWidth: 50, textAlign: "center" }}>Mois {selectedMonth}</span>
+          <button onClick={() => setSelectedMonth(Math.min(months.length, selectedMonth + 1))}
+            disabled={selectedMonth >= months.length}
+            style={{ background: "#1e1e2e", border: "none", borderRadius: 6, color: selectedMonth >= months.length ? "#475569" : "#6ee7b7", width: 28, height: 28, fontSize: 16, fontWeight: 800, cursor: "pointer" }}>
+            ›
+          </button>
+        </div>
+      </div>
+
+      {/* Stats resume */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 12 }}>
+        <div className="kpi" style={{ padding: 8 }}>
+          <div style={{ fontSize: 9, color: "#64748b" }}>P&L mois</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: monthPnl >= 0 ? "#6ee7b7" : "#ef4444" }}>
+            {(monthPnl >= 0 ? "+" : "") + "$" + monthPnl.toFixed(0)}
+          </div>
+        </div>
+        <div className="kpi" style={{ padding: 8 }}>
+          <div style={{ fontSize: 9, color: "#64748b" }}>Jours +/-</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#e2e8f0" }}>
+            <span style={{ color: "#6ee7b7" }}>{winDays}</span>/<span style={{ color: "#ef4444" }}>{lossDays}</span>
+          </div>
+        </div>
+        <div className="kpi" style={{ padding: 8 }}>
+          <div style={{ fontSize: 9, color: "#64748b" }}>Meilleur</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#6ee7b7" }}>+${bestDay.toFixed(0)}</div>
+        </div>
+        <div className="kpi" style={{ padding: 8 }}>
+          <div style={{ fontSize: 9, color: "#64748b" }}>Pire</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#ef4444" }}>${worstDay.toFixed(0)}</div>
+        </div>
+      </div>
+
+      {/* En-tete jours semaine */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
+        {["L", "M", "M", "J", "V", "S", "D"].map((j, i) => (
+          <div key={i} style={{ textAlign: "center", fontSize: 9, color: "#475569", fontWeight: 700 }}>{j}</div>
+        ))}
+      </div>
+
+      {/* Grille calendrier */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+        {grid.map((cell, i) => {
+          const c = cell.trading && cell.data ? cellColor(cell.data.pnl) : cellColor(undefined);
+          return (
+            <div key={i} style={{
+              aspectRatio: "1",
+              background: c.bg,
+              border: "1px solid " + c.border,
+              borderRadius: 8,
+              padding: 4,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              minHeight: 44,
+            }}>
+              <div style={{ fontSize: 10, color: cell.trading && cell.data ? c.fg : "#475569", fontWeight: 700 }}>
+                {cell.dayNum}
+              </div>
+              {cell.trading && cell.data && (
+                <div style={{ fontSize: 9, color: c.fg, fontWeight: 800, textAlign: "right", lineHeight: 1 }}>
+                  {(cell.data.pnl >= 0 ? "+" : "") + (Math.abs(cell.data.pnl) >= 1000
+                    ? "$" + (cell.data.pnl / 1000).toFixed(1) + "k"
+                    : "$" + cell.data.pnl.toFixed(0))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Legende */}
+      <div style={{ display: "flex", justifyContent: "center", gap: 14, marginTop: 12, fontSize: 10, color: "#64748b" }}>
+        <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#10b981", borderRadius: 3, marginRight: 4, verticalAlign: "middle" }} />Gain</span>
+        <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#ef4444", borderRadius: 3, marginRight: 4, verticalAlign: "middle" }} />Perte</span>
+        <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#1a1a24", borderRadius: 3, marginRight: 4, verticalAlign: "middle" }} />Week-end</span>
+      </div>
     </div>
   );
 }
