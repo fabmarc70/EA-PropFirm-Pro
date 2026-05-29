@@ -1708,94 +1708,110 @@ function CalendrierPnL({ dailyLog }) {
   };
   const grid = buildCalendarGrid();
 
+  // Calcul du max absolu du mois pour calibrer l'intensite
+  const maxAbsPnl = monthDays.length ? Math.max(...monthDays.map(d => Math.abs(d.pnl)), 1) : 1;
+
   const cellColor = (pnl) => {
-    if (pnl === undefined || pnl === null) return { bg: "#1a1a24", fg: "#475569", border: "transparent" };
+    if (pnl === undefined || pnl === null)
+      return { bg: "#16161f", fg: "#334155", border: "1px solid #1e1e2e", numColor: "#334155" };
+
+    const ratio = Math.min(1, Math.abs(pnl) / (maxAbsPnl * 0.7));
+    const isBig = ratio >= 0.5;
+
     if (pnl > 0) {
-      const intensity = Math.min(1, Math.abs(pnl) / 200);
-      return { bg: intensity > 0.6 ? "#10b981" : "#0d3d2f", fg: intensity > 0.6 ? "#062318" : "#6ee7b7", border: "#10b98140" };
+      return isBig
+        ? { bg: "#16a34a",  fg: "#ffffff",  border: "1px solid #15803d", numColor: "#bbf7d0" }   // vert vif - gros gain
+        : { bg: "#052e16",  fg: "#4ade80",  border: "1px solid #14532d", numColor: "#86efac" };   // vert fonce - petit gain
     }
     if (pnl < 0) {
-      const intensity = Math.min(1, Math.abs(pnl) / 200);
-      return { bg: intensity > 0.6 ? "#ef4444" : "#3d1515", fg: intensity > 0.6 ? "#2d0808" : "#fca5a5", border: "#ef444440" };
+      return isBig
+        ? { bg: "#dc2626",  fg: "#ffffff",  border: "1px solid #b91c1c", numColor: "#fecaca" }   // rouge vif - grosse perte
+        : { bg: "#2d0808",  fg: "#f87171",  border: "1px solid #450a0a", numColor: "#fca5a5" };   // rouge fonce - petite perte
     }
-    return { bg: "#1e1e2e", fg: "#94a3b8", border: "transparent" };
+    return { bg: "#1e1e2e", fg: "#94a3b8", border: "1px solid #2d2d3d", numColor: "#94a3b8" };
   };
 
   return (
-    <div className="card">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <div style={{ fontWeight: 800, fontSize: 14, color: "#e2e8f0" }}>Calendrier PnL</div>
+    <div className="card" style={{ padding: 14 }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 15, color: "#e2e8f0" }}>Calendrier PnL</div>
+          <div style={{ fontSize: 10, color: "#64748b", marginTop: 1 }}>Mois {selectedMonth} — simulation jour par jour</div>
+        </div>
         <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
           <button onClick={() => setSelectedMonth(Math.max(1, selectedMonth - 1))}
             disabled={selectedMonth <= 1}
-            style={{ background: "#1e1e2e", border: "none", borderRadius: 6, color: selectedMonth <= 1 ? "#475569" : "#6ee7b7", width: 28, height: 28, fontSize: 16, fontWeight: 800, cursor: "pointer" }}>
+            style={{ background: "#1e1e2e", border: "1px solid #2d2d3d", borderRadius: 8, color: selectedMonth <= 1 ? "#334155" : "#6ee7b7", width: 32, height: 32, fontSize: 18, fontWeight: 800, cursor: "pointer", lineHeight: 1 }}>
             ‹
           </button>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "#6ee7b7", minWidth: 50, textAlign: "center" }}>Mois {selectedMonth}</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: "#6ee7b7", minWidth: 60, textAlign: "center" }}>
+            M{selectedMonth}/{months.length}
+          </span>
           <button onClick={() => setSelectedMonth(Math.min(months.length, selectedMonth + 1))}
             disabled={selectedMonth >= months.length}
-            style={{ background: "#1e1e2e", border: "none", borderRadius: 6, color: selectedMonth >= months.length ? "#475569" : "#6ee7b7", width: 28, height: 28, fontSize: 16, fontWeight: 800, cursor: "pointer" }}>
+            style={{ background: "#1e1e2e", border: "1px solid #2d2d3d", borderRadius: 8, color: selectedMonth >= months.length ? "#334155" : "#6ee7b7", width: 32, height: 32, fontSize: 18, fontWeight: 800, cursor: "pointer", lineHeight: 1 }}>
             ›
           </button>
         </div>
       </div>
 
       {/* Stats resume */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 12 }}>
-        <div className="kpi" style={{ padding: 8 }}>
-          <div style={{ fontSize: 9, color: "#64748b" }}>P&L mois</div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: monthPnl >= 0 ? "#6ee7b7" : "#ef4444" }}>
-            {(monthPnl >= 0 ? "+" : "") + "$" + monthPnl.toFixed(0)}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 14 }}>
+        {[
+          { label: "P&L mois", val: (monthPnl >= 0 ? "+" : "") + "$" + Math.abs(monthPnl).toFixed(0), color: monthPnl >= 0 ? "#4ade80" : "#f87171" },
+          { label: "Jours +/-", val: winDays + "j / " + lossDays + "j", color: "#e2e8f0" },
+          { label: "Meilleur", val: "+$" + bestDay.toFixed(0), color: "#4ade80" },
+          { label: "Pire", val: "-$" + Math.abs(worstDay).toFixed(0), color: "#f87171" },
+        ].map(s => (
+          <div key={s.label} style={{ background: "#0a0a14", borderRadius: 8, padding: "7px 6px", textAlign: "center" }}>
+            <div style={{ fontSize: 9, color: "#64748b", marginBottom: 3 }}>{s.label}</div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: s.color }}>{s.val}</div>
           </div>
-        </div>
-        <div className="kpi" style={{ padding: 8 }}>
-          <div style={{ fontSize: 9, color: "#64748b" }}>Jours +/-</div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#e2e8f0" }}>
-            <span style={{ color: "#6ee7b7" }}>{winDays}</span>/<span style={{ color: "#ef4444" }}>{lossDays}</span>
-          </div>
-        </div>
-        <div className="kpi" style={{ padding: 8 }}>
-          <div style={{ fontSize: 9, color: "#64748b" }}>Meilleur</div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#6ee7b7" }}>+${bestDay.toFixed(0)}</div>
-        </div>
-        <div className="kpi" style={{ padding: 8 }}>
-          <div style={{ fontSize: 9, color: "#64748b" }}>Pire</div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#ef4444" }}>${worstDay.toFixed(0)}</div>
-        </div>
+        ))}
       </div>
 
       {/* En-tete jours semaine */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
-        {["L", "M", "M", "J", "V", "S", "D"].map((j, i) => (
-          <div key={i} style={{ textAlign: "center", fontSize: 9, color: "#475569", fontWeight: 700 }}>{j}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3, marginBottom: 3 }}>
+        {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((j, i) => (
+          <div key={i} style={{ textAlign: "center", fontSize: 9, color: i >= 5 ? "#1e293b" : "#64748b", fontWeight: 700, paddingBottom: 4 }}>{j}</div>
         ))}
       </div>
 
       {/* Grille calendrier */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
         {grid.map((cell, i) => {
-          const c = cell.trading && cell.data ? cellColor(cell.data.pnl) : cellColor(undefined);
+          const c = cell.trading && cell.data ? cellColor(cell.data.pnl) : { bg: "#0d0d15", fg: "#1e293b", border: "1px solid #12121a", numColor: "#1e293b" };
+          const isWeekend = !cell.trading;
           return (
             <div key={i} style={{
-              aspectRatio: "1",
               background: c.bg,
-              border: "1px solid " + c.border,
+              border: c.border,
               borderRadius: 8,
-              padding: 4,
+              padding: "5px 4px",
+              minHeight: 52,
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
-              minHeight: 44,
+              opacity: isWeekend ? 0.35 : 1,
             }}>
-              <div style={{ fontSize: 10, color: cell.trading && cell.data ? c.fg : "#475569", fontWeight: 700 }}>
+              <div style={{ fontSize: 10, color: c.numColor, fontWeight: 700 }}>
                 {cell.dayNum}
               </div>
               {cell.trading && cell.data && (
-                <div style={{ fontSize: 9, color: c.fg, fontWeight: 800, textAlign: "right", lineHeight: 1 }}>
-                  {(cell.data.pnl >= 0 ? "+" : "") + (Math.abs(cell.data.pnl) >= 1000
-                    ? "$" + (cell.data.pnl / 1000).toFixed(1) + "k"
-                    : "$" + cell.data.pnl.toFixed(0))}
-                </div>
+                <>
+                  <div style={{ fontSize: 9, color: c.fg, fontWeight: 800, textAlign: "center", lineHeight: 1.2 }}>
+                    {cell.data.pnl >= 0 ? "+" : ""}
+                    {Math.abs(cell.data.pnl) >= 1000
+                      ? "$" + (cell.data.pnl / 1000).toFixed(1) + "k"
+                      : "$" + Math.abs(cell.data.pnl).toFixed(0)}
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "center", gap: 2 }}>
+                    <span style={{ fontSize: 8, color: c.fg, opacity: 0.75 }}>
+                      {cell.data.wins}W {cell.data.losses}L
+                    </span>
+                  </div>
+                </>
               )}
             </div>
           );
@@ -1803,10 +1819,18 @@ function CalendrierPnL({ dailyLog }) {
       </div>
 
       {/* Legende */}
-      <div style={{ display: "flex", justifyContent: "center", gap: 14, marginTop: 12, fontSize: 10, color: "#64748b" }}>
-        <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#10b981", borderRadius: 3, marginRight: 4, verticalAlign: "middle" }} />Gain</span>
-        <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#ef4444", borderRadius: 3, marginRight: 4, verticalAlign: "middle" }} />Perte</span>
-        <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#1a1a24", borderRadius: 3, marginRight: 4, verticalAlign: "middle" }} />Week-end</span>
+      <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
+        {[
+          { bg: "#16a34a", label: "Gros gain" },
+          { bg: "#052e16", label: "Petit gain", fg: "#4ade80" },
+          { bg: "#dc2626", label: "Grosse perte" },
+          { bg: "#2d0808", label: "Petite perte", fg: "#f87171" },
+        ].map(l => (
+          <span key={l.label} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: l.fg || "#94a3b8" }}>
+            <span style={{ display: "inline-block", width: 10, height: 10, background: l.bg, border: "1px solid " + (l.fg || "#fff") + "30", borderRadius: 3 }} />
+            {l.label}
+          </span>
+        ))}
       </div>
     </div>
   );
