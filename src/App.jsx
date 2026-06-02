@@ -299,18 +299,6 @@ export default function App() {
         useFixedLot: true, split: 80,
       }
     },
-    goldstrom_v5: {
-      label: "v5 - GoldPulse",
-      bt: { monthly: 4.28, dd: 6.6, sharpe: 4.67, pf: 2.10, trades: 187,
-            wr: 49.7, rr: 2.12, tpd: 0.36, clustering: 53, maxConsec: 9,
-            newsFilter: "FOMC CPI NFP PPI PCE - Blocage 30min avant / 60min apres" },
-      values: {
-        winrate: 50, tradesPerDay: 0.36, dailyTargetPct: 0.20,
-        riskPct: 0.2, clusteringPct: 53, maxConsecLosses: 9,
-        instrument: "XAUUSD", lotSize: 0.1, slPips: 150,
-        useFixedLot: true, split: 80,
-      }
-    },
     goldstrom_v5s: {
       label: "v5 Safe",
       bt: { monthly: 3.11, dd: 3.7, sharpe: 4.05, pf: 2.12, trades: 143,
