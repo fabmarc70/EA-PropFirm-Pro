@@ -73,9 +73,13 @@ function makeTradeStream(winrate, clustering, maxConsecLosses) {
 
 function simulateDay(equity, tradesPerDay, riskAmount, rr, nextTrade, dailyDDLimit) {
   let dayEquity = equity;
-  let dayLowPnl = 0; // pire perte cumulee intraday
+  let dayLowPnl = 0;
   let wins = 0, losses = 0;
-  for (let t = 0; t < tradesPerDay; t++) {
+  // Support fractionnel : 0.33 trade/jour = 1 trade avec P=0.33
+  const nTrades = tradesPerDay < 1
+    ? (Math.random() < tradesPerDay ? 1 : 0)
+    : Math.round(tradesPerDay);
+  for (let t = 0; t < nTrades; t++) {
     const win = nextTrade();
     if (win) { dayEquity += riskAmount * rr; wins++; }
     else { dayEquity -= riskAmount; losses++; }
@@ -280,11 +284,73 @@ export default function App() {
   const [maxConsecLosses, setMaxConsecLosses] = useState(saved.maxConsecLosses ?? 4);
   const [split, setSplit] = useState(saved.split ?? 80);
   const [fundedMonths, setFundedMonths] = useState(saved.fundedMonths ?? 12);
+  const [activePreset, setActivePreset] = useState(saved.activePreset ?? "custom");
+
+  // PRESETS EA connus
+  const PRESETS = {
+    custom: { label: "Manuel", icon: "" },
+    goldstrom_v4: {
+      label: "v4 - Goldstrom",
+      bt: { monthly: 3.30, dd: 5.9, sharpe: 3.97, pf: 1.98, trades: 172 },
+      values: {
+        winrate: 48, tradesPerDay: 0.33, dailyTargetPct: 0.16,
+        riskPct: 0.2, clusteringPct: 35, maxConsecLosses: 4,
+        instrument: "XAUUSD", lotSize: 0.1, slPips: 150,
+        useFixedLot: true, split: 80,
+      }
+    },
+    goldstrom_v5: {
+      label: "v5 - GoldPulse",
+      bt: { monthly: 4.28, dd: 6.6, sharpe: 4.67, pf: 2.10, trades: 187,
+            wr: 49.7, rr: 2.12, tpd: 0.36, clustering: 53, maxConsec: 9,
+            newsFilter: "FOMC CPI NFP PPI PCE - Blocage 30min avant / 60min apres" },
+      values: {
+        winrate: 50, tradesPerDay: 0.36, dailyTargetPct: 0.20,
+        riskPct: 0.2, clusteringPct: 53, maxConsecLosses: 9,
+        instrument: "XAUUSD", lotSize: 0.1, slPips: 150,
+        useFixedLot: true, split: 80,
+      }
+    },
+    goldstrom_v5s: {
+      label: "v5 Safe",
+      bt: { monthly: 3.11, dd: 3.7, sharpe: 4.05, pf: 2.12, trades: 143,
+            wr: 47.6, rr: 2.12, tpd: 0.28, clustering: 40, maxConsec: 5,
+            newsFilter: "FOMC CPI NFP PPI PCE - Blocage 30min avant / 60min apres",
+            note: "Max 2 trades/jour | Max 1 entree/session | RR 2.8/1.8" },
+      values: {
+        winrate: 48, tradesPerDay: 0.28, dailyTargetPct: 0.15,
+        riskPct: 0.2, clusteringPct: 40, maxConsecLosses: 5,
+        instrument: "XAUUSD", lotSize: 0.1, slPips: 150,
+        useFixedLot: true, split: 80,
+      }
+    },
+  };
+
+  const applyPreset = (key) => {
+    const p = PRESETS[key];
+    if (!p || !p.values) { setActivePreset("custom"); return; }
+    const v = p.values;
+    setWinrate(v.winrate ?? winrate);
+    setTradesPerDay(v.tradesPerDay ?? tradesPerDay);
+    setDailyTargetPct(v.dailyTargetPct ?? dailyTargetPct);
+    setRiskPct(v.riskPct ?? riskPct);
+    setClusteringPct(v.clusteringPct ?? clusteringPct);
+    setMaxConsecLosses(v.maxConsecLosses ?? maxConsecLosses);
+    if (v.instrument !== undefined) setInstrument(v.instrument);
+    if (v.lotSize !== undefined) setLotSize(v.lotSize);
+    if (v.slPips !== undefined) setSlPips(v.slPips);
+    if (v.useFixedLot !== undefined) setUseFixedLot(v.useFixedLot);
+    if (v.split !== undefined) setSplit(v.split);
+    if (v.newsImpact !== undefined) setNewsImpact(v.newsImpact);
+    setActivePreset(key);
+    setSeed(s => s + 1);
+  };
   // LOT / INSTRUMENT
   const [instrument, setInstrument] = useState(saved.instrument ?? "XAUUSD");
   const [lotSize, setLotSize] = useState(saved.lotSize ?? 0.1);
   const [slPips, setSlPips] = useState(saved.slPips ?? 150);
   const [useFixedLot, setUseFixedLot] = useState(saved.useFixedLot ?? false);
+  const [newsImpact, setNewsImpact] = useState(saved.newsImpact ?? false); // réduit le split pour les trades en fenêtre news
   const [tab, setTab] = useState("challenge");
   const [sim, setSim] = useState(null);
   const [seed, setSeed] = useState(0);
@@ -296,7 +362,7 @@ export default function App() {
       const configToSave = {
         modelKey, capital, riskPct: useFixedLot ? lotRiskPct : riskPct, dailyTargetPct, winrate,
         tradesPerDay, clusteringPct, maxConsecLosses, split, fundedMonths,
-        instrument, lotSize, slPips, useFixedLot
+        instrument, lotSize, slPips, useFixedLot, newsImpact, activePreset
       };
       localStorage.setItem("eapropfirm_config", JSON.stringify(configToSave));
       setSaveStatus("Enregistre");
@@ -350,10 +416,17 @@ export default function App() {
   //             = tradesPerDay × effectiveRiskAmount × (w×finalRR - (1-w))
   const expectedDailyPnL = tradesPerDay * effectiveRiskAmount * (w * finalRR - (1 - w));
 
+  // Impact news : ~15% des trades touchés par la fenêtre news (estimation)
+  // Sur ces trades : gains réduits à 40% → impact effectif sur split
+  const newsRatio = 0.15; // ~15% des trades en fenêtre news (FOMC, NFP, CPI...)
+  const effectiveSplitRate = newsImpact
+    ? splitRate * (1 - newsRatio + newsRatio * 0.4)  // 85% normal + 15% × 40%
+    : splitRate;
+
   const p = {
     tradesPerDay,
-    riskPct:        effectiveRisk,        // fraction (ex: 0.006)
-    rr:             finalRR,              // RR nécessaire
+    riskPct:        effectiveRisk,
+    rr:             finalRR,
     winrate,
     clustering,
     maxConsecLosses,
@@ -369,7 +442,7 @@ export default function App() {
       phaseResults.push(r);
       if (r.status !== "passed") allPassed = false;
     }
-    const funded = allPassed ? simulateFunded(capital, fundedMonths, model, p, splitRate) : null;
+    const funded = allPassed ? simulateFunded(capital, fundedMonths, model, p, effectiveSplitRate) : null;
 
     let challengeReward = 0;
     if (allPassed) {
@@ -378,7 +451,7 @@ export default function App() {
       });
     }
     setSim({ phaseResults, funded, allPassed, challengeReward });
-  }, [modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, splitRate, fundedMonths, seed, useFixedLot, lotSize, slPips, instrument]);
+  }, [modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, splitRate, fundedMonths, seed, useFixedLot, lotSize, slPips, instrument, newsImpact]);
 
   const netResult = () => {
     if (!sim) return null;
@@ -596,6 +669,55 @@ export default function App() {
         <div style={{ height: 14, marginTop: 2 }}>
           {saveStatus && <span style={{ fontSize: 10, color: "#6ee7b7", opacity: 0.8 }}>✓ {saveStatus}</span>}
         </div>
+      </div>
+
+      {/* PRESETS */}
+      <div className="card" style={{ borderLeft: "3px solid #a78bfa" }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#a78bfa", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Configuration EA</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {Object.keys(PRESETS).map(key => (
+            <button key={key}
+              onClick={() => applyPreset(key)}
+              style={{
+                padding: "7px 12px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 700,
+                background: activePreset === key ? "#a78bfa" : "#111118",
+                color: activePreset === key ? "#080810" : "#64748b",
+                border: "1px solid " + (activePreset === key ? "#a78bfa" : "#1e1e2e"),
+                transition: "all .15s",
+              }}>
+              {PRESETS[key].icon} {PRESETS[key].label}
+            </button>
+          ))}
+        </div>
+        {activePreset !== "custom" && PRESETS[activePreset].bt && (() => {
+          const bt = PRESETS[activePreset].bt;
+          const pr = PRESETS[activePreset];
+          return (
+            <div style={{ marginTop: 8, background: "#0d0816", border: "1px solid #a78bfa30", borderRadius: 8, padding: "9px 10px", fontSize: 10, color: "#94a3b8", lineHeight: 1.8 }}>
+              <b style={{ color: "#a78bfa", fontSize: 11 }}>{pr.label}</b>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, marginTop: 6 }}>
+                {[
+                  { l: "Mensuel BT", v: "+" + bt.monthly + "%", c: "#6ee7b7" },
+                  { l: "DD max BT", v: bt.dd + "%", c: bt.dd > 6 ? "#fbbf24" : "#6ee7b7" },
+                  { l: "Sharpe", v: bt.sharpe, c: "#93c5fd" },
+                  { l: "PF", v: bt.pf, c: "#6ee7b7" },
+                  { l: "Trades", v: bt.trades, c: "#e2e8f0" },
+                  { l: "WR", v: (bt.wr || "-") + "%", c: "#fbbf24" },
+                ].map(s => (
+                  <div key={s.l} style={{ background: "#111118", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
+                    <div style={{ fontSize: 8, color: "#475569" }}>{s.l}</div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: s.c }}>{s.v}</div>
+                  </div>
+                ))}
+              </div>
+              {bt.newsFilter && (
+                <div style={{ marginTop: 6, fontSize: 9, color: "#475569" }}>
+                  Filtre news: {bt.newsFilter}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* MODELE */}
@@ -839,6 +961,35 @@ export default function App() {
 
         {/* Diagnostic de compatibilité FundedNext */}
         {lotDiagJSX}
+
+        {/* TOGGLE IMPACT ANNONCES NEWS */}
+        <div style={{ marginTop: 10, borderTop: "1px solid #1e1e2e", paddingTop: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: newsImpact ? "#ef4444" : "#64748b", textTransform: "uppercase", letterSpacing: 1 }}>
+                Impact annonces news
+              </div>
+              <div style={{ fontSize: 9, color: "#475569", marginTop: 2, lineHeight: 1.4 }}>
+                FundedNext: gains reduits a 40% si trade en fenetres news (+/-5min)
+              </div>
+            </div>
+            <div onClick={() => setNewsImpact(v => !v)} style={{
+              width: 36, height: 20, borderRadius: 10, background: newsImpact ? "#ef4444" : "#1e1e2e",
+              border: "1px solid " + (newsImpact ? "#ef4444" : "#2d2d3d"),
+              position: "relative", cursor: "pointer", transition: "all .2s", flexShrink: 0
+            }}>
+              <div style={{ position: "absolute", top: 2, left: newsImpact ? 18 : 2, width: 14, height: 14, borderRadius: 7, background: "#fff", transition: "all .2s" }} />
+            </div>
+          </div>
+          {newsImpact && (
+            <div style={{ marginTop: 6, background: "#2d0808", border: "1px solid #ef444430", borderRadius: 8, padding: "7px 10px", fontSize: 10, color: "#fca5a5", lineHeight: 1.5 }}>
+              Simulation: ~15% des trades touches par une annonce.<br/>
+              Split effectif reduit de {(splitRate * 100).toFixed(0)}% a {(effectiveSplitRate * 100).toFixed(1)}%
+              {" "}(85% normal + 15% x 40% = {(effectiveSplitRate * 100).toFixed(1)}%).<br/>
+              Pertes en news = 100% comptabilisees (deja inclus dans simulation).
+            </div>
+          )}
+        </div>
       </div>
 
       {/* PARAMETRES */}
@@ -882,7 +1033,7 @@ export default function App() {
           </div>
 
           {[
-            { label: "Trades/jour", val: tradesPerDay, set: setTradesPerDay, min: 1, max: 15, step: 1 },
+            { label: "Trades/jour", val: tradesPerDay, set: setTradesPerDay, min: 0.1, max: 15, step: 0.05 },
             { label: "Objectif/jour (%)", val: dailyTargetPct, set: setDailyTargetPct, min: 0.05, max: 1.5, step: 0.05 },
             { label: "Split (%)", val: split, set: setSplit, min: 80, max: 95, step: 5 },
             { label: "Mois Funded", val: fundedMonths, set: setFundedMonths, min: 1, max: 60, step: 1 },
