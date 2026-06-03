@@ -299,15 +299,17 @@ export default function App() {
         useFixedLot: true, split: 80,
       }
     },
-    goldstrom_v5s: {
-      label: "v5 Safe",
-      bt: { monthly: 3.11, dd: 3.7, sharpe: 4.05, pf: 2.12, trades: 143,
-            wr: 47.6, rr: 2.12, tpd: 0.28, clustering: 40, maxConsec: 5,
-            newsFilter: "FOMC CPI NFP PPI PCE - Blocage 30min avant / 60min apres",
-            note: "Max 2 trades/jour | Max 1 entree/session | RR 2.8/1.8" },
+    goldpulse_v20: {
+      label: "GoldPulse V20",
+      bt: { monthly: null, dd: 4.25, sharpe: null, pf: 1.55, trades: null,
+            wr: 47, rr: 1.75, tpd: 0.28, clustering: 40, maxConsec: 7,
+            pnl: 32.80, pireJour: -408, pireSemaine: -614,
+            violations: "0 violation DD jour | 0 violation max loss",
+            phase1: "10.1%", phase2: "29.8%",
+            newsFilter: "Filtre news actif | Risque strict actif" },
       values: {
-        winrate: 48, tradesPerDay: 0.28, dailyTargetPct: 0.15,
-        riskPct: 0.2, clusteringPct: 40, maxConsecLosses: 5,
+        winrate: 47, tradesPerDay: 0.28, dailyTargetPct: 0.14,
+        riskPct: 0.2, clusteringPct: 40, maxConsecLosses: 7,
         instrument: "XAUUSD", lotSize: 0.1, slPips: 150,
         useFixedLot: true, split: 80,
       }
@@ -685,12 +687,12 @@ export default function App() {
               <b style={{ color: "#a78bfa", fontSize: 11 }}>{pr.label}</b>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, marginTop: 6 }}>
                 {[
-                  { l: "Mensuel BT", v: "+" + bt.monthly + "%", c: "#6ee7b7" },
-                  { l: "DD max BT", v: bt.dd + "%", c: bt.dd > 6 ? "#fbbf24" : "#6ee7b7" },
-                  { l: "Sharpe", v: bt.sharpe, c: "#93c5fd" },
-                  { l: "PF", v: bt.pf, c: "#6ee7b7" },
-                  { l: "Trades", v: bt.trades, c: "#e2e8f0" },
+                  { l: "P&L total", v: (bt.pnl ? "+" + bt.pnl + "%" : bt.monthly ? "+" + bt.monthly + "%/m" : "-"), c: "#6ee7b7" },
+                  { l: "DD max BT", v: bt.dd + "%", c: bt.dd > 5 ? "#fbbf24" : "#6ee7b7" },
+                  { l: "PF", v: bt.pf, c: bt.pf >= 2 ? "#6ee7b7" : "#fbbf24" },
                   { l: "WR", v: (bt.wr || "-") + "%", c: "#fbbf24" },
+                  { l: "Streak max", v: bt.maxConsec, c: bt.maxConsec >= 7 ? "#fbbf24" : "#6ee7b7" },
+                  { l: "Sharpe", v: bt.sharpe || "-", c: "#93c5fd" },
                 ].map(s => (
                   <div key={s.l} style={{ background: "#111118", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
                     <div style={{ fontSize: 8, color: "#475569" }}>{s.l}</div>
@@ -698,9 +700,34 @@ export default function App() {
                   </div>
                 ))}
               </div>
+              {(bt.pireJour || bt.violations || bt.phase1) && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginTop: 4 }}>
+                  {bt.pireJour && <div style={{ background: "#111118", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
+                    <div style={{ fontSize: 8, color: "#475569" }}>Pire jour</div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#ef4444" }}>${bt.pireJour}</div>
+                  </div>}
+                  {bt.pireSemaine && <div style={{ background: "#111118", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
+                    <div style={{ fontSize: 8, color: "#475569" }}>Pire semaine</div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#ef4444" }}>${bt.pireSemaine}</div>
+                  </div>}
+                  {bt.phase1 && <div style={{ background: "#062318", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
+                    <div style={{ fontSize: 8, color: "#475569" }}>Phase 1 BT</div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#6ee7b7" }}>{bt.phase1}</div>
+                  </div>}
+                  {bt.phase2 && <div style={{ background: "#062318", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
+                    <div style={{ fontSize: 8, color: "#475569" }}>Phase 2 BT</div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#6ee7b7" }}>{bt.phase2}</div>
+                  </div>}
+                </div>
+              )}
+              {bt.violations && (
+                <div style={{ marginTop: 4, fontSize: 9, color: "#6ee7b7", background: "#062318", borderRadius: 6, padding: "3px 6px" }}>
+                  {bt.violations}
+                </div>
+              )}
               {bt.newsFilter && (
-                <div style={{ marginTop: 6, fontSize: 9, color: "#475569" }}>
-                  Filtre news: {bt.newsFilter}
+                <div style={{ marginTop: 4, fontSize: 9, color: "#475569" }}>
+                  {bt.newsFilter}
                 </div>
               )}
             </div>
