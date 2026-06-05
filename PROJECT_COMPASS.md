@@ -281,6 +281,15 @@ npm run build  # Doit afficher "✓ built in Xs", jamais "exited with 1"
 **Correction** : Analyse depth tracking (compter `{` vs `}` ligne par ligne)  
 **Prévention** : Après toute suppression de bloc, recompiler immédiatement
 
+
+### 2025-06 — Audit palette : couleurs de branding firm infiltrées dans l'UI
+**Contexte** : Audit automatique App.jsx vs PROJECT_COMPASS.md  
+**Erreur** : `#60a5fa` (bleu FTMO) et `#f59e0b` (orange Alpha Capital) utilisés dans des composants génériques (Dashboard Profit split, LOT AUTO badge, Login gradient)  
+**Cause** : Ces couleurs ont été copiées/réutilisées lors de développements rapides sans vérifier la palette  
+**Correction** : 4 corrections appliquées → `#6ee7b7` (accent unique) ou `#e2e8f0` (neutre) selon le contexte  
+**Prévention** : Audit automatique à chaque session via script Python (compter occurrences hors PROP_FIRMS/FIRM_)  
+**Règle ajoutée** : Un script d'audit est disponible — exécuter avant chaque push important
+
 ### 2025-05 — Bug verdict dashboard non visible en SSR
 **Contexte** : Verdict challenge calculé dans useEffect → invisible au rendu initial  
 **Erreur** : `verdict` = null au premier rendu SSR  
@@ -385,6 +394,11 @@ npm run build  # Doit afficher "✓ built in Xs", jamais "exited with 1"
 **Impact** : Verdict VIABLE / RISQUE ÉLEVÉ / INCOMPATIBLE basé sur WR réel + RR réel
 
 ### 2025-06-04 | onSimResult étendu avec données complètes
+### 2025-06 | Audit automatique palette colors avant chaque session
+**Décision** : Créer un script Python d'audit qui détecte les couleurs hors-palette dans App.jsx  
+**Pourquoi** : Les couleurs de branding des prop firms (#60a5fa, #f59e0b, etc.) s'infiltrent dans les composants génériques lors des développements rapides  
+**Impact** : Palette cohérente, accent unique `#6ee7b7`, identité visuelle respectée
+
 **Décision** : Passer 20+ métriques depuis SimulatorScreen vers Root/Dashboard  
 **Pourquoi** : Dashboard doit afficher des données réelles de simulation, pas des valeurs mockées  
 **Impact** : Progression, équity curve, stats trades, PnL log → tous alimentés par le vrai moteur
