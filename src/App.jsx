@@ -259,7 +259,7 @@ function makeT(lang) {
 const PROP_FIRMS = {
   fundednext: {
     name: "FundedNext",
-    color: "#6ee7b7",
+    color: "#C9922A",
     note: "Stellar 2026 - DD depuis solde initial - Reward 15% challenge",
     models: {
       "2step": {
@@ -335,7 +335,7 @@ const PROP_FIRMS = {
   },
   alpha: {
     name: "Alpha Capital",
-    color: "#6ee7b7",
+    color: "#C9922A",
     note: "Pro 8% - DD total 8% STATIC - News interdit +/-5min",
     models: {
       "2step": {
@@ -374,7 +374,7 @@ const PROP_FIRMS = {
   },
   fundingpips: {
     name: "FundingPips",
-    color: "#34d399",
+    color: "#D4A030",
     note: "2-Step Standard - DD total 10% STATIC - News non comptee +/-5min",
     models: {
       "2step": {
@@ -913,16 +913,16 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     if (!sim.funded) return null;
     if (sim.funded.status.startsWith("failed"))
       return { label: "COMPTE FERME", color: "#ef4444", bg: "#2d0808", emoji: "ROUGE" };
-    return { label: "COMPTE ACTIF", color: "#6ee7b7", bg: "#062318", emoji: "VERT" };
+    return { label: "COMPTE ACTIF", color: "#C9922A", bg: "#062318", emoji: "VERT" };
   };
   const gs = globalStatus();
   const dot = (e) => e === "VERT" ? "\u{1F7E2}" : e === "ORANGE" ? "\u{1F7E0}" : "\u{1F534}";
 
   const phaseIcon = (s) => {
-    if (s === "passed") return { icon: "\u2713", color: "#6ee7b7", bg: "#062318", label: "PASSE" };
+    if (s === "passed") return { icon: "\u2713", color: "#C9922A", bg: "#062318", label: "PASSE" };
     if (s === "running_ok") return { icon: "~", color: "#fbbf24", bg: "#2d1f08", label: "EN COURS" };
     if (s && s.startsWith("failed")) return { icon: "\u2717", color: "#ef4444", bg: "#2d0808", label: "ECHOUE" };
-    return { icon: "-", color: "#64748b", bg: "#111118", label: "N/A" };
+    return { icon: "-", color: "#8A7040", bg: "#111118", label: "N/A" };
   };
   const failReason = (s) => {
     if (s === "failed_daily_dd") return "DD journalier " + (model.dailyDD * 100) + "% depasse (intraday) - compte ferme";
@@ -1019,8 +1019,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
   const printReport = () => { const txt = buildReport(); if(txt) { const w=window.open("","_blank"); if(w){w.document.write("<pre>"+txt+"</pre>"); w.print();}} };
 
-  const wrColor = winrate >= 60 ? "#6ee7b7" : winrate >= 50 ? "#fbbf24" : "#ef4444";
-  const clColor = clusteringPct <= 25 ? "#6ee7b7" : clusteringPct <= 55 ? "#fbbf24" : "#ef4444";
+  const wrColor = winrate >= 60 ? "#C9922A" : winrate >= 50 ? "#fbbf24" : "#ef4444";
+  const clColor = clusteringPct <= 25 ? "#C9922A" : clusteringPct <= 55 ? "#fbbf24" : "#ef4444";
 
   const _d = useFixedLot ? (() => {
     const md = lotRiskAmount * tradesPerDay;
@@ -1035,18 +1035,18 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   })() : null;
   const lotDiagJSX = _d ? (
     <div style={{ marginTop: 8 }}>
-      <div style={{ fontSize: 10, fontWeight: 800, color: "#6ee7b7", marginBottom: 6, textTransform: "uppercase" }}>Diagnostic FundedNext</div>
+      <div style={{ fontSize: 10, fontWeight: 800, color: "#C9922A", marginBottom: 6, textTransform: "uppercase" }}>Diagnostic FundedNext</div>
       {_d.chks.map(([ok, l, v, e]) => (
-        <div key={l} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 6, background: ok ? "#062318" : "#2d0808", border: "1px solid " + (ok ? "#6ee7b730" : "#ef444430"), borderRadius: 8, padding: "7px 10px" }}>
-          <span style={{ fontSize: 12, color: ok ? "#6ee7b7" : "#ef4444" }}>{ok ? "+" : "x"}</span>
+        <div key={l} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 6, background: ok ? "#062318" : "#2d0808", border: "1px solid " + (ok ? "#C9922A30" : "#ef444430"), borderRadius: 8, padding: "7px 10px" }}>
+          <span style={{ fontSize: 12, color: ok ? "#C9922A" : "#ef4444" }}>{ok ? "+" : "x"}</span>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: ok ? "#6ee7b7" : "#ef4444" }}>{l}</div>
-            <div style={{ fontSize: 10, color: ok ? "#94a3b8" : "#fca5a5" }}>{ok ? v : e}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: ok ? "#C9922A" : "#ef4444" }}>{l}</div>
+            <div style={{ fontSize: 10, color: ok ? "#C4A068" : "#fca5a5" }}>{ok ? v : e}</div>
           </div>
         </div>
       ))}
-      <div style={{ background: lotRiskPct > 0.5 ? "#2d1f08" : "#062318", border: "1px solid " + (lotRiskPct > 0.5 ? "#6ee7b740" : "#6ee7b740"), borderRadius: 8, padding: "8px 10px", fontSize: 11 }}>
-        <b style={{ color: "#6ee7b7" }}>Resume: </b><span style={{ color: "#e2e8f0" }}>{_d.resume}</span>
+      <div style={{ background: lotRiskPct > 0.5 ? "#2d1f08" : "#062318", border: "1px solid " + (lotRiskPct > 0.5 ? "#C9922A40" : "#C9922A40"), borderRadius: 8, padding: "8px 10px", fontSize: 11 }}>
+        <b style={{ color: "#C9922A" }}>Resume: </b><span style={{ color: "#F0E4C8" }}>{_d.resume}</span>
       </div>
     </div>
   ) : null;
@@ -1072,26 +1072,26 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
 
   return (
-    <div style={{ fontFamily: "system-ui, sans-serif", color: "#e2e8f0" }}>
+    <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", color: "#F0E4C8" }}>
       <style>{`
         * { box-sizing: border-box; }
-        .card { background: #111118; border: 1px solid #1e1e2e; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
-        .tab-btn { padding: 7px 12px; border-radius: 8px; border: none; cursor: pointer; font-size: 11px; font-weight: 800; }
-        .tab-btn.on { background: #6ee7b7; color: #080810; }
-        .tab-btn.off { background: #111118; color: #64748b; border: 1px solid #1e1e2e; }
-        .model-btn { flex: 1; padding: 9px 4px; border-radius: 8px; cursor: pointer; font-size: 10px; font-weight: 800; border: 1px solid #1e1e2e; }
-        .model-btn.on { background: #6ee7b7; color: #080810; border-color: #6ee7b7; }
-        .model-btn.off { background: #111118; color: #64748b; }
-        input[type=range] { width: 100%; accent-color: #6ee7b7; margin-top: 3px; }
-        input[type=number] { background: #080810; border: 1px solid #1e1e2e; border-radius: 6px; color: #e2e8f0; padding: 5px 8px; width: 100%; font-size: 13px; }
-        .row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid #1e1e2e; font-size: 12px; }
+        .card { background: #110C02; border: 1px solid rgba(201,146,42,0.14); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+        .tab-btn { padding: 7px 12px; border-radius: 8px; border: none; cursor: pointer; font-size: 11px; font-weight: 700; font-family: 'DM Sans', sans-serif; }
+        .tab-btn.on { background: linear-gradient(135deg,#C9922A,#F5C842); color: #1A0800; }
+        .tab-btn.off { background: rgba(201,146,42,0.06); color: rgba(201,146,42,0.45); border: 1px solid rgba(201,146,42,0.12); }
+        .model-btn { flex: 1; padding: 9px 4px; border-radius: 8px; cursor: pointer; font-size: 10px; font-weight: 700; font-family: 'DM Sans', sans-serif; border: 1px solid rgba(201,146,42,0.14); }
+        .model-btn.on { background: linear-gradient(135deg,#C9922A,#F5C842); color: #1A0800; border-color: #C9922A; }
+        .model-btn.off { background: rgba(201,146,42,0.05); color: rgba(201,146,42,0.4); }
+        input[type=range] { width: 100%; accent-color: #C9922A; margin-top: 3px; }
+        input[type=number] { background: rgba(201,146,42,0.06); border: 1px solid rgba(201,146,42,0.16); border-radius: 8px; color: #F0E4C8; padding: 5px 8px; width: 100%; font-size: 13px; font-family: 'DM Sans', sans-serif; }
+        .row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid rgba(201,146,42,0.08); font-size: 12px; }
         .row:last-child { border-bottom: none; }
-        .tag { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 10px; font-weight: 800; }
-        .kpi { background: #0a0a14; border-radius: 8px; padding: 10px; }
+        .tag { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; font-family: 'DM Sans', sans-serif; }
+        .kpi { background: rgba(201,146,42,0.06); border: 1px solid rgba(201,146,42,0.10); border-radius: 10px; padding: 10px; }
       `}</style>
 
       <div style={{ height: 14 }}>
-        {saveStatus && <span style={{ fontSize: 10, color: "#6ee7b7", opacity: 0.8 }}>✓ {saveStatus}</span>}
+        {saveStatus && <span style={{ fontSize: 10, color: "#C9922A", opacity: 0.8 }}>✓ {saveStatus}</span>}
       </div>
 
       {/* Toggle Challenge / Funded (vue simulateur uniquement) */}
@@ -1101,7 +1101,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             <button key={tg.id} onClick={() => setTab(tg.id)} style={{
               flex: 1, padding: "11px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 800,
               background: tab === tg.id ? firm.color : "#111118",
-              color: tab === tg.id ? "#080810" : "#64748b",
+              color: tab === tg.id ? "#080810" : "#8A7040",
               border: "1px solid " + (tab === tg.id ? firm.color : "#1e1e2e"),
             }}>{tg.label}</button>
           ))}
@@ -1111,17 +1111,17 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       {/* ══ CARTES CONFIG — vue simulateur uniquement (Challenge/Funded) ══ */}
       {(tab === "challenge" || tab === "funded") && (<>
       {/* PRESETS */}
-      <div className="card" style={{ borderLeft: "3px solid #6ee7b7" }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: "#6ee7b7", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Configuration EA</div>
+      <div className="card" style={{ borderLeft: "3px solid #C9922A" }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#C9922A", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Configuration EA</div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {Object.keys(PRESETS).map(key => (
             <button key={key}
               onClick={() => applyPreset(key)}
               style={{
                 padding: "7px 12px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 700,
-                background: activePreset === key ? "#6ee7b7" : "#111118",
-                color: activePreset === key ? "#080810" : "#94a3b8",
-                border: "1px solid " + (activePreset === key ? "#6ee7b7" : "#1e1e2e"),
+                background: activePreset === key ? "#C9922A" : "#111118",
+                color: activePreset === key ? "#080810" : "#C4A068",
+                border: "1px solid " + (activePreset === key ? "#C9922A" : "#1e1e2e"),
                 transition: "all .15s",
               }}>
               {PRESETS[key].icon} {PRESETS[key].label}
@@ -1132,15 +1132,15 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           const bt = PRESETS[activePreset].bt;
           const pr = PRESETS[activePreset];
           return (
-            <div style={{ marginTop: 8, background: "#0d0816", border: "1px solid #a78bfa30", borderRadius: 8, padding: "9px 10px", fontSize: 10, color: "#94a3b8", lineHeight: 1.8 }}>
+            <div style={{ marginTop: 8, background: "#0d0816", border: "1px solid #a78bfa30", borderRadius: 8, padding: "9px 10px", fontSize: 10, color: "#C4A068", lineHeight: 1.8 }}>
               <b style={{ color: "#a78bfa", fontSize: 11 }}>{pr.label}</b>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, marginTop: 6 }}>
                 {[
-                  { l: "P&L total", v: (bt.pnl ? "+" + bt.pnl + "%" : bt.monthly ? "+" + bt.monthly + "%/m" : "-"), c: "#6ee7b7" },
-                  { l: "DD max BT", v: bt.dd + "%", c: bt.dd > 5 ? "#fbbf24" : "#6ee7b7" },
-                  { l: "PF", v: bt.pf, c: bt.pf >= 2 ? "#6ee7b7" : "#fbbf24" },
-                  { l: "WR", v: (bt.wr || "-") + "%", c: "#e2e8f0" },
-                  { l: "Streak max", v: bt.maxConsec, c: bt.maxConsec >= 7 ? "#fbbf24" : "#6ee7b7" },
+                  { l: "P&L total", v: (bt.pnl ? "+" + bt.pnl + "%" : bt.monthly ? "+" + bt.monthly + "%/m" : "-"), c: "#C9922A" },
+                  { l: "DD max BT", v: bt.dd + "%", c: bt.dd > 5 ? "#fbbf24" : "#C9922A" },
+                  { l: "PF", v: bt.pf, c: bt.pf >= 2 ? "#C9922A" : "#fbbf24" },
+                  { l: "WR", v: (bt.wr || "-") + "%", c: "#F0E4C8" },
+                  { l: "Streak max", v: bt.maxConsec, c: bt.maxConsec >= 7 ? "#fbbf24" : "#C9922A" },
                   { l: "Sharpe", v: bt.sharpe || "-", c: "#93c5fd" },
                 ].map(s => (
                   <div key={s.l} style={{ background: "#111118", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
@@ -1161,16 +1161,16 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                   </div>}
                   {bt.phase1 && <div style={{ background: "#062318", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
                     <div style={{ fontSize: 8, color: "#475569" }}>Phase 1 BT</div>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: "#6ee7b7" }}>{bt.phase1}</div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#C9922A" }}>{bt.phase1}</div>
                   </div>}
                   {bt.phase2 && <div style={{ background: "#062318", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
                     <div style={{ fontSize: 8, color: "#475569" }}>Phase 2 BT</div>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: "#6ee7b7" }}>{bt.phase2}</div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#C9922A" }}>{bt.phase2}</div>
                   </div>}
                 </div>
               )}
               {bt.violations && (
-                <div style={{ marginTop: 4, fontSize: 9, color: "#6ee7b7", background: "#062318", borderRadius: 6, padding: "3px 6px" }}>
+                <div style={{ marginTop: 4, fontSize: 9, color: "#C9922A", background: "#062318", borderRadius: 6, padding: "3px 6px" }}>
                   {bt.violations}
                 </div>
               )}
@@ -1194,7 +1194,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               style={{
                 padding: "7px 11px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 700,
                 background: firmKey === k ? PROP_FIRMS[k].color : "#111118",
-                color: firmKey === k ? "#080810" : "#64748b",
+                color: firmKey === k ? "#080810" : "#8A7040",
                 border: "1px solid " + (firmKey === k ? PROP_FIRMS[k].color : "#1e1e2e"),
                 transition: "all .15s",
               }}>
@@ -1217,13 +1217,13 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             <button key={k} className={"model-btn " + (safeModelKey === k ? "on" : "off")} onClick={() => setModelKey(k)}
               style={{ flex: "1 1 auto", minWidth: 80,
                 background: safeModelKey === k ? firm.color : "#111118",
-                color: safeModelKey === k ? "#080810" : "#64748b",
+                color: safeModelKey === k ? "#080810" : "#8A7040",
                 borderColor: safeModelKey === k ? firm.color : "#1e1e2e" }}>
               {firmModels[k].name.replace(firm.name + " ", "").replace("Stellar ", "")}
             </button>
           ))}
         </div>
-        <div style={{ marginTop: 8, fontSize: 10, color: "#64748b", lineHeight: 1.5 }}>
+        <div style={{ marginTop: 8, fontSize: 10, color: "#8A7040", lineHeight: 1.5 }}>
           {model.phases.map(ph => ph.label + " " + (ph.target * 100) + "%").join(" / ")}
           {" - DD jour " + (model.dailyDD * 100) + "% - DD total " + (model.totalDD * 100) + "% (" + (model.ddType === "trailing" ? "trailing" : "fixe") + ")"}
         </div>
@@ -1236,7 +1236,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </div>
         )}
         {model.newsForbidden && (
-          <div style={{ marginTop: 8, background: "#2d1f08", border: "1px solid #6ee7b740", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: "#fbbf24", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, background: "#2d1f08", border: "1px solid #C9922A40", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: "#fbbf24", lineHeight: 1.5 }}>
             NEWS TRADING & HFT INTERDITS sur cette firm. Active "Impact news" pour simuler.
           </div>
         )}
@@ -1247,7 +1247,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         <div style={{ background: gs.bg, border: "1px solid " + gs.color + "30", borderRadius: 10, padding: "12px 16px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 15, fontWeight: 800, color: gs.color }}>{gs.label}</div>
-            <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>
+            <div style={{ fontSize: 10, color: "#8A7040", marginTop: 2 }}>
               {bilan ? "Resultat net : " + fmt2(bilan.net) : "Resultat challenge"}
             </div>
           </div>
@@ -1257,22 +1257,22 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
       {/* CARTE DRAWDOWN ESTIME */}
       {dda && (
-        <div className="card" style={{ borderLeft: "3px solid " + (dda.simMaxDD < model.totalDD * 50 ? "#6ee7b7" : dda.simMaxDD < model.totalDD * 75 ? "#fbbf24" : "#ef4444") }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: "#e2e8f0", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>
+        <div className="card" style={{ borderLeft: "3px solid " + (dda.simMaxDD < model.totalDD * 50 ? "#C9922A" : dda.simMaxDD < model.totalDD * 75 ? "#fbbf24" : "#ef4444") }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: "#F0E4C8", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>
             Analyse Drawdown - Ta config
           </div>
 
           {/* Jauge DD */}
           <div style={{ marginBottom: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
-              <span style={{ color: "#64748b" }}>DD atteint cette simulation</span>
-              <span style={{ fontWeight: 800, color: dda.simMaxDD < model.totalDD * 100 * 0.5 ? "#6ee7b7" : dda.simMaxDD < model.totalDD * 100 * 0.75 ? "#fbbf24" : "#ef4444" }}>
+              <span style={{ color: "#8A7040" }}>DD atteint cette simulation</span>
+              <span style={{ fontWeight: 800, color: dda.simMaxDD < model.totalDD * 100 * 0.5 ? "#C9922A" : dda.simMaxDD < model.totalDD * 100 * 0.75 ? "#fbbf24" : "#ef4444" }}>
                 {dda.simMaxDD.toFixed(2)}% ({fmt2(dda.simMaxDDAmount)})
               </span>
             </div>
             <div style={{ background: "#1e1e2e", borderRadius: 8, height: 18, overflow: "hidden", position: "relative" }}>
               {/* Zone verte 0-50% de la limite */}
-              <div style={{ position: "absolute", left: 0, top: 0, width: "50%", height: "100%", background: "#06231820", borderRight: "1px dashed #6ee7b730" }} />
+              <div style={{ position: "absolute", left: 0, top: 0, width: "50%", height: "100%", background: "#06231820", borderRight: "1px dashed #C9922A30" }} />
               {/* Zone orange 50-80% */}
               <div style={{ position: "absolute", left: "50%", top: 0, width: "30%", height: "100%", background: "#2d1f0820", borderRight: "1px dashed #fbbf2430" }} />
               {/* Zone rouge 80-100% */}
@@ -1281,7 +1281,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               <div style={{
                 position: "absolute", left: 0, top: 0, height: "100%",
                 width: Math.min(100, (dda.simMaxDD / (model.totalDD * 100)) * 100) + "%",
-                background: dda.simMaxDD < model.totalDD * 100 * 0.5 ? "#6ee7b7" : dda.simMaxDD < model.totalDD * 100 * 0.75 ? "#fbbf24" : "#ef4444",
+                background: dda.simMaxDD < model.totalDD * 100 * 0.5 ? "#C9922A" : dda.simMaxDD < model.totalDD * 100 * 0.75 ? "#fbbf24" : "#ef4444",
                 borderRadius: 8, transition: "width 0.5s"
               }} />
               {/* Label limite */}
@@ -1291,7 +1291,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#475569", marginTop: 2 }}>
               <span>0%</span>
-              <span style={{ color: "#6ee7b7" }}>Zone safe</span>
+              <span style={{ color: "#C9922A" }}>Zone safe</span>
               <span style={{ color: "#fbbf24" }}>Attention</span>
               <span style={{ color: "#ef4444" }}>Danger</span>
             </div>
@@ -1300,18 +1300,18 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           {/* Stats */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <div className="kpi">
-              <div style={{ fontSize: 9, color: "#64748b" }}>Perte max 1 jour</div>
+              <div style={{ fontSize: 9, color: "#8A7040" }}>Perte max 1 jour</div>
               <div style={{ fontSize: 14, fontWeight: 800, color: "#fbbf24" }}>{dda.maxDayLossPct.toFixed(2)}%</div>
               <div style={{ fontSize: 9, color: "#475569" }}>{fmt2(dda.maxDayLoss)}</div>
             </div>
             <div className="kpi">
-              <div style={{ fontSize: 9, color: "#64748b" }}>Jours full-perte DD total</div>
+              <div style={{ fontSize: 9, color: "#8A7040" }}>Jours full-perte DD total</div>
               <div style={{ fontSize: 14, fontWeight: 800, color: "#ef4444" }}>{dda.daysToTotalDD}j</div>
               <div style={{ fontSize: 9, color: "#475569" }}>avant limite {(model.totalDD*100)}%</div>
             </div>
             <div className="kpi">
-              <div style={{ fontSize: 9, color: "#64748b" }}>DD journalier franchissable</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: dda.canBreachDaily ? "#ef4444" : "#6ee7b7" }}>
+              <div style={{ fontSize: 9, color: "#8A7040" }}>DD journalier franchissable</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: dda.canBreachDaily ? "#ef4444" : "#C9922A" }}>
                 {dda.canBreachDaily ? "OUI - RISQUE" : "NON - SAFE"}
               </div>
               <div style={{ fontSize: 9, color: "#475569" }}>
@@ -1321,8 +1321,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               </div>
             </div>
             <div className="kpi">
-              <div style={{ fontSize: 9, color: "#64748b" }}>Marge restante</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: dda.distancePct > 5 ? "#6ee7b7" : "#ef4444" }}>
+              <div style={{ fontSize: 9, color: "#8A7040" }}>Marge restante</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: dda.distancePct > 5 ? "#C9922A" : "#ef4444" }}>
                 {dda.distancePct > 0 ? dda.distancePct.toFixed(2) + "%" : "DEPASSE"}
               </div>
               <div style={{ fontSize: 9, color: "#475569" }}>{dda.distancePct > 0 ? fmt2(dda.distanceAmt) + " restants" : "compte ferme"}</div>
@@ -1330,10 +1330,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </div>
 
           <div style={{ marginTop: 10, background: "#0a0a14", borderRadius: 8, padding: "8px 10px", fontSize: 11, lineHeight: 1.5 }}>
-            <span style={{ color: "#64748b" }}>Lecture : </span>
+            <span style={{ color: "#8A7040" }}>Lecture : </span>
             {dda.canBreachDaily
               ? <span style={{ color: "#ef4444" }}>Attention - avec {tradesPerDay} trades a {riskPct}% tu peux declencher le DD journalier en 1 seule journee. Reduis le risque/trade ou le nombre de trades.</span>
-              : <span style={{ color: "#6ee7b7" }}>Securise - le DD journalier {(model.dailyDD*100)}% est inatteignable en 1 jour avec ta config ({dda.maxDayLossPct.toFixed(2)}% max). Seule une accumulation sur {dda.daysToTotalDD}+ jours perdants peut te sortir.</span>
+              : <span style={{ color: "#C9922A" }}>Securise - le DD journalier {(model.dailyDD*100)}% est inatteignable en 1 jour avec ta config ({dda.maxDayLossPct.toFixed(2)}% max). Seule une accumulation sur {dda.daysToTotalDD}+ jours perdants peut te sortir.</span>
             }
           </div>
         </div>
@@ -1361,34 +1361,34 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           <span style={{ fontSize: 24, fontWeight: 800, color: clColor }}>{clusteringPct}%</span>
         </div>
         <input type="range" min={0} max={100} step={5} value={clusteringPct} onChange={e => setClusteringPct(parseInt(e.target.value))} />
-        <div style={{ marginTop: 8, fontSize: 10, color: "#64748b", lineHeight: 1.5 }}>
+        <div style={{ marginTop: 8, fontSize: 10, color: "#8A7040", lineHeight: 1.5 }}>
           0% = trades independants (theorique). Plus c'est haut, plus les pertes arrivent en
           <b style={{ color: clColor }}> series noires</b>. Recommande : 35-50%.
         </div>
 
         <div style={{ marginTop: 12, borderTop: "1px solid #1e1e2e", paddingTop: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: "#6ee7b7", textTransform: "uppercase", letterSpacing: 1 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: "#C9922A", textTransform: "uppercase", letterSpacing: 1 }}>
               Max pertes consecutives EA
             </span>
-            <span style={{ fontSize: 24, fontWeight: 800, color: "#6ee7b7" }}>{maxConsecLosses}</span>
+            <span style={{ fontSize: 24, fontWeight: 800, color: "#C9922A" }}>{maxConsecLosses}</span>
           </div>
-          <input type="range" min={1} max={20} step={1} value={maxConsecLosses} onChange={e => setMaxConsecLosses(parseInt(e.target.value))} style={{ accentColor: "#6ee7b7" }} />
+          <input type="range" min={1} max={20} step={1} value={maxConsecLosses} onChange={e => setMaxConsecLosses(parseInt(e.target.value))} style={{ accentColor: "#C9922A" }} />
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#475569", marginTop: 2 }}>
             <span>1</span><span>5</span><span>10</span><span>20</span>
           </div>
-          <div style={{ marginTop: 8, background: "#062318", border: "1px solid #6ee7b730", borderRadius: 8, padding: "8px 10px", fontSize: 11, lineHeight: 1.6 }}>
-            <div style={{ color: "#6ee7b7", fontWeight: 700, marginBottom: 4 }}>Avec ton EA (max {maxConsecLosses} pertes)</div>
-            <div style={{ color: "#e2e8f0" }}>
+          <div style={{ marginTop: 8, background: "#062318", border: "1px solid #C9922A30", borderRadius: 8, padding: "8px 10px", fontSize: 11, lineHeight: 1.6 }}>
+            <div style={{ color: "#C9922A", fontWeight: 700, marginBottom: 4 }}>Avec ton EA (max {maxConsecLosses} pertes)</div>
+            <div style={{ color: "#F0E4C8" }}>
               Perte max en serie : <b style={{ color: "#fbbf24" }}>{(maxConsecLosses * effectiveRiskPct).toFixed(2)}%</b>
               {" = "}<b style={{ color: "#fbbf24" }}>{(maxConsecLosses * effectiveRiskAmount).toFixed(0)}$</b>
             </div>
-            <div style={{ color: "#e2e8f0" }}>
+            <div style={{ color: "#F0E4C8" }}>
               Series pour atteindre DD 10% : <b style={{ color: "#ef4444" }}>
                 {Math.ceil(capital * model.totalDD / (maxConsecLosses * effectiveRiskAmount)).toFixed(0)} series perdantes
               </b> sans aucun gain
             </div>
-            <div style={{ color: "#6ee7b7", fontSize: 10, marginTop: 4 }}>
+            <div style={{ color: "#C9922A", fontSize: 10, marginTop: 4 }}>
               {(maxConsecLosses * effectiveRiskPct) < model.dailyDD * 100
                 ? "DD journalier " + (model.dailyDD * 100) + "% INATTEIGNABLE en 1 jour avec cette config"
                 : "Attention : serie max " + (maxConsecLosses * riskPct).toFixed(2) + "% > DD jour " + (model.dailyDD * 100) + "%"}
@@ -1398,14 +1398,14 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       </div>
 
       {/* CARTE LOT / INSTRUMENT */}
-      <div className="card" style={{ borderLeft: "3px solid #6ee7b7" }}>
+      <div className="card" style={{ borderLeft: "3px solid #C9922A" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <span style={{ fontSize: 11, fontWeight: 800, color: "#6ee7b7", textTransform: "uppercase", letterSpacing: 1 }}>Lot & Instrument</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: "#C9922A", textTransform: "uppercase", letterSpacing: 1 }}>Lot & Instrument</span>
           <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-            <span style={{ fontSize: 10, color: "#64748b" }}>Activer</span>
+            <span style={{ fontSize: 10, color: "#8A7040" }}>Activer</span>
             <div onClick={() => setUseFixedLot(v => !v)} style={{
-              width: 36, height: 20, borderRadius: 10, background: useFixedLot ? "#6ee7b7" : "#1e1e2e",
-              border: "1px solid " + (useFixedLot ? "#6ee7b7" : "#2d2d3d"),
+              width: 36, height: 20, borderRadius: 10, background: useFixedLot ? "#C9922A" : "#1e1e2e",
+              border: "1px solid " + (useFixedLot ? "#C9922A" : "#2d2d3d"),
               position: "relative", cursor: "pointer", transition: "all .2s"
             }}>
               <div style={{ position: "absolute", top: 2, left: useFixedLot ? 18 : 2, width: 14, height: 14, borderRadius: 7, background: "#fff", transition: "all .2s" }} />
@@ -1416,9 +1416,9 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
           {/* Instrument */}
           <div>
-            <div style={{ fontSize: 10, color: "#64748b", marginBottom: 3, fontWeight: 700 }}>Instrument</div>
+            <div style={{ fontSize: 10, color: "#8A7040", marginBottom: 3, fontWeight: 700 }}>Instrument</div>
             <select value={instrument} onChange={e => setInstrument(e.target.value)}
-              style={{ background: "#080810", border: "1px solid #1e1e2e", borderRadius: 6, color: "#e2e8f0", padding: "5px 4px", width: "100%", fontSize: 12 }}>
+              style={{ background: "#080810", border: "1px solid #1e1e2e", borderRadius: 6, color: "#F0E4C8", padding: "5px 4px", width: "100%", fontSize: 12 }}>
               {["XAUUSD","EURUSD","GBPUSD","USDJPY","GBPJPY","NAS100","US30","SP500"].map(i => (
                 <option key={i} value={i}>{i}</option>
               ))}
@@ -1426,17 +1426,17 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </div>
           {/* Lot */}
           <div>
-            <div style={{ fontSize: 10, color: "#64748b", marginBottom: 3, fontWeight: 700 }}>Lot size</div>
+            <div style={{ fontSize: 10, color: "#8A7040", marginBottom: 3, fontWeight: 700 }}>Lot size</div>
             <input type="number" value={lotSize} min={0.01} max={10} step={0.01}
               onChange={e => setLotSize(parseFloat(e.target.value) || 0.01)}
-              style={{ background: "#080810", border: "1px solid #1e1e2e", borderRadius: 6, color: "#e2e8f0", padding: "5px 6px", width: "100%", fontSize: 13 }} />
+              style={{ background: "#080810", border: "1px solid #1e1e2e", borderRadius: 6, color: "#F0E4C8", padding: "5px 6px", width: "100%", fontSize: 13 }} />
           </div>
           {/* SL pips */}
           <div>
-            <div style={{ fontSize: 10, color: "#64748b", marginBottom: 3, fontWeight: 700 }}>SL (pips)</div>
+            <div style={{ fontSize: 10, color: "#8A7040", marginBottom: 3, fontWeight: 700 }}>SL (pips)</div>
             <input type="number" value={slPips} min={1} max={5000} step={1}
               onChange={e => setSlPips(parseInt(e.target.value) || 1)}
-              style={{ background: "#080810", border: "1px solid #1e1e2e", borderRadius: 6, color: "#e2e8f0", padding: "5px 6px", width: "100%", fontSize: 13 }} />
+              style={{ background: "#080810", border: "1px solid #1e1e2e", borderRadius: 6, color: "#F0E4C8", padding: "5px 6px", width: "100%", fontSize: 13 }} />
           </div>
         </div>
 
@@ -1444,18 +1444,18 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         <div style={{ background: "#0a0a14", borderRadius: 8, padding: 10, marginBottom: useFixedLot ? 10 : 0 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 9, color: "#64748b" }}>Risque/trade</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: "#6ee7b7" }}>{fmt2(lotRiskAmount)}</div>
+              <div style={{ fontSize: 9, color: "#8A7040" }}>Risque/trade</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#C9922A" }}>{fmt2(lotRiskAmount)}</div>
             </div>
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 9, color: "#64748b" }}>% du capital</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: lotRiskPct > 1 ? "#ef4444" : lotRiskPct > 0.5 ? "#fbbf24" : "#6ee7b7" }}>
+              <div style={{ fontSize: 9, color: "#8A7040" }}>% du capital</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: lotRiskPct > 1 ? "#ef4444" : lotRiskPct > 0.5 ? "#fbbf24" : "#C9922A" }}>
                 {lotRiskPct.toFixed(2)}%
               </div>
             </div>
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 9, color: "#64748b" }}>Perte max/jour</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: "#e2e8f0" }}>{fmt2(lotRiskAmount * tradesPerDay)}</div>
+              <div style={{ fontSize: 9, color: "#8A7040" }}>Perte max/jour</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#F0E4C8" }}>{fmt2(lotRiskAmount * tradesPerDay)}</div>
             </div>
           </div>
         </div>
@@ -1467,7 +1467,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         <div style={{ marginTop: 10, borderTop: "1px solid #1e1e2e", paddingTop: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 800, color: newsImpact ? "#ef4444" : "#64748b", textTransform: "uppercase", letterSpacing: 1 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: newsImpact ? "#ef4444" : "#8A7040", textTransform: "uppercase", letterSpacing: 1 }}>
                 Impact annonces news
               </div>
               <div style={{ fontSize: 9, color: "#475569", marginTop: 2, lineHeight: 1.4 }}>
@@ -1495,20 +1495,20 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
       {/* PARAMETRES */}
       <div className="card">
-        <div style={{ fontSize: 11, fontWeight: 800, color: "#6ee7b7", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Parametres Trading</div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#C9922A", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Parametres Trading</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {/* Capital */}
           <div>
-            <div style={{ fontSize: 10, color: "#64748b", marginBottom: 3, fontWeight: 700 }}>Capital ($)</div>
-            <input type="number" value={capital} min={6000} max={200000} step={1000} onChange={e => setCapital(parseFloat(e.target.value) || 0)} style={{ background: "#080810", border: "1px solid #1e1e2e", borderRadius: 6, color: "#e2e8f0", padding: "5px 8px", width: "100%", fontSize: 13 }} />
+            <div style={{ fontSize: 10, color: "#8A7040", marginBottom: 3, fontWeight: 700 }}>Capital ($)</div>
+            <input type="number" value={capital} min={6000} max={200000} step={1000} onChange={e => setCapital(parseFloat(e.target.value) || 0)} style={{ background: "#080810", border: "1px solid #1e1e2e", borderRadius: 6, color: "#F0E4C8", padding: "5px 8px", width: "100%", fontSize: 13 }} />
             <input type="range" min={6000} max={200000} step={1000} value={capital} onChange={e => setCapital(parseFloat(e.target.value))} />
           </div>
 
           {/* Risque/trade - affichage différent si mode lot actif */}
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-              <span style={{ fontSize: 10, color: "#64748b", fontWeight: 700 }}>Risque/trade (%)</span>
-              {useFixedLot && <span style={{ fontSize: 9, background: "#6ee7b720", color: "#6ee7b7", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>LOT AUTO</span>}
+              <span style={{ fontSize: 10, color: "#8A7040", fontWeight: 700 }}>Risque/trade (%)</span>
+              {useFixedLot && <span style={{ fontSize: 9, background: "#C9922A20", color: "#C9922A", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>LOT AUTO</span>}
             </div>
             <input
               type="number"
@@ -1518,15 +1518,15 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               onChange={e => !useFixedLot && setRiskPct(parseFloat(e.target.value) || 0)}
               style={{
                 background: useFixedLot ? "#1a1004" : "#080810",
-                border: "1px solid " + (useFixedLot ? "#6ee7b780" : "#1e1e2e"),
+                border: "1px solid " + (useFixedLot ? "#C9922A80" : "#1e1e2e"),
                 borderRadius: 6,
-                color: useFixedLot ? "#6ee7b7" : "#e2e8f0",
+                color: useFixedLot ? "#C9922A" : "#F0E4C8",
                 padding: "5px 8px", width: "100%", fontSize: 13,
                 cursor: useFixedLot ? "not-allowed" : "text",
                 fontWeight: useFixedLot ? 800 : 400,
               }} />
             {useFixedLot
-              ? <div style={{ fontSize: 9, color: "#6ee7b7", marginTop: 3, lineHeight: 1.4 }}>
+              ? <div style={{ fontSize: 9, color: "#C9922A", marginTop: 3, lineHeight: 1.4 }}>
                   Lot {lotSize} × {slPips} pips × ${pipVal}/pip = <b>{fmt2(effectiveRiskAmount)}</b>
                 </div>
               : <input type="range" min={0.05} max={2} step={0.05} value={riskPct} onChange={e => setRiskPct(parseFloat(e.target.value))} />
@@ -1540,8 +1540,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             { label: "Mois Funded", val: fundedMonths, set: setFundedMonths, min: 1, max: 60, step: 1 },
           ].map((f) => (
             <div key={f.label}>
-              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 3, fontWeight: 700 }}>{f.label}</div>
-              <input type="number" value={f.val} min={f.min} max={f.max} step={f.step} onChange={e => f.set(parseFloat(e.target.value) || 0)} style={{ background: "#080810", border: "1px solid #1e1e2e", borderRadius: 6, color: "#e2e8f0", padding: "5px 8px", width: "100%", fontSize: 13 }} />
+              <div style={{ fontSize: 10, color: "#8A7040", marginBottom: 3, fontWeight: 700 }}>{f.label}</div>
+              <input type="number" value={f.val} min={f.min} max={f.max} step={f.step} onChange={e => f.set(parseFloat(e.target.value) || 0)} style={{ background: "#080810", border: "1px solid #1e1e2e", borderRadius: 6, color: "#F0E4C8", padding: "5px 8px", width: "100%", fontSize: 13 }} />
               <input type="range" min={f.min} max={f.max} step={f.step} value={f.val} onChange={e => f.set(parseFloat(e.target.value))} />
             </div>
           ))}
@@ -1549,26 +1549,26 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
         {/* Résumé paramètres */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
-          <div style={{ background: useFixedLot ? "#1a1004" : "#0a0a14", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: useFixedLot ? "#6ee7b7" : "#fbbf24", border: useFixedLot ? "1px solid #6ee7b730" : "none" }}>
+          <div style={{ background: useFixedLot ? "#1a1004" : "#0a0a14", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: useFixedLot ? "#C9922A" : "#fbbf24", border: useFixedLot ? "1px solid #C9922A30" : "none" }}>
             Risque : <b>{fmt2(effectiveRiskAmount)}</b>/trade = <b>{effectiveRiskPct.toFixed(2)}%</b>
           </div>
-          <div style={{ background: "#0a0a14", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: "#6ee7b7" }}>
+          <div style={{ background: "#0a0a14", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: "#C9922A" }}>
             Objectif : <b>{fmt2(capital * dailyTarget)}</b>/jour
             <span style={{ color: "#475569", fontSize: 9, marginLeft: 4 }}>
               (E espéré : {fmt2(Math.max(0, expectedDailyPnL))}/j)
             </span>
           </div>
           <div style={{ background: "#0a0a14", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: "#93c5fd", gridColumn: "1 / 3" }}>
-            Profit equiv. : <b>{(monthlyTarget * 100).toFixed(1)}% / mois</b> - frais : <b>{fmt(fee)}</b> - RR : <b style={{ color: finalRR < 1.5 ? "#6ee7b7" : finalRR < 2.5 ? "#fbbf24" : "#ef4444" }}>1:{finalRR.toFixed(2)}</b>
+            Profit equiv. : <b>{(monthlyTarget * 100).toFixed(1)}% / mois</b> - frais : <b>{fmt(fee)}</b> - RR : <b style={{ color: finalRR < 1.5 ? "#C9922A" : finalRR < 2.5 ? "#fbbf24" : "#ef4444" }}>1:{finalRR.toFixed(2)}</b>
           </div>
         </div>
         <button onClick={() => setSeed(s => s + 1)}
-          style={{ marginTop: 10, width: "100%", padding: 9, background: "#1e1e2e", border: "1px solid #2d2d3d", borderRadius: 8, color: "#6ee7b7", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+          style={{ marginTop: 10, width: "100%", padding: 9, background: "#1e1e2e", border: "1px solid #2d2d3d", borderRadius: 8, color: "#C9922A", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
           Nouvelle simulation
         </button>
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
           <button onClick={copyReport}
-            style={{ flex: 1, padding: 9, background: copied ? "#062318" : "#6ee7b7", border: copied ? "1px solid #6ee7b7" : "none", borderRadius: 8, color: copied ? "#6ee7b7" : "#080810", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+            style={{ flex: 1, padding: 9, background: copied ? "#062318" : "#C9922A", border: copied ? "1px solid #C9922A" : "none", borderRadius: 8, color: copied ? "#C9922A" : "#080810", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
             {copied ? "Copie !" : "Copier le rapport"}
           </button>
           <button onClick={printReport}
@@ -1583,26 +1583,26 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         <div className="card" style={{ borderLeft: "3px solid #fbbf24" }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: "#fbbf24", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Bilan Financier Net</div>
           {[
-            { label: "Reward challenge (15%)", val: "+" + fmt2(bilan.reward), color: "#6ee7b7" },
-            { label: "Payouts funded verses", val: "+" + fmt2(bilan.payout), color: "#6ee7b7" },
-            { label: "En attente (non verse)", val: "+" + fmt2(bilan.pending), color: "#94a3b8" },
+            { label: "Reward challenge (15%)", val: "+" + fmt2(bilan.reward), color: "#C9922A" },
+            { label: "Payouts funded verses", val: "+" + fmt2(bilan.payout), color: "#C9922A" },
+            { label: "En attente (non verse)", val: "+" + fmt2(bilan.pending), color: "#C4A068" },
             { label: "Frais d'achat challenge", val: "-" + fmt2(bilan.fee), color: "#ef4444" },
           ].map(k => (
             <div key={k.label} className="row">
-              <span style={{ color: "#64748b" }}>{k.label}</span>
+              <span style={{ color: "#8A7040" }}>{k.label}</span>
               <span style={{ color: k.color, fontWeight: 700 }}>{k.val}</span>
             </div>
           ))}
           <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, marginTop: 4, borderTop: "1px solid #2d2d3d" }}>
             <span style={{ fontWeight: 800, fontSize: 13 }}>RESULTAT NET</span>
-            <span style={{ fontWeight: 800, fontSize: 16, color: bilan.net >= 0 ? "#6ee7b7" : "#ef4444" }}>{fmt2(bilan.net)}</span>
+            <span style={{ fontWeight: 800, fontSize: 16, color: bilan.net >= 0 ? "#C9922A" : "#ef4444" }}>{fmt2(bilan.net)}</span>
           </div>
         </div>
       )}
 
       {/* REGLES */}
-      <div className="card" style={{ borderLeft: "3px solid #6ee7b7" }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: "#6ee7b7", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Regles {model.name}</div>
+      <div className="card" style={{ borderLeft: "3px solid #C9922A" }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#C9922A", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Regles {model.name}</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
           {[
             ...model.phases.map(ph => [ph.label + " objectif", "+" + (ph.target * 100) + "%"]),
@@ -1616,8 +1616,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             ["EA/Algo", "Autorise"],
           ].map((kv) => (
             <div key={kv[0]} className="row">
-              <span style={{ color: "#64748b", fontSize: 11 }}>{kv[0]}</span>
-              <span style={{ color: "#e2e8f0", fontWeight: 700, fontSize: 11 }}>{kv[1]}</span>
+              <span style={{ color: "#8A7040", fontSize: 11 }}>{kv[0]}</span>
+              <span style={{ color: "#F0E4C8", fontWeight: 700, fontSize: 11 }}>{kv[1]}</span>
             </div>
           ))}
         </div>
@@ -1636,7 +1636,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       {!finalRRValid && (
         <div className="card" style={{ textAlign: "center", padding: 24, color: "#ef4444", fontWeight: 700, fontSize: 13 }}>
           Combinaison impossible : winrate trop bas pour cet objectif.<br />
-          <span style={{ color: "#64748b", fontWeight: 400, fontSize: 12 }}>Monte le winrate ou baisse l'objectif/jour.</span>
+          <span style={{ color: "#8A7040", fontWeight: 400, fontSize: 12 }}>Monte le winrate ou baisse l'objectif/jour.</span>
         </div>
       )}
 
@@ -1645,7 +1645,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         <div>
           {model.phases.map((ph, i) => {
             const data = sim.phaseResults[i];
-            const color = i === 0 ? "#6ee7b7" : "#93c5fd";
+            const color = i === 0 ? "#C9922A" : "#93c5fd";
             return (
               <div className="card" key={i}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -1655,32 +1655,32 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                       {phaseIcon(data.status).icon} {phaseIcon(data.status).label}
                     </span>
                   ) : (
-                    <span className="tag" style={{ background: "#111118", color: "#64748b", border: "1px solid #1e1e2e" }}>VERROUILLE</span>
+                    <span className="tag" style={{ background: "#111118", color: "#8A7040", border: "1px solid #1e1e2e" }}>VERROUILLE</span>
                   )}
                 </div>
                 {data ? (
                   <>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 10 }}>
                       <div className="kpi">
-                        <div style={{ fontSize: 9, color: "#64748b" }}>Jours</div>
+                        <div style={{ fontSize: 9, color: "#8A7040" }}>Jours</div>
                         <div style={{ fontSize: 14, fontWeight: 800, color }}>{data.tradingDays}</div>
                       </div>
                       <div className="kpi">
-                        <div style={{ fontSize: 9, color: "#64748b" }}>Profit</div>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: data.profit >= ph.target ? "#6ee7b7" : data.profit >= 0 ? "#fbbf24" : "#ef4444" }}>
+                        <div style={{ fontSize: 9, color: "#8A7040" }}>Profit</div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: data.profit >= ph.target ? "#C9922A" : data.profit >= 0 ? "#fbbf24" : "#ef4444" }}>
                           {fmtPn(data.profit)}
                         </div>
                       </div>
                       <div className="kpi">
-                        <div style={{ fontSize: 9, color: "#64748b" }}>WR trades</div>
+                        <div style={{ fontSize: 9, color: "#8A7040" }}>WR trades</div>
                         <div style={{ fontSize: 14, fontWeight: 800, color: "#93c5fd" }}>{data.tradeWinrate.toFixed(0)}%</div>
                       </div>
                       <div className="kpi">
-                        <div style={{ fontSize: 9, color: "#64748b" }}>Equity</div>
-                        <div style={{ fontSize: 12, fontWeight: 800, color: "#e2e8f0" }}>{fmt(data.finalEquity)}</div>
+                        <div style={{ fontSize: 9, color: "#8A7040" }}>Equity</div>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: "#F0E4C8" }}>{fmt(data.finalEquity)}</div>
                       </div>
                     </div>
-                    <div style={{ fontSize: 10, color: "#64748b", marginBottom: 8 }}>
+                    <div style={{ fontSize: 10, color: "#8A7040", marginBottom: 8 }}>
                       {data.totalWins} gagnants / {data.totalLosses} perdants - WR jours {data.dayWinrate.toFixed(0)}%
                     </div>
                     {failReason(data.status) && (
@@ -1707,7 +1707,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                     </ResponsiveContainer>
                   </>
                 ) : (
-                  <div style={{ textAlign: "center", padding: "20px 0", color: "#64748b", fontSize: 13 }}>
+                  <div style={{ textAlign: "center", padding: "20px 0", color: "#8A7040", fontSize: 13 }}>
                     Passe la phase precedente pour debloquer
                   </div>
                 )}
@@ -1724,24 +1724,24 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             <div className="card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <div style={{ fontWeight: 800, fontSize: 14 }}>Compte Funded - {fundedMonths} mois</div>
-                <span className="tag" style={{ background: sim.funded.status === "active" ? "#062318" : "#2d0808", color: sim.funded.status === "active" ? "#6ee7b7" : "#ef4444" }}>
+                <span className="tag" style={{ background: sim.funded.status === "active" ? "#062318" : "#2d0808", color: sim.funded.status === "active" ? "#C9922A" : "#ef4444" }}>
                   {sim.funded.status === "active" ? "ACTIF" : "FERME"}
                 </span>
               </div>
-              <div style={{ background: "#062318", border: "1px solid #6ee7b730", borderRadius: 8, padding: 8, marginBottom: 12, fontSize: 11, color: "#6ee7b7" }}>
+              <div style={{ background: "#062318", border: "1px solid #C9922A30", borderRadius: 8, padding: 8, marginBottom: 12, fontSize: 11, color: "#C9922A" }}>
                 Capital funded = {fmt(capital)} (remis a l'initial) - Seuil retrait : $50 - Payout bi-weekly (14j)
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
                 {[
-                  { label: "Capital final", val: fmt(sim.funded.finalEquity), color: "#6ee7b7" },
-                  { label: "Payout verse", val: fmt(sim.funded.cumulPayout), color: "#6ee7b7" },
-                  { label: "En attente", val: fmt2(sim.funded.pendingPayout), color: "#94a3b8" },
-                  { label: "WR mensuel", val: sim.funded.winrateMonth.toFixed(0) + "%", color: sim.funded.winrateMonth >= 60 ? "#6ee7b7" : "#fbbf24" },
+                  { label: "Capital final", val: fmt(sim.funded.finalEquity), color: "#C9922A" },
+                  { label: "Payout verse", val: fmt(sim.funded.cumulPayout), color: "#C9922A" },
+                  { label: "En attente", val: fmt2(sim.funded.pendingPayout), color: "#C4A068" },
+                  { label: "WR mensuel", val: sim.funded.winrateMonth.toFixed(0) + "%", color: sim.funded.winrateMonth >= 60 ? "#C9922A" : "#fbbf24" },
                   { label: "Scaling", val: sim.funded.scalingCount + "x (+40%)", color: "#93c5fd" },
-                  { label: "Split final", val: sim.funded.finalSplit + "%", color: sim.funded.finalSplit >= 90 ? "#6ee7b7" : "#fbbf24" },
+                  { label: "Split final", val: sim.funded.finalSplit + "%", color: sim.funded.finalSplit >= 90 ? "#C9922A" : "#fbbf24" },
                 ].map((k) => (
                   <div key={k.label} className="kpi">
-                    <div style={{ fontSize: 9, color: "#64748b" }}>{k.label}</div>
+                    <div style={{ fontSize: 9, color: "#8A7040" }}>{k.label}</div>
                     <div style={{ fontSize: 13, fontWeight: 800, color: k.color, marginTop: 2 }}>{k.val}</div>
                   </div>
                 ))}
@@ -1750,8 +1750,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                 <ComposedChart data={sim.funded.data}>
                   <defs>
                     <linearGradient id="gfunded" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.25} />
-                      <stop offset="100%" stopColor="#6ee7b7" stopOpacity={0} />
+                      <stop offset="0%" stopColor="#C9922A" stopOpacity={0.25} />
+                      <stop offset="100%" stopColor="#C9922A" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1a1a28" />
@@ -1759,8 +1759,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                   <YAxis tick={{ fontSize: 9, fill: "#475569" }} tickFormatter={v => "$" + (v / 1000).toFixed(0) + "k"} domain={["auto", "auto"]} />
                   <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 8, fontSize: 11 }} />
                   <ReferenceLine y={capital} stroke="#475569" strokeDasharray="4 2" />
-                  <Area type="monotone" dataKey="equity" stroke="#6ee7b7" strokeWidth={2} fill="url(#gfunded)" dot={false} name="Equity" />
-                  <Line type="monotone" dataKey="cumul" stroke="#6ee7b7" strokeWidth={2} dot={false} name="Payout Cumule" strokeDasharray="5 3" />
+                  <Area type="monotone" dataKey="equity" stroke="#D4A030" strokeWidth={2} fill="url(#gfunded)" dot={false} name="Equity" />
+                  <Line type="monotone" dataKey="cumul" stroke="#D4A030" strokeWidth={2} dot={false} name="Payout Cumule" strokeDasharray="5 3" />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -1775,28 +1775,28 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                   <thead>
                     <tr style={{ borderBottom: "1px solid #1e1e2e" }}>
                       {["Mois", "Equity", "Profit%", "Payout", "Split", "Streak", "Statut"].map(h => (
-                        <th key={h} style={{ padding: "5px 4px", color: "#64748b", textAlign: "right", fontWeight: 700, fontSize: 10 }}>{h}</th>
+                        <th key={h} style={{ padding: "5px 4px", color: "#8A7040", textAlign: "right", fontWeight: 700, fontSize: 10 }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {sim.funded.data.map(r => (
                       <tr key={r.month} style={{ borderBottom: "1px solid #0f0f18", background: r.scalingNote ? "#062318" : "transparent" }}>
-                        <td style={{ padding: "5px 4px", color: "#94a3b8", textAlign: "right" }}>M{r.month}</td>
-                        <td style={{ padding: "5px 4px", color: "#e2e8f0", textAlign: "right" }}>{fmt(r.equity)}</td>
-                        <td style={{ padding: "5px 4px", textAlign: "right", color: r.profitPct >= 0 ? "#6ee7b7" : "#ef4444" }}>
+                        <td style={{ padding: "5px 4px", color: "#C4A068", textAlign: "right" }}>M{r.month}</td>
+                        <td style={{ padding: "5px 4px", color: "#F0E4C8", textAlign: "right" }}>{fmt(r.equity)}</td>
+                        <td style={{ padding: "5px 4px", textAlign: "right", color: r.profitPct >= 0 ? "#C9922A" : "#ef4444" }}>
                           {(r.profitPct >= 0 ? "+" : "") + r.profitPct.toFixed(2)}%
                         </td>
                         <td style={{ padding: "5px 4px", textAlign: "right", fontWeight: r.payout > 0 ? 700 : 400, color: r.payout > 0 ? "#fbbf24" : "#475569" }}>
                           {r.payout > 0 ? fmt(r.payout) : "-"}
                         </td>
-                        <td style={{ padding: "5px 4px", textAlign: "right", color: r.currentSplit >= 90 ? "#6ee7b7" : "#94a3b8" }}>
+                        <td style={{ padding: "5px 4px", textAlign: "right", color: r.currentSplit >= 90 ? "#C9922A" : "#C4A068" }}>
                           {r.currentSplit}%
                         </td>
-                        <td style={{ padding: "5px 4px", textAlign: "right", color: r.streakMonths >= 4 ? "#6ee7b7" : r.streakMonths >= 2 ? "#fbbf24" : "#64748b" }}>
+                        <td style={{ padding: "5px 4px", textAlign: "right", color: r.streakMonths >= 4 ? "#C9922A" : r.streakMonths >= 2 ? "#fbbf24" : "#8A7040" }}>
                           {r.streakMonths}/4{r.scalingNote ? " \u{1F4C8}" : ""}
                         </td>
-                        <td style={{ padding: "5px 4px", textAlign: "right", fontSize: 12, fontWeight: 700, color: r.status === "active" ? "#6ee7b7" : "#ef4444" }}>
+                        <td style={{ padding: "5px 4px", textAlign: "right", fontSize: 12, fontWeight: 700, color: r.status === "active" ? "#C9922A" : "#ef4444" }}>
                           {r.status === "active" ? "\u2713" : "\u2717"}
                         </td>
                       </tr>
@@ -1809,7 +1809,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         ) : (
           <div className="card" style={{ textAlign: "center", padding: 30 }}>
             <div style={{ color: "#ef4444", fontWeight: 700 }}>Challenge non passe</div>
-            <div style={{ color: "#64748b", fontSize: 12, marginTop: 8 }}>Monte le winrate ou reduis le clustering</div>
+            <div style={{ color: "#8A7040", fontSize: 12, marginTop: 8 }}>Monte le winrate ou reduis le clustering</div>
           </div>
         )
       )}
@@ -1822,7 +1822,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 800, color: firm.color }}>{firm.name}</div>
-                <div style={{ fontSize: 11, color: "#64748b" }}>{model.name} · {fmt(capital)}</div>
+                <div style={{ fontSize: 11, color: "#8A7040" }}>{model.name} · {fmt(capital)}</div>
               </div>
               {activePreset !== "custom" && (
                 <span style={{ fontSize: 10, fontWeight: 700, color: "#a78bfa", background: "#a78bfa18", padding: "3px 10px", borderRadius: 20 }}>
@@ -1832,10 +1832,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
               {[
-                { l: "Winrate", v: winrate + "%", c: "#e2e8f0" },
-                { l: "RR", v: finalRR.toFixed(2), c: "#6ee7b7" },
-                { l: "Trades/j", v: tradesPerDay, c: "#e2e8f0" },
-                { l: "Risque", v: effectiveRiskPct.toFixed(2) + "%", c: "#e2e8f0" },
+                { l: "Winrate", v: winrate + "%", c: "#F0E4C8" },
+                { l: "RR", v: finalRR.toFixed(2), c: "#C9922A" },
+                { l: "Trades/j", v: tradesPerDay, c: "#F0E4C8" },
+                { l: "Risque", v: effectiveRiskPct.toFixed(2) + "%", c: "#F0E4C8" },
               ].map(s => (
                 <div key={s.l} style={{ background: "#0a0a14", borderRadius: 9, padding: "8px 4px", textAlign: "center" }}>
                   <div style={{ fontSize: 8, color: "#475569" }}>{s.l}</div>
@@ -1892,14 +1892,14 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
     });
   }, [modelKey, capital, p.tradesPerDay, p.riskPct, p.rr, p.winrate, p.clustering, fundedMonths, splitRate, fee]);
 
-  if (!res) return <div className="card" style={{ color: "#64748b", textAlign: "center" }}>Calcul Monte Carlo en cours... ({RUNS} simulations)</div>;
+  if (!res) return <div className="card" style={{ color: "#8A7040", textAlign: "center" }}>Calcul Monte Carlo en cours... ({RUNS} simulations)</div>;
   const fmt = v => "$" + (v >= 0 ? "+" : "") + Math.abs(v).toFixed(0);
-  const color = v => v >= 0 ? "#6ee7b7" : "#ef4444";
-  const rate_color = v => v >= 70 ? "#6ee7b7" : v >= 50 ? "#fbbf24" : "#ef4444";
+  const color = v => v >= 0 ? "#C9922A" : "#ef4444";
+  const rate_color = v => v >= 70 ? "#C9922A" : v >= 50 ? "#fbbf24" : "#ef4444";
   return (
     <div>
       <div className="card">
-        <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 12, color: "#e2e8f0" }}>Monte Carlo - {RUNS} simulations</div>
+        <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 12, color: "#F0E4C8" }}>Monte Carlo - {RUNS} simulations</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
           {[
             { l: "Challenge", v: res.passRate + "%", c: rate_color(+res.passRate) },
@@ -1907,13 +1907,13 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
             { l: "Profitable", v: res.profRate + "%", c: rate_color(+res.profRate) },
           ].map(k => (
             <div key={k.l} className="kpi">
-              <div style={{ fontSize: 9, color: "#64748b" }}>{k.l}</div>
+              <div style={{ fontSize: 9, color: "#8A7040" }}>{k.l}</div>
               <div style={{ fontSize: 16, fontWeight: 800, color: k.c }}>{k.v}</div>
             </div>
           ))}
         </div>
         <div style={{ background: "#0a0a14", borderRadius: 8, padding: 10, marginBottom: 8 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", marginBottom: 8 }}>Distribution resultat net</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "#8A7040", marginBottom: 8 }}>Distribution resultat net</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 4 }}>
             {[["Min", res.min], ["P25", res.p25], ["P50", res.p50], ["P75", res.p75], ["Max", res.max]].map(([l, v]) => (
               <div key={l} style={{ textAlign: "center" }}>
@@ -1924,8 +1924,8 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
           </div>
         </div>
         <div style={{ background: "#0a0a14", borderRadius: 8, padding: 10 }}>
-          <div style={{ fontSize: 10, color: "#64748b" }}>DD moyen sur runs passes : <b style={{ color: "#fbbf24" }}>{res.avgDD}%</b></div>
-          <div style={{ fontSize: 10, color: "#64748b", marginTop: 4 }}>Frais challenge : <b style={{ color: "#ef4444" }}>{fmt(-fee)}</b></div>
+          <div style={{ fontSize: 10, color: "#8A7040" }}>DD moyen sur runs passes : <b style={{ color: "#fbbf24" }}>{res.avgDD}%</b></div>
+          <div style={{ fontSize: 10, color: "#8A7040", marginTop: 4 }}>Frais challenge : <b style={{ color: "#ef4444" }}>{fmt(-fee)}</b></div>
         </div>
       </div>
     </div>
@@ -2108,15 +2108,15 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
     // Facteurs clés
     const factors = [];
     if (maxDD > model.totalDD * 100 * 0.6) factors.push({ t: `DD max reel ${maxDD.toFixed(1)}% — proche limite ${model.totalDD*100}%`, c: "#ef4444" });
-    else factors.push({ t: `DD max reel ${maxDD.toFixed(1)}% — marge OK`, c: "#6ee7b7" });
+    else factors.push({ t: `DD max reel ${maxDD.toFixed(1)}% — marge OK`, c: "#C9922A" });
     if (realWR < 0.4) factors.push({ t: `Winrate ${(realWR*100).toFixed(0)}% — trop bas`, c: "#ef4444" });
-    else factors.push({ t: `Winrate ${(realWR*100).toFixed(0)}% vs ${winrate}% attendu`, c: realWR*100 >= winrate-5 ? "#6ee7b7" : "#fbbf24" });
+    else factors.push({ t: `Winrate ${(realWR*100).toFixed(0)}% vs ${winrate}% attendu`, c: realWR*100 >= winrate-5 ? "#C9922A" : "#fbbf24" });
     if (realPF < 1.0) factors.push({ t: `Profit Factor ${realPF.toFixed(2)} — stratégie perdante`, c: "#ef4444" });
-    else factors.push({ t: `Profit Factor ${realPF.toFixed(2)} — ${realPF >= 1.5 ? "excellent" : "acceptable"}`, c: realPF >= 1.5 ? "#6ee7b7" : "#fbbf24" });
+    else factors.push({ t: `Profit Factor ${realPF.toFixed(2)} — ${realPF >= 1.5 ? "excellent" : "acceptable"}`, c: realPF >= 1.5 ? "#C9922A" : "#fbbf24" });
 
     // Verdict global
     let label, color, bg, icon;
-    if (passPct >= 70) { label = "VIABLE POUR LE CHALLENGE"; color = "#6ee7b7"; bg = "linear-gradient(135deg, #06231860, #111118)"; icon = "✅"; }
+    if (passPct >= 70) { label = "VIABLE POUR LE CHALLENGE"; color = "#C9922A"; bg = "linear-gradient(135deg, #06231860, #111118)"; icon = "✅"; }
     else if (passPct >= 40) { label = "RISQUE ÉLEVÉ"; color = "#fbbf24"; bg = "linear-gradient(135deg, #2d1f0860, #111118)"; icon = "⚠️"; }
     else { label = "INCOMPATIBLE"; color = "#ef4444"; bg = "linear-gradient(135deg, #2d080860, #111118)"; icon = "🚫"; }
 
@@ -2175,30 +2175,30 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
 
   const verdict = trades.length > 0 && stats ? computeVerdictSync(trades, trades[0].balance - trades[0].profit) : null;
 
-  const alertColor = (l) => l === "danger" ? "#ef4444" : l === "warning" ? "#fbbf24" : l === "ok" ? "#6ee7b7" : "#93c5fd";
+  const alertColor = (l) => l === "danger" ? "#ef4444" : l === "warning" ? "#fbbf24" : l === "ok" ? "#C9922A" : "#93c5fd";
   const alertBg = (l) => l === "danger" ? "#2d0808" : l === "warning" ? "#2d1f08" : l === "ok" ? "#062318" : "#0c1a3d";
   const alertIcon = (l) => l === "danger" ? "⚠️" : l === "warning" ? "🟡" : l === "ok" ? "✅" : "💡";
 
   return (
     <div>
       {/* ── UPLOAD : CSV + HTML ── */}
-      <div className="card" style={{ borderLeft: "3px solid #6ee7b7" }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: "#6ee7b7", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
+      <div className="card" style={{ borderLeft: "3px solid #C9922A" }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#C9922A", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
           Import historique
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
           <div style={{ background: "#0a0a14", borderRadius: 8, padding: "8px 10px" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#e2e8f0", marginBottom: 2 }}>📊 CSV / Texte</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#F0E4C8", marginBottom: 2 }}>📊 CSV / Texte</div>
             <div style={{ fontSize: 9, color: "#475569", lineHeight: 1.4 }}>MT4 : Historique → clic droit → CSV<br/>MT5 : Historique → Rapport → CSV</div>
           </div>
-          <div style={{ background: "#0a0a14", borderRadius: 8, padding: "8px 10px", borderLeft: "2px solid #6ee7b720" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#e2e8f0", marginBottom: 2 }}>🌐 Backtest HTML</div>
+          <div style={{ background: "#0a0a14", borderRadius: 8, padding: "8px 10px", borderLeft: "2px solid #C9922A20" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#F0E4C8", marginBottom: 2 }}>🌐 Backtest HTML</div>
             <div style={{ fontSize: 9, color: "#475569", lineHeight: 1.4 }}>MT4/MT5 : Testeur → Rapport → Ouvrir → Fichier HTML</div>
           </div>
         </div>
         <label style={{ display: "block", background: "#0a0a14", border: "2px dashed #2d2d3d", borderRadius: 10, padding: "16px", textAlign: "center", cursor: "pointer" }}>
           <div style={{ fontSize: 28, marginBottom: 6 }}>📂</div>
-          <div style={{ fontSize: 13, color: "#6ee7b7", fontWeight: 700 }}>
+          <div style={{ fontSize: 13, color: "#C9922A", fontWeight: 700 }}>
             {filename ? filename : "CSV, TXT, TSV, ou HTML"}
           </div>
           <div style={{ fontSize: 10, color: "#475569", marginTop: 4 }}>
@@ -2222,7 +2222,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             {/* Header verdict */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <div>
-                <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
+                <div style={{ fontSize: 10, color: "#8A7040", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
                   Verdict Challenge · {firm?.name || ""}
                 </div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: verdict.color, lineHeight: 1 }}>
@@ -2233,7 +2233,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               <div style={{ textAlign: "center", flexShrink: 0 }}>
                 <div style={{ width: 68, height: 68, borderRadius: 34, background: verdict.color + "20", border: "3px solid " + verdict.color, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                   <div style={{ fontSize: 20, fontWeight: 900, color: verdict.color, lineHeight: 1 }}>{verdict.passPct}%</div>
-                  <div style={{ fontSize: 8, color: "#94a3b8", marginTop: 1 }}>passer</div>
+                  <div style={{ fontSize: 8, color: "#C4A068", marginTop: 1 }}>passer</div>
                 </div>
               </div>
             </div>
@@ -2241,14 +2241,14 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             {/* Score de cohérence */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                <span style={{ fontSize: 11, color: "#94a3b8" }}>Cohérence avec ta simulation</span>
-                <span style={{ fontSize: 13, fontWeight: 800, color: verdict.matchScore >= 70 ? "#6ee7b7" : verdict.matchScore >= 50 ? "#fbbf24" : "#ef4444" }}>{verdict.matchScore}%</span>
+                <span style={{ fontSize: 11, color: "#C4A068" }}>Cohérence avec ta simulation</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: verdict.matchScore >= 70 ? "#C9922A" : verdict.matchScore >= 50 ? "#fbbf24" : "#ef4444" }}>{verdict.matchScore}%</span>
               </div>
               <div style={{ height: 8, background: "#0a0a14", borderRadius: 4, overflow: "hidden" }}>
                 <div style={{
                   height: "100%", borderRadius: 4, transition: "width .6s",
                   width: verdict.matchScore + "%",
-                  background: verdict.matchScore >= 70 ? "#6ee7b7" : verdict.matchScore >= 50 ? "#fbbf24" : "#ef4444"
+                  background: verdict.matchScore >= 70 ? "#C9922A" : verdict.matchScore >= 50 ? "#fbbf24" : "#ef4444"
                 }} />
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 8, color: "#1e1e2e", marginTop: 2 }}>
@@ -2267,7 +2267,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               ].map(k => (
                 <div key={k.l} style={{ background: "#0a0a14", borderRadius: 10, padding: "8px 4px", textAlign: "center" }}>
                   <div style={{ fontSize: 7, color: "#475569", marginBottom: 2 }}>{k.l}</div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: k.ok ? "#6ee7b7" : "#ef4444" }}>{k.v}</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: k.ok ? "#C9922A" : "#ef4444" }}>{k.v}</div>
                   <div style={{ fontSize: 7, color: "#334155", marginTop: 1 }}>sim: {k.expected}</div>
                 </div>
               ))}
@@ -2277,8 +2277,8 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {verdict.factors.map((f, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "#0a0a14", borderRadius: 8, padding: "7px 10px", borderLeft: "3px solid " + f.c }}>
-                  <span style={{ fontSize: 12 }}>{f.c === "#6ee7b7" ? "✓" : f.c === "#fbbf24" ? "⚡" : "✗"}</span>
-                  <span style={{ fontSize: 11, color: "#e2e8f0" }}>{f.t}</span>
+                  <span style={{ fontSize: 12 }}>{f.c === "#C9922A" ? "✓" : f.c === "#fbbf24" ? "⚡" : "✗"}</span>
+                  <span style={{ fontSize: 11, color: "#F0E4C8" }}>{f.t}</span>
                 </div>
               ))}
             </div>
@@ -2286,7 +2286,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
 
           {/* ── ALERTES ── */}
           <div className="card">
-            <div style={{ fontSize: 11, fontWeight: 800, color: "#e2e8f0", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Alertes & Diagnostics</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#F0E4C8", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Alertes & Diagnostics</div>
             {alerts.map((a, i) => (
               <div key={i} style={{ background: alertBg(a.level), border: "1px solid " + alertColor(a.level) + "30", borderRadius: 8, padding: "9px 12px", marginBottom: 8, fontSize: 12, color: alertColor(a.level), lineHeight: 1.5, display: "flex", gap: 8, alignItems: "flex-start" }}>
                 <span>{alertIcon(a.level)}</span><span>{a.msg}</span>
@@ -2296,11 +2296,11 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
 
           {/* ── STATS COMPARATIVES ── */}
           <div className="card">
-            <div style={{ fontSize: 11, fontWeight: 800, color: "#e2e8f0", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Réel vs Simulation</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#F0E4C8", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Réel vs Simulation</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2, marginBottom: 6 }}>
-              <div style={{ fontSize: 10, color: "#64748b", textAlign: "center", paddingBottom: 4 }}>Indicateur</div>
-              <div style={{ fontSize: 10, color: "#6ee7b7", textAlign: "center", fontWeight: 700 }}>Réel</div>
-              <div style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", fontWeight: 700 }}>Simulation</div>
+              <div style={{ fontSize: 10, color: "#8A7040", textAlign: "center", paddingBottom: 4 }}>Indicateur</div>
+              <div style={{ fontSize: 10, color: "#C9922A", textAlign: "center", fontWeight: 700 }}>Réel</div>
+              <div style={{ fontSize: 10, color: "#C4A068", textAlign: "center", fontWeight: 700 }}>Simulation</div>
             </div>
             {[
               { label: "Trades", real: stats.total, sim2: "-" },
@@ -2313,8 +2313,8 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               { label: "DD max", real: stats.ddPct.toFixed(2) + "%", sim2: (model ? model.totalDD * 100 : 10) + "% max", ok: stats.ddPct < (model ? model.totalDD * 100 * 0.7 : 7) },
             ].map(row => (
               <div key={row.label} className="row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2 }}>
-                <span style={{ color: "#64748b", fontSize: 11 }}>{row.label}</span>
-                <span style={{ textAlign: "center", fontWeight: 700, fontSize: 11, color: row.ok === false ? "#ef4444" : row.ok === true ? "#6ee7b7" : "#e2e8f0" }}>{row.real}</span>
+                <span style={{ color: "#8A7040", fontSize: 11 }}>{row.label}</span>
+                <span style={{ textAlign: "center", fontWeight: 700, fontSize: 11, color: row.ok === false ? "#ef4444" : row.ok === true ? "#C9922A" : "#F0E4C8" }}>{row.real}</span>
                 <span style={{ textAlign: "center", fontSize: 11, color: "#475569" }}>{row.sim2}</span>
               </div>
             ))}
@@ -2323,13 +2323,13 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
           {/* ── GRAPHIQUE EQUITY ── */}
           {chartData.length > 0 && (
             <div className="card">
-              <div style={{ fontSize: 11, fontWeight: 800, color: "#e2e8f0", marginBottom: 4, textTransform: "uppercase", letterSpacing: 1 }}>Courbe Equity — Réel vs Simulation</div>
-              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 12 }}>Vert = réel · Gris = simulation</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#F0E4C8", marginBottom: 4, textTransform: "uppercase", letterSpacing: 1 }}>Courbe Equity — Réel vs Simulation</div>
+              <div style={{ fontSize: 10, color: "#8A7040", marginBottom: 12 }}>Vert = réel · Gris = simulation</div>
               <ResponsiveContainer width="100%" height={220}>
                 <ComposedChart data={chartData}>
                   <defs>
-                    <linearGradient id="greel" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.2} /><stop offset="100%" stopColor="#6ee7b7" stopOpacity={0} /></linearGradient>
-                    <linearGradient id="gsim" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#94a3b8" stopOpacity={0.1} /><stop offset="100%" stopColor="#94a3b8" stopOpacity={0} /></linearGradient>
+                    <linearGradient id="greel" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#C9922A" stopOpacity={0.2} /><stop offset="100%" stopColor="#C9922A" stopOpacity={0} /></linearGradient>
+                    <linearGradient id="gsim" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#C4A068" stopOpacity={0.1} /><stop offset="100%" stopColor="#C4A068" stopOpacity={0} /></linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1a1a28" />
                   <XAxis dataKey="pt" tick={{ fontSize: 9, fill: "#475569" }} tickFormatter={v => "#" + v} />
@@ -2337,7 +2337,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                   <Tooltip formatter={(v, name) => ["$" + Number(v).toFixed(0), name]} contentStyle={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 8, fontSize: 11 }} />
                   <ReferenceLine y={capital} stroke="#475569" strokeDasharray="4 2" />
                   <Area type="monotone" dataKey="simulation" stroke="#475569" strokeWidth={1} fill="url(#gsim)" dot={false} name="Simulation" strokeDasharray="4 2" />
-                  <Area type="monotone" dataKey="reel" stroke="#6ee7b7" strokeWidth={2.5} fill="url(#greel)" dot={false} name="Réel" />
+                  <Area type="monotone" dataKey="reel" stroke="#D4A030" strokeWidth={2.5} fill="url(#greel)" dot={false} name="Réel" />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -2399,7 +2399,7 @@ function CalendrierPnL({ dailyLog }) {
         ? { bg: "#dc2626",  fg: "#ffffff",  border: "1px solid #b91c1c", numColor: "#fecaca" }   // rouge vif - grosse perte
         : { bg: "#2d0808",  fg: "#f87171",  border: "1px solid #450a0a", numColor: "#fca5a5" };   // rouge fonce - petite perte
     }
-    return { bg: "#1e1e2e", fg: "#94a3b8", border: "1px solid #2d2d3d", numColor: "#94a3b8" };
+    return { bg: "#1e1e2e", fg: "#C4A068", border: "1px solid #2d2d3d", numColor: "#C4A068" };
   };
 
   return (
@@ -2407,21 +2407,21 @@ function CalendrierPnL({ dailyLog }) {
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <div>
-          <div style={{ fontWeight: 800, fontSize: 15, color: "#e2e8f0" }}>Calendrier PnL</div>
-          <div style={{ fontSize: 10, color: "#64748b", marginTop: 1 }}>Mois {selectedMonth} - simulation jour par jour</div>
+          <div style={{ fontWeight: 800, fontSize: 15, color: "#F0E4C8" }}>Calendrier PnL</div>
+          <div style={{ fontSize: 10, color: "#8A7040", marginTop: 1 }}>Mois {selectedMonth} - simulation jour par jour</div>
         </div>
         <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
           <button onClick={() => setSelectedMonth(Math.max(1, selectedMonth - 1))}
             disabled={selectedMonth <= 1}
-            style={{ background: "#1e1e2e", border: "1px solid #2d2d3d", borderRadius: 8, color: selectedMonth <= 1 ? "#334155" : "#6ee7b7", width: 32, height: 32, fontSize: 18, fontWeight: 800, cursor: "pointer", lineHeight: 1 }}>
+            style={{ background: "#1e1e2e", border: "1px solid #2d2d3d", borderRadius: 8, color: selectedMonth <= 1 ? "#334155" : "#C9922A", width: 32, height: 32, fontSize: 18, fontWeight: 800, cursor: "pointer", lineHeight: 1 }}>
             ‹
           </button>
-          <span style={{ fontSize: 13, fontWeight: 800, color: "#6ee7b7", minWidth: 60, textAlign: "center" }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: "#C9922A", minWidth: 60, textAlign: "center" }}>
             M{selectedMonth}/{months.length}
           </span>
           <button onClick={() => setSelectedMonth(Math.min(months.length, selectedMonth + 1))}
             disabled={selectedMonth >= months.length}
-            style={{ background: "#1e1e2e", border: "1px solid #2d2d3d", borderRadius: 8, color: selectedMonth >= months.length ? "#334155" : "#6ee7b7", width: 32, height: 32, fontSize: 18, fontWeight: 800, cursor: "pointer", lineHeight: 1 }}>
+            style={{ background: "#1e1e2e", border: "1px solid #2d2d3d", borderRadius: 8, color: selectedMonth >= months.length ? "#334155" : "#C9922A", width: 32, height: 32, fontSize: 18, fontWeight: 800, cursor: "pointer", lineHeight: 1 }}>
             ›
           </button>
         </div>
@@ -2431,12 +2431,12 @@ function CalendrierPnL({ dailyLog }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 14 }}>
         {[
           { label: "P&L mois", val: (monthPnl >= 0 ? "+" : "") + "$" + Math.abs(monthPnl).toFixed(0), color: monthPnl >= 0 ? "#4ade80" : "#f87171" },
-          { label: "Jours +/-", val: winDays + "j / " + lossDays + "j", color: "#e2e8f0" },
+          { label: "Jours +/-", val: winDays + "j / " + lossDays + "j", color: "#F0E4C8" },
           { label: "Meilleur", val: "+$" + bestDay.toFixed(0), color: "#4ade80" },
           { label: "Pire", val: "-$" + Math.abs(worstDay).toFixed(0), color: "#f87171" },
         ].map(s => (
           <div key={s.label} style={{ background: "#0a0a14", borderRadius: 8, padding: "7px 6px", textAlign: "center" }}>
-            <div style={{ fontSize: 9, color: "#64748b", marginBottom: 3 }}>{s.label}</div>
+            <div style={{ fontSize: 9, color: "#8A7040", marginBottom: 3 }}>{s.label}</div>
             <div style={{ fontSize: 12, fontWeight: 800, color: s.color }}>{s.val}</div>
           </div>
         ))}
@@ -2445,14 +2445,14 @@ function CalendrierPnL({ dailyLog }) {
       {/* En-tete jours semaine */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3, marginBottom: 3 }}>
         {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((j, i) => (
-          <div key={i} style={{ textAlign: "center", fontSize: 9, color: i >= 5 ? "#1e293b" : "#64748b", fontWeight: 700, paddingBottom: 4 }}>{j}</div>
+          <div key={i} style={{ textAlign: "center", fontSize: 9, color: i >= 5 ? "#150E02" : "#8A7040", fontWeight: 700, paddingBottom: 4 }}>{j}</div>
         ))}
       </div>
 
       {/* Grille calendrier */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
         {grid.map((cell, i) => {
-          const c = cell.trading && cell.data ? cellColor(cell.data.pnl) : { bg: "#0d0d15", fg: "#1e293b", border: "1px solid #12121a", numColor: "#1e293b" };
+          const c = cell.trading && cell.data ? cellColor(cell.data.pnl) : { bg: "#0d0d15", fg: "#150E02", border: "1px solid #12121a", numColor: "#150E02" };
           const isWeekend = !cell.trading;
           return (
             <div key={i} style={{
@@ -2497,7 +2497,7 @@ function CalendrierPnL({ dailyLog }) {
           { bg: "#dc2626", label: "Grosse perte" },
           { bg: "#2d0808", label: "Petite perte", fg: "#f87171" },
         ].map(l => (
-          <span key={l.label} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: l.fg || "#94a3b8" }}>
+          <span key={l.label} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: l.fg || "#C4A068" }}>
             <span style={{ display: "inline-block", width: 10, height: 10, background: l.bg, border: "1px solid " + (l.fg || "#fff") + "30", borderRadius: 3 }} />
             {l.label}
           </span>
@@ -2564,7 +2564,7 @@ function LanguagePickerScreen({ onPick }) {
         const topFactor = 0.3 + 0.7 * (1 - r / ROWS);
         const opacity = Math.min(0.7, edgeFactor * topFactor * 0.6);
         dots.push(
-          <circle key={`${r}-${c}`} cx={x} cy={y} r={1.8} fill="#6ee7b7" opacity={opacity} />
+          <circle key={`${r}-${c}`} cx={x} cy={y} r={1.8} fill="#D4A030" opacity={opacity} />
         );
       }
     }
@@ -2579,19 +2579,19 @@ function LanguagePickerScreen({ onPick }) {
         const th = (i / 32) * Math.PI * 2;
         return `${CX + RX * radiusAtLat * Math.cos(th)},${y}`;
       }).join(' ');
-      latLines.push(<polyline key={`lat-${r}`} points={points} fill="none" stroke="#6ee7b7" strokeWidth="0.4" opacity="0.15" />);
+      latLines.push(<polyline key={`lat-${r}`} points={points} fill="none" stroke="#D4A030" strokeWidth="0.4" opacity="0.15" />);
     }
     return (
       <svg width="350" height="200" viewBox="0 0 350 200" style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)" }}>
         <defs>
           <radialGradient id="lglow" cx="50%" cy="100%" r="60%">
-            <stop offset="0%" stopColor="#6ee7b7" stopOpacity="0.35" />
-            <stop offset="50%" stopColor="#6ee7b7" stopOpacity="0.12" />
-            <stop offset="100%" stopColor="#6ee7b7" stopOpacity="0" />
+            <stop offset="0%" stopColor="#C9922A" stopOpacity="0.35" />
+            <stop offset="50%" stopColor="#C9922A" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="#C9922A" stopOpacity="0" />
           </radialGradient>
           <radialGradient id="lglow2" cx="50%" cy="85%" r="40%">
-            <stop offset="0%" stopColor="#6ee7b7" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="#6ee7b7" stopOpacity="0" />
+            <stop offset="0%" stopColor="#C9922A" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#C9922A" stopOpacity="0" />
           </radialGradient>
         </defs>
         <ellipse cx="175" cy="220" rx="160" ry="90" fill="url(#lglow)" />
@@ -2607,7 +2607,7 @@ function LanguagePickerScreen({ onPick }) {
       minHeight: "100vh", background: "#000000",
       display: "flex", flexDirection: "column",
       maxWidth: 480, margin: "0 auto",
-      fontFamily: "-apple-system, system-ui, sans-serif",
+      fontFamily: "'DM Sans', -apple-system, sans-serif",
       paddingBottom: "calc(28px + env(safe-area-inset-bottom))",
     }}>
 
@@ -2618,35 +2618,35 @@ function LanguagePickerScreen({ onPick }) {
         <div style={{ position: "absolute", bottom: 18, left: 0, right: 0, display: "flex", justifyContent: "center", alignItems: "flex-end", gap: 12 }}>
           {/* Carte gauche — A */}
           <div style={{
-            width: 62, height: 62, borderRadius: 14, background: "rgba(30,30,40,0.92)",
+            width: 62, height: 62, borderRadius: 14, background: "rgba(22,16,5,0.92)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            border: "1px solid rgba(255,255,255,0.07)",
+            border: "1px solid rgba(201,146,42,0.12)",
             boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
             transform: "translateY(4px)",
           }}>
-            <span style={{ fontSize: 26, fontWeight: 700, color: "#e2e8f0" }}>A</span>
+            <span style={{ fontSize: 26, fontWeight: 700, color: "#F0E4C8" }}>A</span>
           </div>
           {/* Carte centre — ea (plus grande) */}
           <div style={{
-            width: 74, height: 74, borderRadius: 18, background: "rgba(25,25,35,0.96)",
+            width: 74, height: 74, borderRadius: 18, background: "rgba(20,14,4,0.96)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            border: "1px solid rgba(110,231,183,0.15)",
-            boxShadow: "0 12px 32px rgba(0,0,0,0.6), 0 0 20px rgba(110,231,183,0.1)",
+            border: "1px solid rgba(201,146,42,0.15)",
+            boxShadow: "0 12px 32px rgba(0,0,0,0.6), 0 0 20px rgba(201,146,42,0.1)",
           }}>
             <span style={{ fontSize: 28, fontWeight: 800, letterSpacing: -1 }}>
               <span style={{ color: "#ffffff" }}>e</span>
-              <span style={{ color: "#6ee7b7" }}>a</span>
+              <span style={{ color: "#C9922A" }}>a</span>
             </span>
           </div>
           {/* Carte droite — 文 */}
           <div style={{
-            width: 62, height: 62, borderRadius: 14, background: "rgba(30,30,40,0.92)",
+            width: 62, height: 62, borderRadius: 14, background: "rgba(22,16,5,0.92)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            border: "1px solid rgba(255,255,255,0.07)",
+            border: "1px solid rgba(201,146,42,0.12)",
             boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
             transform: "translateY(4px)",
           }}>
-            <span style={{ fontSize: 26, color: "#e2e8f0" }}>文</span>
+            <span style={{ fontSize: 26, color: "#F0E4C8" }}>文</span>
           </div>
         </div>
       </div>
@@ -2655,23 +2655,23 @@ function LanguagePickerScreen({ onPick }) {
       <div style={{ flex: 1, padding: "0 24px", paddingTop: 20 }}>
 
         {/* Étape 1/3 */}
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7", marginBottom: 10 }}>Étape 1/3</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#C9922A", marginBottom: 10 }}>Étape 1/3</div>
 
         {/* Barres de progression */}
         <div style={{ display: "flex", gap: 6, marginBottom: 22 }}>
           {[0, 1, 2].map(i => (
             <div key={i} style={{
               flex: 1, height: 4, borderRadius: 2,
-              background: i === 0 ? "#6ee7b7" : "rgba(255,255,255,0.12)",
+              background: i === 0 ? "#C9922A" : "rgba(255,255,255,0.12)",
             }} />
           ))}
         </div>
 
         {/* Titre */}
-        <div style={{ fontSize: 28, fontWeight: 800, color: "#ffffff", marginBottom: 6, lineHeight: 1.2 }}>
+        <div style={{ fontSize: 28, fontWeight: 700, color: "#F0E4C8", fontFamily: "'Playfair Display', serif", marginBottom: 6, lineHeight: 1.2 }}>
           Choisis ta langue
         </div>
-        <div style={{ fontSize: 14, color: "#4a5568", marginBottom: 28, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 14, color: "#7A6035", marginBottom: 28, lineHeight: 1.5 }}>
           Tu pourras la changer plus tard dans les paramètres.
         </div>
 
@@ -2682,8 +2682,8 @@ function LanguagePickerScreen({ onPick }) {
             return (
               <button key={l.k} onClick={() => setSelected(l.k)} style={{
                 width: "100%", padding: "18px 20px", borderRadius: 18,
-                background: sel ? "rgba(110,231,183,0.08)" : "rgba(255,255,255,0.04)",
-                border: "1.5px solid " + (sel ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
+                background: sel ? "rgba(201,146,42,0.08)" : "rgba(255,255,255,0.04)",
+                border: "1.5px solid " + (sel ? "#C9922A" : "rgba(201,146,42,0.10)"),
                 display: "flex", alignItems: "center", gap: 14, cursor: "pointer",
                 textAlign: "left", transition: "all .15s",
               }}>
@@ -2698,7 +2698,7 @@ function LanguagePickerScreen({ onPick }) {
                 </div>
                 {/* Texte */}
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 17, fontWeight: 700, color: sel ? "#6ee7b7" : "#ffffff", marginBottom: 2 }}>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: sel ? "#C9922A" : "#ffffff", marginBottom: 2 }}>
                     {l.label}
                   </div>
                   <div style={{ fontSize: 13, color: "rgba(255,255,255,0.35)" }}>
@@ -2709,7 +2709,7 @@ function LanguagePickerScreen({ onPick }) {
                 {sel && (
                   <div style={{ flexShrink: 0, width: 24, height: 24 }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path d="M5 12l5 5L19 7" stroke="#6ee7b7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M5 12l5 5L19 7" stroke="#D4A030" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
                 )}
@@ -2724,11 +2724,11 @@ function LanguagePickerScreen({ onPick }) {
         <button onClick={() => onPick(selected)} style={{
           width: "100%", padding: "20px",
           borderRadius: 100,
-          background: "#6ee7b7",
-          color: "#000000", fontSize: 17, fontWeight: 800,
-          border: "none", cursor: "pointer",
-          letterSpacing: 0.2,
-          boxShadow: "0 4px 24px rgba(110,231,183,0.25)",
+          background: "linear-gradient(135deg, #C9922A 0%, #F5C842 50%, #C9922A 100%)",
+          color: "#1A0800", fontSize: 16, fontWeight: 700,
+          border: "none", cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+          letterSpacing: 0.5,
+          boxShadow: "0 4px 32px rgba(201,146,42,0.4), 0 2px 8px rgba(0,0,0,0.5)",
         }}>
           Continuer
         </button>
@@ -2832,7 +2832,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
   const tx = TX[lang] || TX.fr;
 
   // ── Micro-composants réutilisables ──
-  const SparkLine = ({ color="#6ee7b7", down=false }) => {
+  const SparkLine = ({ color="#C9922A", down=false }) => {
     const pts = down
       ? "0,4 10,6 18,8 26,12 34,16 42,20 50,22"
       : "0,20 8,16 16,14 24,10 32,8 40,6 50,3";
@@ -2856,15 +2856,15 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{position:"absolute",top:0,left:0}}>
         <defs>
           <linearGradient id="gauge-g" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#059669"/><stop offset="100%" stopColor="#6ee7b7"/>
+            <stop offset="0%" stopColor="#8B6010"/><stop offset="100%" stopColor="#C9922A"/>
           </linearGradient>
           <filter id="gauge-glow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
         </defs>
-        <circle cx={mid} cy={mid} r={r} fill="none" stroke="rgba(110,231,183,0.1)" strokeWidth="14"/>
+        <circle cx={mid} cy={mid} r={r} fill="none" stroke="rgba(201,146,42,0.1)" strokeWidth="14"/>
         <circle cx={mid} cy={mid} r={r} fill="none" stroke="url(#gauge-g)" strokeWidth="14"
           strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
           transform={`rotate(-90 ${mid} ${mid})`} filter="url(#gauge-glow)"/>
-        <circle cx={mid} cy={mid} r={r-22} fill="rgba(110,231,183,0.04)" stroke="rgba(110,231,183,0.12)" strokeWidth="1"/>
+        <circle cx={mid} cy={mid} r={r-22} fill="rgba(201,146,42,0.04)" stroke="rgba(201,146,42,0.12)" strokeWidth="1"/>
       </svg>
     );
   };
@@ -2912,17 +2912,17 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
         </div>
 
         {/* Droite — vert */}
-        <div style={{flex:1,borderRadius:16,background:"rgba(110,231,183,0.06)",border:"1px solid rgba(110,231,183,0.2)",overflow:"hidden"}}>
-          <div style={{padding:"8px 10px",background:"rgba(110,231,183,0.1)",display:"flex",alignItems:"center",gap:6}}>
-            <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill="#6ee7b7"/><path d="M4 7l2.5 2.5 4-4" stroke="#080810" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            <span style={{fontSize:11,fontWeight:700,color:"#6ee7b7"}}>{tx.s1yep}</span>
+        <div style={{flex:1,borderRadius:16,background:"rgba(201,146,42,0.06)",border:"1px solid rgba(201,146,42,0.2)",overflow:"hidden"}}>
+          <div style={{padding:"8px 10px",background:"rgba(201,146,42,0.1)",display:"flex",alignItems:"center",gap:6}}>
+            <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill="#D4A030"/><path d="M4 7l2.5 2.5 4-4" stroke="#080810" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <span style={{fontSize:11,fontWeight:700,color:"#C9922A"}}>{tx.s1yep}</span>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,padding:"8px"}}>
             {[[tx.s1wr,"52%"],[tx.s1dd,"4.2%"],[tx.s1pf,"1.87"],[tx.s1prob,"74%"]].map(([l,v],i)=>(
-              <div key={i} style={{background:"rgba(110,231,183,0.05)",borderRadius:8,padding:"6px 8px"}}>
+              <div key={i} style={{background:"rgba(201,146,42,0.05)",borderRadius:8,padding:"6px 8px"}}>
                 <div style={{fontSize:9,color:"rgba(255,255,255,0.4)",marginBottom:2}}>{l}</div>
                 <div style={{fontSize:15,fontWeight:800,color:"#ffffff"}}>{v}</div>
-                <SparkLine color="#6ee7b7"/>
+                <SparkLine color="#C9922A"/>
               </div>
             ))}
           </div>
@@ -2934,8 +2934,8 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
         {[
           {icon:"📉",label:tx.s1c1,c:"#ef4444",bg:"rgba(239,68,68,0.08)"},
           {icon:"⊗",label:tx.s1c2,c:"#ef4444",bg:"rgba(239,68,68,0.08)"},
-          {icon:"💰",label:tx.s1c3,c:"#6ee7b7",bg:"rgba(245,158,11,0.08)"},
-          {icon:"⚠️",label:tx.s1c4,c:"#6ee7b7",bg:"rgba(245,158,11,0.08)"},
+          {icon:"💰",label:tx.s1c3,c:"#C9922A",bg:"rgba(245,158,11,0.08)"},
+          {icon:"⚠️",label:tx.s1c4,c:"#C9922A",bg:"rgba(245,158,11,0.08)"},
         ].map((c,i)=>(
           <div key={i} style={{background:c.bg,border:"1px solid "+c.c+"30",borderRadius:14,padding:"14px 12px",textAlign:"center"}}>
             <div style={{fontSize:26,marginBottom:8}}>{c.icon}</div>
@@ -2960,7 +2960,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
       <div style={{fontSize:11,color:"rgba(255,255,255,0.35)",textAlign:"right",marginBottom:20,fontWeight:600}}>2/3</div>
       <div style={{textAlign:"center",marginBottom:14}}>
         <div style={{fontSize:27,fontWeight:900,color:"#ffffff",lineHeight:1.2,marginBottom:4}}>{tx.s2h1}</div>
-        <div style={{fontSize:27,fontWeight:900,color:"#6ee7b7",lineHeight:1.2}}>{tx.s2h2}</div>
+        <div style={{fontSize:27,fontWeight:900,color:"#C9922A",lineHeight:1.2}}>{tx.s2h2}</div>
       </div>
       <div style={{textAlign:"center",fontSize:13,color:"rgba(255,255,255,0.4)",lineHeight:1.6,marginBottom:22}}>{tx.s2sub}</div>
 
@@ -2968,9 +2968,9 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
       <div style={{position:"relative",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:18,minHeight:240}}>
         {/* Cartes gauche */}
         <div style={{display:"flex",flexDirection:"column",gap:8,flex:1,marginRight:8}}>
-          {[[tx.s1wr,"52%","#6ee7b7",false],[tx.s1pf,"1.87","#6ee7b7",false],
-            [tx.s1dd,"4.2%","#ef4444",true],[tx.s1prob,"74%","#6ee7b7",false]].map(([l,v,c,dn],i)=>(
-            <div key={i} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,padding:"8px 10px"}}>
+          {[[tx.s1wr,"52%","#C9922A",false],[tx.s1pf,"1.87","#C9922A",false],
+            [tx.s1dd,"4.2%","#ef4444",true],[tx.s1prob,"74%","#C9922A",false]].map(([l,v,c,dn],i)=>(
+            <div key={i} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(201,146,42,0.12)",borderRadius:12,padding:"8px 10px"}}>
               <div style={{fontSize:9,color:"rgba(255,255,255,0.4)",marginBottom:2}}>{l}</div>
               <div style={{fontSize:16,fontWeight:800,color:"#ffffff"}}>{v}</div>
               <SparkLine color={c} down={dn}/>
@@ -2981,20 +2981,20 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
         {/* Gauge centrale */}
         <div style={{position:"relative",width:170,height:170,flexShrink:0}}>
           {/* Halo */}
-          <div style={{position:"absolute",inset:-10,borderRadius:"50%",background:"radial-gradient(circle,rgba(110,231,183,0.15) 0%,transparent 70%)"}}/>
+          <div style={{position:"absolute",inset:-10,borderRadius:"50%",background:"radial-gradient(circle,rgba(201,146,42,0.15) 0%,transparent 70%)"}}/>
           <GaugeRing pct={74} size={170}/>
           {/* Centre texte */}
           <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center"}}>
             <div style={{fontSize:22,marginBottom:4}}>🎯</div>
             <div style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.7)",marginBottom:2}}>{tx.s2ready}</div>
-            <div style={{fontSize:30,fontWeight:900,color:"#6ee7b7",lineHeight:1}}>74%</div>
+            <div style={{fontSize:30,fontWeight:900,color:"#C9922A",lineHeight:1}}>74%</div>
           </div>
         </div>
 
         {/* Cartes droite */}
         <div style={{display:"flex",flexDirection:"column",gap:8,flex:1,marginLeft:8}}>
           {[["📊",tx.s2stats],["📈",tx.s2proj],["🛡",tx.s2risk],["🎯",tx.s2val]].map(([ic,l],i)=>(
-            <div key={i} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,padding:"8px 10px",textAlign:"center"}}>
+            <div key={i} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(201,146,42,0.12)",borderRadius:12,padding:"8px 10px",textAlign:"center"}}>
               <div style={{fontSize:20,marginBottom:4}}>{ic}</div>
               <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",fontWeight:600,lineHeight:1.3}}>{l}</div>
             </div>
@@ -3005,18 +3005,18 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
       {/* 4 badges check */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
         {[tx.s2k1,tx.s2k2,tx.s2k3,tx.s2k4].map((k,i)=>(
-          <div key={i} style={{background:"rgba(110,231,183,0.06)",border:"1px solid rgba(110,231,183,0.2)",borderRadius:12,padding:"10px 12px",display:"flex",alignItems:"center",gap:8}}>
-            <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="9" fill="rgba(110,231,183,0.15)"/><circle cx="9" cy="9" r="9" fill="none" stroke="#6ee7b7" strokeWidth="1.2"/><path d="M5.5 9l2.5 2.5 4.5-4.5" stroke="#6ee7b7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <div key={i} style={{background:"rgba(201,146,42,0.06)",border:"1px solid rgba(201,146,42,0.2)",borderRadius:12,padding:"10px 12px",display:"flex",alignItems:"center",gap:8}}>
+            <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="9" fill="rgba(201,146,42,0.15)"/><circle cx="9" cy="9" r="9" fill="none" stroke="#D4A030" strokeWidth="1.2"/><path d="M5.5 9l2.5 2.5 4.5-4.5" stroke="#D4A030" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             <span style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,0.85)",lineHeight:1.3}}>{k}</span>
           </div>
         ))}
       </div>
 
       {/* Carte bas */}
-      <div style={{background:"rgba(110,231,183,0.05)",border:"1px solid rgba(110,231,183,0.15)",borderRadius:18,padding:"20px",textAlign:"center"}}>
+      <div style={{background:"rgba(201,146,42,0.05)",border:"1px solid rgba(201,146,42,0.15)",borderRadius:18,padding:"20px",textAlign:"center"}}>
         <div style={{fontSize:24,marginBottom:10}}>🛡</div>
         <div style={{fontSize:15,fontWeight:700,color:"#ffffff",lineHeight:1.5}}>
-          {tx.s2bot1}<span style={{color:"#6ee7b7"}}>{tx.s2bot2}</span>{tx.s2bot3}
+          {tx.s2bot1}<span style={{color:"#C9922A"}}>{tx.s2bot2}</span>{tx.s2bot3}
         </div>
       </div>
     </div>
@@ -3028,7 +3028,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
       <div style={{fontSize:11,color:"rgba(255,255,255,0.35)",textAlign:"right",marginBottom:20,fontWeight:600}}>3/3</div>
       <div style={{textAlign:"center",marginBottom:12}}>
         <div style={{fontSize:26,fontWeight:900,color:"#ffffff",lineHeight:1.2,marginBottom:4}}>{tx.s3h1}</div>
-        <div style={{fontSize:26,fontWeight:900,color:"#6ee7b7",lineHeight:1.2}}>{tx.s3h2}</div>
+        <div style={{fontSize:26,fontWeight:900,color:"#C9922A",lineHeight:1.2}}>{tx.s3h2}</div>
       </div>
       <div style={{textAlign:"center",fontSize:14,color:"rgba(255,255,255,0.45)",lineHeight:1.6,marginBottom:24}}>
         {tx.s3sub1}<span style={{color:"#f87171",fontWeight:700}}>{tx.s3subr}</span>{tx.s3sub2}
@@ -3055,7 +3055,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
           <ellipse cx="50" cy="63" rx="36" ry="5" fill="#ef4444" opacity="0.25"/>
           {/* Plateau droite (vert) */}
           <ellipse cx="270" cy="55" rx="40" ry="6" fill="#0f2a1a"/>
-          <ellipse cx="270" cy="53" rx="32" ry="4" fill="#6ee7b7" opacity="0.2"/>
+          <ellipse cx="270" cy="53" rx="32" ry="4" fill="#D4A030" opacity="0.2"/>
           {/* Base */}
           <ellipse cx="160" cy="78" rx="36" ry="6" fill="#2a2020"/>
         </svg>
@@ -3083,30 +3083,30 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
         </div>
 
         {/* Plateau droite — vert (simulator) */}
-        <div style={{flex:1,background:"rgba(110,231,183,0.07)",border:"1px solid rgba(110,231,183,0.3)",borderRadius:16,padding:"14px 12px",textAlign:"center"}}>
+        <div style={{flex:1,background:"rgba(201,146,42,0.07)",border:"1px solid rgba(201,146,42,0.3)",borderRadius:16,padding:"14px 12px",textAlign:"center"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginBottom:10}}>
-            <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="9" fill="rgba(110,231,183,0.2)"/><path d="M5 9l3 3 5-5" stroke="#6ee7b7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            <span style={{fontSize:11,fontWeight:700,color:"#6ee7b7"}}>{tx.s3sim}</span>
+            <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="9" fill="rgba(201,146,42,0.2)"/><path d="M5 9l3 3 5-5" stroke="#D4A030" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <span style={{fontSize:11,fontWeight:700,color:"#C9922A"}}>{tx.s3sim}</span>
           </div>
           <div style={{marginBottom:12}}>
             <div style={{fontSize:11,color:"rgba(255,255,255,0.35)",marginBottom:4}}>🛡</div>
           </div>
-          <div style={{fontSize:22,fontWeight:900,color:"#6ee7b7",marginBottom:4}}>{tx.s3mo}</div>
+          <div style={{fontSize:22,fontWeight:900,color:"#C9922A",marginBottom:4}}>{tx.s3mo}</div>
           <div style={{fontSize:13,color:"rgba(255,255,255,0.3)",margin:"4px 0"}}>ou</div>
-          <div style={{fontSize:20,fontWeight:800,color:"#6ee7b7"}}>{tx.s3yr}</div>
+          <div style={{fontSize:20,fontWeight:800,color:"#C9922A"}}>{tx.s3yr}</div>
         </div>
       </div>
 
       {/* Carte bas + CTA */}
-      <div style={{background:"rgba(110,231,183,0.05)",border:"1px solid rgba(110,231,183,0.15)",borderRadius:20,padding:"22px 20px",textAlign:"center"}}>
+      <div style={{background:"rgba(201,146,42,0.05)",border:"1px solid rgba(201,146,42,0.15)",borderRadius:20,padding:"22px 20px",textAlign:"center"}}>
         <div style={{fontSize:26,marginBottom:10}}>🛡</div>
         <div style={{fontSize:17,fontWeight:800,color:"#ffffff",lineHeight:1.4,marginBottom:4}}>{tx.s3bt1}</div>
-        <div style={{fontSize:17,fontWeight:800,color:"#6ee7b7",lineHeight:1.4,marginBottom:18}}>{tx.s3bt2}</div>
+        <div style={{fontSize:17,fontWeight:800,color:"#C9922A",lineHeight:1.4,marginBottom:18}}>{tx.s3bt2}</div>
         <button onClick={onDone} style={{
           width:"100%",padding:"18px",borderRadius:100,
-          background:"#6ee7b7",color:"#000000",
+          background:"#C9922A",color:"#000000",
           fontSize:16,fontWeight:800,border:"none",cursor:"pointer",
-          boxShadow:"0 4px 24px rgba(110,231,183,0.3)",
+          boxShadow:"0 4px 24px rgba(201,146,42,0.3)",
         }}>{tx.s3cta}</button>
       </div>
     </div>
@@ -3116,37 +3116,42 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
   const isLast = step === 2;
 
   return (
-    <div style={{minHeight:"100vh",background:"#06090f",position:"relative",maxWidth:480,margin:"0 auto",fontFamily:"-apple-system, system-ui, sans-serif",color:"#e2e8f0",overflow:"hidden"}}>
+    <div style={{minHeight:"100vh",background:"#050300",position:"relative",maxWidth:480,margin:"0 auto",fontFamily:"'DM Sans', -apple-system, sans-serif",color:"#F0E4C8",overflow:"hidden"}}>
+
+      {/* Halo ambré style Capital.com */}
+      <div style={{position:"absolute",top:"20%",left:"50%",transform:"translateX(-50%)",width:350,height:350,borderRadius:"50%",background:"radial-gradient(circle, rgba(160,100,8,0.22) 0%, rgba(100,60,5,0.08) 50%, transparent 70%)",pointerEvents:"none",zIndex:0}} />
 
       {/* Slide actif */}
-      <div style={{paddingTop:"env(safe-area-inset-top)"}}>
+      <div style={{paddingTop:"env(safe-area-inset-top)",position:"relative",zIndex:1}}>
         {slides[step]}
       </div>
 
-      {/* Bouton Passer / Suivant en haut */}
+      {/* Bouton Passer */}
       {!isLast && (
-        <button onClick={onDone} style={{position:"fixed",top:"calc(14px + env(safe-area-inset-top))",right:20,background:"none",border:"none",color:"rgba(255,255,255,0.35)",fontSize:13,fontWeight:600,cursor:"pointer",zIndex:20}}>
+        <button onClick={onDone} style={{position:"fixed",top:"calc(14px + env(safe-area-inset-top))",right:20,background:"none",border:"none",color:"rgba(201,146,42,0.5)",fontSize:13,fontWeight:600,cursor:"pointer",zIndex:20,fontFamily:"'DM Sans', sans-serif"}}>
           Passer →
         </button>
       )}
 
       {/* Navigation bas fixe */}
-      <div style={{position:"fixed",bottom:0,left:0,right:0,background:"linear-gradient(transparent,#06090f 40%)",padding:"20px 20px calc(24px + env(safe-area-inset-bottom))",display:"flex",alignItems:"center",justifyContent:"space-between",maxWidth:480,margin:"0 auto",zIndex:10}}>
+      <div style={{position:"fixed",bottom:0,left:0,right:0,background:"linear-gradient(transparent,#050300 40%)",padding:"20px 20px calc(24px + env(safe-area-inset-bottom))",display:"flex",alignItems:"center",justifyContent:"space-between",maxWidth:480,margin:"0 auto",zIndex:10}}>
         {/* Dots */}
         <div style={{display:"flex",gap:6,flex:1,justifyContent:"center"}}>
           {[0,1,2].map(i=>(
             <div key={i} onClick={()=>setStep(i)} style={{
               width:i===step?24:8,height:8,borderRadius:4,cursor:"pointer",
-              background:i===step?"#6ee7b7":"rgba(255,255,255,0.2)",
+              background:i===step?"linear-gradient(90deg,#C9922A,#F5C842)":"rgba(201,146,42,0.2)",
               transition:"all .3s",
             }}/>
           ))}
         </div>
-        {/* Bouton suivant/commencer overlay */}
+        {/* Bouton suivant */}
         {!isLast && (
           <button onClick={()=>setStep(s=>s+1)} style={{
-            padding:"12px 22px",borderRadius:100,border:"none",cursor:"pointer",
-            background:"#6ee7b7",color:"#000000",fontSize:14,fontWeight:800,
+            padding:"13px 24px",borderRadius:100,border:"none",cursor:"pointer",
+            background:"linear-gradient(135deg, #C9922A 0%, #F5C842 50%, #C9922A 100%)",
+            color:"#1A0800",fontSize:14,fontWeight:700,fontFamily:"'DM Sans', sans-serif",
+            boxShadow:"0 4px 20px rgba(201,146,42,0.35)",
           }}>
             {step===0 ? tx.next : tx.next}
           </button>
@@ -3168,33 +3173,37 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
   };
 
   return (
-    <div style={{ minHeight:"100vh", background:"#000000", display:"flex", flexDirection:"column", maxWidth:480, margin:"0 auto", fontFamily:"-apple-system, system-ui, sans-serif" }}>
+    <div style={{ minHeight:"100vh", background:"#050300", display:"flex", flexDirection:"column", maxWidth:480, margin:"0 auto", fontFamily:"'DM Sans', -apple-system, sans-serif", position:"relative", overflow:"hidden" }}>
+
+      {/* Halo ambré Capital.com style */}
+      <div style={{ position:"absolute", top:"15%", left:"50%", transform:"translateX(-50%)", width:300, height:300, borderRadius:"50%", background:"radial-gradient(circle, rgba(180,110,10,0.28) 0%, rgba(120,70,5,0.12) 45%, transparent 70%)", pointerEvents:"none", zIndex:0 }} />
+      <div style={{ position:"absolute", bottom:"30%", right:"-10%", width:200, height:200, borderRadius:"50%", background:"radial-gradient(circle, rgba(201,146,42,0.08) 0%, transparent 70%)", pointerEvents:"none", zIndex:0 }} />
 
       {/* Bouton retour */}
-      <div style={{ padding:"calc(14px + env(safe-area-inset-top)) 20px 0" }}>
-        <div style={{ width:42, height:42, borderRadius:21, background:"rgba(255,255,255,0.08)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ padding:"calc(14px + env(safe-area-inset-top)) 20px 0", position:"relative", zIndex:1 }}>
+        <div style={{ width:42, height:42, borderRadius:21, background:"rgba(201,146,42,0.10)", border:"1px solid rgba(201,146,42,0.18)", display:"flex", alignItems:"center", justifyContent:"center" }}>
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M11 4L6 9l5 5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M11 4L6 9l5 5" stroke="#C9922A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
       </div>
 
       {/* Titre */}
-      <div style={{ padding:"36px 24px 28px", textAlign:"center" }}>
-        <div style={{ fontSize:30, fontWeight:800, color:"#ffffff", marginBottom:12, lineHeight:1.2 }}>
+      <div style={{ padding:"36px 24px 28px", textAlign:"center", position:"relative", zIndex:1 }}>
+        <div style={{ fontSize:32, fontWeight:700, color:"#F0E4C8", fontFamily:"'Playfair Display', serif", marginBottom:10, lineHeight:1.2 }}>
           {mode === "signup" ? "Créer un compte" : "Se connecter"}
         </div>
-        <div style={{ fontSize:15, color:"rgba(255,255,255,0.38)", lineHeight:1.6 }}>
+        <div style={{ fontSize:14, color:"rgba(240,228,200,0.45)", lineHeight:1.6 }}>
           Rejoins des milliers de traders qui s'entraînent<br/>et passent leurs challenges.
         </div>
       </div>
 
       {/* Carte inscription */}
-      <div style={{ margin:"0 20px", background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.09)", borderRadius:24, padding:"26px 20px" }}>
+      <div style={{ margin:"0 20px", background:"rgba(20,13,3,0.85)", border:"1px solid rgba(201,146,42,0.18)", borderRadius:24, padding:"26px 20px", position:"relative", zIndex:1, backdropFilter:"blur(20px)" }}>
 
         {/* Header gradient */}
         <div style={{ textAlign:"center", marginBottom:22 }}>
-          <span style={{ fontSize:15, fontWeight:600, background:"linear-gradient(90deg, #059669, #6ee7b7)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
+          <span style={{ fontSize:15, fontWeight:600, background:"linear-gradient(90deg, #8B6010, #C9922A)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
             {mode === "signup" ? "Inscription rapide et sécurisée" : "Connexion rapide et sécurisée"}
           </span>
         </div>
@@ -3202,7 +3211,7 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
         {/* Bouton Google */}
         <button onClick={() => handleSocialAuth("google")} style={{
           width:"100%", padding:"17px 20px", borderRadius:16, marginBottom:12,
-          background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.10)",
+          background:"rgba(201,146,42,0.12)", border:"1px solid rgba(255,255,255,0.10)",
           display:"flex", alignItems:"center", cursor:"pointer",
         }}>
           <svg width="24" height="24" viewBox="0 0 24 24" style={{ flexShrink:0 }}>
@@ -3219,7 +3228,7 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
         {/* Bouton Apple */}
         <button onClick={() => handleSocialAuth("apple")} style={{
           width:"100%", padding:"17px 20px", borderRadius:16,
-          background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.10)",
+          background:"rgba(201,146,42,0.12)", border:"1px solid rgba(255,255,255,0.10)",
           display:"flex", alignItems:"center", cursor:"pointer",
         }}>
           <svg width="20" height="24" viewBox="0 0 20 24" fill="white" style={{ flexShrink:0 }}>
@@ -3240,11 +3249,11 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
 
         {/* Note confidentialité */}
         <div style={{ display:"flex", alignItems:"flex-start", gap:14 }}>
-          <div style={{ flexShrink:0, width:42, height:42, borderRadius:21, background:"rgba(110,231,183,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ flexShrink:0, width:42, height:42, borderRadius:21, background:"rgba(201,146,42,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
             <svg width="20" height="22" viewBox="0 0 20 22" fill="none">
-              <rect x="1" y="9" width="18" height="12" rx="3" stroke="#6ee7b7" strokeWidth="1.5"/>
-              <path d="M5 9V6a5 5 0 0110 0v3" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round"/>
-              <circle cx="10" cy="15" r="1.5" fill="#6ee7b7"/>
+              <rect x="1" y="9" width="18" height="12" rx="3" stroke="#D4A030" strokeWidth="1.5"/>
+              <path d="M5 9V6a5 5 0 0110 0v3" stroke="#D4A030" strokeWidth="1.5" strokeLinecap="round"/>
+              <circle cx="10" cy="15" r="1.5" fill="#D4A030"/>
             </svg>
           </div>
           <div style={{ fontSize:13, color:"rgba(255,255,255,0.38)", lineHeight:1.6, paddingTop:3 }}>
@@ -3260,7 +3269,7 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
         </div>
         <button onClick={() => setMode(mode === "signup" ? "login" : "signup")} style={{
           background:"none", border:"none", cursor:"pointer",
-          fontSize:16, fontWeight:700, color:"#6ee7b7", paddingBottom:0,
+          fontSize:16, fontWeight:700, color:"#C9922A", paddingBottom:0,
         }}>
           {mode === "signup" ? "Se connecter" : "Créer un compte"}
         </button>
@@ -3270,9 +3279,9 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
       <div style={{ padding:"28px 24px 0", textAlign:"center", lineHeight:1.6 }}>
         <div style={{ fontSize:13, color:"rgba(255,255,255,0.28)" }}>En créant un compte, tu acceptes nos</div>
         <div style={{ fontSize:13 }}>
-          <span style={{ color:"#6ee7b7", cursor:"pointer" }}>Conditions d'utilisation</span>
+          <span style={{ color:"#C9922A", cursor:"pointer" }}>Conditions d'utilisation</span>
           <span style={{ color:"rgba(255,255,255,0.28)" }}> et notre </span>
-          <span style={{ color:"#6ee7b7", cursor:"pointer" }}>Politique de confidentialité.</span>
+          <span style={{ color:"#C9922A", cursor:"pointer" }}>Politique de confidentialité.</span>
         </div>
       </div>
 
@@ -3318,14 +3327,14 @@ function FirmLogo({ firmKey, size = 44 }) {
     );
     case "alpha": return (
       <svg width={s} height={s} viewBox="0 0 44 44">
-        <defs><linearGradient id="al-g" x1="0%" y1="0%" x2="50%" y2="100%"><stop offset="0%" stopColor="#fbbf24"/><stop offset="100%" stopColor="#6ee7b7"/></linearGradient></defs>
+        <defs><linearGradient id="al-g" x1="0%" y1="0%" x2="50%" y2="100%"><stop offset="0%" stopColor="#fbbf24"/><stop offset="100%" stopColor="#C9922A"/></linearGradient></defs>
         <polygon points="22,3 42,40 2,40" fill="url(#al-g)"/>
         <polygon points="22,14 32,34 12,34" fill="#0d0d0d" opacity="0.6"/>
       </svg>
     );
     case "the5ers": return (
       <svg width={s} height={s} viewBox="0 0 44 44">
-        <defs><linearGradient id="f5-g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#6ee7b7"/><stop offset="100%" stopColor="#fbbf24"/></linearGradient></defs>
+        <defs><linearGradient id="f5-g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#C9922A"/><stop offset="100%" stopColor="#fbbf24"/></linearGradient></defs>
         <text x="1" y="30" fontSize="28" fontWeight="900" fill="url(#f5-g)" fontFamily="Arial Black, sans-serif">5%</text>
         <text x="22" y="40" fontSize="11" fontWeight="700" fill="url(#f5-g)" fontFamily="Arial, sans-serif">ers</text>
       </svg>
@@ -3398,18 +3407,18 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
   ];
 
   return (
-    <div style={{ minHeight:"100vh", background:"#000000", display:"flex", flexDirection:"column", maxWidth:480, margin:"0 auto", fontFamily:"-apple-system, system-ui, sans-serif", paddingBottom:"calc(28px + env(safe-area-inset-bottom))" }}>
+    <div style={{ minHeight:"100vh", background:"#000000", display:"flex", flexDirection:"column", maxWidth:480, margin:"0 auto", fontFamily:"'DM Sans', -apple-system, sans-serif", paddingBottom:"calc(28px + env(safe-area-inset-bottom))" }}>
 
       {/* Contenu scrollable */}
       <div style={{ flex:1, padding:"0 20px", paddingTop:"calc(40px + env(safe-area-inset-top))", overflowY:"auto" }}>
 
         {/* Étape X/3 + barres */}
-        <div style={{ fontSize:13, fontWeight:700, color:"#6ee7b7", marginBottom:10 }}>
+        <div style={{ fontSize:13, fontWeight:700, color:"#C9922A", marginBottom:10 }}>
           Étape {displayStep}/3
         </div>
         <div style={{ display:"flex", gap:6, marginBottom:28 }}>
           {[1,2,3].map(i => (
-            <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i <= displayStep ? "#6ee7b7" : "rgba(255,255,255,0.12)" }} />
+            <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i <= displayStep ? "#C9922A" : "rgba(255,255,255,0.12)" }} />
           ))}
         </div>
 
@@ -3424,7 +3433,7 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
               {FIRMS_LIST.map(f => (
                 <button key={f.k} onClick={() => { selectFirm(f.k); setStep(1); }} style={{
                   width:"100%", padding:"18px 20px", borderRadius:18,
-                  background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)",
+                  background:"rgba(255,255,255,0.04)", border:"1px solid rgba(201,146,42,0.10)",
                   display:"flex", alignItems:"center", gap:16, cursor:"pointer", textAlign:"left",
                   transition:"all .15s",
                 }}>
@@ -3436,7 +3445,7 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
                   <div style={{ flex:1, fontSize:17, fontWeight:700, color:"#ffffff" }}>{f.label}</div>
                   {/* Flèche */}
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path d="M7 5l5 5-5 5" stroke="#6ee7b7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M7 5l5 5-5 5" stroke="#D4A030" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </button>
               ))}
@@ -3453,17 +3462,17 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
             </div>
 
             {/* Carte firm sélectionnée + Changer */}
-            <div style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:18, padding:"16px 20px", display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
+            <div style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(201,146,42,0.10)", borderRadius:18, padding:"16px 20px", display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
               <div style={{ width:40, height:40, borderRadius:10, background:"rgba(255,255,255,0.06)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                 <FirmLogo firmKey={firmKey} size={30} />
               </div>
               <div style={{ flex:1, fontSize:16, fontWeight:700, color:"#ffffff" }}>{firm.name}</div>
-              <button onClick={() => setStep(0)} style={{ background:"none", border:"none", color:"#6ee7b7", fontSize:14, fontWeight:700, cursor:"pointer" }}>Changer</button>
+              <button onClick={() => setStep(0)} style={{ background:"none", border:"none", color:"#C9922A", fontSize:14, fontWeight:700, cursor:"pointer" }}>Changer</button>
             </div>
 
             {/* Header section capital */}
             <div style={{ display:"flex", alignItems:"flex-start", gap:14, marginBottom:16 }}>
-              <div style={{ width:40, height:40, borderRadius:20, background:"rgba(110,231,183,0.12)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:20 }}>🪙</div>
+              <div style={{ width:40, height:40, borderRadius:20, background:"rgba(201,146,42,0.12)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:20 }}>🪙</div>
               <div>
                 <div style={{ fontSize:16, fontWeight:700, color:"#ffffff", marginBottom:2 }}>Sélectionne ton capital</div>
                 <div style={{ fontSize:13, color:"rgba(255,255,255,0.35)" }}>Chaque option inclut les frais du challenge.</div>
@@ -3478,14 +3487,14 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
                 return (
                   <button key={c} onClick={() => setCapital(c)} style={{
                     width:"100%", padding:"18px 20px", borderRadius:18, cursor:"pointer",
-                    background: sel ? "rgba(110,231,183,0.07)" : "rgba(255,255,255,0.03)",
-                    border: "1.5px solid " + (sel ? "#6ee7b7" : "rgba(255,255,255,0.07)"),
+                    background: sel ? "rgba(201,146,42,0.07)" : "rgba(255,255,255,0.03)",
+                    border: "1.5px solid " + (sel ? "#C9922A" : "rgba(201,146,42,0.12)"),
                     display:"flex", alignItems:"center", gap:14, textAlign:"left",
                     transition:"all .15s",
                   }}>
                     {/* Radio button */}
-                    <div style={{ width:24, height:24, borderRadius:12, border:"2px solid " + (sel ? "#6ee7b7" : "rgba(255,255,255,0.25)"), display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: sel ? "rgba(110,231,183,0.1)" : "transparent" }}>
-                      {sel && <div style={{ width:10, height:10, borderRadius:5, background:"#6ee7b7" }} />}
+                    <div style={{ width:24, height:24, borderRadius:12, border:"2px solid " + (sel ? "#C9922A" : "rgba(255,255,255,0.25)"), display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: sel ? "rgba(201,146,42,0.1)" : "transparent" }}>
+                      {sel && <div style={{ width:10, height:10, borderRadius:5, background:"#C9922A" }} />}
                     </div>
                     {/* Montant */}
                     <div style={{ flex:1, fontSize:18, fontWeight:700, color:"#ffffff" }}>
@@ -3493,14 +3502,14 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
                     </div>
                     {/* Badge frais */}
                     {fee && (
-                      <div style={{ padding:"5px 12px", borderRadius:20, fontSize:13, fontWeight:600, background: sel ? "rgba(110,231,183,0.15)" : "rgba(255,255,255,0.06)", color: sel ? "#6ee7b7" : "rgba(255,255,255,0.4)" }}>
+                      <div style={{ padding:"5px 12px", borderRadius:20, fontSize:13, fontWeight:600, background: sel ? "rgba(201,146,42,0.15)" : "rgba(255,255,255,0.06)", color: sel ? "#C9922A" : "rgba(255,255,255,0.4)" }}>
                         Frais : ${fee.toLocaleString("en-US")}
                       </div>
                     )}
                     {/* Checkmark */}
                     {sel && (
                       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ flexShrink:0 }}>
-                        <path d="M4 10l4 4 8-8" stroke="#6ee7b7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M4 10l4 4 8-8" stroke="#D4A030" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     )}
                   </button>
@@ -3509,10 +3518,10 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
             </div>
 
             {/* Carte info paiement unique */}
-            <div style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:18, padding:"16px 20px", display:"flex", alignItems:"flex-start", gap:14 }}>
-              <div style={{ width:40, height:40, borderRadius:20, background:"rgba(110,231,183,0.12)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:20 }}>🛡️</div>
+            <div style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(201,146,42,0.12)", borderRadius:18, padding:"16px 20px", display:"flex", alignItems:"flex-start", gap:14 }}>
+              <div style={{ width:40, height:40, borderRadius:20, background:"rgba(201,146,42,0.12)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:20 }}>🛡️</div>
               <div>
-                <div style={{ fontSize:14, fontWeight:700, color:"#6ee7b7", marginBottom:4 }}>Paiement unique</div>
+                <div style={{ fontSize:14, fontWeight:700, color:"#C9922A", marginBottom:4 }}>Paiement unique</div>
                 <div style={{ fontSize:13, color:"rgba(255,255,255,0.6)", lineHeight:1.5 }}>
                   Les frais sont payés une seule fois.<br/>Bonne chance pour ton challenge !
                 </div>
@@ -3526,11 +3535,11 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
       <div style={{ padding:"20px 20px 0" }}>
         <button onClick={step === 0 ? () => {} : finish} style={{
           width:"100%", padding:"20px",
-          borderRadius:100, background:"#6ee7b7",
+          borderRadius:100, background:"#C9922A",
           color:"#000000", fontSize:17, fontWeight:800,
           border:"none", cursor: step === 0 ? "default" : "pointer",
           opacity: step === 0 ? 0.5 : 1,
-          boxShadow:"0 4px 24px rgba(110,231,183,0.2)",
+          boxShadow:"0 4px 24px rgba(201,146,42,0.2)",
           transition:"opacity .2s",
         }}>
           Continuer
@@ -3602,12 +3611,12 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
   const chartMax = equityVals.length ? Math.max(...equityVals)*1.002 : cap*1.05;
 
   return (
-    <div style={{fontFamily:"-apple-system,system-ui,sans-serif",color:"#e2e8f0"}}>
+    <div style={{fontFamily:"'DM Sans', -apple-system, sans-serif",color:"#F0E4C8"}}>
 
       {/* ── HEADER ── */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px 14px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <button style={{width:38,height:38,borderRadius:10,background:"rgba(255,255,255,0.07)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>
+          <button style={{width:38,height:38,borderRadius:10,background:"rgba(201,146,42,0.12)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>
             <svg width="18" height="14" viewBox="0 0 18 14" fill="none">
               <rect width="18" height="2" rx="1" fill="white"/><rect y="6" width="14" height="2" rx="1" fill="white"/><rect y="12" width="10" height="2" rx="1" fill="white"/>
             </svg>
@@ -3618,19 +3627,19 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
           </div>
         </div>
         <div style={{position:"relative"}}>
-          <button style={{width:38,height:38,borderRadius:10,background:"rgba(255,255,255,0.07)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
+          <button style={{width:38,height:38,borderRadius:10,background:"rgba(201,146,42,0.12)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
             <svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M9 0C6.8 0 5 1.8 5 4v1.1C3.4 5.9 2 7.8 2 10v4l-2 2v1h18v-1l-2-2v-4c0-2.2-1.4-4.1-3-4.9V4c0-2.2-1.8-4-4-4z" fill="white" opacity="0.8"/><path d="M7 18c0 1.1.9 2 2 2s2-.9 2-2H7z" fill="white" opacity="0.6"/></svg>
           </button>
-          <div style={{position:"absolute",top:7,right:7,width:8,height:8,borderRadius:4,background:"#6ee7b7",border:"2px solid #000"}}/>
+          <div style={{position:"absolute",top:7,right:7,width:8,height:8,borderRadius:4,background:"#C9922A",border:"2px solid #000"}}/>
         </div>
       </div>
 
       {!hasData && (
-        <div style={{margin:"16px",background:"rgba(110,231,183,0.05)",border:"1px solid rgba(110,231,183,0.15)",borderRadius:16,padding:"28px 20px",textAlign:"center"}}>
+        <div style={{margin:"16px",background:"rgba(201,146,42,0.05)",border:"1px solid rgba(201,146,42,0.15)",borderRadius:16,padding:"28px 20px",textAlign:"center"}}>
           <div style={{fontSize:36,marginBottom:12}}>🚀</div>
           <div style={{fontSize:16,fontWeight:700,marginBottom:6}}>Lance ta première simulation</div>
           <div style={{fontSize:13,color:"rgba(255,255,255,0.4)",marginBottom:18}}>Tes statistiques apparaîtront ici après la simulation.</div>
-          <button onClick={()=>goto("simulator")} style={{padding:"14px 28px",borderRadius:100,background:"#6ee7b7",color:"#000",fontSize:14,fontWeight:800,border:"none",cursor:"pointer"}}>Démarrer maintenant</button>
+          <button onClick={()=>goto("simulator")} style={{padding:"14px 28px",borderRadius:100,background:"#C9922A",color:"#000",fontSize:14,fontWeight:800,border:"none",cursor:"pointer"}}>Démarrer maintenant</button>
         </div>
       )}
 
@@ -3652,18 +3661,18 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
         {/* Barre progression */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
           <div style={{fontSize:11,color:"rgba(255,255,255,0.4)"}}>Progression globale</div>
-          <div style={{fontSize:13,fontWeight:800,color:"#6ee7b7"}}>{progression}%</div>
+          <div style={{fontSize:13,fontWeight:800,color:"#C9922A"}}>{progression}%</div>
         </div>
-        <div style={{height:6,background:"rgba(255,255,255,0.08)",borderRadius:3,marginBottom:14,overflow:"hidden"}}>
-          <div style={{height:"100%",width:progression+"%",background:"linear-gradient(90deg,#059669,#6ee7b7)",borderRadius:3,transition:"width .6s"}}/>
+        <div style={{height:6,background:"rgba(201,146,42,0.10)",borderRadius:3,marginBottom:14,overflow:"hidden"}}>
+          <div style={{height:"100%",width:progression+"%",background:"linear-gradient(90deg,#8B6010,#C9922A)",borderRadius:3,transition:"width .6s"}}/>
         </div>
         {/* 4 stat boxes */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6}}>
           {[
-            {l:"Objectif Phase 1",v:phase1Target.toFixed(0)+"%",sub:"+"+phase1Pct+"% atteint",vc:"#6ee7b7"},
+            {l:"Objectif Phase 1",v:phase1Target.toFixed(0)+"%",sub:"+"+phase1Pct+"% atteint",vc:"#C9922A"},
             {l:"DD journalier",v:dailyDDLimit+"%",sub:ddDayPct+"% utilisé",vc:"#fbbf24"},
             {l:"DD total",v:totalDDLimit+"%",sub:ddTotPct+"% utilisé",vc:"#f87171"},
-            {l:"Profit split",v:splitStart+"-"+splitMax+"%",sub:ls.allPassed?"Atteint":"Non atteint",vc:"#e2e8f0"},
+            {l:"Profit split",v:splitStart+"-"+splitMax+"%",sub:ls.allPassed?"Atteint":"Non atteint",vc:"#F0E4C8"},
           ].map((s,i)=>(
             <div key={i} style={{background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"8px 6px",textAlign:"center"}}>
               <div style={{fontSize:8,color:"rgba(255,255,255,0.35)",marginBottom:3,lineHeight:1.2}}>{s.l}</div>
@@ -3675,13 +3684,13 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
       </div>
 
       {/* ── APERÇU PERFORMANCE ── */}
-      <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:20,padding:16}}>
+      <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(201,146,42,0.10)",borderRadius:20,padding:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div style={{fontSize:11,fontWeight:800,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1}}>Aperçu Performance</div>
           <div style={{display:"flex",gap:2}}>
             {["7J","30J","90J","Tout"].map(p=>(
               <button key={p} onClick={()=>setPerfPeriod(p)} style={{padding:"4px 8px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,
-                background:perfPeriod===p?"#6ee7b7":"transparent",color:perfPeriod===p?"#000":"rgba(255,255,255,0.35)"}}>
+                background:perfPeriod===p?"#C9922A":"transparent",color:perfPeriod===p?"#000":"rgba(255,255,255,0.35)"}}>
                 {p}
               </button>
             ))}
@@ -3691,14 +3700,14 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
           {/* Stats gauche */}
           <div style={{display:"flex",flexDirection:"column",gap:10,minWidth:90}}>
             {[
-              {l:"Profit",v:(profitAmount>=0?"+":"")+fmtMoney(profitAmount,2),c:profitAmount>=0?"#6ee7b7":"#f87171"},
+              {l:"Profit",v:(profitAmount>=0?"+":"")+fmtMoney(profitAmount,2),c:profitAmount>=0?"#C9922A":"#f87171"},
               {l:"Trades",v:totalTrades},
-              {l:"Winrate",v:wr.toFixed(1)+"%",c:"#e2e8f0"},
-              {l:"Risque / Récompense",v:"1:"+rr,c:"#e2e8f0"},
+              {l:"Winrate",v:wr.toFixed(1)+"%",c:"#F0E4C8"},
+              {l:"Risque / Récompense",v:"1:"+rr,c:"#F0E4C8"},
             ].map((s,i)=>(
               <div key={i}>
                 <div style={{fontSize:9,color:"rgba(255,255,255,0.35)"}}>{s.l}</div>
-                <div style={{fontSize:14,fontWeight:800,color:s.c||"#e2e8f0"}}>{s.v}</div>
+                <div style={{fontSize:14,fontWeight:800,color:s.c||"#F0E4C8"}}>{s.v}</div>
               </div>
             ))}
           </div>
@@ -3708,12 +3717,12 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
               <svg width="100%" height="120" viewBox={`0 0 200 100`} preserveAspectRatio="none">
                 <defs>
                   <linearGradient id="perf-fill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#6ee7b7" stopOpacity="0.3"/>
-                    <stop offset="100%" stopColor="#6ee7b7" stopOpacity="0"/>
+                    <stop offset="0%" stopColor="#C9922A" stopOpacity="0.3"/>
+                    <stop offset="100%" stopColor="#C9922A" stopOpacity="0"/>
                   </linearGradient>
                   <linearGradient id="perf-line" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#059669"/>
-                    <stop offset="100%" stopColor="#6ee7b7"/>
+                    <stop offset="0%" stopColor="#8B6010"/>
+                    <stop offset="100%" stopColor="#C9922A"/>
                   </linearGradient>
                 </defs>
                 {(() => {
@@ -3738,12 +3747,12 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
       </div>
 
       {/* ── RÈGLES DU CHALLENGE ── */}
-      <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:20,padding:16}}>
+      <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(201,146,42,0.10)",borderRadius:20,padding:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
           <div style={{fontSize:11,fontWeight:800,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1}}>Règles du Challenge</div>
-          <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(110,231,183,0.12)",border:"1px solid rgba(110,231,183,0.3)",borderRadius:20,padding:"4px 10px"}}>
-            <svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill="rgba(110,231,183,0.2)"/><path d="M3 6l2 2 4-4" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round"/></svg>
-            <span style={{fontSize:11,fontWeight:700,color:"#6ee7b7"}}>Conforme</span>
+          <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(201,146,42,0.12)",border:"1px solid rgba(201,146,42,0.3)",borderRadius:20,padding:"4px 10px"}}>
+            <svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill="rgba(201,146,42,0.2)"/><path d="M3 6l2 2 4-4" stroke="#D4A030" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            <span style={{fontSize:11,fontWeight:700,color:"#C9922A"}}>Conforme</span>
           </div>
         </div>
         {[
@@ -3753,16 +3762,16 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
           {icon:"◷",label:"Jours de trading minimum",current:tradingDays,limit:fm?.phases?.[0]?.minDays||5,unit:"jours",warn:tradingDays<(fm?.phases?.[0]?.minDays||5)},
         ].map((r,i)=>{
           const isOk = r.ok || (!r.warn && parseFloat(r.current)<r.limit);
-          const iconColor = r.warn ? "#fbbf24" : isOk ? "#6ee7b7" : "#6ee7b7";
+          const iconColor = r.warn ? "#fbbf24" : isOk ? "#C9922A" : "#C9922A";
           return (
             <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:i<3?"1px solid rgba(255,255,255,0.05)":"none"}}>
               <span style={{fontSize:16,color:iconColor,width:20,textAlign:"center",flexShrink:0}}>{r.icon}</span>
               <div style={{flex:1,fontSize:12,color:"rgba(255,255,255,0.7)"}}>{r.label}</div>
               <div style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.9)"}}>{r.current}{r.unit?" ":"% / "}{r.unit?(" / "+r.limit+" "+r.unit):r.limit+"%"}</div>
-              <div style={{width:24,height:24,borderRadius:6,background:r.warn?"rgba(251,191,36,0.1)":"rgba(110,231,183,0.1)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <div style={{width:24,height:24,borderRadius:6,background:r.warn?"rgba(251,191,36,0.1)":"rgba(201,146,42,0.1)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                 {r.warn
                   ? <svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1L13.5 13H0.5z" fill="none" stroke="#fbbf24" strokeWidth="1.2"/><text x="7" y="11" textAnchor="middle" fill="#fbbf24" fontSize="6" fontWeight="900">!</text></svg>
-                  : <svg width="14" height="14" viewBox="0 0 14 14"><rect width="14" height="14" rx="3" fill="rgba(110,231,183,0.15)"/><path d="M3.5 7l2.5 2.5 4.5-4.5" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                  : <svg width="14" height="14" viewBox="0 0 14 14"><rect width="14" height="14" rx="3" fill="rgba(201,146,42,0.15)"/><path d="M3.5 7l2.5 2.5 4.5-4.5" stroke="#D4A030" strokeWidth="1.5" strokeLinecap="round"/></svg>
                 }
               </div>
             </div>
@@ -3773,25 +3782,25 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
       {/* ── 2 COLONNES : STATS + CONFIGS ── */}
       <div style={{margin:"0 16px 14px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         {/* STATISTIQUES */}
-        <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:20,padding:14}}>
+        <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(201,146,42,0.10)",borderRadius:20,padding:14}}>
           <div style={{fontSize:10,fontWeight:800,color:"rgba(255,255,255,0.4)",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>Statistiques</div>
           {/* Gauge winrate */}
           <div style={{position:"relative",width:80,height:80,margin:"0 auto 12px"}}>
             <svg width="80" height="80" viewBox="0 0 80 80">
-              <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(110,231,183,0.1)" strokeWidth="8"/>
-              <circle cx="40" cy="40" r="32" fill="none" stroke="#6ee7b7" strokeWidth="8"
+              <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(201,146,42,0.1)" strokeWidth="8"/>
+              <circle cx="40" cy="40" r="32" fill="none" stroke="#D4A030" strokeWidth="8"
                 strokeDasharray={`${(wr/100)*201} 201`} strokeLinecap="round"
                 transform="rotate(-90 40 40)"/>
             </svg>
             <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
-              <div style={{fontSize:14,fontWeight:900,color:"#6ee7b7"}}>{wr.toFixed(1)}%</div>
+              <div style={{fontSize:14,fontWeight:900,color:"#C9922A"}}>{wr.toFixed(1)}%</div>
               <div style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>Winrate</div>
             </div>
           </div>
           {[
-            {l:"Trades gagnants",v:wins,c:"#6ee7b7"},
+            {l:"Trades gagnants",v:wins,c:"#C9922A"},
             {l:"Trades perdants",v:losses,c:"#f87171"},
-            {l:"Winrate",v:wr.toFixed(1)+"%",c:"#6ee7b7"},
+            {l:"Winrate",v:wr.toFixed(1)+"%",c:"#C9922A"},
           ].map((s,i)=>(
             <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
               <span style={{fontSize:10,color:"rgba(255,255,255,0.4)"}}>{s.l}</span>
@@ -3800,7 +3809,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
           ))}
           <div style={{borderTop:"1px solid rgba(255,255,255,0.05)",marginTop:8,paddingTop:8}}>
             {[
-              {l:"Meilleur trade",v:"+"+fmtMoney(bestTrade),c:"#6ee7b7"},
+              {l:"Meilleur trade",v:"+"+fmtMoney(bestTrade),c:"#C9922A"},
               {l:"Pire trade",v:"-"+fmtMoney(Math.abs(worstTrade)),c:"#f87171"},
             ].map((s,i)=>(
               <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
@@ -3809,16 +3818,16 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
               </div>
             ))}
           </div>
-          <button onClick={()=>goto("trades")} style={{width:"100%",marginTop:8,padding:"8px",borderRadius:10,background:"rgba(110,231,183,0.08)",border:"none",cursor:"pointer",color:"#6ee7b7",fontSize:11,fontWeight:700}}>
+          <button onClick={()=>goto("trades")} style={{width:"100%",marginTop:8,padding:"8px",borderRadius:10,background:"rgba(201,146,42,0.08)",border:"none",cursor:"pointer",color:"#C9922A",fontSize:11,fontWeight:700}}>
             Voir toutes les stats →
           </button>
         </div>
 
         {/* MES CONFIGS */}
-        <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:20,padding:14,display:"flex",flexDirection:"column"}}>
+        <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(201,146,42,0.10)",borderRadius:20,padding:14,display:"flex",flexDirection:"column"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
             <div style={{fontSize:10,fontWeight:800,color:"rgba(255,255,255,0.4)",textTransform:"uppercase",letterSpacing:1}}>Configs</div>
-            <button onClick={()=>goto("simulator")} style={{background:"none",border:"none",color:"#6ee7b7",fontSize:10,fontWeight:700,cursor:"pointer"}}>+ New</button>
+            <button onClick={()=>goto("simulator")} style={{background:"none",border:"none",color:"#C9922A",fontSize:10,fontWeight:700,cursor:"pointer"}}>+ New</button>
           </div>
           {configs.length===0 ? (
             <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center",gap:8}}>
@@ -3831,7 +3840,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
                 const cf=PROP_FIRMS[c.firmKey]||PROP_FIRMS.fundednext;
                 return(
                   <div key={c.id} style={{background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"8px 10px",borderLeft:"2px solid "+cf.color}}>
-                    <div style={{fontSize:11,fontWeight:700,color:"#e2e8f0",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.name}</div>
+                    <div style={{fontSize:11,fontWeight:700,color:"#F0E4C8",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.name}</div>
                     <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",marginTop:2}}>{cf.name} · WR {c.winrate}%</div>
                     <button onClick={()=>loadConfig(c)} style={{marginTop:6,width:"100%",padding:"4px",borderRadius:6,background:cf.color+"18",border:"1px solid "+cf.color+"40",color:cf.color,fontSize:9,fontWeight:700,cursor:"pointer"}}>Charger</button>
                   </div>
@@ -3845,13 +3854,13 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
       </>)}
 
       {/* ── CTA ── */}
-      <div style={{margin:"0 16px 16px",background:"rgba(110,231,183,0.05)",border:"1px solid rgba(110,231,183,0.12)",borderRadius:20,padding:"16px",display:"flex",alignItems:"center",gap:14}}>
-        <div style={{width:46,height:46,borderRadius:12,background:"rgba(110,231,183,0.1)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:22}}>🎯</div>
+      <div style={{margin:"0 16px 16px",background:"rgba(201,146,42,0.05)",border:"1px solid rgba(201,146,42,0.12)",borderRadius:20,padding:"16px",display:"flex",alignItems:"center",gap:14}}>
+        <div style={{width:46,height:46,borderRadius:12,background:"rgba(201,146,42,0.1)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:22}}>🎯</div>
         <div style={{flex:1}}>
           <div style={{fontSize:14,fontWeight:800,marginBottom:2}}>Reste focus et discipliné</div>
           <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",lineHeight:1.4}}>Chaque jour est une étape de plus vers ta prochaine validation.</div>
         </div>
-        <button onClick={()=>goto("simulator")} style={{padding:"12px 18px",borderRadius:16,background:"#6ee7b7",color:"#000",fontSize:12,fontWeight:800,border:"none",cursor:"pointer",flexShrink:0,lineHeight:1.3,textAlign:"center",whiteSpace:"nowrap"}}>
+        <button onClick={()=>goto("simulator")} style={{padding:"12px 18px",borderRadius:16,background:"#C9922A",color:"#000",fontSize:12,fontWeight:800,border:"none",cursor:"pointer",flexShrink:0,lineHeight:1.3,textAlign:"center",whiteSpace:"nowrap"}}>
           Démarrer<br/>une simulation
         </button>
       </div>
@@ -3878,35 +3887,35 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
 
   return (
     <div>
-      <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 16 }}>{t("prof_title")}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "'Playfair Display', serif", marginBottom: 16 }}>{t("prof_title")}</div>
 
       {/* Compte */}
       <div className="card">
-        <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>{t("prof_account")}</div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#8A7040", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>{t("prof_account")}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 46, height: 46, borderRadius: 23, background: "#6ee7b7", color: "#080810", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800 }}>
+          <div style={{ width: 46, height: 46, borderRadius: 23, background: "#C9922A", color: "#080810", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800 }}>
             {(user.name || "?")[0].toUpperCase()}
           </div>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700 }}>{user.name}</div>
-            <div style={{ fontSize: 12, color: "#64748b" }}>{user.email || t("prof_guest")}</div>
+            <div style={{ fontSize: 12, color: "#8A7040" }}>{user.email || t("prof_guest")}</div>
           </div>
         </div>
       </div>
 
       {/* Préférences */}
       <div className="card">
-        <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>{t("prof_prefs")}</div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#8A7040", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>{t("prof_prefs")}</div>
 
         {/* Langue */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 6 }}>{t("prof_lang")}</div>
+          <div style={{ fontSize: 13, color: "#C4A068", marginBottom: 6 }}>{t("prof_lang")}</div>
           <div style={{ display: "flex", gap: 8 }}>
             {[{ k: "fr", label: "🇫🇷 Français" }, { k: "en", label: "🇬🇧 English" }].map(o => (
               <button key={o.k} onClick={() => changeLang(o.k)} style={{
                 flex: 1, padding: "10px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 700,
-                background: lang === o.k ? "#062318" : "#0a0a14", color: lang === o.k ? "#6ee7b7" : "#94a3b8",
-                border: "1px solid " + (lang === o.k ? "#6ee7b7" : "#1e1e2e"),
+                background: lang === o.k ? "#062318" : "#0a0a14", color: lang === o.k ? "#C9922A" : "#C4A068",
+                border: "1px solid " + (lang === o.k ? "#C9922A" : "#1e1e2e"),
               }}>{o.label}</button>
             ))}
           </div>
@@ -3914,14 +3923,14 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
 
         {/* Prop firm */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 6 }}>{t("prof_firm")}</div>
+          <div style={{ fontSize: 13, color: "#C4A068", marginBottom: 6 }}>{t("prof_firm")}</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
             {Object.keys(PROP_FIRMS).map(k => {
               const f = PROP_FIRMS[k]; const sel = profile.firmKey === k;
               return (
                 <button key={k} onClick={() => changeFirm(k)} style={{
                   padding: "9px 4px", borderRadius: 9, cursor: "pointer", fontSize: 11, fontWeight: 700,
-                  background: sel ? f.color : "#0a0a14", color: sel ? "#080810" : "#94a3b8",
+                  background: sel ? f.color : "#0a0a14", color: sel ? "#080810" : "#C4A068",
                   border: "1px solid " + (sel ? f.color : "#1e1e2e"),
                 }}>{f.name}</button>
               );
@@ -3931,15 +3940,15 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
 
         {/* Capital */}
         <div>
-          <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 6 }}>{t("prof_capital")}</div>
+          <div style={{ fontSize: 13, color: "#C4A068", marginBottom: 6 }}>{t("prof_capital")}</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
             {CAPITAL_OPTIONS.map(c => {
               const sel = profile.capital === c;
               return (
                 <button key={c} onClick={() => changeCapital(c)} style={{
                   padding: "10px 4px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 800,
-                  background: sel ? "#062318" : "#0a0a14", color: sel ? "#6ee7b7" : "#94a3b8",
-                  border: "1px solid " + (sel ? "#6ee7b7" : "#1e1e2e"),
+                  background: sel ? "#062318" : "#0a0a14", color: sel ? "#C9922A" : "#C4A068",
+                  border: "1px solid " + (sel ? "#C9922A" : "#1e1e2e"),
                 }}>${c / 1000}K</button>
               );
             })}
@@ -3948,7 +3957,7 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
       </div>
 
       {/* Actions */}
-      <button onClick={onLogout} style={{ width: "100%", padding: "14px", borderRadius: 12, border: "1px solid #1e1e2e", cursor: "pointer", background: "#111118", color: "#e2e8f0", fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
+      <button onClick={onLogout} style={{ width: "100%", padding: "14px", borderRadius: 12, border: "1px solid #1e1e2e", cursor: "pointer", background: "#111118", color: "#F0E4C8", fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
         {t("prof_logout")}
       </button>
       <button onClick={() => { if (confirm(t("prof_reset_confirm"))) onReset(); }} style={{ width: "100%", padding: "14px", borderRadius: 12, border: "1px solid #ef444440", cursor: "pointer", background: "#2d0808", color: "#f87171", fontSize: 14, fontWeight: 700 }}>
@@ -3966,32 +3975,32 @@ function NavBar({ t, active, goto }) {
     { k:"dashboard", label:t("nav_dashboard"),
       icon:(on)=><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
         <path d="M2 9L11 2L20 9v11a1 1 0 01-1 1H14v-6H8v6H3a1 1 0 01-1-1V9z"
-          fill={on?"#6ee7b7":"none"} stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinejoin="round"/>
+          fill={on?"#C9922A":"none"} stroke={on?"#C9922A":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinejoin="round"/>
       </svg>},
     { k:"simulator", label:t("nav_simulator"),
       icon:(on)=><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <rect x="2" y="2" width="18" height="18" rx="4" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
-        <path d="M6 16L9 11l3 3 2-4 2 6" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+        <rect x="2" y="2" width="18" height="18" rx="4" stroke={on?"#C9922A":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
+        <path d="M6 16L9 11l3 3 2-4 2 6" stroke={on?"#C9922A":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>},
     { k:"trades", label:t("nav_trades"),
       icon:(on)=><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <rect x="2" y="6" width="18" height="12" rx="3" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
-        <path d="M7 2h8" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinecap="round"/>
-        <path d="M7 11h4M7 14.5h7" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.4" strokeLinecap="round"/>
+        <rect x="2" y="6" width="18" height="12" rx="3" stroke={on?"#C9922A":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
+        <path d="M7 2h8" stroke={on?"#C9922A":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinecap="round"/>
+        <path d="M7 11h4M7 14.5h7" stroke={on?"#C9922A":"rgba(255,255,255,0.4)"} strokeWidth="1.4" strokeLinecap="round"/>
       </svg>},
     { k:"montecarlo", label:t("nav_montecarlo"),
       icon:(on)=><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <rect x="2" y="2" width="18" height="18" rx="4" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
-        <circle cx="7.5" cy="7.5" r="1.5" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
-        <circle cx="14.5" cy="7.5" r="1.5" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
-        <circle cx="7.5" cy="14.5" r="1.5" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
-        <circle cx="14.5" cy="14.5" r="1.5" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
-        <circle cx="11" cy="11" r="1.5" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
+        <rect x="2" y="2" width="18" height="18" rx="4" stroke={on?"#C9922A":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
+        <circle cx="7.5" cy="7.5" r="1.5" fill={on?"#C9922A":"rgba(255,255,255,0.4)"}/>
+        <circle cx="14.5" cy="7.5" r="1.5" fill={on?"#C9922A":"rgba(255,255,255,0.4)"}/>
+        <circle cx="7.5" cy="14.5" r="1.5" fill={on?"#C9922A":"rgba(255,255,255,0.4)"}/>
+        <circle cx="14.5" cy="14.5" r="1.5" fill={on?"#C9922A":"rgba(255,255,255,0.4)"}/>
+        <circle cx="11" cy="11" r="1.5" fill={on?"#C9922A":"rgba(255,255,255,0.4)"}/>
       </svg>},
     { k:"profile", label:t("nav_profile"),
       icon:(on)=><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <circle cx="11" cy="8" r="4" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
-        <path d="M3 20c0-4 3.6-7 8-7s8 3 8 7" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinecap="round"/>
+        <circle cx="11" cy="8" r="4" stroke={on?"#C9922A":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
+        <path d="M3 20c0-4 3.6-7 8-7s8 3 8 7" stroke={on?"#C9922A":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinecap="round"/>
       </svg>},
   ];
 
@@ -4004,8 +4013,8 @@ function NavBar({ t, active, goto }) {
   return (
     <div style={{
       position:"fixed",bottom:0,left:0,right:0,zIndex:100,maxWidth:480,margin:"0 auto",
-      background:"rgba(8,8,16,0.97)",
-      borderTop:"1px solid rgba(255,255,255,0.07)",
+      background:"rgba(18,12,3,0.97)",
+      borderTop:"1px solid rgba(201,146,42,0.12)",
       backdropFilter:"blur(20px)",
       WebkitBackdropFilter:"blur(20px)",
       paddingTop:10,
@@ -4020,9 +4029,9 @@ function NavBar({ t, active, goto }) {
               display:"flex",flexDirection:"column",alignItems:"center",gap:4,padding:"2px 0",
               position:"relative",
             }}>
-              {on && <div style={{position:"absolute",top:-10,width:36,height:3,borderRadius:2,background:"#6ee7b7"}}/>}
+              {on && <div style={{position:"absolute",top:-10,width:36,height:3,borderRadius:2,background:"linear-gradient(90deg, #C9922A, #F5C842)"}}/>}
               {it.icon(on)}
-              <span style={{fontSize:9,fontWeight:on?800:500,color:on?"#6ee7b7":"rgba(255,255,255,0.35)",letterSpacing:0.2}}>
+              <span style={{fontSize:9,fontWeight:on?800:500,color:on?"#C9922A":"rgba(255,255,255,0.35)",letterSpacing:0.2}}>
                 {it.label}
               </span>
             </button>
@@ -4119,12 +4128,15 @@ export default function App() {
   const logout = () => { setUser(null); saveApp({ user: null }); };
 
   return (
-    <div style={{ background: "#080810", minHeight: "100vh", maxWidth: 480, margin: "0 auto" }}>
+    <div style={{ background: "#060400", minHeight: "100vh", maxWidth: 480, margin: "0 auto", position: "relative" }}>
+      {/* Halo ambré subtil en arrière-plan */}
+      <div style={{ position:"fixed", top:"-5%", left:"50%", transform:"translateX(-50%)", width:400, height:300, borderRadius:"50%", background:"radial-gradient(ellipse, rgba(140,85,5,0.12) 0%, transparent 70%)", pointerEvents:"none", zIndex:0 }} />
       <div style={{
         padding: "16px",
         paddingTop: "calc(16px + env(safe-area-inset-top))",
         paddingBottom: "calc(80px + env(safe-area-inset-bottom))",
-        color: "#e2e8f0", fontFamily: "system-ui, sans-serif",
+        color: "#F0E4C8", fontFamily: "'DM Sans', system-ui, sans-serif",
+        position: "relative", zIndex: 1,
       }}>
         {screen === "dashboard" && (
           <DashboardScreen t={t} lang={lang} user={user} profile={profile} lastSim={lastSim} goto={goto} loadConfig={loadConfig} />

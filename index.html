@@ -17,21 +17,30 @@
     <meta name="mobile-web-app-capable" content="yes" />
 
     <title>EA PropFirm Pro</title>
+    <!-- Polices premium : Playfair Display (titres) + DM Sans (corps) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       html, body {
-        background: #080810;
-        color: #e2e8f0;
+        background: #080400;
+        color: #F0E4C8;
         min-height: 100vh;
         min-height: -webkit-fill-available;
         overscroll-behavior: none;
         -webkit-tap-highlight-color: transparent;
+        font-family: 'DM Sans', -apple-system, sans-serif;
       }
       #root {
         min-height: 100vh;
         min-height: -webkit-fill-available;
-        background: #080810;
+        background: #080400;
       }
+      /* Scrollbar dorée */
+      ::-webkit-scrollbar { width: 3px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: rgba(201,146,42,0.3); border-radius: 3px; }
     </style>
   </head>
   <body>
