@@ -335,7 +335,7 @@ const PROP_FIRMS = {
   },
   alpha: {
     name: "Alpha Capital",
-    color: "#f59e0b",
+    color: "#6ee7b7",
     note: "Pro 8% - DD total 8% STATIC - News interdit +/-5min",
     models: {
       "2step": {
@@ -1035,7 +1035,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   })() : null;
   const lotDiagJSX = _d ? (
     <div style={{ marginTop: 8 }}>
-      <div style={{ fontSize: 10, fontWeight: 800, color: "#f59e0b", marginBottom: 6, textTransform: "uppercase" }}>Diagnostic FundedNext</div>
+      <div style={{ fontSize: 10, fontWeight: 800, color: "#6ee7b7", marginBottom: 6, textTransform: "uppercase" }}>Diagnostic FundedNext</div>
       {_d.chks.map(([ok, l, v, e]) => (
         <div key={l} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 6, background: ok ? "#062318" : "#2d0808", border: "1px solid " + (ok ? "#6ee7b730" : "#ef444430"), borderRadius: 8, padding: "7px 10px" }}>
           <span style={{ fontSize: 12, color: ok ? "#6ee7b7" : "#ef4444" }}>{ok ? "+" : "x"}</span>
@@ -1045,8 +1045,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </div>
         </div>
       ))}
-      <div style={{ background: lotRiskPct > 0.5 ? "#2d1f08" : "#062318", border: "1px solid " + (lotRiskPct > 0.5 ? "#f59e0b40" : "#6ee7b740"), borderRadius: 8, padding: "8px 10px", fontSize: 11 }}>
-        <b style={{ color: "#f59e0b" }}>Resume: </b><span style={{ color: "#e2e8f0" }}>{_d.resume}</span>
+      <div style={{ background: lotRiskPct > 0.5 ? "#2d1f08" : "#062318", border: "1px solid " + (lotRiskPct > 0.5 ? "#6ee7b740" : "#6ee7b740"), borderRadius: 8, padding: "8px 10px", fontSize: 11 }}>
+        <b style={{ color: "#6ee7b7" }}>Resume: </b><span style={{ color: "#e2e8f0" }}>{_d.resume}</span>
       </div>
     </div>
   ) : null;
@@ -1236,7 +1236,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </div>
         )}
         {model.newsForbidden && (
-          <div style={{ marginTop: 8, background: "#2d1f08", border: "1px solid #f59e0b40", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: "#fbbf24", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, background: "#2d1f08", border: "1px solid #6ee7b740", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: "#fbbf24", lineHeight: 1.5 }}>
             NEWS TRADING & HFT INTERDITS sur cette firm. Active "Impact news" pour simuler.
           </div>
         )}
@@ -1398,9 +1398,9 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       </div>
 
       {/* CARTE LOT / INSTRUMENT */}
-      <div className="card" style={{ borderLeft: "3px solid #f59e0b" }}>
+      <div className="card" style={{ borderLeft: "3px solid #6ee7b7" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <span style={{ fontSize: 11, fontWeight: 800, color: "#f59e0b", textTransform: "uppercase", letterSpacing: 1 }}>Lot & Instrument</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: "#6ee7b7", textTransform: "uppercase", letterSpacing: 1 }}>Lot & Instrument</span>
           <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
             <span style={{ fontSize: 10, color: "#64748b" }}>Activer</span>
             <div onClick={() => setUseFixedLot(v => !v)} style={{
@@ -1445,7 +1445,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 9, color: "#64748b" }}>Risque/trade</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: "#f59e0b" }}>{fmt2(lotRiskAmount)}</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#6ee7b7" }}>{fmt2(lotRiskAmount)}</div>
             </div>
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 9, color: "#64748b" }}>% du capital</div>
@@ -1508,7 +1508,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
               <span style={{ fontSize: 10, color: "#64748b", fontWeight: 700 }}>Risque/trade (%)</span>
-              {useFixedLot && <span style={{ fontSize: 9, background: "#f59e0b20", color: "#f59e0b", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>LOT AUTO</span>}
+              {useFixedLot && <span style={{ fontSize: 9, background: "#6ee7b720", color: "#6ee7b7", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>LOT AUTO</span>}
             </div>
             <input
               type="number"
@@ -1518,15 +1518,15 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               onChange={e => !useFixedLot && setRiskPct(parseFloat(e.target.value) || 0)}
               style={{
                 background: useFixedLot ? "#1a1004" : "#080810",
-                border: "1px solid " + (useFixedLot ? "#f59e0b80" : "#1e1e2e"),
+                border: "1px solid " + (useFixedLot ? "#6ee7b780" : "#1e1e2e"),
                 borderRadius: 6,
-                color: useFixedLot ? "#f59e0b" : "#e2e8f0",
+                color: useFixedLot ? "#6ee7b7" : "#e2e8f0",
                 padding: "5px 8px", width: "100%", fontSize: 13,
                 cursor: useFixedLot ? "not-allowed" : "text",
                 fontWeight: useFixedLot ? 800 : 400,
               }} />
             {useFixedLot
-              ? <div style={{ fontSize: 9, color: "#f59e0b", marginTop: 3, lineHeight: 1.4 }}>
+              ? <div style={{ fontSize: 9, color: "#6ee7b7", marginTop: 3, lineHeight: 1.4 }}>
                   Lot {lotSize} × {slPips} pips × ${pipVal}/pip = <b>{fmt2(effectiveRiskAmount)}</b>
                 </div>
               : <input type="range" min={0.05} max={2} step={0.05} value={riskPct} onChange={e => setRiskPct(parseFloat(e.target.value))} />
@@ -1549,7 +1549,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
         {/* Résumé paramètres */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
-          <div style={{ background: useFixedLot ? "#1a1004" : "#0a0a14", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: useFixedLot ? "#f59e0b" : "#fbbf24", border: useFixedLot ? "1px solid #f59e0b30" : "none" }}>
+          <div style={{ background: useFixedLot ? "#1a1004" : "#0a0a14", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: useFixedLot ? "#6ee7b7" : "#fbbf24", border: useFixedLot ? "1px solid #6ee7b730" : "none" }}>
             Risque : <b>{fmt2(effectiveRiskAmount)}</b>/trade = <b>{effectiveRiskPct.toFixed(2)}%</b>
           </div>
           <div style={{ background: "#0a0a14", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: "#6ee7b7" }}>
@@ -1734,7 +1734,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
                 {[
                   { label: "Capital final", val: fmt(sim.funded.finalEquity), color: "#6ee7b7" },
-                  { label: "Payout verse", val: fmt(sim.funded.cumulPayout), color: "#fbbf24" },
+                  { label: "Payout verse", val: fmt(sim.funded.cumulPayout), color: "#6ee7b7" },
                   { label: "En attente", val: fmt2(sim.funded.pendingPayout), color: "#94a3b8" },
                   { label: "WR mensuel", val: sim.funded.winrateMonth.toFixed(0) + "%", color: sim.funded.winrateMonth >= 60 ? "#6ee7b7" : "#fbbf24" },
                   { label: "Scaling", val: sim.funded.scalingCount + "x (+40%)", color: "#93c5fd" },
@@ -2934,8 +2934,8 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
         {[
           {icon:"📉",label:tx.s1c1,c:"#ef4444",bg:"rgba(239,68,68,0.08)"},
           {icon:"⊗",label:tx.s1c2,c:"#ef4444",bg:"rgba(239,68,68,0.08)"},
-          {icon:"💰",label:tx.s1c3,c:"#f59e0b",bg:"rgba(245,158,11,0.08)"},
-          {icon:"⚠️",label:tx.s1c4,c:"#f59e0b",bg:"rgba(245,158,11,0.08)"},
+          {icon:"💰",label:tx.s1c3,c:"#6ee7b7",bg:"rgba(245,158,11,0.08)"},
+          {icon:"⚠️",label:tx.s1c4,c:"#6ee7b7",bg:"rgba(245,158,11,0.08)"},
         ].map((c,i)=>(
           <div key={i} style={{background:c.bg,border:"1px solid "+c.c+"30",borderRadius:14,padding:"14px 12px",textAlign:"center"}}>
             <div style={{fontSize:26,marginBottom:8}}>{c.icon}</div>
@@ -3194,7 +3194,7 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
 
         {/* Header gradient */}
         <div style={{ textAlign:"center", marginBottom:22 }}>
-          <span style={{ fontSize:15, fontWeight:600, background:"linear-gradient(90deg, #60a5fa, #6ee7b7)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
+          <span style={{ fontSize:15, fontWeight:600, background:"linear-gradient(90deg, #059669, #6ee7b7)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
             {mode === "signup" ? "Inscription rapide et sécurisée" : "Connexion rapide et sécurisée"}
           </span>
         </div>
@@ -3318,14 +3318,14 @@ function FirmLogo({ firmKey, size = 44 }) {
     );
     case "alpha": return (
       <svg width={s} height={s} viewBox="0 0 44 44">
-        <defs><linearGradient id="al-g" x1="0%" y1="0%" x2="50%" y2="100%"><stop offset="0%" stopColor="#fbbf24"/><stop offset="100%" stopColor="#f59e0b"/></linearGradient></defs>
+        <defs><linearGradient id="al-g" x1="0%" y1="0%" x2="50%" y2="100%"><stop offset="0%" stopColor="#fbbf24"/><stop offset="100%" stopColor="#6ee7b7"/></linearGradient></defs>
         <polygon points="22,3 42,40 2,40" fill="url(#al-g)"/>
         <polygon points="22,14 32,34 12,34" fill="#0d0d0d" opacity="0.6"/>
       </svg>
     );
     case "the5ers": return (
       <svg width={s} height={s} viewBox="0 0 44 44">
-        <defs><linearGradient id="f5-g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#f59e0b"/><stop offset="100%" stopColor="#fbbf24"/></linearGradient></defs>
+        <defs><linearGradient id="f5-g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#6ee7b7"/><stop offset="100%" stopColor="#fbbf24"/></linearGradient></defs>
         <text x="1" y="30" fontSize="28" fontWeight="900" fill="url(#f5-g)" fontFamily="Arial Black, sans-serif">5%</text>
         <text x="22" y="40" fontSize="11" fontWeight="700" fill="url(#f5-g)" fontFamily="Arial, sans-serif">ers</text>
       </svg>
@@ -3663,7 +3663,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
             {l:"Objectif Phase 1",v:phase1Target.toFixed(0)+"%",sub:"+"+phase1Pct+"% atteint",vc:"#6ee7b7"},
             {l:"DD journalier",v:dailyDDLimit+"%",sub:ddDayPct+"% utilisé",vc:"#fbbf24"},
             {l:"DD total",v:totalDDLimit+"%",sub:ddTotPct+"% utilisé",vc:"#f87171"},
-            {l:"Profit split",v:splitStart+"-"+splitMax+"%",sub:ls.allPassed?"Atteint":"Non atteint",vc:"#60a5fa"},
+            {l:"Profit split",v:splitStart+"-"+splitMax+"%",sub:ls.allPassed?"Atteint":"Non atteint",vc:"#e2e8f0"},
           ].map((s,i)=>(
             <div key={i} style={{background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"8px 6px",textAlign:"center"}}>
               <div style={{fontSize:8,color:"rgba(255,255,255,0.35)",marginBottom:3,lineHeight:1.2}}>{s.l}</div>
