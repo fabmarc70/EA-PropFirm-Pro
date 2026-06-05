@@ -282,6 +282,8 @@ npm run build  # Doit afficher "✓ built in Xs", jamais "exited with 1"
 **Prévention** : Après toute suppression de bloc, recompiler immédiatement
 
 
+> **📚 Voir `docs/LESSONS_LEARNED.md` pour le registre complet des incidents (14 incidents, 42 règles préventives)**
+
 ### 2025-06 — Audit palette : couleurs de branding firm infiltrées dans l'UI
 **Contexte** : Audit automatique App.jsx vs PROJECT_COMPASS.md  
 **Erreur** : `#60a5fa` (bleu FTMO) et `#f59e0b` (orange Alpha Capital) utilisés dans des composants génériques (Dashboard Profit split, LOT AUTO badge, Login gradient)  
@@ -583,6 +585,7 @@ eapropfirm_trades         → trades importés CSV/HTML
 PROJECT_COMPASS.md          → Vision, règles UI/UX, architecture, décisions, roadmap
 RELEASE_PROTOCOL.md         → Checklist validation complète avant toute release
 docs/PRODUCT_DECISIONS.md   → Registre officiel de toutes les décisions produit (20 décisions)
+docs/LESSONS_LEARNED.md     → Base de connaissances des erreurs (14 incidents documentés)
 README.md                   → Présentation, installation, stack technique
 ```
 
