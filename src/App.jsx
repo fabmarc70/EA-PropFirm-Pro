@@ -6,45 +6,6 @@ import {
 } from "recharts";
 
 // ══════════════════════════════════════════════════════════════════
-// COMPOSANT HEADER — PageHeader réutilisable
-// ══════════════════════════════════════════════════════════════════
-function PageHeader({ title, showLogo = true }) {
-  return (
-    <div style={{
-      borderBottom: "1px solid rgba(255,255,255,0.07)",
-      paddingBottom: "16px",
-      marginBottom: "16px",
-    }}>
-      {showLogo && (
-        <img
-          src="/logo-propfirm.png"
-          alt="Simulator Prop Firm"
-          style={{
-            maxHeight: "50px",
-            width: "auto",
-            marginBottom: "12px",
-            opacity: 0.95,
-          }}
-        />
-      )}
-      {title && (
-        <h1 style={{
-          fontSize: "20px",
-          fontWeight: "700",
-          color: "#fff",
-          margin: "0",
-          paddingBottom: "8px",
-          borderBottom: "2px solid #6ee7b7",
-          display: "inline-block",
-        }}>
-          {title}
-        </h1>
-      )}
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════
 // I18N — Traductions FR / EN
 // ══════════════════════════════════════════════════════════════════
 const I18N = {
@@ -1112,12 +1073,6 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", color: "#e2e8f0" }}>
-      
-      {/* ── LOGO HEADER ── */}
-      <div style={{padding:"16px"}}>
-        <PageHeader title="Simulateur" showLogo={true} />
-      </div>
-
       <style>{`
         * { box-sizing: border-box; }
         .card { background: #111118; border: 1px solid #1e1e2e; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
@@ -1943,11 +1898,6 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
   const rate_color = v => v >= 70 ? "#6ee7b7" : v >= 50 ? "#fbbf24" : "#ef4444";
   return (
     <div>
-      {/* ── LOGO HEADER ── */}
-      <div style={{padding:"16px"}}>
-        <PageHeader title="Monte Carlo" showLogo={true} />
-      </div>
-
       <div className="card">
         <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 12, color: "#e2e8f0" }}>Monte Carlo - {RUNS} simulations</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
@@ -2231,11 +2181,6 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
 
   return (
     <div>
-      {/* ── LOGO HEADER ── */}
-      <div style={{padding:"16px"}}>
-        <PageHeader title="Mes Trades" showLogo={true} />
-      </div>
-
       {/* ── UPLOAD : CSV + HTML ── */}
       <div className="card" style={{ borderLeft: "3px solid #6ee7b7" }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: "#6ee7b7", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
@@ -3658,13 +3603,8 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
 
   return (
     <div style={{fontFamily:"-apple-system,system-ui,sans-serif",color:"#e2e8f0"}}>
-      
-      {/* ── LOGO HEADER ── */}
-      <div style={{padding:"16px"}}>
-        <PageHeader title={t("dash_welcome")} showLogo={true} />
-      </div>
 
-      {/* ── HEADER ANCIEN (conservé pour hamburger) ── */}
+      {/* ── HEADER ── */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px 14px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           <button style={{width:38,height:38,borderRadius:10,background:"rgba(255,255,255,0.07)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>
@@ -3938,12 +3878,7 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
 
   return (
     <div>
-      {/* ── LOGO HEADER ── */}
-      <div style={{padding:"16px"}}>
-        <PageHeader title={t("prof_title")} showLogo={true} />
-      </div>
-
-      <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 16, display: "none" }}>{t("prof_title")}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 16 }}>{t("prof_title")}</div>
 
       {/* Compte */}
       <div className="card">
