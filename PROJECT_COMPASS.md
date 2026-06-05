@@ -509,6 +509,11 @@ npm run build  # Doit afficher "✓ built in Xs", jamais "exited with 1"
 2. Committer avec message descriptif (feat/fix/refactor)
 3. Push sur GitHub (rebuild Vercel automatique)
 
+### Avant chaque release
+1. Lire et exécuter `RELEASE_PROTOCOL.md` phase par phase
+2. Signer la Phase 13 (validation finale)
+3. Logger la release dans le tableau Phase 14
+
 ### Style de code à produire
 ```javascript
 // ✅ BON — source unique, documenté
@@ -568,6 +573,13 @@ eapropfirm_trades         → trades importés CSV/HTML
 | FundingPips | 8% | 5% | 5% | 10% | 3j | 80→90% |
 
 ---
+
+### Fichiers de référence du projet
+```
+PROJECT_COMPASS.md    → Vision, règles UI/UX, architecture, décisions, roadmap
+RELEASE_PROTOCOL.md  → Checklist validation complète avant toute release
+README.md            → Présentation, installation, stack technique
+```
 
 *Dernière mise à jour : Juin 2025*
 *Mis à jour par : Claude (session développement complète)*
