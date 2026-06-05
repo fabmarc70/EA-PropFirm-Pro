@@ -509,6 +509,10 @@ npm run build  # Doit afficher "✓ built in Xs", jamais "exited with 1"
 2. Committer avec message descriptif (feat/fix/refactor)
 3. Push sur GitHub (rebuild Vercel automatique)
 
+### Avant chaque décision importante
+1. Consulter `docs/PRODUCT_DECISIONS.md` pour éviter de réinventer
+2. Créer une entrée PD-XXX avant d'implémenter
+
 ### Avant chaque release
 1. Lire et exécuter `RELEASE_PROTOCOL.md` phase par phase
 2. Signer la Phase 13 (validation finale)
@@ -576,9 +580,10 @@ eapropfirm_trades         → trades importés CSV/HTML
 
 ### Fichiers de référence du projet
 ```
-PROJECT_COMPASS.md    → Vision, règles UI/UX, architecture, décisions, roadmap
-RELEASE_PROTOCOL.md  → Checklist validation complète avant toute release
-README.md            → Présentation, installation, stack technique
+PROJECT_COMPASS.md          → Vision, règles UI/UX, architecture, décisions, roadmap
+RELEASE_PROTOCOL.md         → Checklist validation complète avant toute release
+docs/PRODUCT_DECISIONS.md   → Registre officiel de toutes les décisions produit (20 décisions)
+README.md                   → Présentation, installation, stack technique
 ```
 
 *Dernière mise à jour : Juin 2025*
