@@ -656,7 +656,8 @@ function simulateFunded(capital, months, model, p, split) {
   };
 }
 
-function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab = () => {}, onSimResult = () => {} }) {
+function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab = () => {}, onSimResult = () => {}, displayMode = "advanced", usageType = "propfirm" }) {
+  const isSimple = displayMode === "simple";
   const loadSaved = () => {
     try {
       const raw = localStorage.getItem("eapropfirm_config");
@@ -1332,8 +1333,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
       </div>
 
-      {/* JAUGE CLUSTERING + MAX PERTES CONSECUTIVES */}
-      <div className="card" style={{ border: "1px solid rgba(110,231,183,0.10)" }}>
+      {/* JAUGE CLUSTERING + MAX PERTES CONSECUTIVES — mode avancé uniquement */}
+      {!isSimple && <div className="card" style={{ border: "1px solid rgba(110,231,183,0.10)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: clColor, textTransform: "uppercase", letterSpacing: 1 }}>Clustering des pertes</span>
           <span style={{ fontSize: 24, fontWeight: 700, color: clColor }}>{clusteringPct}%</span>
@@ -1373,10 +1374,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             </div>
           </div>
         </div>
-      </div>
+      </div>}
 
-      {/* CARTE LOT / INSTRUMENT */}
-      <div className="card" style={{ borderLeft: "3px solid #6ee7b7" }}>
+      {/* CARTE LOT / INSTRUMENT — mode avancé uniquement */}
+      {!isSimple && <div className="card" style={{ borderLeft: "3px solid #6ee7b7" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.75)", textTransform: "uppercase", letterSpacing: 1 }}>Lot & Instrument</span>
           <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
@@ -1449,8 +1450,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </div>
         )}
 
-        {/* Métriques statistiques avancées */}
-        <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 10, marginBottom: 10 }}>
+        {/* Métriques statistiques avancées — mode avancé uniquement */}
+        {!isSimple && <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 10, marginBottom: 10 }}>
           <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Statistiques calculées</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
             {[
@@ -1472,10 +1473,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               ⚠ Ton risque ({effectiveRiskPct.toFixed(2)}%) dépasse le Kelly optimal ({(kellyFraction * 100).toFixed(1)}%). Risque de ruine accru.
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Diagnostic de compatibilité FundedNext */}
-        {lotDiagJSX}
+        {!isSimple && lotDiagJSX}
 
         {/* TOGGLE IMPACT ANNONCES NEWS */}
         <div style={{ marginTop: 10, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 10 }}>
@@ -1505,7 +1506,20 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             </div>
           )}
         </div>
-      </div>
+      </div>}
+
+      {/* Bandeau mode débutant — affiché uniquement en mode simple */}
+      {isSimple && (
+        <div style={{ background:"rgba(110,231,183,0.06)", border:"1px solid rgba(110,231,183,0.15)", borderRadius:14, padding:"12px 14px", marginBottom:12, display:"flex", alignItems:"center", gap:10 }}>
+          <span style={{ fontSize:18 }}>🌱</span>
+          <div>
+            <div style={{ fontSize:12, fontWeight:700, color:"#6ee7b7" }}>Mode débutant actif</div>
+            <div style={{ fontSize:11, color:"rgba(255,255,255,0.45)", marginTop:1 }}>
+              Affichage simplifié. Modifiable dans Profil.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PARAMETRES */}
       <div className="card">
@@ -1556,7 +1570,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </div>
 
           {[
-            { label: "Trades/jour", val: tradesPerDay, set: setTradesPerDay, min: 0.1, max: 15, step: 0.05 },
+            { label: "Trades/jour", val: tradesPerDay, set: (v) => setTradesPerDay(Math.round(v)), min: 1, max: 15, step: 1 },
             { label: "Objectif/jour (%)", val: dailyTargetPct, set: setDailyTargetPct, min: 0.05, max: 1.5, step: 0.05 },
             { label: "Split (%)", val: split, set: setSplit, min: 80, max: 95, step: 5 },
             { label: "Mois Funded", val: fundedMonths, set: setFundedMonths, min: 1, max: 60, step: 1 },
@@ -3665,80 +3679,157 @@ const FIRM_FEES = {
   fundingpips:{ 10000:49, 25000:99, 50000:164, 100000:299, 200000:529 },
 };
 
-// PROFIL SETUP (firm → capital) — Étapes 2/3 et 3/3
+// PROFIL SETUP — 4 étapes : usage → firm/capital → niveau → capital (prop)
 // ══════════════════════════════════════════════════════════════════
 function ProfileSetupScreen({ t, lang, setLang, onDone }) {
-  const [step, setStep] = useState(0); // 0=firm, 1=capital
-  const [firmKey, setFirmKey] = useState("fundednext");
-  const [capital, setCapital] = useState(25000);
-
-  const totalDisplaySteps = 3; // 1=langue(fait), 2=firm, 3=capital
-  const displayStep = step + 2; // commence à 2/3
+  const [step, setStep]           = useState(0); // 0=usage 1=firm 2=capital 3=niveau
+  const [usageType, setUsageType] = useState(null); // "propfirm" | "classic"
+  const [firmKey, setFirmKey]     = useState("fundednext");
+  const [capital, setCapital]     = useState(25000);
+  const [classicCapital, setClassicCapital] = useState(10000);
+  const [level, setLevel]         = useState(null); // "beginner"|"experienced"|"professional"
 
   const firm = PROP_FIRMS[firmKey] || PROP_FIRMS.fundednext;
   const caps = FIRM_CAPITALS[firmKey] || FIRM_CAPITALS.fundednext;
   const fees = FIRM_FEES[firmKey] || {};
 
-  // Quand on change de firm, reset capital au 1er disponible
   const selectFirm = (k) => {
     setFirmKey(k);
-    const firstCap = (FIRM_CAPITALS[k] || FIRM_CAPITALS.fundednext)[0];
-    setCapital(firstCap);
+    setCapital((FIRM_CAPITALS[k] || FIRM_CAPITALS.fundednext)[0]);
   };
 
+  const totalSteps = usageType === "propfirm" ? 4 : 3;
+  const displayStep = step + 2; // commence à 2/3
+
   const finish = () => {
-    syncSimConfig({ firmKey, modelKey: "2step", capital });
-    saveApp({ profile: { lang, firmKey, capital }, setupDone: true });
-    onDone({ lang, firmKey, capital });
+    const displayMode = level === "beginner" ? "simple" : "advanced";
+    const finalCapital = usageType === "propfirm" ? capital : classicCapital;
+    const finalFirm = usageType === "propfirm" ? firmKey : "fundednext";
+    syncSimConfig({ firmKey: finalFirm, modelKey: "2step", capital: finalCapital });
+    saveApp({
+      profile: { lang, firmKey: finalFirm, capital: finalCapital, usageType, level, displayMode },
+      setupDone: true
+    });
+    onDone({ lang, firmKey: finalFirm, capital: finalCapital, usageType, level, displayMode });
   };
 
   const FIRMS_LIST = [
-    { k: "ftmo", label: "FTMO" },
-    { k: "fundednext", label: "FundedNext" },
-    { k: "e8", label: "E8" },
-    { k: "alpha", label: "Alpha Capital" },
-    { k: "the5ers", label: "5ers" },
-    { k: "fundingpips", label: "FundingPips" },
+    { k:"ftmo", label:"FTMO" },{ k:"fundednext", label:"FundedNext" },
+    { k:"e8", label:"E8 Markets" },{ k:"alpha", label:"Alpha Capital" },
+    { k:"the5ers", label:"The 5%ers" },{ k:"fundingpips", label:"FundingPips" },
   ];
+
+  const LEVELS = [
+    { k:"beginner", emoji:"🌱", label:"Débutant",
+      desc:"Je débute dans le trading ou les prop firms. Je veux l'essentiel, sans complexité." },
+    { k:"experienced", emoji:"📈", label:"Expérimenté",
+      desc:"Je connais les bases. Je veux voir les métriques importantes de mon setup." },
+    { k:"professional", emoji:"⚡", label:"Professionnel",
+      desc:"Trader confirmé. Je veux accès à toutes les données, métriques avancées et statistiques." },
+  ];
+
+  const canContinue = () => {
+    if (step === 0) return usageType !== null;
+    if (step === 1) {
+      if (usageType === "propfirm") return true; // firm sélectionnée
+      return classicCapital >= 100;
+    }
+    if (step === 2) {
+      if (usageType === "propfirm") return true; // capital sélectionné
+      return level !== null;
+    }
+    if (step === 3) return level !== null;
+    return false;
+  };
+
+  const nextStep = () => {
+    if (step === 0) { setStep(1); return; }
+    if (step === 1 && usageType === "classic") { setStep(2); return; }
+    if (step === 1 && usageType === "propfirm") { setStep(2); return; }
+    if (step === 2 && usageType === "classic" && level !== null) { finish(); return; }
+    if (step === 2 && usageType === "propfirm") { setStep(3); return; }
+    if (step === 3) { finish(); return; }
+  };
+
+  const progress = usageType === "propfirm"
+    ? [0,1,2,3].map(i => i <= step)
+    : [0,1,2].map(i => i <= step);
 
   return (
     <div style={{ minHeight:"100vh", background:"#06090f", display:"flex", flexDirection:"column", maxWidth:480, margin:"0 auto", fontFamily:"-apple-system, sans-serif", paddingBottom:"calc(28px + env(safe-area-inset-bottom))" }}>
 
-      {/* Contenu scrollable */}
-      <div style={{ flex:1, padding:"0 20px", paddingTop:"calc(40px + env(safe-area-inset-top))", overflowY:"auto" }}>
+      {/* Halo */}
+      <div style={{ position:"fixed", top:"10%", left:"50%", transform:"translateX(-50%)", width:300, height:300, borderRadius:"50%", background:"radial-gradient(circle, rgba(52,211,153,0.08) 0%, transparent 70%)", pointerEvents:"none", zIndex:0 }} />
 
-        {/* Étape X/3 + barres */}
+      <div style={{ flex:1, padding:"0 20px", paddingTop:"calc(40px + env(safe-area-inset-top))", overflowY:"auto", position:"relative", zIndex:1 }}>
+
+        {/* Progress bar */}
         <div style={{ fontSize:13, fontWeight:700, color:"#6ee7b7", marginBottom:10 }}>
-          Étape {displayStep}/3
+          Étape {step + 2}/{progress.length + 1}
         </div>
         <div style={{ display:"flex", gap:6, marginBottom:28 }}>
-          {[1,2,3].map(i => (
-            <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i <= displayStep ? "#6ee7b7" : "rgba(255,255,255,0.12)" }} />
+          {progress.map((done, i) => (
+            <div key={i} style={{ flex:1, height:4, borderRadius:2, background: done ? "#6ee7b7" : "rgba(255,255,255,0.12)", transition:"background .3s" }} />
           ))}
         </div>
 
-        {/* ══ STEP 0 : CHOIX PROP FIRM ══ */}
+        {/* ══ STEP 0 : USAGE ══ */}
         {step === 0 && (
           <>
-            <div style={{ fontSize:28, fontWeight:700, color:"#ffffff", marginBottom:6 }}>Choisis ta prop firm</div>
-            <div style={{ fontSize:14, color:"rgba(255,255,255,0.4)", marginBottom:28, lineHeight:1.5 }}>
-              Sélectionne la prop firm que tu souhaites utiliser dans le simulateur.
+            <div style={{ fontSize:26, fontWeight:700, color:"#ffffff", marginBottom:6 }}>
+              Comment vas-tu utiliser ce simulateur ?
+            </div>
+            <div style={{ fontSize:14, color:"rgba(255,255,255,0.45)", marginBottom:28, lineHeight:1.5 }}>
+              Cela nous permet de personnaliser l'expérience pour toi.
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              {[
+                { k:"propfirm", emoji:"🏆", label:"Challenge Prop Firm",
+                  desc:"Je veux passer un challenge FTMO, FundedNext, E8, etc. pour obtenir un capital financé." },
+                { k:"classic", emoji:"📊", label:"Trading Classique",
+                  desc:"Je trade avec mon propre capital et je veux simuler / optimiser ma gestion du risque." },
+              ].map(opt => (
+                <button key={opt.k} onClick={() => setUsageType(opt.k)} style={{
+                  width:"100%", padding:"20px", borderRadius:18, cursor:"pointer",
+                  background: usageType === opt.k ? "rgba(110,231,183,0.08)" : "rgba(255,255,255,0.04)",
+                  border: "1.5px solid " + (usageType === opt.k ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
+                  textAlign:"left", transition:"all .15s",
+                }}>
+                  <div style={{ fontSize:24, marginBottom:8 }}>{opt.emoji}</div>
+                  <div style={{ fontSize:17, fontWeight:700, color:"#ffffff", marginBottom:4 }}>{opt.label}</div>
+                  <div style={{ fontSize:13, color:"rgba(255,255,255,0.45)", lineHeight:1.5 }}>{opt.desc}</div>
+                  {usageType === opt.k && (
+                    <div style={{ marginTop:8, display:"flex", alignItems:"center", gap:6 }}>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M3 8l3 3 7-7" stroke="#6ee7b7" strokeWidth="2" strokeLinecap="round"/>
+                      </svg>
+                      <span style={{ fontSize:12, color:"#6ee7b7", fontWeight:600 }}>Sélectionné</span>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* ══ STEP 1 : PROP FIRM ou CAPITAL CLASSIQUE ══ */}
+        {step === 1 && usageType === "propfirm" && (
+          <>
+            <div style={{ fontSize:26, fontWeight:700, color:"#ffffff", marginBottom:6 }}>Choisis ta prop firm</div>
+            <div style={{ fontSize:14, color:"rgba(255,255,255,0.45)", marginBottom:28, lineHeight:1.5 }}>
+              Le simulateur utilisera les règles officielles de cette firm.
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
               {FIRMS_LIST.map(f => (
-                <button key={f.k} onClick={() => { selectFirm(f.k); setStep(1); }} style={{
+                <button key={f.k} onClick={() => { selectFirm(f.k); nextStep(); }} style={{
                   width:"100%", padding:"18px 20px", borderRadius:18,
-                  background:"rgba(255,255,255,0.05)", border:"1px solid rgba(110,231,183,0.10)",
-                  display:"flex", alignItems:"center", gap:16, cursor:"pointer", textAlign:"left",
-                  transition:"all .15s",
+                  background:"rgba(255,255,255,0.04)", border:"1px solid rgba(110,231,183,0.10)",
+                  display:"flex", alignItems:"center", gap:16, cursor:"pointer", textAlign:"left", transition:"all .15s",
                 }}>
-                  {/* Logo */}
                   <div style={{ width:48, height:48, borderRadius:12, background:"rgba(255,255,255,0.06)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                     <FirmLogo firmKey={f.k} size={36} />
                   </div>
-                  {/* Nom */}
                   <div style={{ flex:1, fontSize:17, fontWeight:700, color:"#ffffff" }}>{f.label}</div>
-                  {/* Flèche */}
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                     <path d="M7 5l5 5-5 5" stroke="#6ee7b7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
@@ -3748,33 +3839,46 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
           </>
         )}
 
-        {/* ══ STEP 1 : CHOIX CAPITAL ══ */}
-        {step === 1 && (
+        {step === 1 && usageType === "classic" && (
           <>
-            <div style={{ fontSize:28, fontWeight:700, color:"#ffffff", marginBottom:6 }}>Choisis ton capital</div>
-            <div style={{ fontSize:14, color:"rgba(255,255,255,0.4)", marginBottom:22, lineHeight:1.5 }}>
-              Sélectionne le capital avec lequel tu souhaites passer le challenge.
+            <div style={{ fontSize:26, fontWeight:700, color:"#ffffff", marginBottom:6 }}>Quel est ton capital ?</div>
+            <div style={{ fontSize:14, color:"rgba(255,255,255,0.45)", marginBottom:28, lineHeight:1.5 }}>
+              Saisit le capital avec lequel tu trades habituellement.
             </div>
+            <div style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(110,231,183,0.12)", borderRadius:18, padding:"24px 20px" }}>
+              <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginBottom:8 }}>Capital de trading ($)</div>
+              <input type="number" value={classicCapital} min={100} max={1000000} step={100}
+                onChange={e => setClassicCapital(Math.max(100, parseFloat(e.target.value) || 0))}
+                style={{ width:"100%", fontSize:28, fontWeight:700, color:"#6ee7b7", background:"transparent", border:"none", outline:"none", padding:"4px 0" }}
+              />
+              <input type="range" min={100} max={500000} step={100} value={classicCapital}
+                onChange={e => setClassicCapital(parseInt(e.target.value))}
+                style={{ width:"100%", accentColor:"#6ee7b7", marginTop:8 }}
+              />
+              <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"rgba(255,255,255,0.3)", marginTop:2 }}>
+                <span>$100</span><span>$500K</span>
+              </div>
+              <div style={{ marginTop:16, padding:"10px 14px", background:"rgba(110,231,183,0.06)", border:"1px solid rgba(110,231,183,0.15)", borderRadius:12, fontSize:13, color:"rgba(255,255,255,0.6)" }}>
+                Risque 1% / trade = <b style={{color:"#6ee7b7"}}>${(classicCapital * 0.01).toFixed(0)}</b> par position
+              </div>
+            </div>
+          </>
+        )}
 
-            {/* Carte firm sélectionnée + Changer */}
-            <div style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(110,231,183,0.10)", borderRadius:18, padding:"16px 20px", display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
+        {/* ══ STEP 2 : CAPITAL PROP FIRM ══ */}
+        {step === 2 && usageType === "propfirm" && (
+          <>
+            <div style={{ fontSize:26, fontWeight:700, color:"#ffffff", marginBottom:6 }}>Choisis ton capital</div>
+            <div style={{ fontSize:14, color:"rgba(255,255,255,0.45)", marginBottom:22, lineHeight:1.5 }}>
+              Pour le challenge {firm.name}.
+            </div>
+            <div style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(110,231,183,0.10)", borderRadius:18, padding:"14px 20px", display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
               <div style={{ width:40, height:40, borderRadius:10, background:"rgba(255,255,255,0.06)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                 <FirmLogo firmKey={firmKey} size={30} />
               </div>
               <div style={{ flex:1, fontSize:16, fontWeight:700, color:"#ffffff" }}>{firm.name}</div>
-              <button onClick={() => setStep(0)} style={{ background:"none", border:"none", color:"#6ee7b7", fontSize:14, fontWeight:700, cursor:"pointer" }}>Changer</button>
+              <button onClick={() => setStep(1)} style={{ background:"none", border:"none", color:"#6ee7b7", fontSize:14, fontWeight:700, cursor:"pointer" }}>Changer</button>
             </div>
-
-            {/* Header section capital */}
-            <div style={{ display:"flex", alignItems:"flex-start", gap:14, marginBottom:16 }}>
-              <div style={{ width:40, height:40, borderRadius:20, background:"rgba(255,255,255,0.08)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:20 }}>🪙</div>
-              <div>
-                <div style={{ fontSize:16, fontWeight:700, color:"#ffffff", marginBottom:2 }}>Sélectionne ton capital</div>
-                <div style={{ fontSize:13, color:"rgba(255,255,255,0.35)" }}>Chaque option inclut les frais du challenge.</div>
-              </div>
-            </div>
-
-            {/* Liste capitaux */}
             <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
               {caps.map(c => {
                 const sel = capital === c;
@@ -3782,64 +3886,87 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
                 return (
                   <button key={c} onClick={() => setCapital(c)} style={{
                     width:"100%", padding:"18px 20px", borderRadius:18, cursor:"pointer",
-                    background: sel ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.03)",
-                    border: "1.5px solid " + (sel ? "#FFFFFF" : "rgba(255,255,255,0.08)"),
-                    display:"flex", alignItems:"center", gap:14, textAlign:"left",
-                    transition:"all .15s",
+                    background: sel ? "rgba(110,231,183,0.06)" : "rgba(255,255,255,0.03)",
+                    border: "1.5px solid " + (sel ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
+                    display:"flex", alignItems:"center", gap:14, textAlign:"left", transition:"all .15s",
                   }}>
-                    {/* Radio button */}
-                    <div style={{ width:24, height:24, borderRadius:12, border:"2px solid " + (sel ? "#6ee7b7" : "rgba(255,255,255,0.25)"), display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: sel ? "rgba(110,231,183,0.1)" : "transparent" }}>
-                      {sel && <div style={{ width:10, height:10, borderRadius:5, background:"#6ee7b7" }} />}
+                    <div style={{ width:22, height:22, borderRadius:11, border:"2px solid " + (sel ? "#6ee7b7" : "rgba(255,255,255,0.25)"), display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: sel ? "rgba(110,231,183,0.1)" : "transparent" }}>
+                      {sel && <div style={{ width:9, height:9, borderRadius:5, background:"#6ee7b7" }} />}
                     </div>
-                    {/* Montant */}
                     <div style={{ flex:1, fontSize:18, fontWeight:700, color:"#ffffff" }}>
                       ${c.toLocaleString("en-US")}
                     </div>
-                    {/* Badge frais */}
                     {fee && (
                       <div style={{ padding:"5px 12px", borderRadius:20, fontSize:13, fontWeight:600, background: sel ? "rgba(110,231,183,0.15)" : "rgba(255,255,255,0.06)", color: sel ? "#6ee7b7" : "rgba(255,255,255,0.4)" }}>
                         Frais : ${fee.toLocaleString("en-US")}
                       </div>
                     )}
-                    {/* Checkmark */}
-                    {sel && (
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ flexShrink:0 }}>
-                        <path d="M4 10l4 4 8-8" stroke="#6ee7b7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
                   </button>
                 );
               })}
             </div>
+          </>
+        )}
 
-            {/* Carte info paiement unique */}
-            <div style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(110,231,183,0.12)", borderRadius:18, padding:"16px 20px", display:"flex", alignItems:"flex-start", gap:14 }}>
-              <div style={{ width:40, height:40, borderRadius:20, background:"rgba(255,255,255,0.08)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:20 }}>🛡️</div>
-              <div>
-                <div style={{ fontSize:14, fontWeight:700, color:"#6ee7b7", marginBottom:4 }}>Paiement unique</div>
-                <div style={{ fontSize:13, color:"rgba(255,255,255,0.6)", lineHeight:1.5 }}>
-                  Les frais sont payés une seule fois.<br/>Bonne chance pour ton challenge !
-                </div>
-              </div>
+        {/* ══ STEP 3 (propfirm) ou STEP 2 (classic) : NIVEAU ══ */}
+        {((step === 3 && usageType === "propfirm") || (step === 2 && usageType === "classic")) && (
+          <>
+            <div style={{ fontSize:26, fontWeight:700, color:"#ffffff", marginBottom:6 }}>
+              Quel est ton niveau en trading ?
+            </div>
+            <div style={{ fontSize:14, color:"rgba(255,255,255,0.45)", marginBottom:28, lineHeight:1.5 }}>
+              Cela définit l'affichage du simulateur : simplifié ou avancé.
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              {LEVELS.map(lv => (
+                <button key={lv.k} onClick={() => setLevel(lv.k)} style={{
+                  width:"100%", padding:"20px", borderRadius:18, cursor:"pointer",
+                  background: level === lv.k ? "rgba(110,231,183,0.08)" : "rgba(255,255,255,0.04)",
+                  border: "1.5px solid " + (level === lv.k ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
+                  textAlign:"left", transition:"all .15s",
+                }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:6 }}>
+                    <span style={{ fontSize:22 }}>{lv.emoji}</span>
+                    <span style={{ fontSize:17, fontWeight:700, color:"#ffffff" }}>{lv.label}</span>
+                    {level === lv.k && (
+                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ marginLeft:"auto" }}>
+                        <path d="M3 9l4 4 8-8" stroke="#6ee7b7" strokeWidth="2.2" strokeLinecap="round"/>
+                      </svg>
+                    )}
+                  </div>
+                  <div style={{ fontSize:13, color:"rgba(255,255,255,0.45)", lineHeight:1.5 }}>{lv.desc}</div>
+                  {level === lv.k && (
+                    <div style={{ marginTop:10, padding:"8px 12px", background:"rgba(110,231,183,0.06)", borderRadius:10, fontSize:12, color:"#6ee7b7" }}>
+                      {lv.k === "beginner" ? "Affichage simplifié — l'essentiel uniquement" :
+                       lv.k === "experienced" ? "Affichage standard — métriques clés" :
+                       "Affichage complet — toutes les données disponibles"}
+                    </div>
+                  )}
+                </button>
+              ))}
             </div>
           </>
         )}
       </div>
 
-      {/* ── Bouton Continuer ── */}
-      <div style={{ padding:"20px 20px 0" }}>
-        <button onClick={step === 0 ? () => {} : finish} style={{
-          width:"100%", padding:"20px",
-          borderRadius:100, background:"#6ee7b7",
-          color:"#000000", fontSize:17, fontWeight:700,
-          border:"none", cursor: step === 0 ? "default" : "pointer",
-          opacity: step === 0 ? 0.5 : 1,
-          boxShadow:"0 4px 24px rgba(110,231,183,0.2)",
-          transition:"opacity .2s",
-        }}>
-          Continuer
-        </button>
-      </div>
+      {/* Bouton Continuer / Terminer */}
+      {step !== 1 && (
+        <div style={{ padding:"20px 20px 0", position:"relative", zIndex:1 }}>
+          <button
+            onClick={canContinue() ? nextStep : undefined}
+            style={{
+              width:"100%", padding:"20px", borderRadius:100,
+              background: canContinue() ? "#6ee7b7" : "rgba(255,255,255,0.08)",
+              color: canContinue() ? "#000000" : "rgba(255,255,255,0.25)",
+              fontSize:17, fontWeight:700, border:"none",
+              cursor: canContinue() ? "pointer" : "default",
+              boxShadow: canContinue() ? "0 4px 24px rgba(110,231,183,0.2)" : "none",
+              transition:"all .2s",
+            }}>
+            {((step === 3 && usageType === "propfirm") || (step === 2 && usageType === "classic")) ? "Commencer" : "Continuer"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -4193,6 +4320,38 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
         </div>
       </div>
 
+      {/* Mode d'affichage */}
+      <div className="card">
+        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 12 }}>Mode d'affichage</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {[
+            { k: "simple", emoji: "🌱", label: "Simplifié" },
+            { k: "advanced", emoji: "⚡", label: "Avancé" },
+          ].map(m => {
+            const sel = (profile.displayMode || "advanced") === m.k;
+            return (
+              <button key={m.k} onClick={() => {
+                const np = { ...profile, displayMode: m.k };
+                setProfile(np); saveApp({ profile: np });
+              }} style={{
+                flex: 1, padding: "12px 8px", borderRadius: 12, cursor: "pointer",
+                background: sel ? "rgba(110,231,183,0.08)" : "rgba(255,255,255,0.04)",
+                border: "1.5px solid " + (sel ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
+                textAlign: "center",
+              }}>
+                <div style={{ fontSize: 18, marginBottom: 4 }}>{m.emoji}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: sel ? "#6ee7b7" : "rgba(255,255,255,0.65)" }}>{m.label}</div>
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.4 }}>
+          {(profile.displayMode || "advanced") === "simple"
+            ? "Affichage simplifié : l'essentiel uniquement (DD, risque, projections)."
+            : "Affichage avancé : toutes les métriques, clustering, Kelly, statistiques."}
+        </div>
+      </div>
+
       {/* Actions */}
       <button onClick={onLogout} style={{ width: "100%", padding: "14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer", background: "rgba(255,255,255,0.05)", color: "#FFFFFF", fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
         {t("prof_logout")}
@@ -4379,7 +4538,7 @@ export default function App() {
           <DashboardScreen t={t} lang={lang} user={user} profile={profile} lastSim={lastSim} goto={goto} loadConfig={loadConfig} />
         )}
         {screen === "simulator" && (
-          <SimulatorScreen key={simKey} t={t} lang={lang} tab={simTab} setTab={setSimTab} onSimResult={handleSimResult} />
+          <SimulatorScreen key={simKey} t={t} lang={lang} tab={simTab} setTab={setSimTab} onSimResult={handleSimResult} displayMode={profile.displayMode || "advanced"} usageType={profile.usageType || "propfirm"} />
         )}
         {screen === "profile" && (
           <ProfileScreen t={t} lang={lang} setLang={setLang} user={user} profile={profile} setProfile={setProfile} onLogout={logout} onReset={reset} />
