@@ -446,6 +446,7 @@ function makeTradeStream(winrate, clustering, maxConsecLosses) {
 function simulateDay(equity, tradesPerDay, riskAmount, rr, nextTrade, dailyDDLimit) {
   let dayEquity = equity;
   let dayLowPnl = 0;
+  let dayPeakPnl = 0;
   let wins = 0, losses = 0;
   // Support fractionnel : 0.33 trade/jour = 1 trade avec P=0.33
   const nTrades = tradesPerDay < 1
@@ -457,11 +458,13 @@ function simulateDay(equity, tradesPerDay, riskAmount, rr, nextTrade, dailyDDLim
     else { dayEquity -= riskAmount; losses++; }
     const cumPnl = dayEquity - equity;
     if (cumPnl < dayLowPnl) dayLowPnl = cumPnl;
+    if (cumPnl > dayPeakPnl) dayPeakPnl = cumPnl;
+    // DD journalier vérifié après CHAQUE trade (intraday réaliste)
     if (-dayLowPnl > dailyDDLimit) {
-      return { dayEquity, dayPnl: dayEquity - equity, wins, losses, breached: true };
+      return { dayEquity, dayPnl: dayEquity - equity, wins, losses, breached: true, dayLowPnl, dayPeakPnl };
     }
   }
-  return { dayEquity, dayPnl: dayEquity - equity, wins, losses, breached: false };
+  return { dayEquity, dayPnl: dayEquity - equity, wins, losses, breached: false, dayLowPnl, dayPeakPnl };
 }
 
 function simulatePhase(capital, cfg, model, p) {
@@ -744,42 +747,78 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const w = winrate / 100;
   const monthlyTarget = dailyTarget * 21;
 
-  const PIP_VALUES = {
-    "XAUUSD": 10.0,  // 0.1 lot × 150 pips × $10 = $150 ✓
-    "XAGUSD": 50.0,
-    "EURUSD": 10.0,
-    "GBPUSD": 10.0,
-    "AUDUSD": 10.0,
-    "NZDUSD": 10.0,
-    "USDJPY":  9.1,
-    "USDCHF": 10.2,
-    "USDCAD":  7.5,
-    "GBPJPY":  9.1,
-    "EURJPY":  9.1,
-    "NAS100":  1.0,
-    "US30":    1.0,
-    "SP500":   0.1,
+  // ══════════════════════════════════════════════════════════════
+  // MOTEUR DE CALCUL DU LOT — physique de pip précise
+  // Valeur du pip = (taille du pip / prix) × contractSize × lots
+  // Pour simplifier on stocke la valeur d'1 pip pour 1.0 lot standard,
+  // calibrée sur les prix réels moyens 2026 (USD comme devise de cotation).
+  // ══════════════════════════════════════════════════════════════
+  const INSTRUMENTS = {
+    // value = $ par pip pour 1.0 lot | pip = taille d'1 pip | digits affichage
+    "XAUUSD": { pipValuePerLot: 10.0,  pipSize: 0.10,   label: "Or / USD",        decimals: 2 },
+    "XAGUSD": { pipValuePerLot: 50.0,  pipSize: 0.01,   label: "Argent / USD",    decimals: 3 },
+    "EURUSD": { pipValuePerLot: 10.0,  pipSize: 0.0001, label: "EUR / USD",       decimals: 5 },
+    "GBPUSD": { pipValuePerLot: 10.0,  pipSize: 0.0001, label: "GBP / USD",       decimals: 5 },
+    "AUDUSD": { pipValuePerLot: 10.0,  pipSize: 0.0001, label: "AUD / USD",       decimals: 5 },
+    "NZDUSD": { pipValuePerLot: 10.0,  pipSize: 0.0001, label: "NZD / USD",       decimals: 5 },
+    "USDJPY": { pipValuePerLot: 9.1,   pipSize: 0.01,   label: "USD / JPY",       decimals: 3 },
+    "USDCHF": { pipValuePerLot: 10.2,  pipSize: 0.0001, label: "USD / CHF",       decimals: 5 },
+    "USDCAD": { pipValuePerLot: 7.5,   pipSize: 0.0001, label: "USD / CAD",       decimals: 5 },
+    "GBPJPY": { pipValuePerLot: 9.1,   pipSize: 0.01,   label: "GBP / JPY",       decimals: 3 },
+    "EURJPY": { pipValuePerLot: 9.1,   pipSize: 0.01,   label: "EUR / JPY",       decimals: 3 },
+    "NAS100": { pipValuePerLot: 1.0,   pipSize: 1.0,    label: "Nasdaq 100",      decimals: 1 },
+    "US30":   { pipValuePerLot: 1.0,   pipSize: 1.0,    label: "Dow Jones 30",    decimals: 1 },
+    "SP500":  { pipValuePerLot: 1.0,   pipSize: 0.1,    label: "S&P 500",         decimals: 1 },
+    "BTCUSD": { pipValuePerLot: 1.0,   pipSize: 1.0,    label: "Bitcoin / USD",   decimals: 1 },
   };
-  const pipVal = PIP_VALUES[instrument] || 10.0;
+  const instInfo = INSTRUMENTS[instrument] || INSTRUMENTS["XAUUSD"];
+  const pipVal = instInfo.pipValuePerLot;
 
-  const lotRiskAmount = lotSize * pipVal * slPips;        // $ risque par trade (lot)
-  const lotRiskPct    = lotRiskAmount / capital * 100;    // % du capital
+  // ── Risque par trade (mode lot manuel) ──
+  // $ risque = lots × valeur_pip_par_lot × SL_en_pips
+  const lotRiskAmount = +(lotSize * pipVal * slPips).toFixed(2);
+  const lotRiskPct    = capital > 0 ? +(lotRiskAmount / capital * 100).toFixed(3) : 0;
 
-  const effectiveRiskAmount = useFixedLot ? lotRiskAmount        : capital * (riskPct / 100);
+  // ── Lot suggéré (mode % risque) ──
+  // Pour un risque cible en %, quel lot faut-il ?
+  // lots = (capital × risk%) / (valeur_pip × SL_pips)
+  const suggestedLot = (pipVal > 0 && slPips > 0)
+    ? +((capital * (riskPct / 100)) / (pipVal * slPips)).toFixed(2)
+    : 0;
+
+  const effectiveRiskAmount = useFixedLot ? lotRiskAmount        : +(capital * (riskPct / 100)).toFixed(2);
   const effectiveRiskPct    = useFixedLot ? lotRiskPct           : riskPct;
   const effectiveRisk       = effectiveRiskPct / 100;            // fraction
+  // Lot effectivement utilisé dans la simulation (cohérence affichage)
+  const effectiveLot        = useFixedLot ? lotSize : suggestedLot;
 
-  // Formule : RR = (dailyTarget/(n×riskPerTrade) + (1-w)) / w
-  const finalRR      = w > 0 && effectiveRisk > 0
-    ? (dailyTarget / (tradesPerDay * effectiveRisk) + (1 - w)) / w
+  // ══════════════════════════════════════════════════════════════
+  // CALCUL DU RR REQUIS — formule d'espérance
+  // Pour atteindre dailyTarget avec n trades/jour à winrate w :
+  // E[jour] = n × risk × (w × RR − (1−w)) = dailyTarget
+  // → RR = (dailyTarget/(n×risk) + (1−w)) / w
+  // ══════════════════════════════════════════════════════════════
+  const finalRR = (w > 0 && effectiveRisk > 0 && tradesPerDay > 0)
+    ? +((dailyTarget / (tradesPerDay * effectiveRisk) + (1 - w)) / w).toFixed(2)
     : 0;
   const finalRRValid = finalRR > 0 && finalRR < 20;
 
-  // E[P&L/jour] = n × (w × RR × risk - (1-w) × risk) × capital
-  //             = n × risk × capital × (w×RR - (1-w))
-  // Avec finalRR : E = n × effectiveRisk × capital × (w×finalRR - (1-w))
-  //             = tradesPerDay × effectiveRiskAmount × (w×finalRR - (1-w))
-  const expectedDailyPnL = tradesPerDay * effectiveRiskAmount * (w * finalRR - (1 - w));
+  // ══════════════════════════════════════════════════════════════
+  // ESPÉRANCE & MÉTRIQUES STATISTIQUES
+  // ══════════════════════════════════════════════════════════════
+  // Espérance par trade (en $) : E = risk × (w×RR − (1−w))
+  const expectedPerTrade = effectiveRiskAmount * (w * finalRR - (1 - w));
+  // Espérance journalière
+  const expectedDailyPnL = tradesPerDay * expectedPerTrade;
+  // Profit Factor théorique : (w × RR) / (1−w)
+  const theoreticalPF = (1 - w) > 0 ? +((w * finalRR) / (1 - w)).toFixed(2) : 99;
+  // Espérance mathématique normalisée (% du risque) : edge par trade
+  const expectancyR = +(w * finalRR - (1 - w)).toFixed(3);
+  // Ratio de Kelly (fraction optimale du capital à risquer) : f* = (w×RR − (1−w)) / RR
+  const kellyFraction = finalRR > 0 ? +((w * finalRR - (1 - w)) / finalRR).toFixed(3) : 0;
+  // Drawdown théorique attendu sur une série (basé sur maxConsecLosses)
+  const expectedMaxDDAmount = maxConsecLosses * effectiveRiskAmount;
+  const expectedMaxDDPct = capital > 0 ? +(expectedMaxDDAmount / capital * 100).toFixed(2) : 0;
 
   // Impact news : ~15% des trades touchés par la fenêtre news (estimation)
   // Sur ces trades : gains réduits à 40% → impact effectif sur split
@@ -1088,9 +1127,9 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         .tab-btn { padding: 7px 12px; border-radius: 8px; border: none; cursor: pointer; font-size: 11px; font-weight: 700; font-family: -apple-system, sans-serif; }
         .tab-btn.on { background: #6ee7b7; color: #000000; font-weight: 600; }
         .tab-btn.off { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.75); border: 1px solid rgba(255,255,255,0.10); }
-        .model-btn { flex: 1; padding: 9px 4px; border-radius: 8px; cursor: pointer; font-size: 10px; font-weight: 700; font-family: -apple-system, sans-serif; border: 1px solid rgba(110,231,183,0.14); }
+        .model-btn { flex: 1; padding: 10px 6px; border-radius: 10px; cursor: pointer; font-size: 12px; font-weight: 600; font-family: -apple-system, sans-serif; border: 1px solid rgba(255,255,255,0.10); transition: all .15s; }
         .model-btn.on { background: #6ee7b7; color: #000000; border-color: #6ee7b7; }
-        .model-btn.off { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.07); }
+        .model-btn.off { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.65); border: 1px solid rgba(255,255,255,0.10); }
         input[type=range] { width: 100%; accent-color: #6ee7b7; margin-top: 3px; }
         input[type=number] { background: rgba(110,231,183,0.06); border: 1px solid rgba(110,231,183,0.16); border-radius: 8px; color: #F0E4C8; padding: 5px 8px; width: 100%; font-size: 13px; font-family: -apple-system, sans-serif; }
         .row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid rgba(110,231,183,0.08); font-size: 12px; }
@@ -1103,15 +1142,15 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         {saveStatus && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", opacity: 1 }}>✓ {saveStatus}</span>}
       </div>
 
-      {/* Toggle Challenge / Funded (vue simulateur uniquement) */}
+      {/* Toggle Challenge / Funded — segmented control élégant */}
       {(tab === "challenge" || tab === "funded") && (
-        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 4, marginBottom: 16, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, border: "1px solid rgba(255,255,255,0.08)" }}>
           {[{ id: "challenge", label: "Challenge" }, { id: "funded", label: "Funded" }].map(tg => (
             <button key={tg.id} onClick={() => setTab(tg.id)} style={{
-              flex: 1, padding: "11px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 700,
-              background: tab === tg.id ? "#6ee7b7" : "rgba(255,255,255,0.07)",
-              color: tab === tg.id ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.35)",
-              border: "1px solid " + (tab === tg.id ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
+              flex: 1, padding: "11px", borderRadius: 9, cursor: "pointer", fontSize: 14, fontWeight: 600,
+              background: tab === tg.id ? "#6ee7b7" : "transparent",
+              color: tab === tg.id ? "#000000" : "rgba(255,255,255,0.6)",
+              border: "none", transition: "all .2s",
             }}>{tg.label}</button>
           ))}
         </div>
@@ -1119,102 +1158,6 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
       {/* ══ CARTES CONFIG — vue simulateur uniquement (Challenge/Funded) ══ */}
       {(tab === "challenge" || tab === "funded") && (<>
-      {/* PRESETS */}
-      <div className="card" style={{ borderLeft: "3px solid #6ee7b7" }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Configuration EA</div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {Object.keys(PRESETS).map(key => (
-            <button key={key}
-              onClick={() => applyPreset(key)}
-              style={{
-                padding: "7px 12px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 700,
-                background: activePreset === key ? "#6ee7b7" : "rgba(255,255,255,0.05)",
-                color: activePreset === key ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.55)",
-                border: "1px solid " + (activePreset === key ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
-                transition: "all .15s",
-              }}>
-              {PRESETS[key].icon} {PRESETS[key].label}
-            </button>
-          ))}
-        </div>
-        {activePreset !== "custom" && PRESETS[activePreset].bt && (() => {
-          const bt = PRESETS[activePreset].bt;
-          const pr = PRESETS[activePreset];
-          return (
-            <div style={{ marginTop: 8, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 8, padding: "9px 10px", fontSize: 10, color: "rgba(255,255,255,0.55)", lineHeight: 1.8 }}>
-              <b style={{ color: "rgba(255,255,255,0.7)", fontSize: 11 }}>{pr.label}</b>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, marginTop: 6 }}>
-                {[
-                  { l: "P&L total", v: (bt.pnl ? "+" + bt.pnl + "%" : bt.monthly ? "+" + bt.monthly + "%/m" : "-"), c: "#6ee7b7" },
-                  { l: "DD max BT", v: bt.dd + "%", c: bt.dd > 5 ? "#fbbf24" : "#6ee7b7" },
-                  { l: "PF", v: bt.pf, c: bt.pf >= 2 ? "#6ee7b7" : "#fbbf24" },
-                  { l: "WR", v: (bt.wr || "-") + "%", c: "#FFFFFF" },
-                  { l: "Streak max", v: bt.maxConsec, c: bt.maxConsec >= 7 ? "#fbbf24" : "#6ee7b7" },
-                  { l: "Sharpe", v: bt.sharpe || "-", c: "rgba(255,255,255,0.55)" },
-                ].map(s => (
-                  <div key={s.l} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
-                    <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>{s.l}</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: s.c }}>{s.v}</div>
-                  </div>
-                ))}
-              </div>
-              {(bt.pireJour || bt.violations || bt.phase1) && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginTop: 4 }}>
-                  {bt.pireJour && <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
-                    <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>Pire jour</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#ef4444" }}>${bt.pireJour}</div>
-                  </div>}
-                  {bt.pireSemaine && <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
-                    <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>Pire semaine</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#ef4444" }}>${bt.pireSemaine}</div>
-                  </div>}
-                  {bt.phase1 && <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
-                    <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>Phase 1 BT</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7" }}>{bt.phase1}</div>
-                  </div>}
-                  {bt.phase2 && <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
-                    <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>Phase 2 BT</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7" }}>{bt.phase2}</div>
-                  </div>}
-                </div>
-              )}
-              {bt.violations && (
-                <div style={{ marginTop: 4, fontSize: 11, color: "#6ee7b7", background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "3px 6px" }}>
-                  {bt.violations}
-                </div>
-              )}
-              {bt.newsFilter && (
-                <div style={{ marginTop: 4, fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
-                  {bt.newsFilter}
-                </div>
-              )}
-            </div>
-          );
-        })()}
-      </div>
-
-      {/* PROP FIRM */}
-      <div className="card" style={{ borderLeft: "2px solid rgba(110,231,183,0.25)" }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.75)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1.2 }}>Prop Firm</div>
-        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-          {Object.keys(PROP_FIRMS).map(k => (
-            <button key={k}
-              onClick={() => { setFirmKey(k); const fm = PROP_FIRMS[k].models; if (!fm[modelKey]) setModelKey(Object.keys(fm)[0]); }}
-              style={{
-                padding: "7px 11px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 700,
-                background: firmKey === k ? "#6ee7b7" : "rgba(255,255,255,0.07)",
-                color: firmKey === k ? "#000000" : "rgba(255,255,255,0.75)",
-                border: "1px solid " + (firmKey === k ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
-                transition: "all .15s",
-              }}>
-              {PROP_FIRMS[k].name}
-            </button>
-          ))}
-        </div>
-        <div style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.3)", lineHeight: 1.5 }}>
-          {firm.note}
-        </div>
-      </div>
 
       {/* MODELE */}
       <div className="card">
@@ -1226,7 +1169,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             <button key={k} className={"model-btn " + (safeModelKey === k ? "on" : "off")} onClick={() => setModelKey(k)}
               style={{ flex: "1 1 auto", minWidth: 80,
                 background: safeModelKey === k ? "#6ee7b7" : "rgba(255,255,255,0.07)",
-                color: safeModelKey === k ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.35)",
+                color: safeModelKey === k ? "#000000" : "rgba(255,255,255,0.65)",
                 borderColor: safeModelKey === k ? "#6ee7b7" : "rgba(255,255,255,0.08)" }}>
               {firmModels[k].name.replace(firm.name + " ", "").replace("Stellar ", "")}
             </button>
@@ -1427,8 +1370,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           <div>
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700 }}>Instrument</div>
             <select value={instrument} onChange={e => setInstrument(e.target.value)}
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid #1e1e2e", borderRadius: 6, color: "#FFFFFF", padding: "5px 4px", width: "100%", fontSize: 12 }}>
-              {["XAUUSD","EURUSD","GBPUSD","USDJPY","GBPJPY","NAS100","US30","SP500"].map(i => (
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 8, color: "#FFFFFF", padding: "8px 6px", width: "100%", fontSize: 12 }}>
+              {Object.keys(INSTRUMENTS).map(i => (
                 <option key={i} value={i}>{i}</option>
               ))}
             </select>
@@ -1450,23 +1393,59 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
 
         {/* Résultat calculé */}
-        <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: 10, marginBottom: useFixedLot ? 10 : 0 }}>
+        <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: 10, marginBottom: 10 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Risque/trade</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#6ee7b7" }}>{fmt2(lotRiskAmount)}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#6ee7b7" }}>{fmt2(effectiveRiskAmount)}</div>
             </div>
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>% du capital</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: lotRiskPct > 1 ? "#ef4444" : lotRiskPct > 0.5 ? "#fbbf24" : "#6ee7b7" }}>
-                {lotRiskPct.toFixed(2)}%
+              <div style={{ fontSize: 14, fontWeight: 700, color: effectiveRiskPct > 1 ? "#ef4444" : effectiveRiskPct > 0.5 ? "#fbbf24" : "#6ee7b7" }}>
+                {effectiveRiskPct.toFixed(2)}%
               </div>
             </div>
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Perte max/jour</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#FFFFFF" }}>{fmt2(lotRiskAmount * tradesPerDay)}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#FFFFFF" }}>{fmt2(effectiveRiskAmount * tradesPerDay)}</div>
             </div>
           </div>
+        </div>
+
+        {/* Lot suggéré (mode % risque) */}
+        {!useFixedLot && suggestedLot > 0 && (
+          <div style={{ background: "rgba(110,231,183,0.08)", border: "1px solid rgba(110,231,183,0.2)", borderRadius: 8, padding: "10px 12px", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)" }}>Lot suggéré pour ce risque</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{instInfo.label} · SL {slPips} pips</div>
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#6ee7b7" }}>{suggestedLot}</div>
+          </div>
+        )}
+
+        {/* Métriques statistiques avancées */}
+        <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: 10, marginBottom: 10 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Statistiques calculées</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+            {[
+              { l: "Espérance / trade", v: (expectedPerTrade >= 0 ? "+" : "") + fmt2(expectedPerTrade), c: expectedPerTrade >= 0 ? "#6ee7b7" : "#f87171" },
+              { l: "Espérance / jour", v: (expectedDailyPnL >= 0 ? "+" : "") + fmt2(expectedDailyPnL), c: expectedDailyPnL >= 0 ? "#6ee7b7" : "#f87171" },
+              { l: "Profit Factor théo.", v: theoreticalPF >= 99 ? "∞" : theoreticalPF, c: theoreticalPF >= 1.5 ? "#6ee7b7" : theoreticalPF >= 1 ? "#fbbf24" : "#ef4444" },
+              { l: "Edge (R)", v: (expectancyR >= 0 ? "+" : "") + expectancyR + "R", c: expectancyR > 0 ? "#6ee7b7" : "#ef4444" },
+              { l: "Kelly optimal", v: (kellyFraction * 100).toFixed(1) + "%", c: "rgba(255,255,255,0.85)" },
+              { l: "DD attendu (série)", v: expectedMaxDDPct.toFixed(1) + "%", c: expectedMaxDDPct > (model.totalDD * 100 * 0.7) ? "#ef4444" : expectedMaxDDPct > (model.totalDD * 100 * 0.4) ? "#fbbf24" : "#6ee7b7" },
+            ].map(s => (
+              <div key={s.l} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 7, padding: "7px 9px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.55)" }}>{s.l}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: s.c }}>{s.v}</span>
+              </div>
+            ))}
+          </div>
+          {kellyFraction > 0 && effectiveRisk > kellyFraction && (
+            <div style={{ marginTop: 8, fontSize: 10, color: "#fbbf24", lineHeight: 1.4 }}>
+              ⚠ Ton risque ({effectiveRiskPct.toFixed(2)}%) dépasse le Kelly optimal ({(kellyFraction * 100).toFixed(1)}%). Risque de ruine accru.
+            </div>
+          )}
         </div>
 
         {/* Diagnostic de compatibilité FundedNext */}
@@ -1723,6 +1702,18 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               </div>
             );
           })}
+          {/* Bouton accès direct au Funded */}
+          <button onClick={() => setTab("funded")} style={{
+            width: "100%", padding: 15, marginTop: 4, borderRadius: 12, cursor: "pointer",
+            background: "#6ee7b7", color: "#000000", fontSize: 15, fontWeight: 600,
+            border: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            boxShadow: "0 4px 20px rgba(110,231,183,0.25)",
+          }}>
+            Voir mon compte Funded
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M7 4l5 5-5 5" stroke="#000000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
         </div>
       )}
 
@@ -1730,6 +1721,18 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       {tab === "funded" && sim && (
         sim.funded ? (
           <>
+            {/* Bouton retour Challenge */}
+            <button onClick={() => setTab("challenge")} style={{
+              display: "flex", alignItems: "center", gap: 6, marginBottom: 12,
+              background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)",
+              borderRadius: 10, padding: "9px 14px", cursor: "pointer",
+              color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: 600,
+            }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M10 4L6 8l4 4" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Retour au Challenge
+            </button>
             <div className="card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>Compte Funded - {fundedMonths} mois</div>
