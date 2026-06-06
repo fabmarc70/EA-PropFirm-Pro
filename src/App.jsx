@@ -251,9 +251,10 @@ function makeT(lang) {
   return (key) => dict[key] ?? key;
 }
 
-// MODELES FUNDEDNEXT - REGLES OFFICIELLES 2026 (Stellar)
+// MODELES FUNDEDNEXT - paramètres indicatifs 2026 (Stellar) — à vérifier sur le site officiel
 // ══════════════════════════════════════════════════════════════════
-// PROP FIRMS — Règles officielles 2026 (vérifiées via sources publiques)
+// PROP FIRMS — paramètres indicatifs basés sur les grilles publiques 2026
+// Les règles exactes peuvent changer : toujours vérifier sur le site de la firm
 // Chaque firm contient ses modèles d'évaluation
 // ══════════════════════════════════════════════════════════════════
 const PROP_FIRMS = {
@@ -478,7 +479,9 @@ function simulatePhase(capital, cfg, model, p) {
   let status = "running";
   let tradingDays = 0, totalWins = 0, totalLosses = 0, winDayCount = 0;
   let peak = capital;
-  let maxDD = 0; // en % du capital initial
+  let maxDD = 0;          // DD total depuis capital initial (en fraction)
+  let maxDDTrailing = 0;  // DD trailing depuis le pic (en fraction)
+  let maxDailyDD = 0;     // pire DD intraday d'une journée (en fraction)
 
   for (let d = 1; d <= SIM_DAYS; d++) {
     const res = simulateDay(equity, p.tradesPerDay, riskAmount, p.rr, nextTrade, dailyDDLimit);
@@ -486,8 +489,15 @@ function simulatePhase(capital, cfg, model, p) {
     totalLosses += res.losses;
     equity = res.dayEquity;
     if (equity > peak) peak = equity;
-    const dd = (capital - equity) / capital; // DD depuis capital initial (regle FundedNext)
+    // DD total (depuis capital initial)
+    const dd = (capital - equity) / capital;
     if (dd > maxDD) maxDD = dd;
+    // DD trailing (depuis le pic atteint)
+    const ddTrail = (peak - equity) / peak;
+    if (ddTrail > maxDDTrailing) maxDDTrailing = ddTrail;
+    // DD journalier (pire creux intraday du jour, en % du capital)
+    const dayDD = Math.abs(res.dayLowPnl) / capital;
+    if (dayDD > maxDailyDD) maxDailyDD = dayDD;
 
     if (res.breached) {
       status = "failed_daily_dd";
@@ -517,8 +527,10 @@ function simulatePhase(capital, cfg, model, p) {
     tradeWinrate: totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0,
     dayWinrate: tradingDays > 0 ? (winDayCount / tradingDays) * 100 : 0,
     totalWins, totalLosses,
-    maxDD: maxDD * 100, // en %
-    maxDDAmount: maxDD * capital, // en $
+    maxDD: maxDD * 100,                   // DD total %
+    maxDDAmount: maxDD * capital,
+    maxDDTrailing: maxDDTrailing * 100,   // DD trailing %
+    maxDailyDD: maxDailyDD * 100,         // DD journalier max %
   };
 }
 
@@ -864,8 +876,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
       const ph1 = phaseResults[0] || {};
       const progression = Math.max(0, Math.min(100, Math.round((ph1.profit || 0) / model.phases[0].target * 100)));
-      const ddDayPct = (ph1.maxDD || 0).toFixed(1);
-      const ddTotPct = (ph1.maxDD || 0).toFixed(1);
+      const ddDayPct = (ph1.maxDailyDD || 0).toFixed(1);
+      const ddTotPct = (model.ddType === "trailing" ? (ph1.maxDDTrailing || 0) : (ph1.maxDD || 0)).toFixed(1);
       const phase1Pct = ((ph1.profit || 0) * 100).toFixed(1);
       const tradingDays = ph1.tradingDays || 0;
 
@@ -2083,33 +2095,63 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
     const realRR = avgL > 0 ? avgW / avgL : 0;
     const realPF = avgL > 0 && losses.length > 0 ? (wins.reduce((s,t)=>s+t.profit,0)) / Math.abs(losses.reduce((s,t)=>s+t.profit,0)) : 0;
 
-    // Calcul du DD max réel
-    let peak = initBal, maxDD = 0;
-    trds.forEach(t => { if (t.balance > peak) peak = t.balance; const dd = (peak - t.balance) / initBal * 100; if (dd > maxDD) maxDD = dd; });
+    // ── DD max réel : DEUX mesures distinctes ──
+    // 1. DD trailing (chute depuis le pic d'équité) = règle réelle des prop firms
+    // 2. DD absolu (chute depuis capital initial) = règle "static" certaines firms
+    let peak = initBal, maxDDTrailing = 0, minEquity = initBal;
+    trds.forEach(t => {
+      if (t.balance > peak) peak = t.balance;
+      if (t.balance < minEquity) minEquity = t.balance;
+      const ddFromPeak = (peak - t.balance) / peak * 100;       // % depuis le pic
+      if (ddFromPeak > maxDDTrailing) maxDDTrailing = ddFromPeak;
+    });
+    const maxDDAbsolute = (initBal - minEquity) / initBal * 100; // % depuis capital initial
+    // On retient la mesure pertinente selon le type de DD du modèle
+    const isTrailing = model.ddType === "trailing";
+    const maxDD = isTrailing ? maxDDTrailing : Math.max(0, maxDDAbsolute);
+    const ddLimitPct = model.totalDD * 100;
+
+    // ── Phases déjà franchies dans le backtest (lecture factuelle) ──
+    const finalProfit = (trds[trds.length - 1].balance - initBal) / initBal * 100;
+    const phasesTargets = model.phases.map(ph => ph.target * 100);
+    const phasesPassed = phasesTargets.filter(tgt => finalProfit >= tgt).length;
+    const totalPhases = phasesTargets.length;
+
+    // ── Violation de règle DÉTECTÉE dans le backtest réel ──
+    const ddViolated = maxDD >= ddLimitPct;
+    // Détection violation DD journalier réel (pire jour vs limite)
+    const dailyLimAmt = initBal * model.dailyDD;
+    // Reconstruire les pertes journalières par regroupement de date si dispo
+    let worstSingleLoss = 0;
+    trds.forEach(t => { if (-t.profit > worstSingleLoss) worstSingleLoss = -t.profit; });
 
     // Score de cohérence vs simulation
     const wrScore = Math.max(0, 1 - Math.abs(realWR * 100 - winrate) / Math.max(winrate, 1));
     const rrScore = finalRR > 0 ? Math.max(0, 1 - Math.min(Math.abs(realRR - finalRR) / Math.max(finalRR, 0.5), 1)) : 0.5;
-    const ddScore = Math.max(0, 1 - maxDD / (model.totalDD * 100));
+    const ddScore = Math.max(0, 1 - maxDD / ddLimitPct);
     const pfScore = realPF >= 1.8 ? 1 : realPF >= 1.3 ? 0.7 : realPF >= 1.0 ? 0.4 : 0.1;
     const matchScore = Math.round((wrScore * 0.3 + rrScore * 0.25 + ddScore * 0.25 + pfScore * 0.2) * 100);
 
-    // Mini Monte Carlo avec stats réelles (200 runs)
+    // ── Mini Monte Carlo (200 runs) — vérifie DD TRAILING (depuis le pic) ──
     const riskAmt = effectiveRiskAmount > 0 ? effectiveRiskAmount : capital * 0.006;
     const dailyLim = capital * model.dailyDD;
-    const floor = capital * (1 - model.totalDD);
+    const totalDDLim = capital * model.totalDD;
     const target = capital * model.phases[0].target;
     const tpd = tradesPerDay > 0 ? tradesPerDay : 0.3;
     let pass = 0;
     for (let s = 0; s < 200; s++) {
-      let eq = capital; let ok = true;
+      let eq = capital; let mcPeak = capital; let ok = true;
       for (let d = 0; d < 300; d++) {
         const n = tpd < 1 ? (Math.random() < tpd ? 1 : 0) : Math.round(tpd);
         let dayLoss = 0;
         for (let tr = 0; tr < n; tr++) {
           if (Math.random() < realWR) eq += riskAmt * realRR;
           else { eq -= riskAmt; dayLoss += riskAmt; }
-          if (dayLoss >= dailyLim || eq <= floor) { ok = false; break; }
+          if (eq > mcPeak) mcPeak = eq;
+          // DD trailing (depuis le pic) OU DD absolu selon le modèle
+          const ddNow = isTrailing ? (mcPeak - eq) : (capital - eq);
+          const ddCap = isTrailing ? totalDDLim : totalDDLim;
+          if (dayLoss >= dailyLim || ddNow >= ddCap) { ok = false; break; }
         }
         if (!ok) break;
         if (eq - capital >= target) { pass++; break; }
@@ -2117,22 +2159,53 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
     }
     const passPct = Math.round(pass / 200 * 100);
 
-    // Facteurs clés
+    // ── Facteurs clés (lecture factuelle, sans certitude absolue) ──
     const factors = [];
-    if (maxDD > model.totalDD * 100 * 0.6) factors.push({ t: `DD max reel ${maxDD.toFixed(1)}% — proche limite ${model.totalDD*100}%`, c: "#ef4444" });
-    else factors.push({ t: `DD max reel ${maxDD.toFixed(1)}% — marge OK`, c: "#6ee7b7" });
-    if (realWR < 0.4) factors.push({ t: `Winrate ${(realWR*100).toFixed(0)}% — trop bas`, c: "#ef4444" });
+    if (ddViolated) factors.push({ t: `DD réel ${maxDD.toFixed(1)}% DÉPASSE la limite ${ddLimitPct}% — échec sur ces données`, c: "#ef4444" });
+    else if (maxDD > ddLimitPct * 0.7) factors.push({ t: `DD réel ${maxDD.toFixed(1)}% — proche de la limite ${ddLimitPct}%`, c: "#fbbf24" });
+    else factors.push({ t: `DD réel ${maxDD.toFixed(1)}% — sous la limite ${ddLimitPct}%`, c: "#6ee7b7" });
+    if (realWR < 0.4) factors.push({ t: `Winrate ${(realWR*100).toFixed(0)}% — bas`, c: "#fbbf24" });
     else factors.push({ t: `Winrate ${(realWR*100).toFixed(0)}% vs ${winrate}% attendu`, c: realWR*100 >= winrate-5 ? "#6ee7b7" : "#fbbf24" });
-    if (realPF < 1.0) factors.push({ t: `Profit Factor ${realPF.toFixed(2)} — stratégie perdante`, c: "#ef4444" });
-    else factors.push({ t: `Profit Factor ${realPF.toFixed(2)} — ${realPF >= 1.5 ? "excellent" : "acceptable"}`, c: realPF >= 1.5 ? "#6ee7b7" : "#fbbf24" });
+    if (realPF < 1.0) factors.push({ t: `Profit Factor ${realPF.toFixed(2)} — stratégie perdante sur la période`, c: "#ef4444" });
+    else factors.push({ t: `Profit Factor ${realPF.toFixed(2)} — ${realPF >= 1.5 ? "solide" : "acceptable"}`, c: realPF >= 1.5 ? "#6ee7b7" : "#fbbf24" });
 
-    // Verdict global
+    // ── Verdict global — PRUDENT, jamais 100% de certitude ──
+    // Si une règle est violée dans le backtest réel, le verdict le reflète
     let label, color, bg, icon;
-    if (passPct >= 70) { label = "VIABLE POUR LE CHALLENGE"; color = "#6ee7b7"; bg = "linear-gradient(135deg, #06231860, #111118)"; icon = "✅"; }
-    else if (passPct >= 40) { label = "RISQUE ÉLEVÉ"; color = "#fbbf24"; bg = "linear-gradient(135deg, #2d1f0860, #111118)"; icon = "⚠️"; }
-    else { label = "INCOMPATIBLE"; color = "#ef4444"; bg = "linear-gradient(135deg, #2d080860, #111118)"; icon = "🚫"; }
+    let displayPct = passPct;
+    if (ddViolated) {
+      // Le backtest réel a violé la limite DD → échec factuel
+      label = "RÈGLE DD DÉPASSÉE";
+      color = "#ef4444";
+      bg = "linear-gradient(135deg, #2d080860, #111118)";
+      icon = "🚫";
+      displayPct = Math.min(passPct, 25); // plafonné car violation observée
+    } else if (passPct >= 65) {
+      label = "PROBABILITÉ FAVORABLE";
+      color = "#6ee7b7";
+      bg = "linear-gradient(135deg, #06231860, #111118)";
+      icon = "✅";
+    } else if (passPct >= 40) {
+      label = "RISQUE ÉLEVÉ";
+      color = "#fbbf24";
+      bg = "linear-gradient(135deg, #2d1f0860, #111118)";
+      icon = "⚠️";
+    } else {
+      label = "PEU PROBABLE";
+      color = "#ef4444";
+      bg = "linear-gradient(135deg, #2d080860, #111118)";
+      icon = "🚫";
+    }
+    // Plafond de prudence : jamais afficher 100% (incertitude statistique)
+    displayPct = Math.min(displayPct, 95);
 
-    return { passPct, matchScore, label, color, bg, icon, factors, realWR: (realWR*100).toFixed(0), realRR: realRR.toFixed(2), realPF: realPF.toFixed(2), maxDD: maxDD.toFixed(2) };
+    return {
+      passPct: displayPct, matchScore, label, color, bg, icon, factors,
+      realWR: (realWR*100).toFixed(0), realRR: realRR.toFixed(2), realPF: realPF.toFixed(2),
+      maxDD: maxDD.toFixed(2), maxDDTrailing: maxDDTrailing.toFixed(2), maxDDAbsolute: Math.max(0, maxDDAbsolute).toFixed(2),
+      ddViolated, ddLimitPct, finalProfit: finalProfit.toFixed(2),
+      phasesPassed, totalPhases, isTrailing,
+    };
   };
 
   // ── Alertes ───────────────────────────────────────────────────
@@ -2233,20 +2306,38 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
           <div style={{ background: verdict.bg, border: "2px solid " + verdict.color + "50", borderRadius: 16, padding: 18, marginBottom: 12 }}>
             {/* Header verdict */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 4 }}>
-                  Verdict Challenge · {firm?.name || ""}
+                  Analyse Backtest · {firm?.name || ""}
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: verdict.color, lineHeight: 1 }}>
+                <div style={{ fontSize: 19, fontWeight: 700, color: verdict.color, lineHeight: 1.1 }}>
                   {verdict.icon} {verdict.label}
                 </div>
               </div>
               {/* Cercle probabilité */}
-              <div style={{ textAlign: "center", flexShrink: 0 }}>
+              <div style={{ textAlign: "center", flexShrink: 0, marginLeft: 12 }}>
                 <div style={{ width: 68, height: 68, borderRadius: 34, background: verdict.color + "20", border: "3px solid " + verdict.color, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: verdict.color, lineHeight: 1 }}>{verdict.passPct}%</div>
-                  <div style={{ fontSize: 8, color: "rgba(255,255,255,0.55)", marginTop: 1 }}>passer</div>
+                  <div style={{ fontSize: 19, fontWeight: 700, color: verdict.color, lineHeight: 1 }}>~{verdict.passPct}%</div>
+                  <div style={{ fontSize: 7, color: "rgba(255,255,255,0.55)", marginTop: 1 }}>estimation</div>
                 </div>
+              </div>
+            </div>
+
+            {/* Lecture factuelle du backtest */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              <div style={{ flex: 1, background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px" }}>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>Phases atteintes (backtest)</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: verdict.phasesPassed >= verdict.totalPhases ? "#6ee7b7" : "rgba(255,255,255,0.85)" }}>
+                  {verdict.phasesPassed} / {verdict.totalPhases}
+                </div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>profit final {verdict.finalProfit >= 0 ? "+" : ""}{verdict.finalProfit}%</div>
+              </div>
+              <div style={{ flex: 1, background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px" }}>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>DD max observé ({verdict.isTrailing ? "trailing" : "absolu"})</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: verdict.ddViolated ? "#ef4444" : parseFloat(verdict.maxDD) > verdict.ddLimitPct * 0.7 ? "#fbbf24" : "#6ee7b7" }}>
+                  {verdict.maxDD}%
+                </div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>limite {verdict.ddLimitPct}%</div>
               </div>
             </div>
 
@@ -2263,10 +2354,6 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                   background: verdict.matchScore >= 70 ? "#6ee7b7" : verdict.matchScore >= 50 ? "#fbbf24" : "#ef4444"
                 }} />
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 8, color: "rgba(255,255,255,0.08)", marginTop: 2 }}>
-                <span style={{ color: "rgba(255,255,255,0.3)" }}>0% — données incohérentes</span>
-                <span style={{ color: "rgba(255,255,255,0.3)" }}>100% — parfait alignement</span>
-              </div>
             </div>
 
             {/* KPIs réels rapides */}
@@ -2275,12 +2362,12 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                 { l: "WR réel", v: verdict.realWR + "%", expected: winrate + "%", ok: parseFloat(verdict.realWR) >= winrate - 5 },
                 { l: "RR réel", v: "1:" + verdict.realRR, expected: "1:" + (finalRR || "-").toString().slice(0,4), ok: parseFloat(verdict.realRR) >= (finalRR || 0) * 0.85 },
                 { l: "PF réel", v: verdict.realPF, expected: "≥ 1.5", ok: parseFloat(verdict.realPF) >= 1.5 },
-                { l: "DD max", v: verdict.maxDD + "%", expected: "< " + (model ? model.totalDD * 100 : 10) + "%", ok: parseFloat(verdict.maxDD) < (model ? model.totalDD * 100 * 0.7 : 7) },
+                { l: "DD max", v: verdict.maxDD + "%", expected: "< " + verdict.ddLimitPct + "%", ok: !verdict.ddViolated },
               ].map(k => (
                 <div key={k.l} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 4px", textAlign: "center" }}>
-                  <div style={{ fontSize: 7, color: "rgba(255,255,255,0.3)", marginBottom: 2 }}>{k.l}</div>
+                  <div style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", marginBottom: 2 }}>{k.l}</div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: k.ok ? "#6ee7b7" : "#ef4444" }}>{k.v}</div>
-                  <div style={{ fontSize: 7, color: "rgba(255,255,255,0.2)", marginTop: 1 }}>sim: {k.expected}</div>
+                  <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>cible: {k.expected}</div>
                 </div>
               ))}
             </div>
@@ -2293,6 +2380,11 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                   <span style={{ fontSize: 11, color: "#FFFFFF" }}>{f.t}</span>
                 </div>
               ))}
+            </div>
+
+            {/* Disclaimer prudent */}
+            <div style={{ marginTop: 12, padding: "9px 11px", background: "rgba(255,255,255,0.03)", borderRadius: 8, fontSize: 9, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>
+              Estimation statistique basée sur tes données de backtest et une projection Monte Carlo (200 simulations). Les performances passées ne garantissent pas les résultats futurs. Ceci n'est pas un conseil financier.
             </div>
           </div>
 
