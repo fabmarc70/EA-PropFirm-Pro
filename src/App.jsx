@@ -259,7 +259,7 @@ function makeT(lang) {
 const PROP_FIRMS = {
   fundednext: {
     name: "FundedNext",
-    color: "#C9922A",
+    color: "#6ee7b7",
     note: "Stellar 2026 - DD depuis solde initial - Reward 15% challenge",
     models: {
       "2step": {
@@ -335,7 +335,7 @@ const PROP_FIRMS = {
   },
   alpha: {
     name: "Alpha Capital",
-    color: "#C9922A",
+    color: "#6ee7b7",
     note: "Pro 8% - DD total 8% STATIC - News interdit +/-5min",
     models: {
       "2step": {
@@ -374,7 +374,7 @@ const PROP_FIRMS = {
   },
   fundingpips: {
     name: "FundingPips",
-    color: "#D4A030",
+    color: "#6ee7b7",
     note: "2-Step Standard - DD total 10% STATIC - News non comptee +/-5min",
     models: {
       "2step": {
@@ -913,13 +913,13 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     if (!sim.funded) return null;
     if (sim.funded.status.startsWith("failed"))
       return { label: "COMPTE FERME", color: "#ef4444", bg: "#2d0808", emoji: "ROUGE" };
-    return { label: "COMPTE ACTIF", color: "#C9922A", bg: "rgba(255,255,255,0.05)", emoji: "VERT" };
+    return { label: "COMPTE ACTIF", color: "#6ee7b7", bg: "rgba(255,255,255,0.05)", emoji: "VERT" };
   };
   const gs = globalStatus();
   const dot = (e) => e === "VERT" ? "\u{1F7E2}" : e === "ORANGE" ? "\u{1F7E0}" : "\u{1F534}";
 
   const phaseIcon = (s) => {
-    if (s === "passed") return { icon: "\u2713", color: "#C9922A", bg: "rgba(255,255,255,0.05)", label: "PASSE" };
+    if (s === "passed") return { icon: "\u2713", color: "#6ee7b7", bg: "rgba(255,255,255,0.05)", label: "PASSE" };
     if (s === "running_ok") return { icon: "~", color: "#fbbf24", bg: "#2d1f08", label: "EN COURS" };
     if (s && s.startsWith("failed")) return { icon: "\u2717", color: "#ef4444", bg: "#2d0808", label: "ECHOUE" };
     return { icon: "-", color: "rgba(255,255,255,0.35)", bg: "rgba(255,255,255,0.05)", label: "N/A" };
@@ -1019,8 +1019,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
   const printReport = () => { const txt = buildReport(); if(txt) { const w=window.open("","_blank"); if(w){w.document.write("<pre>"+txt+"</pre>"); w.print();}} };
 
-  const wrColor = winrate >= 60 ? "#C9922A" : winrate >= 50 ? "#fbbf24" : "#ef4444";
-  const clColor = clusteringPct <= 25 ? "#C9922A" : clusteringPct <= 55 ? "#fbbf24" : "#ef4444";
+  const wrColor = winrate >= 60 ? "#6ee7b7" : winrate >= 50 ? "#fbbf24" : "#ef4444";
+  const clColor = clusteringPct <= 25 ? "#6ee7b7" : clusteringPct <= 55 ? "#fbbf24" : "#ef4444";
 
   const _d = useFixedLot ? (() => {
     const md = lotRiskAmount * tradesPerDay;
@@ -1037,15 +1037,15 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     <div style={{ marginTop: 8 }}>
       <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.40)", marginBottom: 6, textTransform: "uppercase" }}>Diagnostic FundedNext</div>
       {_d.chks.map(([ok, l, v, e]) => (
-        <div key={l} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 6, background: ok ? "rgba(255,255,255,0.05)" : "#2d0808", border: "1px solid " + (ok ? "#C9922A30" : "#ef444430"), borderRadius: 8, padding: "7px 10px" }}>
-          <span style={{ fontSize: 12, color: ok ? "#C9922A" : "#ef4444" }}>{ok ? "+" : "x"}</span>
+        <div key={l} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 6, background: ok ? "rgba(255,255,255,0.05)" : "#2d0808", border: "1px solid " + (ok ? "#6ee7b730" : "#ef444430"), borderRadius: 8, padding: "7px 10px" }}>
+          <span style={{ fontSize: 12, color: ok ? "#6ee7b7" : "#ef4444" }}>{ok ? "+" : "x"}</span>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: ok ? "#C9922A" : "#ef4444" }}>{l}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: ok ? "#6ee7b7" : "#ef4444" }}>{l}</div>
             <div style={{ fontSize: 10, color: ok ? "rgba(255,255,255,0.55)" : "#fca5a5" }}>{ok ? v : e}</div>
           </div>
         </div>
       ))}
-      <div style={{ background: lotRiskPct > 0.5 ? "#2d1f08" : "rgba(255,255,255,0.05)", border: "1px solid " + (lotRiskPct > 0.5 ? "#C9922A40" : "#C9922A40"), borderRadius: 8, padding: "8px 10px", fontSize: 11 }}>
+      <div style={{ background: lotRiskPct > 0.5 ? "#2d1f08" : "rgba(255,255,255,0.05)", border: "1px solid " + (lotRiskPct > 0.5 ? "#6ee7b740" : "#6ee7b740"), borderRadius: 8, padding: "8px 10px", fontSize: 11 }}>
         <b style={{ color: "rgba(255,255,255,0.55)" }}>Resume: </b><span style={{ color: "#FFFFFF" }}>{_d.resume}</span>
       </div>
     </div>
@@ -1075,19 +1075,19 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     <div style={{ fontFamily: "-apple-system, sans-serif", color: "#FFFFFF" }}>
       <style>{`
         * { box-sizing: border-box; }
-        .card { background: #110C02; border: 1px solid rgba(201,146,42,0.14); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+        .card { background: #110C02; border: 1px solid rgba(110,231,183,0.14); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
         .tab-btn { padding: 7px 12px; border-radius: 8px; border: none; cursor: pointer; font-size: 11px; font-weight: 700; font-family: -apple-system, sans-serif; }
-        .tab-btn.on { background: #FFFFFF; color: #000000; font-weight: 600; }
+        .tab-btn.on { background: #6ee7b7; color: #000000; font-weight: 600; }
         .tab-btn.off { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.50); border: 1px solid rgba(255,255,255,0.08); }
-        .model-btn { flex: 1; padding: 9px 4px; border-radius: 8px; cursor: pointer; font-size: 10px; font-weight: 700; font-family: -apple-system, sans-serif; border: 1px solid rgba(201,146,42,0.14); }
-        .model-btn.on { background: #FFFFFF; color: #0A0500; border-color: #FFFFFF; }
-        .model-btn.off { background: rgba(255,255,255,0.04); color: rgba(240,228,200,0.4); border: 1px solid rgba(240,228,200,0.07); }
-        input[type=range] { width: 100%; accent-color: #FFFFFF; margin-top: 3px; }
-        input[type=number] { background: rgba(201,146,42,0.06); border: 1px solid rgba(201,146,42,0.16); border-radius: 8px; color: #F0E4C8; padding: 5px 8px; width: 100%; font-size: 13px; font-family: -apple-system, sans-serif; }
-        .row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid rgba(201,146,42,0.08); font-size: 12px; }
+        .model-btn { flex: 1; padding: 9px 4px; border-radius: 8px; cursor: pointer; font-size: 10px; font-weight: 700; font-family: -apple-system, sans-serif; border: 1px solid rgba(110,231,183,0.14); }
+        .model-btn.on { background: #6ee7b7; color: #000000; border-color: #6ee7b7; }
+        .model-btn.off { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.07); }
+        input[type=range] { width: 100%; accent-color: #6ee7b7; margin-top: 3px; }
+        input[type=number] { background: rgba(110,231,183,0.06); border: 1px solid rgba(110,231,183,0.16); border-radius: 8px; color: #F0E4C8; padding: 5px 8px; width: 100%; font-size: 13px; font-family: -apple-system, sans-serif; }
+        .row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid rgba(110,231,183,0.08); font-size: 12px; }
         .row:last-child { border-bottom: none; }
         .tag { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; font-family: -apple-system, sans-serif; }
-        .kpi { background: rgba(201,146,42,0.06); border: 1px solid rgba(201,146,42,0.10); border-radius: 10px; padding: 10px; }
+        .kpi { background: rgba(110,231,183,0.06); border: 1px solid rgba(110,231,183,0.10); border-radius: 10px; padding: 10px; }
       `}</style>
 
       <div style={{ height: 14 }}>
@@ -1100,9 +1100,9 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           {[{ id: "challenge", label: "Challenge" }, { id: "funded", label: "Funded" }].map(tg => (
             <button key={tg.id} onClick={() => setTab(tg.id)} style={{
               flex: 1, padding: "11px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 700,
-              background: tab === tg.id ? "#FFFFFF" : "rgba(255,255,255,0.05)",
+              background: tab === tg.id ? "#6ee7b7" : "rgba(255,255,255,0.07)",
               color: tab === tg.id ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.35)",
-              border: "1px solid " + (tab === tg.id ? "#FFFFFF" : "rgba(255,255,255,0.08)"),
+              border: "1px solid " + (tab === tg.id ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
             }}>{tg.label}</button>
           ))}
         </div>
@@ -1111,7 +1111,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       {/* ══ CARTES CONFIG — vue simulateur uniquement (Challenge/Funded) ══ */}
       {(tab === "challenge" || tab === "funded") && (<>
       {/* PRESETS */}
-      <div className="card" style={{ borderLeft: "3px solid #C9922A" }}>
+      <div className="card" style={{ borderLeft: "3px solid #6ee7b7" }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.40)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Configuration EA</div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {Object.keys(PRESETS).map(key => (
@@ -1119,9 +1119,9 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               onClick={() => applyPreset(key)}
               style={{
                 padding: "7px 12px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 700,
-                background: activePreset === key ? "#FFFFFF" : "rgba(255,255,255,0.05)",
+                background: activePreset === key ? "#6ee7b7" : "rgba(255,255,255,0.05)",
                 color: activePreset === key ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.55)",
-                border: "1px solid " + (activePreset === key ? "#FFFFFF" : "rgba(255,255,255,0.08)"),
+                border: "1px solid " + (activePreset === key ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
                 transition: "all .15s",
               }}>
               {PRESETS[key].icon} {PRESETS[key].label}
@@ -1132,19 +1132,19 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           const bt = PRESETS[activePreset].bt;
           const pr = PRESETS[activePreset];
           return (
-            <div style={{ marginTop: 8, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(201,146,42,0.15)", borderRadius: 8, padding: "9px 10px", fontSize: 10, color: "rgba(255,255,255,0.55)", lineHeight: 1.8 }}>
-              <b style={{ color: "rgba(240,228,200,0.7)", fontSize: 11 }}>{pr.label}</b>
+            <div style={{ marginTop: 8, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 8, padding: "9px 10px", fontSize: 10, color: "rgba(255,255,255,0.55)", lineHeight: 1.8 }}>
+              <b style={{ color: "rgba(255,255,255,0.7)", fontSize: 11 }}>{pr.label}</b>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, marginTop: 6 }}>
                 {[
-                  { l: "P&L total", v: (bt.pnl ? "+" + bt.pnl + "%" : bt.monthly ? "+" + bt.monthly + "%/m" : "-"), c: "#C9922A" },
-                  { l: "DD max BT", v: bt.dd + "%", c: bt.dd > 5 ? "#fbbf24" : "#C9922A" },
-                  { l: "PF", v: bt.pf, c: bt.pf >= 2 ? "#C9922A" : "#fbbf24" },
+                  { l: "P&L total", v: (bt.pnl ? "+" + bt.pnl + "%" : bt.monthly ? "+" + bt.monthly + "%/m" : "-"), c: "#6ee7b7" },
+                  { l: "DD max BT", v: bt.dd + "%", c: bt.dd > 5 ? "#fbbf24" : "#6ee7b7" },
+                  { l: "PF", v: bt.pf, c: bt.pf >= 2 ? "#6ee7b7" : "#fbbf24" },
                   { l: "WR", v: (bt.wr || "-") + "%", c: "#FFFFFF" },
-                  { l: "Streak max", v: bt.maxConsec, c: bt.maxConsec >= 7 ? "#fbbf24" : "#C9922A" },
-                  { l: "Sharpe", v: bt.sharpe || "-", c: "#93c5fd" },
+                  { l: "Streak max", v: bt.maxConsec, c: bt.maxConsec >= 7 ? "#fbbf24" : "#6ee7b7" },
+                  { l: "Sharpe", v: bt.sharpe || "-", c: "rgba(255,255,255,0.55)" },
                 ].map(s => (
                   <div key={s.l} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
-                    <div style={{ fontSize: 8, color: "rgba(240,228,200,0.3)" }}>{s.l}</div>
+                    <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>{s.l}</div>
                     <div style={{ fontSize: 11, fontWeight: 700, color: s.c }}>{s.v}</div>
                   </div>
                 ))}
@@ -1152,30 +1152,30 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               {(bt.pireJour || bt.violations || bt.phase1) && (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginTop: 4 }}>
                   {bt.pireJour && <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
-                    <div style={{ fontSize: 8, color: "rgba(240,228,200,0.3)" }}>Pire jour</div>
+                    <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>Pire jour</div>
                     <div style={{ fontSize: 11, fontWeight: 700, color: "#ef4444" }}>${bt.pireJour}</div>
                   </div>}
                   {bt.pireSemaine && <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
-                    <div style={{ fontSize: 8, color: "rgba(240,228,200,0.3)" }}>Pire semaine</div>
+                    <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>Pire semaine</div>
                     <div style={{ fontSize: 11, fontWeight: 700, color: "#ef4444" }}>${bt.pireSemaine}</div>
                   </div>}
                   {bt.phase1 && <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
-                    <div style={{ fontSize: 8, color: "rgba(240,228,200,0.3)" }}>Phase 1 BT</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#C9922A" }}>{bt.phase1}</div>
+                    <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>Phase 1 BT</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7" }}>{bt.phase1}</div>
                   </div>}
                   {bt.phase2 && <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "4px 6px", textAlign: "center" }}>
-                    <div style={{ fontSize: 8, color: "rgba(240,228,200,0.3)" }}>Phase 2 BT</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#C9922A" }}>{bt.phase2}</div>
+                    <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>Phase 2 BT</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7" }}>{bt.phase2}</div>
                   </div>}
                 </div>
               )}
               {bt.violations && (
-                <div style={{ marginTop: 4, fontSize: 11, color: "#C9922A", background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "3px 6px" }}>
+                <div style={{ marginTop: 4, fontSize: 11, color: "#6ee7b7", background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "3px 6px" }}>
                   {bt.violations}
                 </div>
               )}
               {bt.newsFilter && (
-                <div style={{ marginTop: 4, fontSize: 11, color: "rgba(240,228,200,0.3)" }}>
+                <div style={{ marginTop: 4, fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
                   {bt.newsFilter}
                 </div>
               )}
@@ -1185,7 +1185,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       </div>
 
       {/* PROP FIRM */}
-      <div className="card" style={{ borderLeft: "2px solid rgba(201,146,42,0.25)" }}>
+      <div className="card" style={{ borderLeft: "2px solid rgba(110,231,183,0.25)" }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.50)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1.2 }}>Prop Firm</div>
         <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
           {Object.keys(PROP_FIRMS).map(k => (
@@ -1193,16 +1193,16 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               onClick={() => { setFirmKey(k); const fm = PROP_FIRMS[k].models; if (!fm[modelKey]) setModelKey(Object.keys(fm)[0]); }}
               style={{
                 padding: "7px 11px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 700,
-                background: firmKey === k ? "#FFFFFF" : "rgba(255,255,255,0.05)",
+                background: firmKey === k ? "#6ee7b7" : "rgba(255,255,255,0.07)",
                 color: firmKey === k ? "#000000" : "rgba(255,255,255,0.55)",
-                border: "1px solid " + (firmKey === k ? "#FFFFFF" : "rgba(255,255,255,0.08)"),
+                border: "1px solid " + (firmKey === k ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
                 transition: "all .15s",
               }}>
               {PROP_FIRMS[k].name}
             </button>
           ))}
         </div>
-        <div style={{ marginTop: 8, fontSize: 11, color: "rgba(240,228,200,0.3)", lineHeight: 1.5 }}>
+        <div style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.3)", lineHeight: 1.5 }}>
           {firm.note}
         </div>
       </div>
@@ -1216,9 +1216,9 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           {Object.keys(firmModels).map(k => (
             <button key={k} className={"model-btn " + (safeModelKey === k ? "on" : "off")} onClick={() => setModelKey(k)}
               style={{ flex: "1 1 auto", minWidth: 80,
-                background: safeModelKey === k ? "#FFFFFF" : "rgba(255,255,255,0.05)",
+                background: safeModelKey === k ? "#6ee7b7" : "rgba(255,255,255,0.07)",
                 color: safeModelKey === k ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.35)",
-                borderColor: safeModelKey === k ? "#FFFFFF" : "rgba(255,255,255,0.08)" }}>
+                borderColor: safeModelKey === k ? "#6ee7b7" : "rgba(255,255,255,0.08)" }}>
               {firmModels[k].name.replace(firm.name + " ", "").replace("Stellar ", "")}
             </button>
           ))}
@@ -1227,7 +1227,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           {model.phases.map(ph => ph.label + " " + (ph.target * 100) + "%").join(" / ")}
           {" - DD jour " + (model.dailyDD * 100) + "% - DD total " + (model.totalDD * 100) + "% (" + (model.ddType === "trailing" ? "trailing" : "fixe") + ")"}
         </div>
-        <div style={{ marginTop: 4, fontSize: 11, color: "rgba(240,228,200,0.3)" }}>
+        <div style={{ marginTop: 4, fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
           Split {model.splitStart}% - {model.splitMax}% | Payout {model.payoutCycle}j | Min {model.phases[0].minDays}j/phase | Frais ~{fmt(fee)}
         </div>
         {model.eaForbidden && (
@@ -1236,7 +1236,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </div>
         )}
         {model.newsForbidden && (
-          <div style={{ marginTop: 8, background: "#2d1f08", border: "1px solid #C9922A40", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: "#fbbf24", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, background: "#2d1f08", border: "1px solid #6ee7b740", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: "#fbbf24", lineHeight: 1.5 }}>
             NEWS TRADING & HFT INTERDITS sur cette firm. Active "Impact news" pour simuler.
           </div>
         )}
@@ -1257,7 +1257,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
       {/* CARTE DRAWDOWN ESTIME */}
       {dda && (
-        <div className="card" style={{ borderLeft: "3px solid " + (dda.simMaxDD < model.totalDD * 50 ? "#C9922A" : dda.simMaxDD < model.totalDD * 75 ? "#fbbf24" : "#ef4444") }}>
+        <div className="card" style={{ borderLeft: "3px solid " + (dda.simMaxDD < model.totalDD * 50 ? "#6ee7b7" : dda.simMaxDD < model.totalDD * 75 ? "#fbbf24" : "#ef4444") }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>
             Analyse Drawdown - Ta config
           </div>
@@ -1266,13 +1266,13 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           <div style={{ marginBottom: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
               <span style={{ color: "rgba(255,255,255,0.35)" }}>DD atteint cette simulation</span>
-              <span style={{ fontWeight: 700, color: dda.simMaxDD < model.totalDD * 100 * 0.5 ? "#C9922A" : dda.simMaxDD < model.totalDD * 100 * 0.75 ? "#fbbf24" : "#ef4444" }}>
+              <span style={{ fontWeight: 700, color: dda.simMaxDD < model.totalDD * 100 * 0.5 ? "#6ee7b7" : dda.simMaxDD < model.totalDD * 100 * 0.75 ? "#fbbf24" : "#ef4444" }}>
                 {dda.simMaxDD.toFixed(2)}% ({fmt2(dda.simMaxDDAmount)})
               </span>
             </div>
             <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: 8, height: 18, overflow: "hidden", position: "relative" }}>
               {/* Zone verte 0-50% de la limite */}
-              <div style={{ position: "absolute", left: 0, top: 0, width: "50%", height: "100%", background: "#06231820", borderRight: "1px dashed #C9922A30" }} />
+              <div style={{ position: "absolute", left: 0, top: 0, width: "50%", height: "100%", background: "#06231820", borderRight: "1px dashed #6ee7b730" }} />
               {/* Zone orange 50-80% */}
               <div style={{ position: "absolute", left: "50%", top: 0, width: "30%", height: "100%", background: "#2d1f0820", borderRight: "1px dashed #fbbf2430" }} />
               {/* Zone rouge 80-100% */}
@@ -1281,7 +1281,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               <div style={{
                 position: "absolute", left: 0, top: 0, height: "100%",
                 width: Math.min(100, (dda.simMaxDD / (model.totalDD * 100)) * 100) + "%",
-                background: dda.simMaxDD < model.totalDD * 100 * 0.5 ? "#C9922A" : dda.simMaxDD < model.totalDD * 100 * 0.75 ? "#fbbf24" : "#ef4444",
+                background: dda.simMaxDD < model.totalDD * 100 * 0.5 ? "#6ee7b7" : dda.simMaxDD < model.totalDD * 100 * 0.75 ? "#fbbf24" : "#ef4444",
                 borderRadius: 8, transition: "width 0.5s"
               }} />
               {/* Label limite */}
@@ -1289,7 +1289,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                 {(model.totalDD * 100)}% = LIMITE
               </div>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(240,228,200,0.3)", marginTop: 2 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
               <span>0%</span>
               <span style={{ color: "rgba(255,255,255,0.55)" }}>Zone safe</span>
               <span style={{ color: "#fbbf24" }}>Attention</span>
@@ -1302,19 +1302,19 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             <div className="kpi">
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Perte max 1 jour</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24" }}>{dda.maxDayLossPct.toFixed(2)}%</div>
-              <div style={{ fontSize: 11, color: "rgba(240,228,200,0.3)" }}>{fmt2(dda.maxDayLoss)}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{fmt2(dda.maxDayLoss)}</div>
             </div>
             <div className="kpi">
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Jours full-perte DD total</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#ef4444" }}>{dda.daysToTotalDD}j</div>
-              <div style={{ fontSize: 11, color: "rgba(240,228,200,0.3)" }}>avant limite {(model.totalDD*100)}%</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>avant limite {(model.totalDD*100)}%</div>
             </div>
             <div className="kpi">
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>DD journalier franchissable</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: dda.canBreachDaily ? "#ef4444" : "#C9922A" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: dda.canBreachDaily ? "#ef4444" : "#6ee7b7" }}>
                 {dda.canBreachDaily ? "OUI - RISQUE" : "NON - SAFE"}
               </div>
-              <div style={{ fontSize: 11, color: "rgba(240,228,200,0.3)" }}>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
                 {dda.canBreachDaily
                   ? "perte max " + dda.maxDayLossPct.toFixed(2) + "% > " + (model.dailyDD*100) + "%"
                   : "perte max " + dda.maxDayLossPct.toFixed(2) + "% < " + (model.dailyDD*100) + "%"}
@@ -1322,10 +1322,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             </div>
             <div className="kpi">
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Marge restante</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: dda.distancePct > 5 ? "#C9922A" : "#ef4444" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: dda.distancePct > 5 ? "#6ee7b7" : "#ef4444" }}>
                 {dda.distancePct > 0 ? dda.distancePct.toFixed(2) + "%" : "DEPASSE"}
               </div>
-              <div style={{ fontSize: 11, color: "rgba(240,228,200,0.3)" }}>{dda.distancePct > 0 ? fmt2(dda.distanceAmt) + " restants" : "compte ferme"}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{dda.distancePct > 0 ? fmt2(dda.distanceAmt) + " restants" : "compte ferme"}</div>
             </div>
           </div>
 
@@ -1333,7 +1333,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             <span style={{ color: "rgba(255,255,255,0.35)" }}>Lecture : </span>
             {dda.canBreachDaily
               ? <span style={{ color: "#ef4444" }}>Attention - avec {tradesPerDay} trades a {riskPct}% tu peux declencher le DD journalier en 1 seule journee. Reduis le risque/trade ou le nombre de trades.</span>
-              : <span style={{ color: "#C9922A" }}>Securise - le DD journalier {(model.dailyDD*100)}% est inatteignable en 1 jour avec ta config ({dda.maxDayLossPct.toFixed(2)}% max). Seule une accumulation sur {dda.daysToTotalDD}+ jours perdants peut te sortir.</span>
+              : <span style={{ color: "#6ee7b7" }}>Securise - le DD journalier {(model.dailyDD*100)}% est inatteignable en 1 jour avec ta config ({dda.maxDayLossPct.toFixed(2)}% max). Seule une accumulation sur {dda.daysToTotalDD}+ jours perdants peut te sortir.</span>
             }
           </div>
         </div>
@@ -1344,10 +1344,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           <span style={{ fontSize: 24, fontWeight: 700, color: wrColor }}>{winrate}%</span>
         </div>
         <input type="range" min={30} max={90} step={1} value={winrate} onChange={e => setWinrate(parseInt(e.target.value))} />
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(240,228,200,0.3)", marginTop: 2 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
           <span>30%</span><span>60%</span><span>90%</span>
         </div>
-        <div style={{ marginTop: 8, background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: finalRRValid ? "#C9922A" : "#ef4444" }}>
+        <div style={{ marginTop: 8, background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: finalRRValid ? "#6ee7b7" : "#ef4444" }}>
           {finalRRValid
             ? <>RR necessaire : <b>1:{finalRR.toFixed(2)}</b> (gain {fmt2(effectiveRiskAmount * finalRR)} / perte {fmt2(effectiveRiskAmount)})</>
             : <>RR impossible ou &gt; 20 - winrate trop bas pour cet objectif.</>}
@@ -1371,14 +1371,14 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.50)", textTransform: "uppercase", letterSpacing: 1 }}>
               Max pertes consecutives EA
             </span>
-            <span style={{ fontSize: 24, fontWeight: 700, color: "#C9922A" }}>{maxConsecLosses}</span>
+            <span style={{ fontSize: 24, fontWeight: 700, color: "#6ee7b7" }}>{maxConsecLosses}</span>
           </div>
-          <input type="range" min={1} max={20} step={1} value={maxConsecLosses} onChange={e => setMaxConsecLosses(parseInt(e.target.value))} style={{ accentColor: "#C9922A" }} />
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(240,228,200,0.3)", marginTop: 2 }}>
+          <input type="range" min={1} max={20} step={1} value={maxConsecLosses} onChange={e => setMaxConsecLosses(parseInt(e.target.value))} style={{ accentColor: "#6ee7b7" }} />
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
             <span>1</span><span>5</span><span>10</span><span>20</span>
           </div>
-          <div style={{ marginTop: 8, background: "rgba(255,255,255,0.05)", border: "1px solid #C9922A30", borderRadius: 8, padding: "8px 10px", fontSize: 11, lineHeight: 1.6 }}>
-            <div style={{ color: "#C9922A", fontWeight: 700, marginBottom: 4 }}>Avec ton EA (max {maxConsecLosses} pertes)</div>
+          <div style={{ marginTop: 8, background: "rgba(255,255,255,0.05)", border: "1px solid #6ee7b730", borderRadius: 8, padding: "8px 10px", fontSize: 11, lineHeight: 1.6 }}>
+            <div style={{ color: "#6ee7b7", fontWeight: 700, marginBottom: 4 }}>Avec ton EA (max {maxConsecLosses} pertes)</div>
             <div style={{ color: "#FFFFFF" }}>
               Perte max en serie : <b style={{ color: "#fbbf24" }}>{(maxConsecLosses * effectiveRiskPct).toFixed(2)}%</b>
               {" = "}<b style={{ color: "#fbbf24" }}>{(maxConsecLosses * effectiveRiskAmount).toFixed(0)}$</b>
@@ -1388,7 +1388,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                 {Math.ceil(capital * model.totalDD / (maxConsecLosses * effectiveRiskAmount)).toFixed(0)} series perdantes
               </b> sans aucun gain
             </div>
-            <div style={{ color: "#C9922A", fontSize: 10, marginTop: 4 }}>
+            <div style={{ color: "#6ee7b7", fontSize: 10, marginTop: 4 }}>
               {(maxConsecLosses * effectiveRiskPct) < model.dailyDD * 100
                 ? "DD journalier " + (model.dailyDD * 100) + "% INATTEIGNABLE en 1 jour avec cette config"
                 : "Attention : serie max " + (maxConsecLosses * riskPct).toFixed(2) + "% > DD jour " + (model.dailyDD * 100) + "%"}
@@ -1398,14 +1398,14 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       </div>
 
       {/* CARTE LOT / INSTRUMENT */}
-      <div className="card" style={{ borderLeft: "3px solid #C9922A" }}>
+      <div className="card" style={{ borderLeft: "3px solid #6ee7b7" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.50)", textTransform: "uppercase", letterSpacing: 1 }}>Lot & Instrument</span>
           <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>Activer</span>
             <div onClick={() => setUseFixedLot(v => !v)} style={{
-              width: 36, height: 20, borderRadius: 10, background: useFixedLot ? "#C9922A" : "rgba(255,255,255,0.1)",
-              border: "1px solid " + (useFixedLot ? "#C9922A" : "rgba(255,255,255,0.08)"),
+              width: 36, height: 20, borderRadius: 10, background: useFixedLot ? "#6ee7b7" : "rgba(255,255,255,0.12)",
+              border: "1px solid " + (useFixedLot ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
               position: "relative", cursor: "pointer", transition: "all .2s"
             }}>
               <div style={{ position: "absolute", top: 2, left: useFixedLot ? 18 : 2, width: 14, height: 14, borderRadius: 7, background: "#fff", transition: "all .2s" }} />
@@ -1445,11 +1445,11 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Risque/trade</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#C9922A" }}>{fmt2(lotRiskAmount)}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#6ee7b7" }}>{fmt2(lotRiskAmount)}</div>
             </div>
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>% du capital</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: lotRiskPct > 1 ? "#ef4444" : lotRiskPct > 0.5 ? "#fbbf24" : "#C9922A" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: lotRiskPct > 1 ? "#ef4444" : lotRiskPct > 0.5 ? "#fbbf24" : "#6ee7b7" }}>
                 {lotRiskPct.toFixed(2)}%
               </div>
             </div>
@@ -1470,7 +1470,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               <div style={{ fontSize: 10, fontWeight: 700, color: newsImpact ? "#ef4444" : "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1 }}>
                 Impact annonces news
               </div>
-              <div style={{ fontSize: 11, color: "rgba(240,228,200,0.3)", marginTop: 2, lineHeight: 1.4 }}>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2, lineHeight: 1.4 }}>
                 FundedNext: gains reduits a 40% si trade en fenetres news (+/-5min)
               </div>
             </div>
@@ -1495,7 +1495,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
       {/* PARAMETRES */}
       <div className="card">
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#C9922A", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Parametres Trading</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Parametres Trading</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {/* Capital */}
           <div>
@@ -1508,7 +1508,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
               <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: 700 }}>Risque/trade (%)</span>
-              {useFixedLot && <span style={{ fontSize: 11, background: "#C9922A20", color: "#C9922A", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>LOT AUTO</span>}
+              {useFixedLot && <span style={{ fontSize: 11, background: "#6ee7b720", color: "#6ee7b7", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>LOT AUTO</span>}
             </div>
             <input
               type="number"
@@ -1518,15 +1518,15 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               onChange={e => !useFixedLot && setRiskPct(parseFloat(e.target.value) || 0)}
               style={{
                 background: useFixedLot ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.05)",
-                border: "1px solid " + (useFixedLot ? "#C9922A80" : "rgba(255,255,255,0.08)"),
+                border: "1px solid " + (useFixedLot ? "#6ee7b780" : "rgba(255,255,255,0.08)"),
                 borderRadius: 6,
-                color: useFixedLot ? "#C9922A" : "#FFFFFF",
+                color: useFixedLot ? "#6ee7b7" : "#FFFFFF",
                 padding: "5px 8px", width: "100%", fontSize: 13,
                 cursor: useFixedLot ? "not-allowed" : "text",
                 fontWeight: useFixedLot ? 800 : 400,
               }} />
             {useFixedLot
-              ? <div style={{ fontSize: 11, color: "#C9922A", marginTop: 3, lineHeight: 1.4 }}>
+              ? <div style={{ fontSize: 11, color: "#6ee7b7", marginTop: 3, lineHeight: 1.4 }}>
                   Lot {lotSize} × {slPips} pips × ${pipVal}/pip = <b>{fmt2(effectiveRiskAmount)}</b>
                 </div>
               : <input type="range" min={0.05} max={2} step={0.05} value={riskPct} onChange={e => setRiskPct(parseFloat(e.target.value))} />
@@ -1549,30 +1549,30 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
         {/* Résumé paramètres */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
-          <div style={{ background: useFixedLot ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.04)", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: useFixedLot ? "#C9922A" : "#fbbf24", border: useFixedLot ? "1px solid #C9922A30" : "none" }}>
+          <div style={{ background: useFixedLot ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.04)", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: useFixedLot ? "#6ee7b7" : "#fbbf24", border: useFixedLot ? "1px solid #6ee7b730" : "none" }}>
             Risque : <b>{fmt2(effectiveRiskAmount)}</b>/trade = <b>{effectiveRiskPct.toFixed(2)}%</b>
           </div>
-          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: "#C9922A" }}>
+          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: "#6ee7b7" }}>
             Objectif : <b>{fmt2(capital * dailyTarget)}</b>/jour
-            <span style={{ color: "rgba(240,228,200,0.3)", fontSize: 11, marginLeft: 4 }}>
+            <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, marginLeft: 4 }}>
               (E espéré : {fmt2(Math.max(0, expectedDailyPnL))}/j)
             </span>
           </div>
-          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: "#93c5fd", gridColumn: "1 / 3" }}>
-            Profit equiv. : <b>{(monthlyTarget * 100).toFixed(1)}% / mois</b> - frais : <b>{fmt(fee)}</b> - RR : <b style={{ color: finalRR < 1.5 ? "#C9922A" : finalRR < 2.5 ? "#fbbf24" : "#ef4444" }}>1:{finalRR.toFixed(2)}</b>
+          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: "rgba(255,255,255,0.55)", gridColumn: "1 / 3" }}>
+            Profit equiv. : <b>{(monthlyTarget * 100).toFixed(1)}% / mois</b> - frais : <b>{fmt(fee)}</b> - RR : <b style={{ color: finalRR < 1.5 ? "#6ee7b7" : finalRR < 2.5 ? "#fbbf24" : "#ef4444" }}>1:{finalRR.toFixed(2)}</b>
           </div>
         </div>
         <button onClick={() => setSeed(s => s + 1)}
-          style={{ marginTop: 10, width: "100%", padding: 9, background: "rgba(255,255,255,0.08)", border: "1px solid #2d2d3d", borderRadius: 8, color: "#C9922A", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+          style={{ marginTop: 10, width: "100%", padding: 9, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 8, color: "#FFFFFF", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
           Nouvelle simulation
         </button>
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
           <button onClick={copyReport}
-            style={{ flex: 1, padding: 9, background: copied ? "rgba(255,255,255,0.05)" : "#C9922A", border: copied ? "1px solid #C9922A" : "none", borderRadius: 8, color: copied ? "#C9922A" : "rgba(255,255,255,0.05)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-            {copied ? "Copie !" : "Copier le rapport"}
+            style={{ flex: 1, padding: 9, background: copied ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.07)", border: copied ? "1px solid #6ee7b7" : "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: copied ? "#6ee7b7" : "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            {copied ? "✓ Copié !" : "Copier le rapport"}
           </button>
           <button onClick={printReport}
-            style={{ flex: 1, padding: 9, background: "#93c5fd", border: "none", borderRadius: 8, color: "rgba(255,255,255,0.05)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            style={{ flex: 1, padding: 9, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
             Imprimer / PDF
           </button>
         </div>
@@ -1580,11 +1580,11 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
       {/* BILAN FINANCIER NET */}
       {bilan && (
-        <div className="card" style={{ borderLeft: "3px solid #fbbf24" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#fbbf24", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Bilan Financier Net</div>
+        <div className="card" style={{ borderLeft: "2px solid rgba(110,231,183,0.3)" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.40)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Bilan Financier Net</div>
           {[
-            { label: "Reward challenge (15%)", val: "+" + fmt2(bilan.reward), color: "#C9922A" },
-            { label: "Payouts funded verses", val: "+" + fmt2(bilan.payout), color: "#C9922A" },
+            { label: "Reward challenge (15%)", val: "+" + fmt2(bilan.reward), color: "#6ee7b7" },
+            { label: "Payouts funded verses", val: "+" + fmt2(bilan.payout), color: "#6ee7b7" },
             { label: "En attente (non verse)", val: "+" + fmt2(bilan.pending), color: "rgba(255,255,255,0.55)" },
             { label: "Frais d'achat challenge", val: "-" + fmt2(bilan.fee), color: "#ef4444" },
           ].map(k => (
@@ -1595,14 +1595,14 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           ))}
           <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, marginTop: 4, borderTop: "1px solid #2d2d3d" }}>
             <span style={{ fontWeight: 700, fontSize: 13 }}>RESULTAT NET</span>
-            <span style={{ fontWeight: 700, fontSize: 16, color: bilan.net >= 0 ? "#C9922A" : "#ef4444" }}>{fmt2(bilan.net)}</span>
+            <span style={{ fontWeight: 700, fontSize: 16, color: bilan.net >= 0 ? "#6ee7b7" : "#ef4444" }}>{fmt2(bilan.net)}</span>
           </div>
         </div>
       )}
 
       {/* REGLES */}
-      <div className="card" style={{ borderLeft: "3px solid #C9922A" }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#C9922A", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Regles {model.name}</div>
+      <div className="card" style={{ borderLeft: "3px solid #6ee7b7" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Regles {model.name}</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
           {[
             ...model.phases.map(ph => [ph.label + " objectif", "+" + (ph.target * 100) + "%"]),
@@ -1625,8 +1625,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
       {/* Bouton sauvegarder la config */}
       <button onClick={saveCurrentConfig} style={{
-        width: "100%", padding: "13px", borderRadius: 12, border: "1px dashed rgba(201,146,42,0.35)",
-        cursor: "pointer", background: "rgba(255,255,255,0.04)", color: "#C9922A", fontSize: 13, fontWeight: 700,
+        width: "100%", padding: "13px", borderRadius: 12, border: "1px dashed rgba(110,231,183,0.35)",
+        cursor: "pointer", background: "rgba(255,255,255,0.04)", color: "#6ee7b7", fontSize: 13, fontWeight: 700,
         marginBottom: 12,
       }}>
         ★ {t("sim_save_config")}
@@ -1645,7 +1645,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         <div>
           {model.phases.map((ph, i) => {
             const data = sim.phaseResults[i];
-            const color = i === 0 ? "#C9922A" : "#93c5fd";
+            const color = i === 0 ? "#6ee7b7" : "rgba(255,255,255,0.55)";
             return (
               <div className="card" key={i}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -1667,13 +1667,13 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                       </div>
                       <div className="kpi">
                         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Profit</div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: data.profit >= ph.target ? "#C9922A" : data.profit >= 0 ? "#fbbf24" : "#ef4444" }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: data.profit >= ph.target ? "#6ee7b7" : data.profit >= 0 ? "#fbbf24" : "#ef4444" }}>
                           {fmtPn(data.profit)}
                         </div>
                       </div>
                       <div className="kpi">
                         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>WR trades</div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "#93c5fd" }}>{data.tradeWinrate.toFixed(0)}%</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.55)" }}>{data.tradeWinrate.toFixed(0)}%</div>
                       </div>
                       <div className="kpi">
                         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Equity</div>
@@ -1697,8 +1697,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#1a1a28" />
-                        <XAxis dataKey="day" tick={{ fontSize: 11, fill: "rgba(240,228,200,0.3)" }} tickFormatter={v => "J" + v} />
-                        <YAxis tick={{ fontSize: 11, fill: "rgba(240,228,200,0.3)" }} tickFormatter={v => "$" + (v / 1000).toFixed(1) + "k"} domain={["auto", "auto"]} />
+                        <XAxis dataKey="day" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "J" + v} />
+                        <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v / 1000).toFixed(1) + "k"} domain={["auto", "auto"]} />
                         <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "rgba(255,255,255,0.05)", border: "1px solid #1e1e2e", borderRadius: 8, fontSize: 11 }} />
                         <ReferenceLine y={capital * (1 + ph.target)} stroke={color} strokeDasharray="4 2" />
                         <ReferenceLine y={capital * (1 - model.totalDD)} stroke="#ef4444" strokeDasharray="4 2" />
@@ -1724,21 +1724,21 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             <div className="card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>Compte Funded - {fundedMonths} mois</div>
-                <span className="tag" style={{ background: sim.funded.status === "active" ? "rgba(255,255,255,0.05)" : "#2d0808", color: sim.funded.status === "active" ? "#C9922A" : "#ef4444" }}>
+                <span className="tag" style={{ background: sim.funded.status === "active" ? "rgba(255,255,255,0.05)" : "#2d0808", color: sim.funded.status === "active" ? "#6ee7b7" : "#ef4444" }}>
                   {sim.funded.status === "active" ? "ACTIF" : "FERME"}
                 </span>
               </div>
-              <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid #C9922A30", borderRadius: 8, padding: 8, marginBottom: 12, fontSize: 11, color: "#C9922A" }}>
+              <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid #6ee7b730", borderRadius: 8, padding: 8, marginBottom: 12, fontSize: 11, color: "#6ee7b7" }}>
                 Capital funded = {fmt(capital)} (remis a l'initial) - Seuil retrait : $50 - Payout bi-weekly (14j)
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
                 {[
-                  { label: "Capital final", val: fmt(sim.funded.finalEquity), color: "#C9922A" },
-                  { label: "Payout verse", val: fmt(sim.funded.cumulPayout), color: "#C9922A" },
+                  { label: "Capital final", val: fmt(sim.funded.finalEquity), color: "#6ee7b7" },
+                  { label: "Payout verse", val: fmt(sim.funded.cumulPayout), color: "#6ee7b7" },
                   { label: "En attente", val: fmt2(sim.funded.pendingPayout), color: "rgba(255,255,255,0.55)" },
-                  { label: "WR mensuel", val: sim.funded.winrateMonth.toFixed(0) + "%", color: sim.funded.winrateMonth >= 60 ? "#C9922A" : "#fbbf24" },
-                  { label: "Scaling", val: sim.funded.scalingCount + "x (+40%)", color: "#93c5fd" },
-                  { label: "Split final", val: sim.funded.finalSplit + "%", color: sim.funded.finalSplit >= 90 ? "#C9922A" : "#fbbf24" },
+                  { label: "WR mensuel", val: sim.funded.winrateMonth.toFixed(0) + "%", color: sim.funded.winrateMonth >= 60 ? "#6ee7b7" : "#fbbf24" },
+                  { label: "Scaling", val: sim.funded.scalingCount + "x (+40%)", color: "rgba(255,255,255,0.55)" },
+                  { label: "Split final", val: sim.funded.finalSplit + "%", color: sim.funded.finalSplit >= 90 ? "#6ee7b7" : "#fbbf24" },
                 ].map((k) => (
                   <div key={k.label} className="kpi">
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>{k.label}</div>
@@ -1750,17 +1750,17 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                 <ComposedChart data={sim.funded.data}>
                   <defs>
                     <linearGradient id="gfunded" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#C9922A" stopOpacity={0.25} />
-                      <stop offset="100%" stopColor="#C9922A" stopOpacity={0} />
+                      <stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.25} />
+                      <stop offset="100%" stopColor="#6ee7b7" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1a1a28" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "rgba(240,228,200,0.3)" }} tickFormatter={v => "M" + v} />
-                  <YAxis tick={{ fontSize: 11, fill: "rgba(240,228,200,0.3)" }} tickFormatter={v => "$" + (v / 1000).toFixed(0) + "k"} domain={["auto", "auto"]} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "M" + v} />
+                  <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v / 1000).toFixed(0) + "k"} domain={["auto", "auto"]} />
                   <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "rgba(255,255,255,0.05)", border: "1px solid #1e1e2e", borderRadius: 8, fontSize: 11 }} />
-                  <ReferenceLine y={capital} stroke="rgba(240,228,200,0.3)" strokeDasharray="4 2" />
-                  <Area type="monotone" dataKey="equity" stroke="#D4A030" strokeWidth={2} fill="url(#gfunded)" dot={false} name="Equity" />
-                  <Line type="monotone" dataKey="cumul" stroke="#D4A030" strokeWidth={2} dot={false} name="Payout Cumule" strokeDasharray="5 3" />
+                  <ReferenceLine y={capital} stroke="rgba(255,255,255,0.3)" strokeDasharray="4 2" />
+                  <Area type="monotone" dataKey="equity" stroke="#6ee7b7" strokeWidth={2} fill="url(#gfunded)" dot={false} name="Equity" />
+                  <Line type="monotone" dataKey="cumul" stroke="#6ee7b7" strokeWidth={2} dot={false} name="Payout Cumule" strokeDasharray="5 3" />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -1784,19 +1784,19 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                       <tr key={r.month} style={{ borderBottom: "1px solid #0f0f18", background: r.scalingNote ? "rgba(255,255,255,0.05)" : "transparent" }}>
                         <td style={{ padding: "5px 4px", color: "rgba(255,255,255,0.55)", textAlign: "right" }}>M{r.month}</td>
                         <td style={{ padding: "5px 4px", color: "#FFFFFF", textAlign: "right" }}>{fmt(r.equity)}</td>
-                        <td style={{ padding: "5px 4px", textAlign: "right", color: r.profitPct >= 0 ? "#C9922A" : "#ef4444" }}>
+                        <td style={{ padding: "5px 4px", textAlign: "right", color: r.profitPct >= 0 ? "#6ee7b7" : "#ef4444" }}>
                           {(r.profitPct >= 0 ? "+" : "") + r.profitPct.toFixed(2)}%
                         </td>
-                        <td style={{ padding: "5px 4px", textAlign: "right", fontWeight: r.payout > 0 ? 700 : 400, color: r.payout > 0 ? "#fbbf24" : "rgba(240,228,200,0.3)" }}>
+                        <td style={{ padding: "5px 4px", textAlign: "right", fontWeight: r.payout > 0 ? 700 : 400, color: r.payout > 0 ? "#fbbf24" : "rgba(255,255,255,0.3)" }}>
                           {r.payout > 0 ? fmt(r.payout) : "-"}
                         </td>
-                        <td style={{ padding: "5px 4px", textAlign: "right", color: r.currentSplit >= 90 ? "#C9922A" : "rgba(255,255,255,0.55)" }}>
+                        <td style={{ padding: "5px 4px", textAlign: "right", color: r.currentSplit >= 90 ? "#6ee7b7" : "rgba(255,255,255,0.55)" }}>
                           {r.currentSplit}%
                         </td>
-                        <td style={{ padding: "5px 4px", textAlign: "right", color: r.streakMonths >= 4 ? "#C9922A" : r.streakMonths >= 2 ? "#fbbf24" : "rgba(255,255,255,0.35)" }}>
+                        <td style={{ padding: "5px 4px", textAlign: "right", color: r.streakMonths >= 4 ? "#6ee7b7" : r.streakMonths >= 2 ? "#fbbf24" : "rgba(255,255,255,0.35)" }}>
                           {r.streakMonths}/4{r.scalingNote ? " \u{1F4C8}" : ""}
                         </td>
-                        <td style={{ padding: "5px 4px", textAlign: "right", fontSize: 12, fontWeight: 700, color: r.status === "active" ? "#C9922A" : "#ef4444" }}>
+                        <td style={{ padding: "5px 4px", textAlign: "right", fontSize: 12, fontWeight: 700, color: r.status === "active" ? "#6ee7b7" : "#ef4444" }}>
                           {r.status === "active" ? "\u2713" : "\u2717"}
                         </td>
                       </tr>
@@ -1818,14 +1818,14 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       {tab === "montecarlo" && finalRRValid && (
         <div>
           {/* Résumé stats compact */}
-          <div style={{ background: "linear-gradient(135deg, rgba(201,146,42,0.10), rgba(12,8,2,0.95))", border: "1px solid rgba(201,146,42,0.20)", borderRadius: 14, padding: 16, marginBottom: 14 }}>
+          <div style={{ background: "linear-gradient(135deg, rgba(110,231,183,0.10), rgba(12,8,2,0.95))", border: "1px solid rgba(110,231,183,0.20)", borderRadius: 14, padding: 16, marginBottom: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: "#FFFFFF" }}>{firm.name}</div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>{model.name} · {fmt(capital)}</div>
               </div>
               {activePreset !== "custom" && (
-                <span style={{ fontSize: 10, fontWeight: 700, color: "#C9922A", background: "rgba(255,255,255,0.08)", padding: "3px 10px", borderRadius: 20 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#6ee7b7", background: "rgba(255,255,255,0.08)", padding: "3px 10px", borderRadius: 20 }}>
                   {PRESETS[activePreset]?.label}
                 </span>
               )}
@@ -1833,12 +1833,12 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
               {[
                 { l: "Winrate", v: winrate + "%", c: "#FFFFFF" },
-                { l: "RR", v: finalRR.toFixed(2), c: "#C9922A" },
+                { l: "RR", v: finalRR.toFixed(2), c: "#6ee7b7" },
                 { l: "Trades/j", v: tradesPerDay, c: "#FFFFFF" },
                 { l: "Risque", v: effectiveRiskPct.toFixed(2) + "%", c: "#FFFFFF" },
               ].map(s => (
                 <div key={s.l} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 9, padding: "8px 4px", textAlign: "center" }}>
-                  <div style={{ fontSize: 8, color: "rgba(240,228,200,0.3)" }}>{s.l}</div>
+                  <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>{s.l}</div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: s.c }}>{s.v}</div>
                 </div>
               ))}
@@ -1894,8 +1894,8 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
 
   if (!res) return <div className="card" style={{ color: "rgba(255,255,255,0.35)", textAlign: "center" }}>Calcul Monte Carlo en cours... ({RUNS} simulations)</div>;
   const fmt = v => "$" + (v >= 0 ? "+" : "") + Math.abs(v).toFixed(0);
-  const color = v => v >= 0 ? "#C9922A" : "#ef4444";
-  const rate_color = v => v >= 70 ? "#C9922A" : v >= 50 ? "#fbbf24" : "#ef4444";
+  const color = v => v >= 0 ? "#6ee7b7" : "#ef4444";
+  const rate_color = v => v >= 70 ? "#6ee7b7" : v >= 50 ? "#fbbf24" : "#ef4444";
   return (
     <div>
       <div className="card">
@@ -1917,7 +1917,7 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 4 }}>
             {[["Min", res.min], ["P25", res.p25], ["P50", res.p50], ["P75", res.p75], ["Max", res.max]].map(([l, v]) => (
               <div key={l} style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 11, color: "rgba(240,228,200,0.3)" }}>{l}</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{l}</div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: color(v) }}>{fmt(v)}</div>
               </div>
             ))}
@@ -2108,15 +2108,15 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
     // Facteurs clés
     const factors = [];
     if (maxDD > model.totalDD * 100 * 0.6) factors.push({ t: `DD max reel ${maxDD.toFixed(1)}% — proche limite ${model.totalDD*100}%`, c: "#ef4444" });
-    else factors.push({ t: `DD max reel ${maxDD.toFixed(1)}% — marge OK`, c: "#C9922A" });
+    else factors.push({ t: `DD max reel ${maxDD.toFixed(1)}% — marge OK`, c: "#6ee7b7" });
     if (realWR < 0.4) factors.push({ t: `Winrate ${(realWR*100).toFixed(0)}% — trop bas`, c: "#ef4444" });
-    else factors.push({ t: `Winrate ${(realWR*100).toFixed(0)}% vs ${winrate}% attendu`, c: realWR*100 >= winrate-5 ? "#C9922A" : "#fbbf24" });
+    else factors.push({ t: `Winrate ${(realWR*100).toFixed(0)}% vs ${winrate}% attendu`, c: realWR*100 >= winrate-5 ? "#6ee7b7" : "#fbbf24" });
     if (realPF < 1.0) factors.push({ t: `Profit Factor ${realPF.toFixed(2)} — stratégie perdante`, c: "#ef4444" });
-    else factors.push({ t: `Profit Factor ${realPF.toFixed(2)} — ${realPF >= 1.5 ? "excellent" : "acceptable"}`, c: realPF >= 1.5 ? "#C9922A" : "#fbbf24" });
+    else factors.push({ t: `Profit Factor ${realPF.toFixed(2)} — ${realPF >= 1.5 ? "excellent" : "acceptable"}`, c: realPF >= 1.5 ? "#6ee7b7" : "#fbbf24" });
 
     // Verdict global
     let label, color, bg, icon;
-    if (passPct >= 70) { label = "VIABLE POUR LE CHALLENGE"; color = "#C9922A"; bg = "linear-gradient(135deg, #06231860, #111118)"; icon = "✅"; }
+    if (passPct >= 70) { label = "VIABLE POUR LE CHALLENGE"; color = "#6ee7b7"; bg = "linear-gradient(135deg, #06231860, #111118)"; icon = "✅"; }
     else if (passPct >= 40) { label = "RISQUE ÉLEVÉ"; color = "#fbbf24"; bg = "linear-gradient(135deg, #2d1f0860, #111118)"; icon = "⚠️"; }
     else { label = "INCOMPATIBLE"; color = "#ef4444"; bg = "linear-gradient(135deg, #2d080860, #111118)"; icon = "🚫"; }
 
@@ -2175,33 +2175,33 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
 
   const verdict = trades.length > 0 && stats ? computeVerdictSync(trades, trades[0].balance - trades[0].profit) : null;
 
-  const alertColor = (l) => l === "danger" ? "#ef4444" : l === "warning" ? "#fbbf24" : l === "ok" ? "#C9922A" : "#93c5fd";
+  const alertColor = (l) => l === "danger" ? "#ef4444" : l === "warning" ? "#fbbf24" : l === "ok" ? "#6ee7b7" : "rgba(255,255,255,0.55)";
   const alertBg = (l) => l === "danger" ? "#2d0808" : l === "warning" ? "#2d1f08" : l === "ok" ? "rgba(255,255,255,0.05)" : "#0c1a3d";
   const alertIcon = (l) => l === "danger" ? "⚠️" : l === "warning" ? "🟡" : l === "ok" ? "✅" : "💡";
 
   return (
     <div>
       {/* ── UPLOAD : CSV + HTML ── */}
-      <div className="card" style={{ borderLeft: "3px solid #C9922A" }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#C9922A", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
+      <div className="card" style={{ borderLeft: "3px solid #6ee7b7" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
           Import historique
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
           <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "8px 10px" }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: "#FFFFFF", marginBottom: 2 }}>📊 CSV / Texte</div>
-            <div style={{ fontSize: 11, color: "rgba(240,228,200,0.3)", lineHeight: 1.4 }}>MT4 : Historique → clic droit → CSV<br/>MT5 : Historique → Rapport → CSV</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", lineHeight: 1.4 }}>MT4 : Historique → clic droit → CSV<br/>MT5 : Historique → Rapport → CSV</div>
           </div>
-          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "8px 10px", borderLeft: "2px solid #C9922A20" }}>
+          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "8px 10px", borderLeft: "2px solid #6ee7b720" }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: "#FFFFFF", marginBottom: 2 }}>🌐 Backtest HTML</div>
-            <div style={{ fontSize: 11, color: "rgba(240,228,200,0.3)", lineHeight: 1.4 }}>MT4/MT5 : Testeur → Rapport → Ouvrir → Fichier HTML</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", lineHeight: 1.4 }}>MT4/MT5 : Testeur → Rapport → Ouvrir → Fichier HTML</div>
           </div>
         </div>
         <label style={{ display: "block", background: "rgba(255,255,255,0.04)", border: "2px dashed #2d2d3d", borderRadius: 10, padding: "16px", textAlign: "center", cursor: "pointer" }}>
           <div style={{ fontSize: 28, marginBottom: 6 }}>📂</div>
-          <div style={{ fontSize: 13, color: "#C9922A", fontWeight: 700 }}>
+          <div style={{ fontSize: 13, color: "#6ee7b7", fontWeight: 700 }}>
             {filename ? filename : "CSV, TXT, TSV, ou HTML"}
           </div>
-          <div style={{ fontSize: 10, color: "rgba(240,228,200,0.3)", marginTop: 4 }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>
             {trades.length > 0 ? trades.length + " trades chargés" : "Aucun fichier"}
           </div>
           <input type="file" accept=".csv,.txt,.tsv,.html,.htm" onChange={handleFile} style={{ display: "none" }} />
@@ -2242,18 +2242,18 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                 <span style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}>Cohérence avec ta simulation</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: verdict.matchScore >= 70 ? "#C9922A" : verdict.matchScore >= 50 ? "#fbbf24" : "#ef4444" }}>{verdict.matchScore}%</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: verdict.matchScore >= 70 ? "#6ee7b7" : verdict.matchScore >= 50 ? "#fbbf24" : "#ef4444" }}>{verdict.matchScore}%</span>
               </div>
               <div style={{ height: 8, background: "rgba(255,255,255,0.04)", borderRadius: 4, overflow: "hidden" }}>
                 <div style={{
                   height: "100%", borderRadius: 4, transition: "width .6s",
                   width: verdict.matchScore + "%",
-                  background: verdict.matchScore >= 70 ? "#C9922A" : verdict.matchScore >= 50 ? "#fbbf24" : "#ef4444"
+                  background: verdict.matchScore >= 70 ? "#6ee7b7" : verdict.matchScore >= 50 ? "#fbbf24" : "#ef4444"
                 }} />
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 8, color: "rgba(255,255,255,0.08)", marginTop: 2 }}>
-                <span style={{ color: "rgba(240,228,200,0.3)" }}>0% — données incohérentes</span>
-                <span style={{ color: "rgba(240,228,200,0.3)" }}>100% — parfait alignement</span>
+                <span style={{ color: "rgba(255,255,255,0.3)" }}>0% — données incohérentes</span>
+                <span style={{ color: "rgba(255,255,255,0.3)" }}>100% — parfait alignement</span>
               </div>
             </div>
 
@@ -2266,9 +2266,9 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                 { l: "DD max", v: verdict.maxDD + "%", expected: "< " + (model ? model.totalDD * 100 : 10) + "%", ok: parseFloat(verdict.maxDD) < (model ? model.totalDD * 100 * 0.7 : 7) },
               ].map(k => (
                 <div key={k.l} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 4px", textAlign: "center" }}>
-                  <div style={{ fontSize: 7, color: "rgba(240,228,200,0.3)", marginBottom: 2 }}>{k.l}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: k.ok ? "#C9922A" : "#ef4444" }}>{k.v}</div>
-                  <div style={{ fontSize: 7, color: "rgba(240,228,200,0.2)", marginTop: 1 }}>sim: {k.expected}</div>
+                  <div style={{ fontSize: 7, color: "rgba(255,255,255,0.3)", marginBottom: 2 }}>{k.l}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: k.ok ? "#6ee7b7" : "#ef4444" }}>{k.v}</div>
+                  <div style={{ fontSize: 7, color: "rgba(255,255,255,0.2)", marginTop: 1 }}>sim: {k.expected}</div>
                 </div>
               ))}
             </div>
@@ -2277,7 +2277,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {verdict.factors.map((f, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "7px 10px", borderLeft: "3px solid " + f.c }}>
-                  <span style={{ fontSize: 12 }}>{f.c === "#C9922A" ? "✓" : f.c === "#fbbf24" ? "⚡" : "✗"}</span>
+                  <span style={{ fontSize: 12 }}>{f.c === "#6ee7b7" ? "✓" : f.c === "#fbbf24" ? "⚡" : "✗"}</span>
                   <span style={{ fontSize: 11, color: "#FFFFFF" }}>{f.t}</span>
                 </div>
               ))}
@@ -2299,7 +2299,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Réel vs Simulation</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2, marginBottom: 6 }}>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textAlign: "center", paddingBottom: 4 }}>Indicateur</div>
-              <div style={{ fontSize: 10, color: "#C9922A", textAlign: "center", fontWeight: 700 }}>Réel</div>
+              <div style={{ fontSize: 10, color: "#6ee7b7", textAlign: "center", fontWeight: 700 }}>Réel</div>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", textAlign: "center", fontWeight: 700 }}>Simulation</div>
             </div>
             {[
@@ -2314,8 +2314,8 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             ].map(row => (
               <div key={row.label} className="row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2 }}>
                 <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 11 }}>{row.label}</span>
-                <span style={{ textAlign: "center", fontWeight: 700, fontSize: 11, color: row.ok === false ? "#ef4444" : row.ok === true ? "#C9922A" : "#FFFFFF" }}>{row.real}</span>
-                <span style={{ textAlign: "center", fontSize: 11, color: "rgba(240,228,200,0.3)" }}>{row.sim2}</span>
+                <span style={{ textAlign: "center", fontWeight: 700, fontSize: 11, color: row.ok === false ? "#ef4444" : row.ok === true ? "#6ee7b7" : "#FFFFFF" }}>{row.real}</span>
+                <span style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{row.sim2}</span>
               </div>
             ))}
           </div>
@@ -2328,16 +2328,16 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               <ResponsiveContainer width="100%" height={220}>
                 <ComposedChart data={chartData}>
                   <defs>
-                    <linearGradient id="greel" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#C9922A" stopOpacity={0.2} /><stop offset="100%" stopColor="#C9922A" stopOpacity={0} /></linearGradient>
+                    <linearGradient id="greel" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.2} /><stop offset="100%" stopColor="#6ee7b7" stopOpacity={0} /></linearGradient>
                     <linearGradient id="gsim" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(255,255,255,0.55)" stopOpacity={0.1} /><stop offset="100%" stopColor="rgba(255,255,255,0.55)" stopOpacity={0} /></linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1a1a28" />
-                  <XAxis dataKey="pt" tick={{ fontSize: 11, fill: "rgba(240,228,200,0.3)" }} tickFormatter={v => "#" + v} />
-                  <YAxis tick={{ fontSize: 11, fill: "rgba(240,228,200,0.3)" }} tickFormatter={v => "$" + (v / 1000).toFixed(1) + "k"} domain={["auto", "auto"]} />
+                  <XAxis dataKey="pt" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "#" + v} />
+                  <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v / 1000).toFixed(1) + "k"} domain={["auto", "auto"]} />
                   <Tooltip formatter={(v, name) => ["$" + Number(v).toFixed(0), name]} contentStyle={{ background: "rgba(255,255,255,0.05)", border: "1px solid #1e1e2e", borderRadius: 8, fontSize: 11 }} />
-                  <ReferenceLine y={capital} stroke="rgba(240,228,200,0.3)" strokeDasharray="4 2" />
-                  <Area type="monotone" dataKey="simulation" stroke="rgba(240,228,200,0.3)" strokeWidth={1} fill="url(#gsim)" dot={false} name="Simulation" strokeDasharray="4 2" />
-                  <Area type="monotone" dataKey="reel" stroke="#D4A030" strokeWidth={2.5} fill="url(#greel)" dot={false} name="Réel" />
+                  <ReferenceLine y={capital} stroke="rgba(255,255,255,0.3)" strokeDasharray="4 2" />
+                  <Area type="monotone" dataKey="simulation" stroke="rgba(255,255,255,0.3)" strokeWidth={1} fill="url(#gsim)" dot={false} name="Simulation" strokeDasharray="4 2" />
+                  <Area type="monotone" dataKey="reel" stroke="#6ee7b7" strokeWidth={2.5} fill="url(#greel)" dot={false} name="Réel" />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -2384,7 +2384,7 @@ function CalendrierPnL({ dailyLog }) {
 
   const cellColor = (pnl) => {
     if (pnl === undefined || pnl === null)
-      return { bg: "#16161f", fg: "rgba(240,228,200,0.2)", border: "1px solid #1e1e2e", numColor: "rgba(240,228,200,0.2)" };
+      return { bg: "#16161f", fg: "rgba(255,255,255,0.2)", border: "1px solid #1e1e2e", numColor: "rgba(255,255,255,0.2)" };
 
     const ratio = Math.min(1, Math.abs(pnl) / (maxAbsPnl * 0.7));
     const isBig = ratio >= 0.5;
@@ -2413,15 +2413,15 @@ function CalendrierPnL({ dailyLog }) {
         <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
           <button onClick={() => setSelectedMonth(Math.max(1, selectedMonth - 1))}
             disabled={selectedMonth <= 1}
-            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid #2d2d3d", borderRadius: 8, color: selectedMonth <= 1 ? "rgba(240,228,200,0.2)" : "#C9922A", width: 32, height: 32, fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
+            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid #2d2d3d", borderRadius: 8, color: selectedMonth <= 1 ? "rgba(255,255,255,0.2)" : "#6ee7b7", width: 32, height: 32, fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
             ‹
           </button>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#C9922A", minWidth: 60, textAlign: "center" }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7", minWidth: 60, textAlign: "center" }}>
             M{selectedMonth}/{months.length}
           </span>
           <button onClick={() => setSelectedMonth(Math.min(months.length, selectedMonth + 1))}
             disabled={selectedMonth >= months.length}
-            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid #2d2d3d", borderRadius: 8, color: selectedMonth >= months.length ? "rgba(240,228,200,0.2)" : "#C9922A", width: 32, height: 32, fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
+            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid #2d2d3d", borderRadius: 8, color: selectedMonth >= months.length ? "rgba(255,255,255,0.2)" : "#6ee7b7", width: 32, height: 32, fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
             ›
           </button>
         </div>
@@ -2492,7 +2492,7 @@ function CalendrierPnL({ dailyLog }) {
       {/* Legende */}
       <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
         {[
-          { bg: "#C9922A", label: "Gros gain" },
+          { bg: "#6ee7b7", label: "Gros gain" },
           { bg: "#052e16", label: "Petit gain", fg: "#4ade80" },
           { bg: "#dc2626", label: "Grosse perte" },
           { bg: "#2d0808", label: "Petite perte", fg: "#f87171" },
@@ -2564,7 +2564,7 @@ function LanguagePickerScreen({ onPick }) {
         const topFactor = 0.3 + 0.7 * (1 - r / ROWS);
         const opacity = Math.min(0.7, edgeFactor * topFactor * 0.6);
         dots.push(
-          <circle key={`${r}-${c}`} cx={x} cy={y} r={1.8} fill="#D4A030" opacity={opacity} />
+          <circle key={`${r}-${c}`} cx={x} cy={y} r={1.8} fill="#6ee7b7" opacity={opacity} />
         );
       }
     }
@@ -2579,19 +2579,19 @@ function LanguagePickerScreen({ onPick }) {
         const th = (i / 32) * Math.PI * 2;
         return `${CX + RX * radiusAtLat * Math.cos(th)},${y}`;
       }).join(' ');
-      latLines.push(<polyline key={`lat-${r}`} points={points} fill="none" stroke="#D4A030" strokeWidth="0.4" opacity="0.15" />);
+      latLines.push(<polyline key={`lat-${r}`} points={points} fill="none" stroke="#6ee7b7" strokeWidth="0.4" opacity="0.15" />);
     }
     return (
       <svg width="350" height="200" viewBox="0 0 350 200" style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)" }}>
         <defs>
           <radialGradient id="lglow" cx="50%" cy="100%" r="60%">
-            <stop offset="0%" stopColor="#C9922A" stopOpacity="0.35" />
-            <stop offset="50%" stopColor="#C9922A" stopOpacity="0.12" />
-            <stop offset="100%" stopColor="#C9922A" stopOpacity="0" />
+            <stop offset="0%" stopColor="#6ee7b7" stopOpacity="0.35" />
+            <stop offset="50%" stopColor="#6ee7b7" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="#6ee7b7" stopOpacity="0" />
           </radialGradient>
           <radialGradient id="lglow2" cx="50%" cy="85%" r="40%">
-            <stop offset="0%" stopColor="#C9922A" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="#C9922A" stopOpacity="0" />
+            <stop offset="0%" stopColor="#6ee7b7" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#6ee7b7" stopOpacity="0" />
           </radialGradient>
         </defs>
         <ellipse cx="175" cy="220" rx="160" ry="90" fill="url(#lglow)" />
@@ -2604,65 +2604,44 @@ function LanguagePickerScreen({ onPick }) {
 
   return (
     <div style={{
-      minHeight: "100vh", background: "#000000",
+      minHeight: "100vh", background: "#06090f",
       display: "flex", flexDirection: "column",
       maxWidth: 480, margin: "0 auto",
       fontFamily: "-apple-system, sans-serif",
       paddingBottom: "calc(28px + env(safe-area-inset-bottom))",
     }}>
 
-      {/* ── Globe + Cartes flottantes ── */}
-      <div style={{ position: "relative", height: 230, overflow: "hidden", flexShrink: 0 }}>
-        <GlobeSVG />
-        {/* 3 cartes alphabet */}
-        <div style={{ position: "absolute", bottom: 18, left: 0, right: 0, display: "flex", justifyContent: "center", alignItems: "flex-end", gap: 12 }}>
-          {/* Carte gauche — A */}
-          <div style={{
-            width: 62, height: 62, borderRadius: 14, background: "rgba(22,16,5,0.92)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            border: "1px solid rgba(201,146,42,0.12)",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-            transform: "translateY(4px)",
-          }}>
-            <span style={{ fontSize: 26, fontWeight: 700, color: "#FFFFFF" }}>A</span>
+      {/* ── Logo + Titre ── */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: "calc(48px + env(safe-area-inset-top))", paddingBottom: 32 }}>
+        {/* App Icon */}
+        <img
+          src="/app-icon.png"
+          alt="Prop Firm Simulator"
+          style={{ width: 96, height: 96, borderRadius: 22, marginBottom: 20, boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}
+        />
+        {/* Titre — style appIcon */}
+        <div style={{ textAlign: "center", lineHeight: 1 }}>
+          <div style={{ fontSize: 30, fontWeight: 700, color: "#6ee7b7", letterSpacing: -0.5, textTransform: "uppercase" }}>
+            PROP FIRM
           </div>
-          {/* Carte centre — ea (plus grande) */}
-          <div style={{
-            width: 74, height: 74, borderRadius: 18, background: "rgba(20,14,4,0.96)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            border: "1px solid rgba(201,146,42,0.15)",
-            boxShadow: "0 12px 32px rgba(0,0,0,0.6), 0 0 20px rgba(201,146,42,0.1)",
-          }}>
-            <span style={{ fontSize: 28, fontWeight: 700, letterSpacing: -1 }}>
-              <span style={{ color: "#ffffff" }}>e</span>
-              <span style={{ color: "#C9922A" }}>a</span>
-            </span>
-          </div>
-          {/* Carte droite — 文 */}
-          <div style={{
-            width: 62, height: 62, borderRadius: 14, background: "rgba(22,16,5,0.92)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            border: "1px solid rgba(201,146,42,0.12)",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-            transform: "translateY(4px)",
-          }}>
-            <span style={{ fontSize: 26, color: "#FFFFFF" }}>文</span>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.55)", letterSpacing: 3, textTransform: "uppercase", marginTop: 4 }}>
+            SIMULATOR
           </div>
         </div>
       </div>
 
       {/* ── Contenu ── */}
-      <div style={{ flex: 1, padding: "0 24px", paddingTop: 20 }}>
+      <div style={{ flex: 1, padding: "0 24px", paddingTop: 0 }}>
 
         {/* Étape 1/3 */}
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#C9922A", marginBottom: 10 }}>Étape 1/3</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7", marginBottom: 10 }}>Étape 1/3</div>
 
         {/* Barres de progression */}
         <div style={{ display: "flex", gap: 6, marginBottom: 22 }}>
           {[0, 1, 2].map(i => (
             <div key={i} style={{
               flex: 1, height: 4, borderRadius: 2,
-              background: i === 0 ? "#C9922A" : "rgba(255,255,255,0.12)",
+              background: i === 0 ? "#6ee7b7" : "rgba(255,255,255,0.12)",
             }} />
           ))}
         </div>
@@ -2709,7 +2688,7 @@ function LanguagePickerScreen({ onPick }) {
                 {sel && (
                   <div style={{ flexShrink: 0, width: 24, height: 24 }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path d="M5 12l5 5L19 7" stroke="#D4A030" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M5 12l5 5L19 7" stroke="#6ee7b7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
                 )}
@@ -2724,7 +2703,7 @@ function LanguagePickerScreen({ onPick }) {
         <button onClick={() => onPick(selected)} style={{
           width: "100%", padding: "20px",
           borderRadius: 100,
-          background: "#FFFFFF",
+          background: "#6ee7b7",
           color: "#000000", fontSize: 16, fontWeight: 600,
           border: "none", cursor: "pointer", fontFamily: "-apple-system, sans-serif",
           letterSpacing: -0.2,
@@ -2832,7 +2811,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
   const tx = TX[lang] || TX.fr;
 
   // ── Micro-composants réutilisables ──
-  const SparkLine = ({ color="#C9922A", down=false }) => {
+  const SparkLine = ({ color="#6ee7b7", down=false }) => {
     const pts = down
       ? "0,4 10,6 18,8 26,12 34,16 42,20 50,22"
       : "0,20 8,16 16,14 24,10 32,8 40,6 50,3";
@@ -2856,15 +2835,15 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{position:"absolute",top:0,left:0}}>
         <defs>
           <linearGradient id="gauge-g" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#8B6010"/><stop offset="100%" stopColor="#C9922A"/>
+            <stop offset="0%" stopColor="#059669"/><stop offset="100%" stopColor="#6ee7b7"/>
           </linearGradient>
           <filter id="gauge-glow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
         </defs>
-        <circle cx={mid} cy={mid} r={r} fill="none" stroke="rgba(201,146,42,0.1)" strokeWidth="14"/>
+        <circle cx={mid} cy={mid} r={r} fill="none" stroke="rgba(110,231,183,0.1)" strokeWidth="14"/>
         <circle cx={mid} cy={mid} r={r} fill="none" stroke="url(#gauge-g)" strokeWidth="14"
           strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
           transform={`rotate(-90 ${mid} ${mid})`} filter="url(#gauge-glow)"/>
-        <circle cx={mid} cy={mid} r={r-22} fill="rgba(201,146,42,0.04)" stroke="rgba(255,255,255,0.08)" strokeWidth="1"/>
+        <circle cx={mid} cy={mid} r={r-22} fill="rgba(110,231,183,0.04)" stroke="rgba(255,255,255,0.08)" strokeWidth="1"/>
       </svg>
     );
   };
@@ -2912,17 +2891,17 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
         </div>
 
         {/* Droite — vert */}
-        <div style={{flex:1,borderRadius:16,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(201,146,42,0.2)",overflow:"hidden"}}>
-          <div style={{padding:"8px 10px",background:"rgba(201,146,42,0.1)",display:"flex",alignItems:"center",gap:6}}>
-            <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill="#D4A030"/><path d="M4 7l2.5 2.5 4-4" stroke="rgba(255,255,255,0.05)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            <span style={{fontSize:11,fontWeight:700,color:"#C9922A"}}>{tx.s1yep}</span>
+        <div style={{flex:1,borderRadius:16,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(110,231,183,0.2)",overflow:"hidden"}}>
+          <div style={{padding:"8px 10px",background:"rgba(110,231,183,0.1)",display:"flex",alignItems:"center",gap:6}}>
+            <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill="#6ee7b7"/><path d="M4 7l2.5 2.5 4-4" stroke="rgba(255,255,255,0.05)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <span style={{fontSize:11,fontWeight:700,color:"#6ee7b7"}}>{tx.s1yep}</span>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,padding:"8px"}}>
             {[[tx.s1wr,"52%"],[tx.s1dd,"4.2%"],[tx.s1pf,"1.87"],[tx.s1prob,"74%"]].map(([l,v],i)=>(
-              <div key={i} style={{background:"rgba(201,146,42,0.05)",borderRadius:8,padding:"6px 8px"}}>
+              <div key={i} style={{background:"rgba(110,231,183,0.05)",borderRadius:8,padding:"6px 8px"}}>
                 <div style={{fontSize: 11,color:"rgba(255,255,255,0.4)",marginBottom:2}}>{l}</div>
                 <div style={{fontSize:15,fontWeight:700,color:"#ffffff"}}>{v}</div>
-                <SparkLine color="#C9922A"/>
+                <SparkLine color="#6ee7b7"/>
               </div>
             ))}
           </div>
@@ -2934,8 +2913,8 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
         {[
           {icon:"📉",label:tx.s1c1,c:"#ef4444",bg:"rgba(239,68,68,0.08)"},
           {icon:"⊗",label:tx.s1c2,c:"#ef4444",bg:"rgba(239,68,68,0.08)"},
-          {icon:"💰",label:tx.s1c3,c:"#C9922A",bg:"rgba(245,158,11,0.08)"},
-          {icon:"⚠️",label:tx.s1c4,c:"#C9922A",bg:"rgba(245,158,11,0.08)"},
+          {icon:"💰",label:tx.s1c3,c:"#6ee7b7",bg:"rgba(245,158,11,0.08)"},
+          {icon:"⚠️",label:tx.s1c4,c:"#6ee7b7",bg:"rgba(245,158,11,0.08)"},
         ].map((c,i)=>(
           <div key={i} style={{background:c.bg,border:"1px solid "+c.c+"30",borderRadius:14,padding:"14px 12px",textAlign:"center"}}>
             <div style={{fontSize:26,marginBottom:8}}>{c.icon}</div>
@@ -2960,7 +2939,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
       <div style={{fontSize:11,color:"rgba(255,255,255,0.35)",textAlign:"right",marginBottom:20,fontWeight:600}}>2/3</div>
       <div style={{textAlign:"center",marginBottom:14}}>
         <div style={{fontSize:27,fontWeight:700,color:"#ffffff",lineHeight:1.2,marginBottom:4}}>{tx.s2h1}</div>
-        <div style={{fontSize:27,fontWeight:700,color:"#C9922A",lineHeight:1.2}}>{tx.s2h2}</div>
+        <div style={{fontSize:27,fontWeight:700,color:"#6ee7b7",lineHeight:1.2}}>{tx.s2h2}</div>
       </div>
       <div style={{textAlign:"center",fontSize:13,color:"rgba(255,255,255,0.4)",lineHeight:1.6,marginBottom:22}}>{tx.s2sub}</div>
 
@@ -2968,9 +2947,9 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
       <div style={{position:"relative",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:18,minHeight:240}}>
         {/* Cartes gauche */}
         <div style={{display:"flex",flexDirection:"column",gap:8,flex:1,marginRight:8}}>
-          {[[tx.s1wr,"52%","#C9922A",false],[tx.s1pf,"1.87","#C9922A",false],
-            [tx.s1dd,"4.2%","#ef4444",true],[tx.s1prob,"74%","#C9922A",false]].map(([l,v,c,dn],i)=>(
-            <div key={i} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(201,146,42,0.12)",borderRadius:12,padding:"8px 10px"}}>
+          {[[tx.s1wr,"52%","#6ee7b7",false],[tx.s1pf,"1.87","#6ee7b7",false],
+            [tx.s1dd,"4.2%","#ef4444",true],[tx.s1prob,"74%","#6ee7b7",false]].map(([l,v,c,dn],i)=>(
+            <div key={i} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(110,231,183,0.12)",borderRadius:12,padding:"8px 10px"}}>
               <div style={{fontSize: 11,color:"rgba(255,255,255,0.4)",marginBottom:2}}>{l}</div>
               <div style={{fontSize:16,fontWeight:700,color:"#ffffff"}}>{v}</div>
               <SparkLine color={c} down={dn}/>
@@ -2981,20 +2960,20 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
         {/* Gauge centrale */}
         <div style={{position:"relative",width:170,height:170,flexShrink:0}}>
           {/* Halo */}
-          <div style={{position:"absolute",inset:-10,borderRadius:"50%",background:"radial-gradient(circle,rgba(201,146,42,0.15) 0%,transparent 70%)"}}/>
+          <div style={{position:"absolute",inset:-10,borderRadius:"50%",background:"radial-gradient(circle,rgba(110,231,183,0.15) 0%,transparent 70%)"}}/>
           <GaugeRing pct={74} size={170}/>
           {/* Centre texte */}
           <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center"}}>
             <div style={{fontSize:22,marginBottom:4}}>🎯</div>
             <div style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.7)",marginBottom:2}}>{tx.s2ready}</div>
-            <div style={{fontSize:30,fontWeight:700,color:"#C9922A",lineHeight:1}}>74%</div>
+            <div style={{fontSize:30,fontWeight:700,color:"#6ee7b7",lineHeight:1}}>74%</div>
           </div>
         </div>
 
         {/* Cartes droite */}
         <div style={{display:"flex",flexDirection:"column",gap:8,flex:1,marginLeft:8}}>
           {[["📊",tx.s2stats],["📈",tx.s2proj],["🛡",tx.s2risk],["🎯",tx.s2val]].map(([ic,l],i)=>(
-            <div key={i} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(201,146,42,0.12)",borderRadius:12,padding:"8px 10px",textAlign:"center"}}>
+            <div key={i} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(110,231,183,0.12)",borderRadius:12,padding:"8px 10px",textAlign:"center"}}>
               <div style={{fontSize:20,marginBottom:4}}>{ic}</div>
               <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",fontWeight:600,lineHeight:1.3}}>{l}</div>
             </div>
@@ -3005,18 +2984,18 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
       {/* 4 badges check */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
         {[tx.s2k1,tx.s2k2,tx.s2k3,tx.s2k4].map((k,i)=>(
-          <div key={i} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(201,146,42,0.2)",borderRadius:12,padding:"10px 12px",display:"flex",alignItems:"center",gap:8}}>
-            <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="9" fill="rgba(201,146,42,0.15)"/><circle cx="9" cy="9" r="9" fill="none" stroke="#D4A030" strokeWidth="1.2"/><path d="M5.5 9l2.5 2.5 4.5-4.5" stroke="#D4A030" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <div key={i} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(110,231,183,0.2)",borderRadius:12,padding:"10px 12px",display:"flex",alignItems:"center",gap:8}}>
+            <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="9" fill="rgba(110,231,183,0.15)"/><circle cx="9" cy="9" r="9" fill="none" stroke="#6ee7b7" strokeWidth="1.2"/><path d="M5.5 9l2.5 2.5 4.5-4.5" stroke="#6ee7b7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             <span style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,0.85)",lineHeight:1.3}}>{k}</span>
           </div>
         ))}
       </div>
 
       {/* Carte bas */}
-      <div style={{background:"rgba(201,146,42,0.05)",border:"1px solid rgba(201,146,42,0.15)",borderRadius:18,padding:"20px",textAlign:"center"}}>
+      <div style={{background:"rgba(110,231,183,0.05)",border:"1px solid rgba(110,231,183,0.15)",borderRadius:18,padding:"20px",textAlign:"center"}}>
         <div style={{fontSize:24,marginBottom:10}}>🛡</div>
         <div style={{fontSize:15,fontWeight:700,color:"#ffffff",lineHeight:1.5}}>
-          {tx.s2bot1}<span style={{color:"#C9922A"}}>{tx.s2bot2}</span>{tx.s2bot3}
+          {tx.s2bot1}<span style={{color:"#6ee7b7"}}>{tx.s2bot2}</span>{tx.s2bot3}
         </div>
       </div>
     </div>
@@ -3028,7 +3007,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
       <div style={{fontSize:11,color:"rgba(255,255,255,0.35)",textAlign:"right",marginBottom:20,fontWeight:600}}>3/3</div>
       <div style={{textAlign:"center",marginBottom:12}}>
         <div style={{fontSize:26,fontWeight:700,color:"#ffffff",lineHeight:1.2,marginBottom:4}}>{tx.s3h1}</div>
-        <div style={{fontSize:26,fontWeight:700,color:"#C9922A",lineHeight:1.2}}>{tx.s3h2}</div>
+        <div style={{fontSize:26,fontWeight:700,color:"#6ee7b7",lineHeight:1.2}}>{tx.s3h2}</div>
       </div>
       <div style={{textAlign:"center",fontSize:14,color:"rgba(255,255,255,0.45)",lineHeight:1.6,marginBottom:24}}>
         {tx.s3sub1}<span style={{color:"#f87171",fontWeight:700}}>{tx.s3subr}</span>{tx.s3sub2}
@@ -3055,7 +3034,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
           <ellipse cx="50" cy="63" rx="36" ry="5" fill="#ef4444" opacity="0.25"/>
           {/* Plateau droite (vert) */}
           <ellipse cx="270" cy="55" rx="40" ry="6" fill="#0f2a1a"/>
-          <ellipse cx="270" cy="53" rx="32" ry="4" fill="#D4A030" opacity="0.2"/>
+          <ellipse cx="270" cy="53" rx="32" ry="4" fill="#6ee7b7" opacity="0.2"/>
           {/* Base */}
           <ellipse cx="160" cy="78" rx="36" ry="6" fill="#2a2020"/>
         </svg>
@@ -3083,30 +3062,30 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
         </div>
 
         {/* Plateau droite — vert (simulator) */}
-        <div style={{flex:1,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(201,146,42,0.3)",borderRadius:16,padding:"14px 12px",textAlign:"center"}}>
+        <div style={{flex:1,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(110,231,183,0.3)",borderRadius:16,padding:"14px 12px",textAlign:"center"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginBottom:10}}>
-            <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="9" fill="rgba(201,146,42,0.2)"/><path d="M5 9l3 3 5-5" stroke="#D4A030" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            <span style={{fontSize:11,fontWeight:700,color:"#C9922A"}}>{tx.s3sim}</span>
+            <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="9" fill="rgba(110,231,183,0.2)"/><path d="M5 9l3 3 5-5" stroke="#6ee7b7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <span style={{fontSize:11,fontWeight:700,color:"#6ee7b7"}}>{tx.s3sim}</span>
           </div>
           <div style={{marginBottom:12}}>
             <div style={{fontSize:11,color:"rgba(255,255,255,0.35)",marginBottom:4}}>🛡</div>
           </div>
-          <div style={{fontSize:22,fontWeight:700,color:"#C9922A",marginBottom:4}}>{tx.s3mo}</div>
+          <div style={{fontSize:22,fontWeight:700,color:"#6ee7b7",marginBottom:4}}>{tx.s3mo}</div>
           <div style={{fontSize:13,color:"rgba(255,255,255,0.3)",margin:"4px 0"}}>ou</div>
-          <div style={{fontSize:20,fontWeight:700,color:"#C9922A"}}>{tx.s3yr}</div>
+          <div style={{fontSize:20,fontWeight:700,color:"#6ee7b7"}}>{tx.s3yr}</div>
         </div>
       </div>
 
       {/* Carte bas + CTA */}
-      <div style={{background:"rgba(201,146,42,0.05)",border:"1px solid rgba(201,146,42,0.15)",borderRadius:20,padding:"22px 20px",textAlign:"center"}}>
+      <div style={{background:"rgba(110,231,183,0.05)",border:"1px solid rgba(110,231,183,0.15)",borderRadius:20,padding:"22px 20px",textAlign:"center"}}>
         <div style={{fontSize:26,marginBottom:10}}>🛡</div>
         <div style={{fontSize:17,fontWeight:700,color:"#ffffff",lineHeight:1.4,marginBottom:4}}>{tx.s3bt1}</div>
-        <div style={{fontSize:17,fontWeight:700,color:"#C9922A",lineHeight:1.4,marginBottom:18}}>{tx.s3bt2}</div>
+        <div style={{fontSize:17,fontWeight:700,color:"#6ee7b7",lineHeight:1.4,marginBottom:18}}>{tx.s3bt2}</div>
         <button onClick={onDone} style={{
           width:"100%",padding:"18px",borderRadius:100,
-          background:"#C9922A",color:"#000000",
+          background:"#6ee7b7",color:"#000000",
           fontSize:16,fontWeight:700,border:"none",cursor:"pointer",
-          boxShadow:"0 4px 24px rgba(201,146,42,0.3)",
+          boxShadow:"0 4px 24px rgba(110,231,183,0.3)",
         }}>{tx.s3cta}</button>
       </div>
     </div>
@@ -3116,10 +3095,10 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
   const isLast = step === 2;
 
   return (
-    <div style={{minHeight:"100vh",background:"#050300",position:"relative",maxWidth:480,margin:"0 auto",fontFamily:"-apple-system, sans-serif",color:"#FFFFFF",overflow:"hidden"}}>
+    <div style={{minHeight:"100vh",background:"#06090f",position:"relative",maxWidth:480,margin:"0 auto",fontFamily:"-apple-system, sans-serif",color:"#FFFFFF",overflow:"hidden"}}>
 
       {/* Halo ambré style Capital.com */}
-      <div style={{position:"absolute",top:"20%",left:"50%",transform:"translateX(-50%)",width:350,height:350,borderRadius:"50%",background:"radial-gradient(circle, rgba(160,100,8,0.22) 0%, rgba(100,60,5,0.08) 50%, transparent 70%)",pointerEvents:"none",zIndex:0}} />
+      <div style={{position:"absolute",top:"20%",left:"50%",transform:"translateX(-50%)",width:350,height:350,borderRadius:"50%",background:"radial-gradient(circle, rgba(52,211,153,0.22) 0%, rgba(100,60,5,0.08) 50%, transparent 70%)",pointerEvents:"none",zIndex:0}} />
 
       {/* Slide actif */}
       <div style={{paddingTop:"env(safe-area-inset-top)",position:"relative",zIndex:1}}>
@@ -3128,7 +3107,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
 
       {/* Bouton Passer */}
       {!isLast && (
-        <button onClick={onDone} style={{position:"fixed",top:"calc(14px + env(safe-area-inset-top))",right:20,background:"none",border:"none",color:"rgba(201,146,42,0.5)",fontSize:13,fontWeight:600,cursor:"pointer",zIndex:20,fontFamily:"-apple-system, sans-serif"}}>
+        <button onClick={onDone} style={{position:"fixed",top:"calc(14px + env(safe-area-inset-top))",right:20,background:"none",border:"none",color:"rgba(110,231,183,0.5)",fontSize:13,fontWeight:600,cursor:"pointer",zIndex:20,fontFamily:"-apple-system, sans-serif"}}>
           Passer →
         </button>
       )}
@@ -3140,7 +3119,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
           {[0,1,2].map(i=>(
             <div key={i} onClick={()=>setStep(i)} style={{
               width:i===step?24:8,height:8,borderRadius:4,cursor:"pointer",
-              background:i===step?"linear-gradient(90deg,#C9922A,#F5C842)":"rgba(201,146,42,0.2)",
+              background:i===step?"linear-gradient(90deg,#6ee7b7,#6ee7b7)":"rgba(110,231,183,0.2)",
               transition:"all .3s",
             }}/>
           ))}
@@ -3149,9 +3128,9 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
         {!isLast && (
           <button onClick={()=>setStep(s=>s+1)} style={{
             padding:"13px 24px",borderRadius:100,border:"none",cursor:"pointer",
-            background:"#FFFFFF",
+            background:"#6ee7b7",
             color:"#000000",fontSize:14,fontWeight:600,fontFamily:"-apple-system, sans-serif",
-            boxShadow:"0 2px 12px rgba(0,0,0,0.4)",
+            boxShadow:"0 4px 20px rgba(110,231,183,0.25)",
           }}>
             {step===0 ? tx.next : tx.next}
           </button>
@@ -3173,33 +3152,45 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
   };
 
   return (
-    <div style={{ minHeight:"100vh", background:"#050300", display:"flex", flexDirection:"column", maxWidth:480, margin:"0 auto", fontFamily:"-apple-system, sans-serif", position:"relative", overflow:"hidden" }}>
+    <div style={{ minHeight:"100vh", background:"#06090f", display:"flex", flexDirection:"column", maxWidth:480, margin:"0 auto", fontFamily:"-apple-system, sans-serif", position:"relative", overflow:"hidden" }}>
 
       {/* Halo ambré Capital.com style */}
-      <div style={{ position:"absolute", top:"15%", left:"50%", transform:"translateX(-50%)", width:300, height:300, borderRadius:"50%", background:"radial-gradient(circle, rgba(180,110,10,0.28) 0%, rgba(120,70,5,0.12) 45%, transparent 70%)", pointerEvents:"none", zIndex:0 }} />
-      <div style={{ position:"absolute", bottom:"30%", right:"-10%", width:200, height:200, borderRadius:"50%", background:"radial-gradient(circle, rgba(201,146,42,0.08) 0%, transparent 70%)", pointerEvents:"none", zIndex:0 }} />
+      <div style={{ position:"absolute", top:"15%", left:"50%", transform:"translateX(-50%)", width:300, height:300, borderRadius:"50%", background:"radial-gradient(circle, rgba(52,211,153,0.28) 0%, rgba(16,185,129,0.12) 45%, transparent 70%)", pointerEvents:"none", zIndex:0 }} />
+      <div style={{ position:"absolute", bottom:"30%", right:"-10%", width:200, height:200, borderRadius:"50%", background:"radial-gradient(circle, rgba(110,231,183,0.08) 0%, transparent 70%)", pointerEvents:"none", zIndex:0 }} />
 
       {/* Bouton retour */}
       <div style={{ padding:"calc(14px + env(safe-area-inset-top)) 20px 0", position:"relative", zIndex:1 }}>
-        <div style={{ width:42, height:42, borderRadius:21, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(201,146,42,0.18)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+        <div style={{ width:42, height:42, borderRadius:21, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(110,231,183,0.15)", display:"flex", alignItems:"center", justifyContent:"center" }}>
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M11 4L6 9l5 5" stroke="#C9922A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M11 4L6 9l5 5" stroke="#6ee7b7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
       </div>
 
       {/* Titre */}
-      <div style={{ padding:"36px 24px 28px", textAlign:"center", position:"relative", zIndex:1 }}>
-        <div style={{ fontSize:32, fontWeight:700, color:"#FFFFFF", fontFamily:"-apple-system, sans-serif", marginBottom:10, lineHeight:1.2 }}>
-          {mode === "signup" ? "Créer un compte" : "Se connecter"}
+      <div style={{ padding:"28px 24px 24px", textAlign:"center", position:"relative", zIndex:1 }}>
+        {/* Logo */}
+        <img
+          src="/app-icon.png"
+          alt="Prop Firm Simulator"
+          style={{ width: 72, height: 72, borderRadius: 16, marginBottom: 16, boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}
+        />
+        {/* Titre */}
+        <div style={{ lineHeight: 1, marginBottom: 8 }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "#6ee7b7", letterSpacing: -0.3, textTransform: "uppercase" }}>
+            PROP FIRM
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 3, textTransform: "uppercase", marginTop: 3 }}>
+            SIMULATOR
+          </div>
         </div>
-        <div style={{ fontSize:14, color:"rgba(255,255,255,0.45)", lineHeight:1.6 }}>
-          Rejoins des milliers de traders qui s'entraînent<br/>et passent leurs challenges.
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.40)", lineHeight: 1.5, marginTop: 12 }}>
+          {mode === "signup" ? "Crée ton compte en quelques secondes" : "Bon retour parmi les traders préparés."}
         </div>
       </div>
 
       {/* Carte inscription */}
-      <div style={{ margin:"0 20px", background:"rgba(20,13,3,0.85)", border:"1px solid rgba(201,146,42,0.18)", borderRadius:24, padding:"26px 20px", position:"relative", zIndex:1, backdropFilter:"blur(20px)" }}>
+      <div style={{ margin:"0 20px", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(110,231,183,0.15)", borderRadius:24, padding:"26px 20px", position:"relative", zIndex:1, backdropFilter:"blur(20px)" }}>
 
         {/* Header gradient */}
         <div style={{ textAlign:"center", marginBottom:22 }}>
@@ -3249,11 +3240,11 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
 
         {/* Note confidentialité */}
         <div style={{ display:"flex", alignItems:"flex-start", gap:14 }}>
-          <div style={{ flexShrink:0, width:42, height:42, borderRadius:21, background:"rgba(201,146,42,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ flexShrink:0, width:42, height:42, borderRadius:21, background:"rgba(110,231,183,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
             <svg width="20" height="22" viewBox="0 0 20 22" fill="none">
-              <rect x="1" y="9" width="18" height="12" rx="3" stroke="#D4A030" strokeWidth="1.5"/>
-              <path d="M5 9V6a5 5 0 0110 0v3" stroke="#D4A030" strokeWidth="1.5" strokeLinecap="round"/>
-              <circle cx="10" cy="15" r="1.5" fill="#D4A030"/>
+              <rect x="1" y="9" width="18" height="12" rx="3" stroke="#6ee7b7" strokeWidth="1.5"/>
+              <path d="M5 9V6a5 5 0 0110 0v3" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round"/>
+              <circle cx="10" cy="15" r="1.5" fill="#6ee7b7"/>
             </svg>
           </div>
           <div style={{ fontSize:13, color:"rgba(255,255,255,0.38)", lineHeight:1.6, paddingTop:3 }}>
@@ -3269,7 +3260,7 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
         </div>
         <button onClick={() => setMode(mode === "signup" ? "login" : "signup")} style={{
           background:"none", border:"none", cursor:"pointer",
-          fontSize:16, fontWeight:700, color:"#C9922A", paddingBottom:0,
+          fontSize:16, fontWeight:700, color:"#6ee7b7", paddingBottom:0,
         }}>
           {mode === "signup" ? "Se connecter" : "Créer un compte"}
         </button>
@@ -3279,9 +3270,9 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
       <div style={{ padding:"28px 24px 0", textAlign:"center", lineHeight:1.6 }}>
         <div style={{ fontSize:13, color:"rgba(255,255,255,0.28)" }}>En créant un compte, tu acceptes nos</div>
         <div style={{ fontSize:13 }}>
-          <span style={{ color:"#C9922A", cursor:"pointer" }}>Conditions d'utilisation</span>
+          <span style={{ color:"#6ee7b7", cursor:"pointer" }}>Conditions d'utilisation</span>
           <span style={{ color:"rgba(255,255,255,0.28)" }}> et notre </span>
-          <span style={{ color:"#C9922A", cursor:"pointer" }}>Politique de confidentialité.</span>
+          <span style={{ color:"#6ee7b7", cursor:"pointer" }}>Politique de confidentialité.</span>
         </div>
       </div>
 
@@ -3327,14 +3318,14 @@ function FirmLogo({ firmKey, size = 44 }) {
     );
     case "alpha": return (
       <svg width={s} height={s} viewBox="0 0 44 44">
-        <defs><linearGradient id="al-g" x1="0%" y1="0%" x2="50%" y2="100%"><stop offset="0%" stopColor="#fbbf24"/><stop offset="100%" stopColor="#C9922A"/></linearGradient></defs>
+        <defs><linearGradient id="al-g" x1="0%" y1="0%" x2="50%" y2="100%"><stop offset="0%" stopColor="#fbbf24"/><stop offset="100%" stopColor="#6ee7b7"/></linearGradient></defs>
         <polygon points="22,3 42,40 2,40" fill="url(#al-g)"/>
         <polygon points="22,14 32,34 12,34" fill="#0d0d0d" opacity="0.6"/>
       </svg>
     );
     case "the5ers": return (
       <svg width={s} height={s} viewBox="0 0 44 44">
-        <defs><linearGradient id="f5-g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#C9922A"/><stop offset="100%" stopColor="#fbbf24"/></linearGradient></defs>
+        <defs><linearGradient id="f5-g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#6ee7b7"/><stop offset="100%" stopColor="#fbbf24"/></linearGradient></defs>
         <text x="1" y="30" fontSize="28" fontWeight="700" fill="url(#f5-g)" fontFamily="Arial Black, sans-serif">5%</text>
         <text x="22" y="40" fontSize="11" fontWeight="700" fill="url(#f5-g)" fontFamily="Arial, sans-serif">ers</text>
       </svg>
@@ -3407,18 +3398,18 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
   ];
 
   return (
-    <div style={{ minHeight:"100vh", background:"#000000", display:"flex", flexDirection:"column", maxWidth:480, margin:"0 auto", fontFamily:"-apple-system, sans-serif", paddingBottom:"calc(28px + env(safe-area-inset-bottom))" }}>
+    <div style={{ minHeight:"100vh", background:"#06090f", display:"flex", flexDirection:"column", maxWidth:480, margin:"0 auto", fontFamily:"-apple-system, sans-serif", paddingBottom:"calc(28px + env(safe-area-inset-bottom))" }}>
 
       {/* Contenu scrollable */}
       <div style={{ flex:1, padding:"0 20px", paddingTop:"calc(40px + env(safe-area-inset-top))", overflowY:"auto" }}>
 
         {/* Étape X/3 + barres */}
-        <div style={{ fontSize:13, fontWeight:700, color:"#C9922A", marginBottom:10 }}>
+        <div style={{ fontSize:13, fontWeight:700, color:"#6ee7b7", marginBottom:10 }}>
           Étape {displayStep}/3
         </div>
         <div style={{ display:"flex", gap:6, marginBottom:28 }}>
           {[1,2,3].map(i => (
-            <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i <= displayStep ? "#C9922A" : "rgba(255,255,255,0.12)" }} />
+            <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i <= displayStep ? "#6ee7b7" : "rgba(255,255,255,0.12)" }} />
           ))}
         </div>
 
@@ -3433,7 +3424,7 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
               {FIRMS_LIST.map(f => (
                 <button key={f.k} onClick={() => { selectFirm(f.k); setStep(1); }} style={{
                   width:"100%", padding:"18px 20px", borderRadius:18,
-                  background:"rgba(255,255,255,0.04)", border:"1px solid rgba(201,146,42,0.10)",
+                  background:"rgba(255,255,255,0.04)", border:"1px solid rgba(110,231,183,0.10)",
                   display:"flex", alignItems:"center", gap:16, cursor:"pointer", textAlign:"left",
                   transition:"all .15s",
                 }}>
@@ -3445,7 +3436,7 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
                   <div style={{ flex:1, fontSize:17, fontWeight:700, color:"#ffffff" }}>{f.label}</div>
                   {/* Flèche */}
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path d="M7 5l5 5-5 5" stroke="#D4A030" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M7 5l5 5-5 5" stroke="#6ee7b7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </button>
               ))}
@@ -3462,12 +3453,12 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
             </div>
 
             {/* Carte firm sélectionnée + Changer */}
-            <div style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(201,146,42,0.10)", borderRadius:18, padding:"16px 20px", display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
+            <div style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(110,231,183,0.10)", borderRadius:18, padding:"16px 20px", display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
               <div style={{ width:40, height:40, borderRadius:10, background:"rgba(255,255,255,0.06)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                 <FirmLogo firmKey={firmKey} size={30} />
               </div>
               <div style={{ flex:1, fontSize:16, fontWeight:700, color:"#ffffff" }}>{firm.name}</div>
-              <button onClick={() => setStep(0)} style={{ background:"none", border:"none", color:"#C9922A", fontSize:14, fontWeight:700, cursor:"pointer" }}>Changer</button>
+              <button onClick={() => setStep(0)} style={{ background:"none", border:"none", color:"#6ee7b7", fontSize:14, fontWeight:700, cursor:"pointer" }}>Changer</button>
             </div>
 
             {/* Header section capital */}
@@ -3493,8 +3484,8 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
                     transition:"all .15s",
                   }}>
                     {/* Radio button */}
-                    <div style={{ width:24, height:24, borderRadius:12, border:"2px solid " + (sel ? "#C9922A" : "rgba(255,255,255,0.25)"), display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: sel ? "rgba(201,146,42,0.1)" : "transparent" }}>
-                      {sel && <div style={{ width:10, height:10, borderRadius:5, background:"#C9922A" }} />}
+                    <div style={{ width:24, height:24, borderRadius:12, border:"2px solid " + (sel ? "#6ee7b7" : "rgba(255,255,255,0.25)"), display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: sel ? "rgba(110,231,183,0.1)" : "transparent" }}>
+                      {sel && <div style={{ width:10, height:10, borderRadius:5, background:"#6ee7b7" }} />}
                     </div>
                     {/* Montant */}
                     <div style={{ flex:1, fontSize:18, fontWeight:700, color:"#ffffff" }}>
@@ -3502,14 +3493,14 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
                     </div>
                     {/* Badge frais */}
                     {fee && (
-                      <div style={{ padding:"5px 12px", borderRadius:20, fontSize:13, fontWeight:600, background: sel ? "rgba(201,146,42,0.15)" : "rgba(255,255,255,0.06)", color: sel ? "#C9922A" : "rgba(255,255,255,0.4)" }}>
+                      <div style={{ padding:"5px 12px", borderRadius:20, fontSize:13, fontWeight:600, background: sel ? "rgba(110,231,183,0.15)" : "rgba(255,255,255,0.06)", color: sel ? "#6ee7b7" : "rgba(255,255,255,0.4)" }}>
                         Frais : ${fee.toLocaleString("en-US")}
                       </div>
                     )}
                     {/* Checkmark */}
                     {sel && (
                       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ flexShrink:0 }}>
-                        <path d="M4 10l4 4 8-8" stroke="#D4A030" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M4 10l4 4 8-8" stroke="#6ee7b7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     )}
                   </button>
@@ -3518,10 +3509,10 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
             </div>
 
             {/* Carte info paiement unique */}
-            <div style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(201,146,42,0.12)", borderRadius:18, padding:"16px 20px", display:"flex", alignItems:"flex-start", gap:14 }}>
+            <div style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(110,231,183,0.12)", borderRadius:18, padding:"16px 20px", display:"flex", alignItems:"flex-start", gap:14 }}>
               <div style={{ width:40, height:40, borderRadius:20, background:"rgba(255,255,255,0.08)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:20 }}>🛡️</div>
               <div>
-                <div style={{ fontSize:14, fontWeight:700, color:"#C9922A", marginBottom:4 }}>Paiement unique</div>
+                <div style={{ fontSize:14, fontWeight:700, color:"#6ee7b7", marginBottom:4 }}>Paiement unique</div>
                 <div style={{ fontSize:13, color:"rgba(255,255,255,0.6)", lineHeight:1.5 }}>
                   Les frais sont payés une seule fois.<br/>Bonne chance pour ton challenge !
                 </div>
@@ -3535,11 +3526,11 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
       <div style={{ padding:"20px 20px 0" }}>
         <button onClick={step === 0 ? () => {} : finish} style={{
           width:"100%", padding:"20px",
-          borderRadius:100, background:"#C9922A",
+          borderRadius:100, background:"#6ee7b7",
           color:"#000000", fontSize:17, fontWeight:700,
           border:"none", cursor: step === 0 ? "default" : "pointer",
           opacity: step === 0 ? 0.5 : 1,
-          boxShadow:"0 4px 24px rgba(201,146,42,0.2)",
+          boxShadow:"0 4px 24px rgba(110,231,183,0.2)",
           transition:"opacity .2s",
         }}>
           Continuer
@@ -3630,16 +3621,16 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
           <button style={{width:38,height:38,borderRadius:10,background:"rgba(255,255,255,0.08)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
             <svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M9 0C6.8 0 5 1.8 5 4v1.1C3.4 5.9 2 7.8 2 10v4l-2 2v1h18v-1l-2-2v-4c0-2.2-1.4-4.1-3-4.9V4c0-2.2-1.8-4-4-4z" fill="white" opacity="0.8"/><path d="M7 18c0 1.1.9 2 2 2s2-.9 2-2H7z" fill="white" opacity="0.6"/></svg>
           </button>
-          <div style={{position:"absolute",top:7,right:7,width:8,height:8,borderRadius:4,background:"#C9922A",border:"2px solid #000"}}/>
+          <div style={{position:"absolute",top:7,right:7,width:8,height:8,borderRadius:4,background:"#6ee7b7",border:"2px solid #000"}}/>
         </div>
       </div>
 
       {!hasData && (
-        <div style={{margin:"16px",background:"rgba(201,146,42,0.05)",border:"1px solid rgba(201,146,42,0.15)",borderRadius:16,padding:"28px 20px",textAlign:"center"}}>
+        <div style={{margin:"16px",background:"rgba(110,231,183,0.05)",border:"1px solid rgba(110,231,183,0.15)",borderRadius:16,padding:"28px 20px",textAlign:"center"}}>
           <div style={{fontSize:36,marginBottom:12}}>🚀</div>
           <div style={{fontSize:16,fontWeight:700,marginBottom:6}}>Lance ta première simulation</div>
           <div style={{fontSize:13,color:"rgba(255,255,255,0.4)",marginBottom:18}}>Tes statistiques apparaîtront ici après la simulation.</div>
-          <button onClick={()=>goto("simulator")} style={{padding:"14px 28px",borderRadius:100,background:"#C9922A",color:"#000",fontSize:14,fontWeight:700,border:"none",cursor:"pointer"}}>Démarrer maintenant</button>
+          <button onClick={()=>goto("simulator")} style={{padding:"14px 28px",borderRadius:100,background:"#6ee7b7",color:"#000",fontSize:14,fontWeight:700,border:"none",cursor:"pointer"}}>Démarrer maintenant</button>
         </div>
       )}
 
@@ -3661,15 +3652,15 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
         {/* Barre progression */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
           <div style={{fontSize:11,color:"rgba(255,255,255,0.4)"}}>Progression globale</div>
-          <div style={{fontSize:13,fontWeight:700,color:"#C9922A"}}>{progression}%</div>
+          <div style={{fontSize:13,fontWeight:700,color:"#6ee7b7"}}>{progression}%</div>
         </div>
         <div style={{height:6,background:"rgba(255,255,255,0.08)",borderRadius:3,marginBottom:14,overflow:"hidden"}}>
-          <div style={{height:"100%",width:progression+"%",background:"linear-gradient(90deg,#8B6010,#C9922A)",borderRadius:3,transition:"width .6s"}}/>
+          <div style={{height:"100%",width:progression+"%",background:"linear-gradient(90deg,#8B6010,#6ee7b7)",borderRadius:3,transition:"width .6s"}}/>
         </div>
         {/* 4 stat boxes */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6}}>
           {[
-            {l:"Objectif Phase 1",v:phase1Target.toFixed(0)+"%",sub:"+"+phase1Pct+"% atteint",vc:"#C9922A"},
+            {l:"Objectif Phase 1",v:phase1Target.toFixed(0)+"%",sub:"+"+phase1Pct+"% atteint",vc:"#6ee7b7"},
             {l:"DD journalier",v:dailyDDLimit+"%",sub:ddDayPct+"% utilisé",vc:"#fbbf24"},
             {l:"DD total",v:totalDDLimit+"%",sub:ddTotPct+"% utilisé",vc:"#f87171"},
             {l:"Profit split",v:splitStart+"-"+splitMax+"%",sub:ls.allPassed?"Atteint":"Non atteint",vc:"#FFFFFF"},
@@ -3684,13 +3675,13 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
       </div>
 
       {/* ── APERÇU PERFORMANCE ── */}
-      <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(201,146,42,0.10)",borderRadius:20,padding:16}}>
+      <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1}}>Aperçu Performance</div>
           <div style={{display:"flex",gap:2}}>
             {["7J","30J","90J","Tout"].map(p=>(
               <button key={p} onClick={()=>setPerfPeriod(p)} style={{padding:"4px 8px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,
-                background:perfPeriod===p?"#C9922A":"transparent",color:perfPeriod===p?"#000":"rgba(255,255,255,0.35)"}}>
+                background:perfPeriod===p?"#6ee7b7":"transparent",color:perfPeriod===p?"#000":"rgba(255,255,255,0.35)"}}>
                 {p}
               </button>
             ))}
@@ -3700,7 +3691,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
           {/* Stats gauche */}
           <div style={{display:"flex",flexDirection:"column",gap:10,minWidth:90}}>
             {[
-              {l:"Profit",v:(profitAmount>=0?"+":"")+fmtMoney(profitAmount,2),c:profitAmount>=0?"#C9922A":"#f87171"},
+              {l:"Profit",v:(profitAmount>=0?"+":"")+fmtMoney(profitAmount,2),c:profitAmount>=0?"#6ee7b7":"#f87171"},
               {l:"Trades",v:totalTrades},
               {l:"Winrate",v:wr.toFixed(1)+"%",c:"#FFFFFF"},
               {l:"Risque / Récompense",v:"1:"+rr,c:"#FFFFFF"},
@@ -3717,12 +3708,12 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
               <svg width="100%" height="120" viewBox={`0 0 200 100`} preserveAspectRatio="none">
                 <defs>
                   <linearGradient id="perf-fill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#C9922A" stopOpacity="0.3"/>
-                    <stop offset="100%" stopColor="#C9922A" stopOpacity="0"/>
+                    <stop offset="0%" stopColor="#6ee7b7" stopOpacity="0.3"/>
+                    <stop offset="100%" stopColor="#6ee7b7" stopOpacity="0"/>
                   </linearGradient>
                   <linearGradient id="perf-line" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#8B6010"/>
-                    <stop offset="100%" stopColor="#C9922A"/>
+                    <stop offset="0%" stopColor="#059669"/>
+                    <stop offset="100%" stopColor="#6ee7b7"/>
                   </linearGradient>
                 </defs>
                 {(() => {
@@ -3747,12 +3738,12 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
       </div>
 
       {/* ── RÈGLES DU CHALLENGE ── */}
-      <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(201,146,42,0.10)",borderRadius:20,padding:16}}>
+      <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
           <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1}}>Règles du Challenge</div>
-          <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.08)",border:"1px solid rgba(201,146,42,0.3)",borderRadius:20,padding:"4px 10px"}}>
-            <svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill="rgba(201,146,42,0.2)"/><path d="M3 6l2 2 4-4" stroke="#D4A030" strokeWidth="1.5" strokeLinecap="round"/></svg>
-            <span style={{fontSize:11,fontWeight:700,color:"#C9922A"}}>Conforme</span>
+          <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.08)",border:"1px solid rgba(110,231,183,0.3)",borderRadius:20,padding:"4px 10px"}}>
+            <svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill="rgba(110,231,183,0.2)"/><path d="M3 6l2 2 4-4" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            <span style={{fontSize:11,fontWeight:700,color:"#6ee7b7"}}>Conforme</span>
           </div>
         </div>
         {[
@@ -3762,16 +3753,16 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
           {icon:"◷",label:"Jours de trading minimum",current:tradingDays,limit:fm?.phases?.[0]?.minDays||5,unit:"jours",warn:tradingDays<(fm?.phases?.[0]?.minDays||5)},
         ].map((r,i)=>{
           const isOk = r.ok || (!r.warn && parseFloat(r.current)<r.limit);
-          const iconColor = r.warn ? "#fbbf24" : isOk ? "#C9922A" : "#C9922A";
+          const iconColor = r.warn ? "#fbbf24" : isOk ? "#6ee7b7" : "#6ee7b7";
           return (
             <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:i<3?"1px solid rgba(255,255,255,0.05)":"none"}}>
               <span style={{fontSize:16,color:iconColor,width:20,textAlign:"center",flexShrink:0}}>{r.icon}</span>
               <div style={{flex:1,fontSize:12,color:"rgba(255,255,255,0.7)"}}>{r.label}</div>
               <div style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.9)"}}>{r.current}{r.unit?" ":"% / "}{r.unit?(" / "+r.limit+" "+r.unit):r.limit+"%"}</div>
-              <div style={{width:24,height:24,borderRadius:6,background:r.warn?"rgba(251,191,36,0.1)":"rgba(201,146,42,0.1)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <div style={{width:24,height:24,borderRadius:6,background:r.warn?"rgba(251,191,36,0.1)":"rgba(110,231,183,0.1)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                 {r.warn
                   ? <svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1L13.5 13H0.5z" fill="none" stroke="#fbbf24" strokeWidth="1.2"/><text x="7" y="11" textAnchor="middle" fill="#fbbf24" fontSize="6" fontWeight="700">!</text></svg>
-                  : <svg width="14" height="14" viewBox="0 0 14 14"><rect width="14" height="14" rx="3" fill="rgba(201,146,42,0.15)"/><path d="M3.5 7l2.5 2.5 4.5-4.5" stroke="#D4A030" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                  : <svg width="14" height="14" viewBox="0 0 14 14"><rect width="14" height="14" rx="3" fill="rgba(110,231,183,0.15)"/><path d="M3.5 7l2.5 2.5 4.5-4.5" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round"/></svg>
                 }
               </div>
             </div>
@@ -3782,25 +3773,25 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
       {/* ── 2 COLONNES : STATS + CONFIGS ── */}
       <div style={{margin:"0 16px 14px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         {/* STATISTIQUES */}
-        <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(201,146,42,0.10)",borderRadius:20,padding:14}}>
+        <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:14}}>
           <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.4)",textTransform:"uppercase",letterSpacing: -0.2,marginBottom:12}}>Statistiques</div>
           {/* Gauge winrate */}
           <div style={{position:"relative",width:80,height:80,margin:"0 auto 12px"}}>
             <svg width="80" height="80" viewBox="0 0 80 80">
-              <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(201,146,42,0.1)" strokeWidth="8"/>
-              <circle cx="40" cy="40" r="32" fill="none" stroke="#D4A030" strokeWidth="8"
+              <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(110,231,183,0.1)" strokeWidth="8"/>
+              <circle cx="40" cy="40" r="32" fill="none" stroke="#6ee7b7" strokeWidth="8"
                 strokeDasharray={`${(wr/100)*201} 201`} strokeLinecap="round"
                 transform="rotate(-90 40 40)"/>
             </svg>
             <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
-              <div style={{fontSize:14,fontWeight:700,color:"#C9922A"}}>{wr.toFixed(1)}%</div>
+              <div style={{fontSize:14,fontWeight:700,color:"#6ee7b7"}}>{wr.toFixed(1)}%</div>
               <div style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>Winrate</div>
             </div>
           </div>
           {[
-            {l:"Trades gagnants",v:wins,c:"#C9922A"},
+            {l:"Trades gagnants",v:wins,c:"#6ee7b7"},
             {l:"Trades perdants",v:losses,c:"#f87171"},
-            {l:"Winrate",v:wr.toFixed(1)+"%",c:"#C9922A"},
+            {l:"Winrate",v:wr.toFixed(1)+"%",c:"#6ee7b7"},
           ].map((s,i)=>(
             <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
               <span style={{fontSize:10,color:"rgba(255,255,255,0.4)"}}>{s.l}</span>
@@ -3809,7 +3800,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
           ))}
           <div style={{borderTop:"1px solid rgba(255,255,255,0.05)",marginTop:8,paddingTop:8}}>
             {[
-              {l:"Meilleur trade",v:"+"+fmtMoney(bestTrade),c:"#C9922A"},
+              {l:"Meilleur trade",v:"+"+fmtMoney(bestTrade),c:"#6ee7b7"},
               {l:"Pire trade",v:"-"+fmtMoney(Math.abs(worstTrade)),c:"#f87171"},
             ].map((s,i)=>(
               <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
@@ -3818,16 +3809,16 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
               </div>
             ))}
           </div>
-          <button onClick={()=>goto("trades")} style={{width:"100%",marginTop:8,padding:"8px",borderRadius:10,background:"rgba(255,255,255,0.06)",border:"none",cursor:"pointer",color:"#C9922A",fontSize:11,fontWeight:700}}>
+          <button onClick={()=>goto("trades")} style={{width:"100%",marginTop:8,padding:"8px",borderRadius:10,background:"rgba(255,255,255,0.06)",border:"none",cursor:"pointer",color:"#6ee7b7",fontSize:11,fontWeight:700}}>
             Voir toutes les stats →
           </button>
         </div>
 
         {/* MES CONFIGS */}
-        <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(201,146,42,0.10)",borderRadius:20,padding:14,display:"flex",flexDirection:"column"}}>
+        <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:14,display:"flex",flexDirection:"column"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
             <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.4)",textTransform:"uppercase",letterSpacing:1}}>Configs</div>
-            <button onClick={()=>goto("simulator")} style={{background:"none",border:"none",color:"#C9922A",fontSize:10,fontWeight:700,cursor:"pointer"}}>+ New</button>
+            <button onClick={()=>goto("simulator")} style={{background:"none",border:"none",color:"#6ee7b7",fontSize:10,fontWeight:700,cursor:"pointer"}}>+ New</button>
           </div>
           {configs.length===0 ? (
             <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center",gap:8}}>
@@ -3839,10 +3830,10 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
               {configs.slice(0,4).map(c=>{
                 const cf=PROP_FIRMS[c.firmKey]||PROP_FIRMS.fundednext;
                 return(
-                  <div key={c.id} style={{background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"8px 10px",borderLeft:"2px solid rgba(201,146,42,0.25)"}}>
+                  <div key={c.id} style={{background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"8px 10px",borderLeft:"2px solid rgba(110,231,183,0.25)"}}>
                     <div style={{fontSize:11,fontWeight:700,color:"#FFFFFF",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.name}</div>
                     <div style={{fontSize: 11,color:"rgba(255,255,255,0.35)",marginTop:2}}>{cf.name} · WR {c.winrate}%</div>
-                    <button onClick={()=>loadConfig(c)} style={{marginTop:6,width:"100%",padding:"4px",borderRadius:6,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(201,146,42,0.25)",color:"#C9922A",fontSize: 11,fontWeight:700,cursor:"pointer"}}>Charger</button>
+                    <button onClick={()=>loadConfig(c)} style={{marginTop:6,width:"100%",padding:"4px",borderRadius:6,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(110,231,183,0.25)",color:"#6ee7b7",fontSize: 11,fontWeight:700,cursor:"pointer"}}>Charger</button>
                   </div>
                 );
               })}
@@ -3854,13 +3845,13 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
       </>)}
 
       {/* ── CTA ── */}
-      <div style={{margin:"0 16px 16px",background:"rgba(201,146,42,0.05)",border:"1px solid rgba(201,146,42,0.12)",borderRadius:20,padding:"16px",display:"flex",alignItems:"center",gap:14}}>
-        <div style={{width:46,height:46,borderRadius:12,background:"rgba(201,146,42,0.1)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:22}}>🎯</div>
+      <div style={{margin:"0 16px 16px",background:"rgba(110,231,183,0.05)",border:"1px solid rgba(110,231,183,0.12)",borderRadius:20,padding:"16px",display:"flex",alignItems:"center",gap:14}}>
+        <div style={{width:46,height:46,borderRadius:12,background:"rgba(110,231,183,0.1)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:22}}>🎯</div>
         <div style={{flex:1}}>
           <div style={{fontSize:14,fontWeight:700,marginBottom:2}}>Reste focus et discipliné</div>
           <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",lineHeight:1.4}}>Chaque jour est une étape de plus vers ta prochaine validation.</div>
         </div>
-        <button onClick={()=>goto("simulator")} style={{padding:"12px 18px",borderRadius:16,background:"#C9922A",color:"#000",fontSize:12,fontWeight:700,border:"none",cursor:"pointer",flexShrink:0,lineHeight:1.3,textAlign:"center",whiteSpace:"nowrap"}}>
+        <button onClick={()=>goto("simulator")} style={{padding:"12px 18px",borderRadius:16,background:"#6ee7b7",color:"#000",fontSize:12,fontWeight:700,border:"none",cursor:"pointer",flexShrink:0,lineHeight:1.3,textAlign:"center",whiteSpace:"nowrap"}}>
           Démarrer<br/>une simulation
         </button>
       </div>
@@ -3893,7 +3884,7 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
       <div className="card">
         <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 10 }}>{t("prof_account")}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 46, height: 46, borderRadius: 23, background: "#C9922A", color: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800 }}>
+          <div style={{ width: 46, height: 46, borderRadius: 23, background: "#6ee7b7", color: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800 }}>
             {(user.name || "?")[0].toUpperCase()}
           </div>
           <div>
@@ -3914,8 +3905,8 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
             {[{ k: "fr", label: "🇫🇷 Français" }, { k: "en", label: "🇬🇧 English" }].map(o => (
               <button key={o.k} onClick={() => changeLang(o.k)} style={{
                 flex: 1, padding: "10px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 700,
-                background: lang === o.k ? "#FFFFFF" : "rgba(255,255,255,0.04)", color: lang === o.k ? "#000000" : "rgba(255,255,255,0.50)",
-                border: "1px solid " + (lang === o.k ? "#FFFFFF" : "rgba(255,255,255,0.08)"),
+                background: lang === o.k ? "#6ee7b7" : "rgba(255,255,255,0.07)", color: lang === o.k ? "#000000" : "rgba(255,255,255,0.50)",
+                border: "1px solid " + (lang === o.k ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
               }}>{o.label}</button>
             ))}
           </div>
@@ -3931,7 +3922,7 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
                 <button key={k} onClick={() => changeFirm(k)} style={{
                   padding: "9px 4px", borderRadius: 9, cursor: "pointer", fontSize: 11, fontWeight: 700,
                   background: sel ? "#FFFFFF" : "rgba(255,255,255,0.04)", color: sel ? "#000000" : "rgba(255,255,255,0.50)",
-                  border: "1px solid " + (sel ? "#FFFFFF" : "rgba(255,255,255,0.08)"),
+                  border: "1px solid " + (sel ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
                 }}>{f.name}</button>
               );
             })}
@@ -3948,7 +3939,7 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
                 <button key={c} onClick={() => changeCapital(c)} style={{
                   padding: "10px 4px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700,
                   background: sel ? "#FFFFFF" : "rgba(255,255,255,0.04)", color: sel ? "#000000" : "rgba(255,255,255,0.50)",
-                  border: "1px solid " + (sel ? "#C9922A" : "rgba(255,255,255,0.08)"),
+                  border: "1px solid " + (sel ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
                 }}>${c / 1000}K</button>
               );
             })}
@@ -3975,32 +3966,32 @@ function NavBar({ t, active, goto }) {
     { k:"dashboard", label:t("nav_dashboard"),
       icon:(on)=><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
         <path d="M2 9L11 2L20 9v11a1 1 0 01-1 1H14v-6H8v6H3a1 1 0 01-1-1V9z"
-          fill={on?"#C9922A":"none"} stroke={on?"#C9922A":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinejoin="round"/>
+          fill={on?"#6ee7b7":"none"} stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinejoin="round"/>
       </svg>},
     { k:"simulator", label:t("nav_simulator"),
       icon:(on)=><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <rect x="2" y="2" width="18" height="18" rx="4" stroke={on?"#C9922A":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
-        <path d="M6 16L9 11l3 3 2-4 2 6" stroke={on?"#C9922A":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+        <rect x="2" y="2" width="18" height="18" rx="4" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
+        <path d="M6 16L9 11l3 3 2-4 2 6" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>},
     { k:"trades", label:t("nav_trades"),
       icon:(on)=><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <rect x="2" y="6" width="18" height="12" rx="3" stroke={on?"#C9922A":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
-        <path d="M7 2h8" stroke={on?"#C9922A":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinecap="round"/>
-        <path d="M7 11h4M7 14.5h7" stroke={on?"#C9922A":"rgba(255,255,255,0.4)"} strokeWidth="1.4" strokeLinecap="round"/>
+        <rect x="2" y="6" width="18" height="12" rx="3" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
+        <path d="M7 2h8" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinecap="round"/>
+        <path d="M7 11h4M7 14.5h7" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.4" strokeLinecap="round"/>
       </svg>},
     { k:"montecarlo", label:t("nav_montecarlo"),
       icon:(on)=><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <rect x="2" y="2" width="18" height="18" rx="4" stroke={on?"#C9922A":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
-        <circle cx="7.5" cy="7.5" r="1.5" fill={on?"#C9922A":"rgba(255,255,255,0.4)"}/>
-        <circle cx="14.5" cy="7.5" r="1.5" fill={on?"#C9922A":"rgba(255,255,255,0.4)"}/>
-        <circle cx="7.5" cy="14.5" r="1.5" fill={on?"#C9922A":"rgba(255,255,255,0.4)"}/>
-        <circle cx="14.5" cy="14.5" r="1.5" fill={on?"#C9922A":"rgba(255,255,255,0.4)"}/>
-        <circle cx="11" cy="11" r="1.5" fill={on?"#C9922A":"rgba(255,255,255,0.4)"}/>
+        <rect x="2" y="2" width="18" height="18" rx="4" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
+        <circle cx="7.5" cy="7.5" r="1.5" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
+        <circle cx="14.5" cy="7.5" r="1.5" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
+        <circle cx="7.5" cy="14.5" r="1.5" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
+        <circle cx="14.5" cy="14.5" r="1.5" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
+        <circle cx="11" cy="11" r="1.5" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
       </svg>},
     { k:"profile", label:t("nav_profile"),
       icon:(on)=><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <circle cx="11" cy="8" r="4" stroke={on?"#C9922A":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
-        <path d="M3 20c0-4 3.6-7 8-7s8 3 8 7" stroke={on?"#C9922A":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinecap="round"/>
+        <circle cx="11" cy="8" r="4" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
+        <path d="M3 20c0-4 3.6-7 8-7s8 3 8 7" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinecap="round"/>
       </svg>},
   ];
 
@@ -4014,7 +4005,7 @@ function NavBar({ t, active, goto }) {
     <div style={{
       position:"fixed",bottom:0,left:0,right:0,zIndex:100,maxWidth:480,margin:"0 auto",
       background:"rgba(20,15,5,0.95)",
-      borderTop:"1px solid rgba(201,146,42,0.12)",
+      borderTop:"1px solid rgba(110,231,183,0.12)",
       backdropFilter:"blur(20px)",
       WebkitBackdropFilter:"blur(20px)",
       paddingTop:10,
@@ -4029,9 +4020,9 @@ function NavBar({ t, active, goto }) {
               display:"flex",flexDirection:"column",alignItems:"center",gap:4,padding:"2px 0",
               position:"relative",
             }}>
-              {on && <div style={{position:"absolute",top:-10,width:36,height:3,borderRadius:2,background:"#C9922A"}}/>}
+              {on && <div style={{position:"absolute",top:-10,width:36,height:3,borderRadius:2,background:"#6ee7b7"}}/>}
               {it.icon(on)}
-              <span style={{fontSize: 11,fontWeight:on?800:500,color:on?"#C9922A":"rgba(255,255,255,0.35)",letterSpacing:0.2}}>
+              <span style={{fontSize: 11,fontWeight:on?800:500,color:on?"#6ee7b7":"rgba(255,255,255,0.35)",letterSpacing:0.2}}>
                 {it.label}
               </span>
             </button>
@@ -4128,9 +4119,9 @@ export default function App() {
   const logout = () => { setUser(null); saveApp({ user: null }); };
 
   return (
-    <div style={{ background: "#050300", minHeight: "100vh", maxWidth: 480, margin: "0 auto", position: "relative" }}>
+    <div style={{ background: "#06090f", minHeight: "100vh", maxWidth: 480, margin: "0 auto", position: "relative" }}>
       {/* Halo ambré subtil en arrière-plan */}
-      <div style={{ position:"fixed", top:"-5%", left:"50%", transform:"translateX(-50%)", width:400, height:300, borderRadius:"50%", background:"radial-gradient(ellipse, rgba(140,85,5,0.12) 0%, transparent 70%)", pointerEvents:"none", zIndex:0 }} />
+      <div style={{ position:"fixed", top:"-5%", left:"50%", transform:"translateX(-50%)", width:400, height:300, borderRadius:"50%", background:"radial-gradient(ellipse, rgba(16,185,129,0.12) 0%, transparent 70%)", pointerEvents:"none", zIndex:0 }} />
       <div style={{
         padding: "16px",
         paddingTop: "calc(16px + env(safe-area-inset-top))",
