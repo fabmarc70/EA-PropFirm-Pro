@@ -608,13 +608,17 @@ function simulateFunded(capital, months, model, p, split) {
         }
       }
       payout = +payout.toFixed(2);
+      // Après versement du payout, le compte funded repart de sa base.
+      // Le profit a été distribué (payout) → il ne reste PAS dans l'équité.
+      // Évite le double comptage (profit cumulé ET versé).
+      if (payout > 0) equity = currentCapital;
     }
 
     let scalingNote = null;
     if (consecutiveProfitMonths >= 4 && payoutsInStreak >= 2) {
       scalingCount++;
       const addedCapital = capital * 0.40; // +40% du capital INITIAL
-      currentCapital = equity + addedCapital;
+      currentCapital = currentCapital + addedCapital;
       equity = currentCapital; // le nouveau solde inclut le scaling
       currentSplit = Math.min(0.90, split + (0.10 * scalingCount)); // passe a 90% apres scale
       consecutiveProfitMonths = 0; // reset le compteur
@@ -760,13 +764,21 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const monthlyTarget = dailyTarget * 21;
 
   // ══════════════════════════════════════════════════════════════
-  // MOTEUR DE CALCUL DU LOT — physique de pip précise
-  // Valeur du pip = (taille du pip / prix) × contractSize × lots
-  // Pour simplifier on stocke la valeur d'1 pip pour 1.0 lot standard,
-  // calibrée sur les prix réels moyens 2026 (USD comme devise de cotation).
+  // MOTEUR DE RISQUE UNIVERSEL — indépendant du broker / plateforme
+  // ──────────────────────────────────────────────────────────────
+  // PRINCIPE : la SEULE source de vérité du risque est le montant en $
+  // (ou en % du capital). Aucun pip n'entre dans la simulation.
+  //
+  //   risque_$ = capital × risk%          ← invariant, universel
+  //
+  // Les pips / lots ne servent QUE d'aide optionnelle pour reporter
+  // l'ordre sur la plateforme du trader (couche d'affichage).
+  // Voir docs/audit/risk_model_audit.md
   // ══════════════════════════════════════════════════════════════
+
+  // Table d'AIDE à la conversion lot (NON utilisée dans la simulation)
+  // pipValuePerLot = $ par pip pour 1.0 lot standard (valeurs indicatives 2026)
   const INSTRUMENTS = {
-    // value = $ par pip pour 1.0 lot | pip = taille d'1 pip | digits affichage
     "XAUUSD": { pipValuePerLot: 10.0,  pipSize: 0.10,   label: "Or / USD",        decimals: 2 },
     "XAGUSD": { pipValuePerLot: 50.0,  pipSize: 0.01,   label: "Argent / USD",    decimals: 3 },
     "EURUSD": { pipValuePerLot: 10.0,  pipSize: 0.0001, label: "EUR / USD",       decimals: 5 },
@@ -786,23 +798,25 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const instInfo = INSTRUMENTS[instrument] || INSTRUMENTS["XAUUSD"];
   const pipVal = instInfo.pipValuePerLot;
 
-  // ── Risque par trade (mode lot manuel) ──
-  // $ risque = lots × valeur_pip_par_lot × SL_en_pips
-  const lotRiskAmount = +(lotSize * pipVal * slPips).toFixed(2);
+  // ── SOURCE DE VÉRITÉ DU RISQUE (universelle) ──
+  // Mode % : risque = capital × risk%   |   Mode $ : risque saisi directement
+  // En mode lot manuel : on convertit lot+SL en $ UNE fois pour obtenir le risque $,
+  // puis on raisonne en $ partout ensuite (le pip ne sert qu'à cette conversion d'entrée).
+  const lotRiskAmount = +(lotSize * pipVal * slPips).toFixed(2);   // aide à l'estimation
   const lotRiskPct    = capital > 0 ? +(lotRiskAmount / capital * 100).toFixed(3) : 0;
 
-  // ── Lot suggéré (mode % risque) ──
-  // Pour un risque cible en %, quel lot faut-il ?
-  // lots = (capital × risk%) / (valeur_pip × SL_pips)
-  const suggestedLot = (pipVal > 0 && slPips > 0)
-    ? +((capital * (riskPct / 100)) / (pipVal * slPips)).toFixed(2)
-    : 0;
-
+  // Le risque effectif : en mode %, c'est capital×risk% (universel, aucun pip).
+  // En mode lot, on a converti une fois lot+SL → $.
   const effectiveRiskAmount = useFixedLot ? lotRiskAmount        : +(capital * (riskPct / 100)).toFixed(2);
   const effectiveRiskPct    = useFixedLot ? lotRiskPct           : riskPct;
   const effectiveRisk       = effectiveRiskPct / 100;            // fraction
-  // Lot effectivement utilisé dans la simulation (cohérence affichage)
-  const effectiveLot        = useFixedLot ? lotSize : suggestedLot;
+
+  // ── AIDE À L'AFFICHAGE : lot suggéré pour un risque donné (optionnel) ──
+  // lots = risque_$ / (valeur_pip × distance_SL_pips)
+  const suggestedLot = (pipVal > 0 && slPips > 0)
+    ? +(effectiveRiskAmount / (pipVal * slPips)).toFixed(2)
+    : 0;
+  const effectiveLot = useFixedLot ? lotSize : suggestedLot;
 
   // ══════════════════════════════════════════════════════════════
   // CALCUL DU RR REQUIS — formule d'espérance
@@ -1084,7 +1098,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
   const _d = useFixedLot ? (() => {
     const md = lotRiskAmount * tradesPerDay;
-    const n10 = Math.floor(capital * model.totalDD / lotRiskAmount);
+    const n10 = Math.ceil(capital * model.totalDD / lotRiskAmount);
     const chks = [
       [md <= capital*model.dailyDD, "DD jour", "Perte max " + (md/capital*100).toFixed(2) + "% < " + (model.dailyDD*100) + "%", "DANGER perte " + (md/capital*100).toFixed(2) + "% > limite"],
       [n10 >= 8, "Resistance DD", n10 + " trades pour -" + (model.totalDD*100) + "%", n10 + " trades suffisent - risque"],
@@ -2705,10 +2719,10 @@ function CalendrierPnL({ dailyLog }) {
       {/* Stats resume */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 14 }}>
         {[
-          { label: "P&L mois", val: (monthPnl >= 0 ? "+" : "") + "$" + Math.abs(monthPnl).toFixed(0), color: monthPnl >= 0 ? "#4ade80" : "#f87171" },
+          { label: "P&L mois", val: (monthPnl >= 0 ? "+$" : "-$") + Math.abs(monthPnl).toFixed(0), color: monthPnl >= 0 ? "#4ade80" : "#f87171" },
           { label: "Jours +/-", val: winDays + "j / " + lossDays + "j", color: "#FFFFFF" },
-          { label: "Meilleur", val: "+$" + bestDay.toFixed(0), color: "#4ade80" },
-          { label: "Pire", val: "-$" + Math.abs(worstDay).toFixed(0), color: "#f87171" },
+          { label: "Meilleur", val: (bestDay >= 0 ? "+$" : "-$") + Math.abs(bestDay).toFixed(0), color: bestDay >= 0 ? "#4ade80" : "#f87171" },
+          { label: "Pire", val: (worstDay >= 0 ? "+$" : "-$") + Math.abs(worstDay).toFixed(0), color: worstDay >= 0 ? "#4ade80" : "#f87171" },
         ].map(s => (
           <div key={s.label} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "7px 6px", textAlign: "center" }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginBottom: 3 }}>{s.label}</div>
