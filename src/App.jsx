@@ -3979,7 +3979,9 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
 
       {/* ── TABLEAU PNL FUNDED ── */}
       {ls.funded ? (
-        <CalendrierPnL dailyLog={ls.funded.dailyLog} />
+        <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,overflow:"hidden"}}>
+          <CalendrierPnL dailyLog={ls.funded.dailyLog} />
+        </div>
       ) : (
         <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
           Lance une simulation pour voir le tableau PnL
