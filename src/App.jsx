@@ -1958,21 +1958,25 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
 
 function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTargetPct, model, finalRR, tradesPerDay, firm, effectiveRiskAmount }) {
   const loadTrades = () => {
-    try { const r = localStorage.getItem("eapropfirm_trades"); return r ? JSON.parse(r) : { trades: [], filename: null }; } catch (e) { return { trades: [], filename: null }; }
+    try { const r = localStorage.getItem("eapropfirm_trades"); return r ? JSON.parse(r) : { trades: [], filename: null, initBalance: null, balanceReconstructed: false }; } catch (e) { return { trades: [], filename: null, initBalance: null, balanceReconstructed: false }; }
   };
   const saved0 = loadTrades();
   const [trades, setTrades] = useState(saved0.trades || []);
   const [parseError, setParseError] = useState(null);
   const [filename, setFilename] = useState(saved0.filename || null);
-  const [alerts, setAlerts] = useState(() => {
-    const t0 = saved0.trades || [];
-    if (!t0.length) return [];
-    return []; // computeAlertsSync appelée après déclaration de la fonction
-  });
+  // ── État balance initiale ──────────────────────────────────────
+  // initBalance : solde réel au début du backtest (peut être inconnu)
+  // balanceReconstructed : true si le fichier n'avait pas de colonne balance
+  //   → le DD calculé est approximatif et une saisie manuelle est demandée
+  const [initBalance, setInitBalance] = useState(saved0.initBalance || null);
+  const [balanceReconstructed, setBalanceReconstructed] = useState(saved0.balanceReconstructed || false);
+  const [manualBalanceInput, setManualBalanceInput] = useState("");
+  const [showBalanceInput, setShowBalanceInput] = useState(false);
+  const [alerts, setAlerts] = useState([]);
 
   useEffect(() => {
-    try { localStorage.setItem("eapropfirm_trades", JSON.stringify({ trades, filename })); } catch (e) {}
-  }, [trades, filename]);
+    try { localStorage.setItem("eapropfirm_trades", JSON.stringify({ trades, filename, initBalance, balanceReconstructed })); } catch (e) {}
+  }, [trades, filename, initBalance, balanceReconstructed]);
 
   // ── CSV parser ────────────────────────────────────────────────
   const parseCSV = (text) => {
@@ -1998,18 +2002,20 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
     if (!format) return { error: "Format non reconnu. Attendu : export MT4/MT5 ou colonnes Date,Profit,Balance" };
     if (profitIdx === -1) return { error: "Colonne Profit introuvable" };
     const parsed = []; let runningBalance = capital; let initBalance = null;
+    let hasRealBalance = false; // true si au moins une ligne a une vraie balance
     for (let i = 1; i < lines.length; i++) {
       const row = lines[i].replace(/"/g, '').split(/[,;\t]/); if (row.length < 2) continue;
       const profitRaw = parseFloat(row[profitIdx]); if (isNaN(profitRaw)) continue;
       const comm = commIdx >= 0 ? parseFloat(row[commIdx]) || 0 : 0; const swap = swapIdx >= 0 ? parseFloat(row[swapIdx]) || 0 : 0;
       const netProfit = profitRaw + comm + swap;
       let balance = balanceIdx >= 0 ? parseFloat(row[balanceIdx]) : NaN;
+      if (!isNaN(balance) && balance > 0) { hasRealBalance = true; }
       if (isNaN(balance)) { runningBalance += netProfit; balance = runningBalance; }
       if (initBalance === null) initBalance = balance - netProfit;
       parsed.push({ idx: i, time: (timeIdx >= 0 ? row[timeIdx] : '').trim(), type: (typeIdx >= 0 ? row[typeIdx] : '').trim(), profit: netProfit, balance });
     }
     if (parsed.length === 0) return { error: "Aucun trade valide dans le fichier" };
-    return { trades: parsed, format, initBalance: initBalance || capital };
+    return { trades: parsed, format, initBalance: initBalance || null, balanceReconstructed: !hasRealBalance };
   };
 
   // ── HTML parser (backtest MT4/MT5 .html) ─────────────────────
@@ -2050,6 +2056,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
 
       const rows = Array.from(tradeTable.querySelectorAll('tr'));
       const parsed = []; let runningBalance = capital; let initBalance = null;
+      let hasRealBalance = false;
       for (let i = 1; i < rows.length; i++) {
         const cells = Array.from(rows[i].querySelectorAll('td, th')).map(el => el.textContent.replace(/\xA0/g,' ').trim());
         if (!cells[pIdx]) continue;
@@ -2058,12 +2065,13 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
         const swap = sIdx >= 0 ? parseFloat(cells[sIdx]?.replace(/[\s,]/g,'').replace(',','.')) || 0 : 0;
         const net = p + comm + swap;
         let balance = bIdx >= 0 ? parseFloat(cells[bIdx]?.replace(/[\s,]/g,'').replace(',','.') || '') : NaN;
+        if (!isNaN(balance) && balance > 0) hasRealBalance = true;
         if (isNaN(balance)) { runningBalance += net; balance = runningBalance; }
         if (initBalance === null) initBalance = balance - net;
         parsed.push({ idx: i, time: (tIdx >= 0 ? cells[tIdx] : ''), type: (tyIdx >= 0 ? cells[tyIdx] : ''), profit: net, balance });
       }
       if (parsed.length === 0) return { error: "Aucun trade parsé dans le HTML - vérifie le format MT4/MT5" };
-      return { trades: parsed, format: 'html_backtest', initBalance: initBalance || capital };
+      return { trades: parsed, format: 'html_backtest', initBalance: initBalance || null, balanceReconstructed: !hasRealBalance };
     } catch (e) { return { error: "Erreur lecture HTML: " + e.message }; }
   };
 
@@ -2077,11 +2085,33 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
       const result = isHTML ? parseHTMLBacktest(text) : parseCSV(text);
       if (result.error) { setParseError(result.error); setTrades([]); return; }
       const newTrades = result.trades;
-      setTrades(newTrades);
       const iB = result.initBalance;
-      setAlerts(computeAlertsSync(newTrades, iB));
+      const reconstructed = result.balanceReconstructed || false;
+      setTrades(newTrades);
+      setInitBalance(iB);
+      setBalanceReconstructed(reconstructed);
+      setManualBalanceInput(iB ? String(Math.round(iB)) : "");
+      setShowBalanceInput(reconstructed || !iB); // montrer l'input si balance inconnue
+      setAlerts(computeAlertsSync(newTrades, iB || capital));
     };
     reader.readAsText(file);
+  };
+
+  // Appliquer une balance saisie manuellement
+  const applyManualBalance = () => {
+    const val = parseFloat(manualBalanceInput);
+    if (!val || val <= 0) return;
+    // Reconstruire les balances depuis le solde initial saisi
+    let running = val;
+    const rebuilt = trades.map(t => {
+      running += t.profit;
+      return { ...t, balance: +running.toFixed(2) };
+    });
+    setTrades(rebuilt);
+    setInitBalance(val);
+    setBalanceReconstructed(false);
+    setShowBalanceInput(false);
+    setAlerts(computeAlertsSync(rebuilt, val));
   };
 
   // ── Verdict challenge (mini MC sur stats réelles) ─────────────
@@ -2236,15 +2266,23 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   const stats = trades.length > 0 ? (() => {
     const wins = trades.filter(t => t.profit > 0); const losses = trades.filter(t => t.profit < 0);
     const totalPnl = trades.reduce((s, t) => s + t.profit, 0);
-    const initBal = trades[0].balance - trades[0].profit;
+    // Utiliser le solde initial réel stocké (pas recalculé à la volée)
+    const iB = initBalance || (trades[0].balance - trades[0].profit);
     const finalBal = trades[trades.length - 1].balance;
     const wr = (wins.length / trades.length) * 100;
     const avgWin = wins.length > 0 ? wins.reduce((s, t) => s + t.profit, 0) / wins.length : 0;
     const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((s, t) => s + t.profit, 0) / losses.length) : 0;
     const rr = avgLoss > 0 ? avgWin / avgLoss : 0;
-    const ddPct = ((initBal - Math.min(...trades.map(t => t.balance))) / initBal) * 100;
+    // DD trailing depuis le pic (méthode correcte)
+    let peak = iB, maxDDTrailing = 0;
+    trades.forEach(t => {
+      if (t.balance > peak) peak = t.balance;
+      const dd = (peak - t.balance) / peak * 100;
+      if (dd > maxDDTrailing) maxDDTrailing = dd;
+    });
+    const ddPct = maxDDTrailing;
     const pf = avgLoss > 0 && losses.length > 0 ? (wins.reduce((s,t)=>s+t.profit,0)) / Math.abs(losses.reduce((s,t)=>s+t.profit,0)) : 0;
-    return { wins: wins.length, losses: losses.length, total: trades.length, totalPnl, wr, avgWin, avgLoss, rr, ddPct, initBal, finalBal, pf };
+    return { wins: wins.length, losses: losses.length, total: trades.length, totalPnl, wr, avgWin, avgLoss, rr, ddPct, initBal: iB, finalBal, pf };
   })() : null;
 
   const chartData = (() => {
@@ -2258,7 +2296,10 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
     return result;
   })();
 
-  const verdict = trades.length > 0 && stats ? computeVerdictSync(trades, trades[0].balance - trades[0].profit) : null;
+  const effectiveInitBalance = initBalance || (trades.length > 0 ? trades[0].balance - trades[0].profit : capital);
+  const verdict = trades.length > 0 && stats && !balanceReconstructed
+    ? computeVerdictSync(trades, effectiveInitBalance)
+    : (trades.length > 0 && stats && balanceReconstructed ? null : null);
 
   const alertColor = (l) => l === "danger" ? "#ef4444" : l === "warning" ? "#fbbf24" : l === "ok" ? "#6ee7b7" : "rgba(255,255,255,0.55)";
   const alertBg = (l) => l === "danger" ? "#2d0808" : l === "warning" ? "#2d1f08" : l === "ok" ? "rgba(255,255,255,0.05)" : "#0c1a3d";
@@ -2299,6 +2340,71 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
           </button>
         )}
       </div>
+
+      {/* ── BANDEAU BALANCE INCONNUE — bloque le verdict ── */}
+      {trades.length > 0 && (balanceReconstructed || showBalanceInput) && (
+        <div style={{ background: "rgba(251,191,36,0.08)", border: "1.5px solid rgba(251,191,36,0.4)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12 }}>
+            <span style={{ fontSize: 20, flexShrink: 0 }}>⚠️</span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#fbbf24", marginBottom: 4 }}>
+                Solde initial du backtest introuvable
+              </div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.6 }}>
+                Ton fichier ne contient pas de colonne <b>Balance</b>. Sans le solde de départ, le drawdown ne peut pas être calculé avec précision — et <b>il est impossible de confirmer si le challenge est validé ou non</b>.
+              </div>
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>
+            Connais-tu le capital de départ de ce backtest ?
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              type="number"
+              placeholder="Ex : 25000"
+              value={manualBalanceInput}
+              onChange={e => setManualBalanceInput(e.target.value)}
+              style={{ flex: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: "#FFFFFF", padding: "10px 12px", fontSize: 14, fontWeight: 600 }}
+            />
+            <button
+              onClick={applyManualBalance}
+              disabled={!manualBalanceInput || parseFloat(manualBalanceInput) <= 0}
+              style={{ padding: "10px 16px", borderRadius: 10, border: "none", cursor: "pointer", background: manualBalanceInput && parseFloat(manualBalanceInput) > 0 ? "#6ee7b7" : "rgba(255,255,255,0.1)", color: manualBalanceInput && parseFloat(manualBalanceInput) > 0 ? "#000000" : "rgba(255,255,255,0.35)", fontSize: 13, fontWeight: 700 }}>
+              Appliquer
+            </button>
+          </div>
+          <div style={{ marginTop: 10, fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>
+            Sans cette information, seules les statistiques de trades (WR, RR, PF) sont disponibles. Le verdict challenge et le DD ne peuvent pas être calculés.
+          </div>
+        </div>
+      )}
+
+      {/* Stats partielles disponibles même sans balance initiale */}
+      {trades.length > 0 && stats && balanceReconstructed && (
+        <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 14, padding: 14, marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
+            Statistiques disponibles (sans DD)
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 8 }}>
+            {[
+              { l: "Trades", v: stats.total, c: "#FFFFFF" },
+              { l: "Winrate", v: stats.wr.toFixed(0) + "%", c: stats.wr >= winrate - 5 ? "#6ee7b7" : "#fbbf24" },
+              { l: "Profit Factor", v: stats.pf.toFixed(2), c: stats.pf >= 1.5 ? "#6ee7b7" : stats.pf >= 1 ? "#fbbf24" : "#ef4444" },
+              { l: "RR réel", v: "1:" + stats.rr.toFixed(2), c: "#FFFFFF" },
+              { l: "P&L total", v: "$" + stats.totalPnl.toFixed(0), c: stats.totalPnl >= 0 ? "#6ee7b7" : "#ef4444" },
+              { l: "DD max", v: "⚠ inconnu", c: "#fbbf24" },
+            ].map(s => (
+              <div key={s.l} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 9, padding: "9px 8px", textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginBottom: 3 }}>{s.l}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: s.c }}>{s.v}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: "#fbbf24", padding: "8px 10px", background: "rgba(251,191,36,0.06)", borderRadius: 8 }}>
+            Le DD max est inconnu → impossible de confirmer si le challenge est passé ou non. Saisis le solde initial ci-dessus pour débloquer l'analyse complète.
+          </div>
+        </div>
+      )}
 
       {trades.length > 0 && stats && verdict && (
         <>
@@ -2414,7 +2520,13 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               { label: "RR réel", real: "1:" + stats.rr.toFixed(2), sim2: finalRR ? "1:" + finalRR.toFixed(2) : "-", ok: stats.rr >= (finalRR || 0) * 0.85 },
               { label: "PF", real: stats.pf.toFixed(2), sim2: "-", ok: stats.pf >= 1.3 },
               { label: "P&L total", real: "$" + stats.totalPnl.toFixed(0), sim2: sim && sim.funded ? "$" + (sim.funded.cumulPayout).toFixed(0) : "-" },
-              { label: "DD max", real: stats.ddPct.toFixed(2) + "%", sim2: (model ? model.totalDD * 100 : 10) + "% max", ok: stats.ddPct < (model ? model.totalDD * 100 * 0.7 : 7) },
+              {
+                label: "DD max",
+                real: balanceReconstructed ? "⚠ inconnu" : stats.ddPct.toFixed(2) + "%",
+                sim2: balanceReconstructed ? "solde requis" : (model ? model.totalDD * 100 : 10) + "% max",
+                ok: balanceReconstructed ? undefined : stats.ddPct < (model ? model.totalDD * 100 * 0.7 : 7),
+                note: balanceReconstructed,
+              },
             ].map(row => (
               <div key={row.label} className="row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2 }}>
                 <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>{row.label}</span>
