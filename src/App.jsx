@@ -3674,102 +3674,42 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
         </div>
       </div>
 
-      {/* ── APERÇU PERFORMANCE ── */}
-      <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1}}>Aperçu Performance</div>
-          <div style={{display:"flex",gap:2}}>
-            {["7J","30J","90J","Tout"].map(p=>(
-              <button key={p} onClick={()=>setPerfPeriod(p)} style={{padding:"4px 8px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,
-                background:perfPeriod===p?"#6ee7b7":"transparent",color:perfPeriod===p?"#000":"rgba(255,255,255,0.35)"}}>
-                {p}
-              </button>
-            ))}
-          </div>
+      {/* ── APERÇU PERFORMANCE (= graphique Funded) ── */}
+      {sim && sim.funded ? (
+        <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16}}>
+          <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1,marginBottom:14}}>Aperçu Équité Funded</div>
+          <ResponsiveContainer width="100%" height={200}>
+            <ComposedChart data={sim.funded.data}>
+              <defs>
+                <linearGradient id="perf-funded" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.25} />
+                  <stop offset="100%" stopColor="#6ee7b7" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "M" + v} />
+              <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v / 1000).toFixed(0) + "k"} domain={["auto", "auto"]} />
+              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 8, fontSize: 11 }} />
+              <ReferenceLine y={capital} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 2" />
+              <Area type="monotone" dataKey="equity" stroke="#6ee7b7" strokeWidth={2} fill="url(#perf-funded)" dot={false} name="Equity" />
+              <Line type="monotone" dataKey="cumul" stroke="rgba(110,231,183,0.6)" strokeWidth={1.5} dot={false} name="Payout Cumule" strokeDasharray="5 3" />
+            </ComposedChart>
+          </ResponsiveContainer>
         </div>
-        <div style={{display:"flex",gap:12}}>
-          {/* Stats gauche */}
-          <div style={{display:"flex",flexDirection:"column",gap:10,minWidth:90}}>
-            {[
-              {l:"Profit",v:(profitAmount>=0?"+":"")+fmtMoney(profitAmount,2),c:profitAmount>=0?"#6ee7b7":"#f87171"},
-              {l:"Trades",v:totalTrades},
-              {l:"Winrate",v:wr.toFixed(1)+"%",c:"#FFFFFF"},
-              {l:"Risque / Récompense",v:"1:"+rr,c:"#FFFFFF"},
-            ].map((s,i)=>(
-              <div key={i}>
-                <div style={{fontSize: 11,color:"rgba(255,255,255,0.35)"}}>{s.l}</div>
-                <div style={{fontSize:14,fontWeight:700,color:s.c||"#FFFFFF"}}>{s.v}</div>
-              </div>
-            ))}
-          </div>
-          {/* Graphique */}
-          <div style={{flex:1,position:"relative",minHeight:120}}>
-            {equityVals.length>1 ? (
-              <svg width="100%" height="120" viewBox={`0 0 200 100`} preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="perf-fill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#6ee7b7" stopOpacity="0.3"/>
-                    <stop offset="100%" stopColor="#6ee7b7" stopOpacity="0"/>
-                  </linearGradient>
-                  <linearGradient id="perf-line" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#059669"/>
-                    <stop offset="100%" stopColor="#6ee7b7"/>
-                  </linearGradient>
-                </defs>
-                {(() => {
-                  const n=equityVals.length;
-                  const pts=equityVals.map((v,i)=>`${(i/(n-1))*200},${100-(v-chartMin)/(chartMax-chartMin)*95}`).join(" ");
-                  const last=`200,${100-(equityVals[n-1]-chartMin)/(chartMax-chartMin)*95}`;
-                  return(<>
-                    <polygon points={`0,100 ${pts} ${last} 200,100`} fill="url(#perf-fill)"/>
-                    <polyline points={pts} fill="none" stroke="url(#perf-line)" strokeWidth="2.5" strokeLinecap="round"/>
-                  </>);
-                })()}
-                {/* Lignes horizontales guides */}
-                {[25,50,75].map(y=><line key={y} x1="0" y1={y} x2="200" y2={y} stroke="rgba(255,255,255,0.04)" strokeWidth="1"/>)}
-              </svg>
-            ) : (
-              <div style={{height:120,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.2)",fontSize:12}}>
-                Lance une simulation pour voir la courbe
-              </div>
-            )}
-          </div>
+      ) : (
+        <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
+          Lance une simulation pour voir la courbe Funded
         </div>
-      </div>
+      )}
 
-      {/* ── RÈGLES DU CHALLENGE ── */}
-      <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1}}>Règles du Challenge</div>
-          <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.08)",border:"1px solid rgba(110,231,183,0.3)",borderRadius:20,padding:"4px 10px"}}>
-            <svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill="rgba(110,231,183,0.2)"/><path d="M3 6l2 2 4-4" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round"/></svg>
-            <span style={{fontSize:11,fontWeight:700,color:"#6ee7b7"}}>Conforme</span>
-          </div>
+      {/* ── TABLEAU PNL FUNDED ── */}
+      {sim && sim.funded ? (
+        <CalendrierPnL dailyLog={sim.funded.dailyLog} />
+      ) : (
+        <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
+          Lance une simulation pour voir le tableau PnL
         </div>
-        {[
-          {icon:"△",label:"Drawdown journalier",current:ddDayPct,limit:dailyDDLimit,warn:parseFloat(ddDayPct)>dailyDDLimit*0.7},
-          {icon:"△",label:"Drawdown total",current:ddTotPct,limit:totalDDLimit,warn:parseFloat(ddTotPct)>totalDDLimit*0.7},
-          {icon:"↗",label:"Objectif Phase 1",current:phase1Pct,limit:phase1Target.toFixed(0),ok:true},
-          {icon:"◷",label:"Jours de trading minimum",current:tradingDays,limit:fm?.phases?.[0]?.minDays||5,unit:"jours",warn:tradingDays<(fm?.phases?.[0]?.minDays||5)},
-        ].map((r,i)=>{
-          const isOk = r.ok || (!r.warn && parseFloat(r.current)<r.limit);
-          const iconColor = r.warn ? "#fbbf24" : isOk ? "#6ee7b7" : "#6ee7b7";
-          return (
-            <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:i<3?"1px solid rgba(255,255,255,0.05)":"none"}}>
-              <span style={{fontSize:16,color:iconColor,width:20,textAlign:"center",flexShrink:0}}>{r.icon}</span>
-              <div style={{flex:1,fontSize:12,color:"rgba(255,255,255,0.7)"}}>{r.label}</div>
-              <div style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.9)"}}>{r.current}{r.unit?" ":"% / "}{r.unit?(" / "+r.limit+" "+r.unit):r.limit+"%"}</div>
-              <div style={{width:24,height:24,borderRadius:6,background:r.warn?"rgba(251,191,36,0.1)":"rgba(110,231,183,0.1)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                {r.warn
-                  ? <svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1L13.5 13H0.5z" fill="none" stroke="#fbbf24" strokeWidth="1.2"/><text x="7" y="11" textAnchor="middle" fill="#fbbf24" fontSize="6" fontWeight="700">!</text></svg>
-                  : <svg width="14" height="14" viewBox="0 0 14 14"><rect width="14" height="14" rx="3" fill="rgba(110,231,183,0.15)"/><path d="M3.5 7l2.5 2.5 4.5-4.5" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                }
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
+      )}
       {/* ── 2 COLONNES : STATS + CONFIGS ── */}
       <div style={{margin:"0 16px 14px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         {/* STATISTIQUES */}
