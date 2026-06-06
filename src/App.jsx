@@ -857,6 +857,15 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         totalTrades, wins: ph1.totalWins || 0, losses: ph1.totalLosses || 0,
         bestTrade, worstTrade,
         profitAmount: +((ph1.profit || 0) * capital).toFixed(2),
+        // ── Funded complet pour Dashboard ──
+        funded: funded ? {
+          data: funded.data || [],
+          dailyLog: funded.dailyLog || [],
+          finalEquity: funded.finalEquity || capital,
+          cumulPayout: funded.cumulPayout || 0,
+          pendingPayout: funded.pendingPayout || 0,
+          status: funded.status || "active",
+        } : null,
       });
     } catch (e) {}
   }, [firmKey, modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, splitRate, fundedMonths, seed, useFixedLot, lotSize, slPips, instrument, newsImpact]);
@@ -3675,11 +3684,11 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
       </div>
 
       {/* ── APERÇU PERFORMANCE (= graphique Funded) ── */}
-      {sim && sim.funded ? (
+      {ls.funded ? (
         <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16}}>
           <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1,marginBottom:14}}>Aperçu Équité Funded</div>
           <ResponsiveContainer width="100%" height={200}>
-            <ComposedChart data={sim.funded.data}>
+            <ComposedChart data={ls.funded.data}>
               <defs>
                 <linearGradient id="perf-funded" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.25} />
@@ -3690,7 +3699,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "M" + v} />
               <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v / 1000).toFixed(0) + "k"} domain={["auto", "auto"]} />
               <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 8, fontSize: 11 }} />
-              <ReferenceLine y={capital} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 2" />
+              <ReferenceLine y={cap} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 2" />
               <Area type="monotone" dataKey="equity" stroke="#6ee7b7" strokeWidth={2} fill="url(#perf-funded)" dot={false} name="Equity" />
               <Line type="monotone" dataKey="cumul" stroke="rgba(110,231,183,0.6)" strokeWidth={1.5} dot={false} name="Payout Cumule" strokeDasharray="5 3" />
             </ComposedChart>
@@ -3703,8 +3712,8 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
       )}
 
       {/* ── TABLEAU PNL FUNDED ── */}
-      {sim && sim.funded ? (
-        <CalendrierPnL dailyLog={sim.funded.dailyLog} />
+      {ls.funded ? (
+        <CalendrierPnL dailyLog={ls.funded.dailyLog} />
       ) : (
         <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
           Lance une simulation pour voir le tableau PnL
