@@ -922,7 +922,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     if (s === "passed") return { icon: "\u2713", color: "#6ee7b7", bg: "rgba(255,255,255,0.05)", label: "PASSE" };
     if (s === "running_ok") return { icon: "~", color: "#fbbf24", bg: "#2d1f08", label: "EN COURS" };
     if (s && s.startsWith("failed")) return { icon: "\u2717", color: "#ef4444", bg: "#2d0808", label: "ECHOUE" };
-    return { icon: "-", color: "rgba(255,255,255,0.35)", bg: "rgba(255,255,255,0.05)", label: "N/A" };
+    return { icon: "-", color: "rgba(255,255,255,0.65)", bg: "rgba(255,255,255,0.05)", label: "N/A" };
   };
   const failReason = (s) => {
     if (s === "failed_daily_dd") return "DD journalier " + (model.dailyDD * 100) + "% depasse (intraday) - compte ferme";
@@ -1035,7 +1035,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   })() : null;
   const lotDiagJSX = _d ? (
     <div style={{ marginTop: 8 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.40)", marginBottom: 6, textTransform: "uppercase" }}>Diagnostic FundedNext</div>
+      <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.65)", marginBottom: 6, textTransform: "uppercase" }}>Diagnostic FundedNext</div>
       {_d.chks.map(([ok, l, v, e]) => (
         <div key={l} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 6, background: ok ? "rgba(255,255,255,0.05)" : "#2d0808", border: "1px solid " + (ok ? "#6ee7b730" : "#ef444430"), borderRadius: 8, padding: "7px 10px" }}>
           <span style={{ fontSize: 12, color: ok ? "#6ee7b7" : "#ef4444" }}>{ok ? "+" : "x"}</span>
@@ -1078,7 +1078,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         .card { background: #110C02; border: 1px solid rgba(110,231,183,0.14); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
         .tab-btn { padding: 7px 12px; border-radius: 8px; border: none; cursor: pointer; font-size: 11px; font-weight: 700; font-family: -apple-system, sans-serif; }
         .tab-btn.on { background: #6ee7b7; color: #000000; font-weight: 600; }
-        .tab-btn.off { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.50); border: 1px solid rgba(255,255,255,0.08); }
+        .tab-btn.off { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.75); border: 1px solid rgba(255,255,255,0.10); }
         .model-btn { flex: 1; padding: 9px 4px; border-radius: 8px; cursor: pointer; font-size: 10px; font-weight: 700; font-family: -apple-system, sans-serif; border: 1px solid rgba(110,231,183,0.14); }
         .model-btn.on { background: #6ee7b7; color: #000000; border-color: #6ee7b7; }
         .model-btn.off { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.07); }
@@ -1112,7 +1112,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       {(tab === "challenge" || tab === "funded") && (<>
       {/* PRESETS */}
       <div className="card" style={{ borderLeft: "3px solid #6ee7b7" }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.40)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Configuration EA</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Configuration EA</div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {Object.keys(PRESETS).map(key => (
             <button key={key}
@@ -1186,7 +1186,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
       {/* PROP FIRM */}
       <div className="card" style={{ borderLeft: "2px solid rgba(110,231,183,0.25)" }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.50)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1.2 }}>Prop Firm</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.75)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1.2 }}>Prop Firm</div>
         <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
           {Object.keys(PROP_FIRMS).map(k => (
             <button key={k}
@@ -1194,7 +1194,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               style={{
                 padding: "7px 11px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 700,
                 background: firmKey === k ? "#6ee7b7" : "rgba(255,255,255,0.07)",
-                color: firmKey === k ? "#000000" : "rgba(255,255,255,0.55)",
+                color: firmKey === k ? "#000000" : "rgba(255,255,255,0.75)",
                 border: "1px solid " + (firmKey === k ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
                 transition: "all .15s",
               }}>
@@ -1209,7 +1209,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
       {/* MODELE */}
       <div className="card">
-        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.50)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1.2 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.75)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1.2 }}>
           Modele {firm.name}
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -1223,7 +1223,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             </button>
           ))}
         </div>
-        <div style={{ marginTop: 8, fontSize: 10, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>
+        <div style={{ marginTop: 8, fontSize: 10, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
           {model.phases.map(ph => ph.label + " " + (ph.target * 100) + "%").join(" / ")}
           {" - DD jour " + (model.dailyDD * 100) + "% - DD total " + (model.totalDD * 100) + "% (" + (model.ddType === "trailing" ? "trailing" : "fixe") + ")"}
         </div>
@@ -1247,7 +1247,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         <div style={{ background: gs.bg, border: "1px solid " + gs.color + "30", borderRadius: 10, padding: "12px 16px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, color: gs.color }}>{gs.label}</div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>
               {bilan ? "Resultat net : " + fmt2(bilan.net) : "Resultat challenge"}
             </div>
           </div>
@@ -1265,7 +1265,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           {/* Jauge DD */}
           <div style={{ marginBottom: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
-              <span style={{ color: "rgba(255,255,255,0.35)" }}>DD atteint cette simulation</span>
+              <span style={{ color: "rgba(255,255,255,0.65)" }}>DD atteint cette simulation</span>
               <span style={{ fontWeight: 700, color: dda.simMaxDD < model.totalDD * 100 * 0.5 ? "#6ee7b7" : dda.simMaxDD < model.totalDD * 100 * 0.75 ? "#fbbf24" : "#ef4444" }}>
                 {dda.simMaxDD.toFixed(2)}% ({fmt2(dda.simMaxDDAmount)})
               </span>
@@ -1300,17 +1300,17 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           {/* Stats */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <div className="kpi">
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Perte max 1 jour</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Perte max 1 jour</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24" }}>{dda.maxDayLossPct.toFixed(2)}%</div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{fmt2(dda.maxDayLoss)}</div>
             </div>
             <div className="kpi">
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Jours full-perte DD total</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Jours full-perte DD total</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#ef4444" }}>{dda.daysToTotalDD}j</div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>avant limite {(model.totalDD*100)}%</div>
             </div>
             <div className="kpi">
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>DD journalier franchissable</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>DD journalier franchissable</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: dda.canBreachDaily ? "#ef4444" : "#6ee7b7" }}>
                 {dda.canBreachDaily ? "OUI - RISQUE" : "NON - SAFE"}
               </div>
@@ -1321,7 +1321,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               </div>
             </div>
             <div className="kpi">
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Marge restante</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Marge restante</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: dda.distancePct > 5 ? "#6ee7b7" : "#ef4444" }}>
                 {dda.distancePct > 0 ? dda.distancePct.toFixed(2) + "%" : "DEPASSE"}
               </div>
@@ -1330,7 +1330,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </div>
 
           <div style={{ marginTop: 10, background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "8px 10px", fontSize: 11, lineHeight: 1.5 }}>
-            <span style={{ color: "rgba(255,255,255,0.35)" }}>Lecture : </span>
+            <span style={{ color: "rgba(255,255,255,0.65)" }}>Lecture : </span>
             {dda.canBreachDaily
               ? <span style={{ color: "#ef4444" }}>Attention - avec {tradesPerDay} trades a {riskPct}% tu peux declencher le DD journalier en 1 seule journee. Reduis le risque/trade ou le nombre de trades.</span>
               : <span style={{ color: "#6ee7b7" }}>Securise - le DD journalier {(model.dailyDD*100)}% est inatteignable en 1 jour avec ta config ({dda.maxDayLossPct.toFixed(2)}% max). Seule une accumulation sur {dda.daysToTotalDD}+ jours perdants peut te sortir.</span>
@@ -1361,14 +1361,14 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           <span style={{ fontSize: 24, fontWeight: 700, color: clColor }}>{clusteringPct}%</span>
         </div>
         <input type="range" min={0} max={100} step={5} value={clusteringPct} onChange={e => setClusteringPct(parseInt(e.target.value))} />
-        <div style={{ marginTop: 8, fontSize: 10, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>
+        <div style={{ marginTop: 8, fontSize: 10, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
           0% = trades independants (theorique). Plus c'est haut, plus les pertes arrivent en
           <b style={{ color: clColor }}> series noires</b>. Recommande : 35-50%.
         </div>
 
         <div style={{ marginTop: 12, borderTop: "1px solid #1e1e2e", paddingTop: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.50)", textTransform: "uppercase", letterSpacing: 1 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.75)", textTransform: "uppercase", letterSpacing: 1 }}>
               Max pertes consecutives EA
             </span>
             <span style={{ fontSize: 24, fontWeight: 700, color: "#6ee7b7" }}>{maxConsecLosses}</span>
@@ -1400,9 +1400,9 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       {/* CARTE LOT / INSTRUMENT */}
       <div className="card" style={{ borderLeft: "3px solid #6ee7b7" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.50)", textTransform: "uppercase", letterSpacing: 1 }}>Lot & Instrument</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.75)", textTransform: "uppercase", letterSpacing: 1 }}>Lot & Instrument</span>
           <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>Activer</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.65)" }}>Activer</span>
             <div onClick={() => setUseFixedLot(v => !v)} style={{
               width: 36, height: 20, borderRadius: 10, background: useFixedLot ? "#6ee7b7" : "rgba(255,255,255,0.12)",
               border: "1px solid " + (useFixedLot ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
@@ -1416,7 +1416,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
           {/* Instrument */}
           <div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 3, fontWeight: 700 }}>Instrument</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700 }}>Instrument</div>
             <select value={instrument} onChange={e => setInstrument(e.target.value)}
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid #1e1e2e", borderRadius: 6, color: "#FFFFFF", padding: "5px 4px", width: "100%", fontSize: 12 }}>
               {["XAUUSD","EURUSD","GBPUSD","USDJPY","GBPJPY","NAS100","US30","SP500"].map(i => (
@@ -1426,14 +1426,14 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </div>
           {/* Lot */}
           <div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 3, fontWeight: 700 }}>Lot size</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700 }}>Lot size</div>
             <input type="number" value={lotSize} min={0.01} max={10} step={0.01}
               onChange={e => setLotSize(parseFloat(e.target.value) || 0.01)}
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid #1e1e2e", borderRadius: 6, color: "#FFFFFF", padding: "5px 6px", width: "100%", fontSize: 13 }} />
           </div>
           {/* SL pips */}
           <div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 3, fontWeight: 700 }}>SL (pips)</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700 }}>SL (pips)</div>
             <input type="number" value={slPips} min={1} max={5000} step={1}
               onChange={e => setSlPips(parseInt(e.target.value) || 1)}
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid #1e1e2e", borderRadius: 6, color: "#FFFFFF", padding: "5px 6px", width: "100%", fontSize: 13 }} />
@@ -1444,17 +1444,17 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: 10, marginBottom: useFixedLot ? 10 : 0 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Risque/trade</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Risque/trade</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#6ee7b7" }}>{fmt2(lotRiskAmount)}</div>
             </div>
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>% du capital</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>% du capital</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: lotRiskPct > 1 ? "#ef4444" : lotRiskPct > 0.5 ? "#fbbf24" : "#6ee7b7" }}>
                 {lotRiskPct.toFixed(2)}%
               </div>
             </div>
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Perte max/jour</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Perte max/jour</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#FFFFFF" }}>{fmt2(lotRiskAmount * tradesPerDay)}</div>
             </div>
           </div>
@@ -1499,7 +1499,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {/* Capital */}
           <div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 3, fontWeight: 700 }}>Capital ($)</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700 }}>Capital ($)</div>
             <input type="number" value={capital} min={6000} max={200000} step={1000} onChange={e => setCapital(parseFloat(e.target.value) || 0)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid #1e1e2e", borderRadius: 6, color: "#FFFFFF", padding: "5px 8px", width: "100%", fontSize: 13 }} />
             <input type="range" min={6000} max={200000} step={1000} value={capital} onChange={e => setCapital(parseFloat(e.target.value))} />
           </div>
@@ -1507,7 +1507,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           {/* Risque/trade - affichage différent si mode lot actif */}
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: 700 }}>Risque/trade (%)</span>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: 700 }}>Risque/trade (%)</span>
               {useFixedLot && <span style={{ fontSize: 11, background: "#6ee7b720", color: "#6ee7b7", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>LOT AUTO</span>}
             </div>
             <input
@@ -1540,7 +1540,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             { label: "Mois Funded", val: fundedMonths, set: setFundedMonths, min: 1, max: 60, step: 1 },
           ].map((f) => (
             <div key={f.label}>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 3, fontWeight: 700 }}>{f.label}</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700 }}>{f.label}</div>
               <input type="number" value={f.val} min={f.min} max={f.max} step={f.step} onChange={e => f.set(parseFloat(e.target.value) || 0)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid #1e1e2e", borderRadius: 6, color: "#FFFFFF", padding: "5px 8px", width: "100%", fontSize: 13 }} />
               <input type="range" min={f.min} max={f.max} step={f.step} value={f.val} onChange={e => f.set(parseFloat(e.target.value))} />
             </div>
@@ -1554,7 +1554,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </div>
           <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: "#6ee7b7" }}>
             Objectif : <b>{fmt2(capital * dailyTarget)}</b>/jour
-            <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, marginLeft: 4 }}>
+            <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 11, marginLeft: 4 }}>
               (E espéré : {fmt2(Math.max(0, expectedDailyPnL))}/j)
             </span>
           </div>
@@ -1581,7 +1581,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       {/* BILAN FINANCIER NET */}
       {bilan && (
         <div className="card" style={{ borderLeft: "2px solid rgba(110,231,183,0.3)" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.40)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Bilan Financier Net</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Bilan Financier Net</div>
           {[
             { label: "Reward challenge (15%)", val: "+" + fmt2(bilan.reward), color: "#6ee7b7" },
             { label: "Payouts funded verses", val: "+" + fmt2(bilan.payout), color: "#6ee7b7" },
@@ -1589,7 +1589,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             { label: "Frais d'achat challenge", val: "-" + fmt2(bilan.fee), color: "#ef4444" },
           ].map(k => (
             <div key={k.label} className="row">
-              <span style={{ color: "rgba(255,255,255,0.35)" }}>{k.label}</span>
+              <span style={{ color: "rgba(255,255,255,0.65)" }}>{k.label}</span>
               <span style={{ color: k.color, fontWeight: 700 }}>{k.val}</span>
             </div>
           ))}
@@ -1616,7 +1616,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             ["EA/Algo", "Autorise"],
           ].map((kv) => (
             <div key={kv[0]} className="row">
-              <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 11 }}>{kv[0]}</span>
+              <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>{kv[0]}</span>
               <span style={{ color: "#FFFFFF", fontWeight: 700, fontSize: 11 }}>{kv[1]}</span>
             </div>
           ))}
@@ -1636,7 +1636,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       {!finalRRValid && (
         <div className="card" style={{ textAlign: "center", padding: 24, color: "#ef4444", fontWeight: 700, fontSize: 13 }}>
           Combinaison impossible : winrate trop bas pour cet objectif.<br />
-          <span style={{ color: "rgba(255,255,255,0.35)", fontWeight: 400, fontSize: 12 }}>Monte le winrate ou baisse l'objectif/jour.</span>
+          <span style={{ color: "rgba(255,255,255,0.65)", fontWeight: 400, fontSize: 12 }}>Monte le winrate ou baisse l'objectif/jour.</span>
         </div>
       )}
 
@@ -1655,32 +1655,32 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                       {phaseIcon(data.status).icon} {phaseIcon(data.status).label}
                     </span>
                   ) : (
-                    <span className="tag" style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.35)", border: "1px solid #1e1e2e" }}>VERROUILLE</span>
+                    <span className="tag" style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.65)", border: "1px solid #1e1e2e" }}>VERROUILLE</span>
                   )}
                 </div>
                 {data ? (
                   <>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 10 }}>
                       <div className="kpi">
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Jours</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Jours</div>
                         <div style={{ fontSize: 14, fontWeight: 700, color }}>{data.tradingDays}</div>
                       </div>
                       <div className="kpi">
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Profit</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Profit</div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: data.profit >= ph.target ? "#6ee7b7" : data.profit >= 0 ? "#fbbf24" : "#ef4444" }}>
                           {fmtPn(data.profit)}
                         </div>
                       </div>
                       <div className="kpi">
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>WR trades</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>WR trades</div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.55)" }}>{data.tradeWinrate.toFixed(0)}%</div>
                       </div>
                       <div className="kpi">
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Equity</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Equity</div>
                         <div style={{ fontSize: 12, fontWeight: 700, color: "#FFFFFF" }}>{fmt(data.finalEquity)}</div>
                       </div>
                     </div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 8 }}>
                       {data.totalWins} gagnants / {data.totalLosses} perdants - WR jours {data.dayWinrate.toFixed(0)}%
                     </div>
                     {failReason(data.status) && (
@@ -1707,7 +1707,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                     </ResponsiveContainer>
                   </>
                 ) : (
-                  <div style={{ textAlign: "center", padding: "20px 0", color: "rgba(255,255,255,0.35)", fontSize: 13 }}>
+                  <div style={{ textAlign: "center", padding: "20px 0", color: "rgba(255,255,255,0.65)", fontSize: 13 }}>
                     Passe la phase precedente pour debloquer
                   </div>
                 )}
@@ -1741,7 +1741,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                   { label: "Split final", val: sim.funded.finalSplit + "%", color: sim.funded.finalSplit >= 90 ? "#6ee7b7" : "#fbbf24" },
                 ].map((k) => (
                   <div key={k.label} className="kpi">
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>{k.label}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{k.label}</div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: k.color, marginTop: 2 }}>{k.val}</div>
                   </div>
                 ))}
@@ -1775,7 +1775,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                   <thead>
                     <tr style={{ borderBottom: "1px solid #1e1e2e" }}>
                       {["Mois", "Equity", "Profit%", "Payout", "Split", "Streak", "Statut"].map(h => (
-                        <th key={h} style={{ padding: "5px 4px", color: "rgba(255,255,255,0.35)", textAlign: "right", fontWeight: 700, fontSize: 10 }}>{h}</th>
+                        <th key={h} style={{ padding: "5px 4px", color: "rgba(255,255,255,0.65)", textAlign: "right", fontWeight: 700, fontSize: 10 }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -1809,7 +1809,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         ) : (
           <div className="card" style={{ textAlign: "center", padding: 30 }}>
             <div style={{ color: "#ef4444", fontWeight: 700 }}>Challenge non passe</div>
-            <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, marginTop: 8 }}>Monte le winrate ou reduis le clustering</div>
+            <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 12, marginTop: 8 }}>Monte le winrate ou reduis le clustering</div>
           </div>
         )
       )}
@@ -1822,7 +1822,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: "#FFFFFF" }}>{firm.name}</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>{model.name} · {fmt(capital)}</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{model.name} · {fmt(capital)}</div>
               </div>
               {activePreset !== "custom" && (
                 <span style={{ fontSize: 10, fontWeight: 700, color: "#6ee7b7", background: "rgba(255,255,255,0.08)", padding: "3px 10px", borderRadius: 20 }}>
@@ -1892,7 +1892,7 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
     });
   }, [modelKey, capital, p.tradesPerDay, p.riskPct, p.rr, p.winrate, p.clustering, fundedMonths, splitRate, fee]);
 
-  if (!res) return <div className="card" style={{ color: "rgba(255,255,255,0.35)", textAlign: "center" }}>Calcul Monte Carlo en cours... ({RUNS} simulations)</div>;
+  if (!res) return <div className="card" style={{ color: "rgba(255,255,255,0.65)", textAlign: "center" }}>Calcul Monte Carlo en cours... ({RUNS} simulations)</div>;
   const fmt = v => "$" + (v >= 0 ? "+" : "") + Math.abs(v).toFixed(0);
   const color = v => v >= 0 ? "#6ee7b7" : "#ef4444";
   const rate_color = v => v >= 70 ? "#6ee7b7" : v >= 50 ? "#fbbf24" : "#ef4444";
@@ -1907,13 +1907,13 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
             { l: "Profitable", v: res.profRate + "%", c: rate_color(+res.profRate) },
           ].map(k => (
             <div key={k.l} className="kpi">
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>{k.l}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{k.l}</div>
               <div style={{ fontSize: 16, fontWeight: 700, color: k.c }}>{k.v}</div>
             </div>
           ))}
         </div>
         <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: 10, marginBottom: 8 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>Distribution resultat net</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.65)", marginBottom: 8 }}>Distribution resultat net</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 4 }}>
             {[["Min", res.min], ["P25", res.p25], ["P50", res.p50], ["P75", res.p75], ["Max", res.max]].map(([l, v]) => (
               <div key={l} style={{ textAlign: "center" }}>
@@ -1924,8 +1924,8 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
           </div>
         </div>
         <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: 10 }}>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>DD moyen sur runs passes : <b style={{ color: "#fbbf24" }}>{res.avgDD}%</b></div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>Frais challenge : <b style={{ color: "#ef4444" }}>{fmt(-fee)}</b></div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)" }}>DD moyen sur runs passes : <b style={{ color: "#fbbf24" }}>{res.avgDD}%</b></div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginTop: 4 }}>Frais challenge : <b style={{ color: "#ef4444" }}>{fmt(-fee)}</b></div>
         </div>
       </div>
     </div>
@@ -2222,7 +2222,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             {/* Header verdict */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 4 }}>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 4 }}>
                   Verdict Challenge · {firm?.name || ""}
                 </div>
                 <div style={{ fontSize: 20, fontWeight: 700, color: verdict.color, lineHeight: 1 }}>
@@ -2298,7 +2298,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
           <div className="card">
             <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Réel vs Simulation</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2, marginBottom: 6 }}>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textAlign: "center", paddingBottom: 4 }}>Indicateur</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", textAlign: "center", paddingBottom: 4 }}>Indicateur</div>
               <div style={{ fontSize: 10, color: "#6ee7b7", textAlign: "center", fontWeight: 700 }}>Réel</div>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", textAlign: "center", fontWeight: 700 }}>Simulation</div>
             </div>
@@ -2313,7 +2313,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               { label: "DD max", real: stats.ddPct.toFixed(2) + "%", sim2: (model ? model.totalDD * 100 : 10) + "% max", ok: stats.ddPct < (model ? model.totalDD * 100 * 0.7 : 7) },
             ].map(row => (
               <div key={row.label} className="row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2 }}>
-                <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 11 }}>{row.label}</span>
+                <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>{row.label}</span>
                 <span style={{ textAlign: "center", fontWeight: 700, fontSize: 11, color: row.ok === false ? "#ef4444" : row.ok === true ? "#6ee7b7" : "#FFFFFF" }}>{row.real}</span>
                 <span style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{row.sim2}</span>
               </div>
@@ -2324,7 +2324,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
           {chartData.length > 0 && (
             <div className="card">
               <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 4, textTransform: "uppercase", letterSpacing: 1 }}>Courbe Equity — Réel vs Simulation</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 12 }}>Vert = réel · Gris = simulation</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 12 }}>Vert = réel · Gris = simulation</div>
               <ResponsiveContainer width="100%" height={220}>
                 <ComposedChart data={chartData}>
                   <defs>
@@ -2408,7 +2408,7 @@ function CalendrierPnL({ dailyLog }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: 15, color: "#FFFFFF" }}>Calendrier PnL</div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>Mois {selectedMonth} - simulation jour par jour</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginTop: 1 }}>Mois {selectedMonth} - simulation jour par jour</div>
         </div>
         <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
           <button onClick={() => setSelectedMonth(Math.max(1, selectedMonth - 1))}
@@ -2436,7 +2436,7 @@ function CalendrierPnL({ dailyLog }) {
           { label: "Pire", val: "-$" + Math.abs(worstDay).toFixed(0), color: "#f87171" },
         ].map(s => (
           <div key={s.label} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "7px 6px", textAlign: "center" }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 3 }}>{s.label}</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginBottom: 3 }}>{s.label}</div>
             <div style={{ fontSize: 12, fontWeight: 700, color: s.color }}>{s.val}</div>
           </div>
         ))}
@@ -2650,7 +2650,7 @@ function LanguagePickerScreen({ onPick }) {
         <div style={{ fontSize: 28, fontWeight: 700, color: "#FFFFFF", fontFamily: "-apple-system, sans-serif", marginBottom: 6, lineHeight: 1.2 }}>
           Choisis ta langue
         </div>
-        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.35)", marginBottom: 28, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.65)", marginBottom: 28, lineHeight: 1.5 }}>
           Tu pourras la changer plus tard dans les paramètres.
         </div>
 
@@ -2680,7 +2680,7 @@ function LanguagePickerScreen({ onPick }) {
                   <div style={{ fontSize: 17, fontWeight: 700, color: sel ? "#000000" : "#FFFFFF", marginBottom: 2 }}>
                     {l.label}
                   </div>
-                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.35)" }}>
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)" }}>
                     {l.sub}
                   </div>
                 </div>
@@ -3180,11 +3180,11 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
           <div style={{ fontSize: 24, fontWeight: 700, color: "#6ee7b7", letterSpacing: -0.3, textTransform: "uppercase" }}>
             PROP FIRM
           </div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 3, textTransform: "uppercase", marginTop: 3 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.70)", letterSpacing: 3, textTransform: "uppercase", marginTop: 3 }}>
             SIMULATOR
           </div>
         </div>
-        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.40)", lineHeight: 1.5, marginTop: 12 }}>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.5, marginTop: 12 }}>
           {mode === "signup" ? "Crée ton compte en quelques secondes" : "Bon retour parmi les traders préparés."}
         </div>
       </div>
@@ -3882,21 +3882,21 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
 
       {/* Compte */}
       <div className="card">
-        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 10 }}>{t("prof_account")}</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 10 }}>{t("prof_account")}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 46, height: 46, borderRadius: 23, background: "#6ee7b7", color: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800 }}>
             {(user.name || "?")[0].toUpperCase()}
           </div>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700 }}>{user.name}</div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>{user.email || t("prof_guest")}</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>{user.email || t("prof_guest")}</div>
           </div>
         </div>
       </div>
 
       {/* Préférences */}
       <div className="card">
-        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 12 }}>{t("prof_prefs")}</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 12 }}>{t("prof_prefs")}</div>
 
         {/* Langue */}
         <div style={{ marginBottom: 16 }}>
