@@ -1509,7 +1509,15 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
       {/* PARAMETRES */}
       <div className="card">
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Parametres Trading</div>
+        {/* C7 — Question principale (raisonnement gestionnaire de risque) */}
+        <div style={{ marginBottom: 12, paddingBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#FFFFFF", marginBottom: 3 }}>
+            Combien risquez-vous par trade ?
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.4 }}>
+            Définissez votre risque en % du capital. Tout le reste en découle automatiquement.
+          </div>
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {/* Capital */}
           <div>
@@ -1518,10 +1526,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             <input type="range" min={6000} max={200000} step={1000} value={capital} onChange={e => setCapital(parseFloat(e.target.value))} />
           </div>
 
-          {/* Risque/trade - affichage différent si mode lot actif */}
+          {/* Risque/trade - C7 débutant + C2 hiérarchie */}
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: 700 }}>Risque/trade (%)</span>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: 700 }}>Risque par trade (%)</span>
               {useFixedLot && <span style={{ fontSize: 11, background: "#6ee7b720", color: "#6ee7b7", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>LOT AUTO</span>}
             </div>
             <input
@@ -1589,6 +1597,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             style={{ flex: 1, padding: 9, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, color: "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
             Imprimer / PDF
           </button>
+        </div>
+        {/* C4 — Estimation de réalisme */}
+        <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 10, fontSize: 10, color: "rgba(255,255,255,0.35)", lineHeight: 1.6, textAlign: "center" }}>
+          Les résultats réels peuvent être inférieurs de 5 à 15 % à cause du spread, du slippage et des conditions de marché.
         </div>
       </div>
 
@@ -1964,6 +1976,9 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
         <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 10 }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)" }}>DD moyen sur runs passes : <b style={{ color: "#fbbf24" }}>{res.avgDD}%</b></div>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginTop: 4 }}>Frais challenge : <b style={{ color: "#ef4444" }}>{fmt(-fee)}</b></div>
+        </div>
+        <div style={{ marginTop: 8, padding: "7px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 10, fontSize: 10, color: "rgba(255,255,255,0.35)", lineHeight: 1.5, textAlign: "center" }}>
+          Les résultats réels peuvent être inférieurs de 5 à 15 % (spread, slippage, conditions de marché).
         </div>
       </div>
     </div>
