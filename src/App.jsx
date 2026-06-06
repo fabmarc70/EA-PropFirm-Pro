@@ -2341,41 +2341,82 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
         )}
       </div>
 
-      {/* ── BANDEAU BALANCE INCONNUE — bloque le verdict ── */}
-      {trades.length > 0 && (balanceReconstructed || showBalanceInput) && (
-        <div style={{ background: "rgba(251,191,36,0.08)", border: "1.5px solid rgba(251,191,36,0.4)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12 }}>
-            <span style={{ fontSize: 20, flexShrink: 0 }}>⚠️</span>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#fbbf24", marginBottom: 4 }}>
-                Solde initial du backtest introuvable
-              </div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.6 }}>
-                Ton fichier ne contient pas de colonne <b>Balance</b>. Sans le solde de départ, le drawdown ne peut pas être calculé avec précision — et <b>il est impossible de confirmer si le challenge est validé ou non</b>.
+      {/* ── BANDEAU BALANCE INITIALE — toujours affiché après import ── */}
+      {trades.length > 0 && (
+        <div style={{
+          background: balanceReconstructed
+            ? "rgba(251,191,36,0.08)"
+            : "rgba(110,231,183,0.06)",
+          border: "1.5px solid " + (balanceReconstructed ? "rgba(251,191,36,0.4)" : "rgba(110,231,183,0.2)"),
+          borderRadius: 14, padding: 14, marginBottom: 12
+        }}>
+          {/* Ligne de statut + solde détecté */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 16 }}>{balanceReconstructed ? "⚠️" : "✅"}</span>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: balanceReconstructed ? "#fbbf24" : "#6ee7b7" }}>
+                  {balanceReconstructed ? "Solde initial non détecté" : "Solde initial détecté"}
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+                  {balanceReconstructed
+                    ? "Aucune colonne balance dans le fichier — DD incalculable"
+                    : effectiveInitBalance
+                      ? `Capital de départ : $${Math.round(effectiveInitBalance).toLocaleString()}`
+                      : "Capital non déterminé"}
+                </div>
               </div>
             </div>
-          </div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>
-            Connais-tu le capital de départ de ce backtest ?
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              type="number"
-              placeholder="Ex : 25000"
-              value={manualBalanceInput}
-              onChange={e => setManualBalanceInput(e.target.value)}
-              style={{ flex: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: "#FFFFFF", padding: "10px 12px", fontSize: 14, fontWeight: 600 }}
-            />
+            {/* Bouton modifier */}
             <button
-              onClick={applyManualBalance}
-              disabled={!manualBalanceInput || parseFloat(manualBalanceInput) <= 0}
-              style={{ padding: "10px 16px", borderRadius: 10, border: "none", cursor: "pointer", background: manualBalanceInput && parseFloat(manualBalanceInput) > 0 ? "#6ee7b7" : "rgba(255,255,255,0.1)", color: manualBalanceInput && parseFloat(manualBalanceInput) > 0 ? "#000000" : "rgba(255,255,255,0.35)", fontSize: 13, fontWeight: 700 }}>
-              Appliquer
+              onClick={() => setShowBalanceInput(v => !v)}
+              style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.75)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+              {showBalanceInput ? "Annuler" : "Modifier"}
             </button>
           </div>
-          <div style={{ marginTop: 10, fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>
-            Sans cette information, seules les statistiques de trades (WR, RR, PF) sont disponibles. Le verdict challenge et le DD ne peuvent pas être calculés.
-          </div>
+
+          {/* Message si balance reconstruite */}
+          {balanceReconstructed && !showBalanceInput && (
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, marginBottom: 10 }}>
+              Sans solde de départ réel, le <b>drawdown ne peut pas être calculé</b> — il est donc <b>impossible de confirmer si le challenge est passé ou non</b>.
+            </div>
+          )}
+
+          {/* Input saisie manuelle — visible si balance inconnue OU si l'utilisateur clique Modifier */}
+          {(balanceReconstructed || showBalanceInput) && (
+            <>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 6 }}>
+                {balanceReconstructed
+                  ? "Connais-tu le capital de départ de ce backtest ?"
+                  : "Corriger le solde initial :"}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="number"
+                  placeholder="Ex : 25000"
+                  value={manualBalanceInput}
+                  onChange={e => setManualBalanceInput(e.target.value)}
+                  style={{ flex: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: "#FFFFFF", padding: "10px 12px", fontSize: 14, fontWeight: 600 }}
+                />
+                <button
+                  onClick={applyManualBalance}
+                  disabled={!manualBalanceInput || parseFloat(manualBalanceInput) <= 0}
+                  style={{
+                    padding: "10px 16px", borderRadius: 10, border: "none", cursor: "pointer",
+                    background: manualBalanceInput && parseFloat(manualBalanceInput) > 0 ? "#6ee7b7" : "rgba(255,255,255,0.1)",
+                    color: manualBalanceInput && parseFloat(manualBalanceInput) > 0 ? "#000000" : "rgba(255,255,255,0.35)",
+                    fontSize: 13, fontWeight: 700
+                  }}>
+                  Appliquer
+                </button>
+              </div>
+              {balanceReconstructed && (
+                <div style={{ marginTop: 8, fontSize: 10, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>
+                  Sans cette information, seuls WR, RR et PF sont disponibles. Le verdict challenge reste bloqué.
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 
@@ -2514,6 +2555,21 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             </div>
             {[
               { label: "Trades", real: stats.total, sim2: "-" },
+              (() => {
+                // Calcul trades/jour réels : à partir des dates si disponibles
+                const uniqueDays = new Set(trades.map(t => t.time ? t.time.split(' ')[0] : null).filter(Boolean));
+                const dayCount = uniqueDays.size > 1 ? uniqueDays.size : null;
+                const realTPD = dayCount ? (stats.total / dayCount).toFixed(2) : null;
+                const simTPD = tradesPerDay;
+                const ok = realTPD ? Math.abs(parseFloat(realTPD) - simTPD) / Math.max(simTPD, 0.1) < 0.4 : undefined;
+                return {
+                  label: "Trades / jour",
+                  real: realTPD ? realTPD : (stats.total > 0 ? "~" + (stats.total / 20).toFixed(2) : "-"),
+                  sim2: simTPD + "/j",
+                  ok,
+                  sub: dayCount ? dayCount + " jours détectés" : "dates non lisibles",
+                };
+              })(),
               { label: "Winrate", real: stats.wr.toFixed(0) + "%", sim2: winrate + "%", ok: stats.wr >= winrate - 5 },
               { label: "Moy. gain", real: "$" + stats.avgWin.toFixed(0), sim2: "-" },
               { label: "Moy. perte", real: "$" + stats.avgLoss.toFixed(0), sim2: "$" + (capital * riskPct / 100).toFixed(0), ok: stats.avgLoss <= capital * riskPct / 100 * 1.2 },
@@ -2529,7 +2585,10 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               },
             ].map(row => (
               <div key={row.label} className="row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2 }}>
-                <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>{row.label}</span>
+                <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>
+                  <div>{row.label}</div>
+                  {row.sub && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{row.sub}</div>}
+                </div>
                 <span style={{ textAlign: "center", fontWeight: 700, fontSize: 11, color: row.ok === false ? "#ef4444" : row.ok === true ? "#6ee7b7" : "#FFFFFF" }}>{row.real}</span>
                 <span style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{row.sim2}</span>
               </div>
