@@ -3261,86 +3261,41 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
     );
   };
 
-  // ── Slide 1 ──────────────────────────────────────────────────────
+  // ── Slide 1 — Image hero plein écran ──────────────────────────────
   const Slide1 = () => (
-    <div style={{padding:"60px 20px 100px", overflowY:"auto", minHeight:"100vh"}}>
-      <div style={{fontSize:11,color:"rgba(255,255,255,0.35)",textAlign:"right",marginBottom:20,fontWeight:600}}>1/3</div>
-      {/* Titre */}
-      <div style={{textAlign:"center",marginBottom:16}}>
-        <div style={{fontSize:28,fontWeight:700,color:"#ffffff",lineHeight:1.2,marginBottom:4}}>{tx.s1h1}</div>
-        <div style={{fontSize:28,fontWeight:700,lineHeight:1.2}}>
-          <span style={{color:"#ffffff"}}>{tx.s1h2}</span>
-          <span style={{color:"#f87171"}}>{tx.s1h2r}</span>
-        </div>
-      </div>
-      <div style={{textAlign:"center",fontSize:14,color:"rgba(255,255,255,0.45)",lineHeight:1.6,marginBottom:24}}>
-        {tx.s1sub}<span style={{color:"#ffffff",fontWeight:700}}>{tx.s1bold}</span>
-      </div>
-
-      {/* Comparaison */}
-      <div style={{display:"flex",gap:10,marginBottom:18}}>
-        {/* Gauche — rouge */}
-        <div style={{flex:1,borderRadius:16,background:"rgba(239,68,68,0.06)",border:"1px solid rgba(239,68,68,0.25)",overflow:"hidden"}}>
-          <div style={{padding:"8px 10px",background:"rgba(239,68,68,0.12)",display:"flex",alignItems:"center",gap:6}}>
-            <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill="#ef4444"/><path d="M4.5 4.5l5 5M9.5 4.5l-5 5" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>
-            <span style={{fontSize:11,fontWeight:700,color:"#f87171"}}>{tx.s1nop}</span>
+    <div style={{
+      height:"100%", display:"flex", flexDirection:"column", overflow:"hidden",
+    }}>
+      {/* Image plein écran */}
+      <div style={{flex:1, position:"relative", overflow:"hidden"}}>
+        <img
+          src="/9C04F5A9-504B-41BA-BB77-DB5B82902B46.png"
+          alt="Prop Firm Simulator"
+          style={{
+            width:"100%", height:"100%",
+            objectFit:"cover", objectPosition:"center top",
+            display:"block",
+          }}
+        />
+        {/* Gradient overlay bas */}
+        <div style={{
+          position:"absolute", bottom:0, left:0, right:0, height:"60%",
+          background:"linear-gradient(transparent, rgba(6,9,15,0.90) 50%, #06090f 100%)",
+        }}/>
+        {/* Texte sur l'image */}
+        <div style={{
+          position:"absolute", bottom:0, left:0, right:0,
+          padding:"0 24px 24px",
+        }}>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.35)",fontWeight:600,letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>1 / 3</div>
+          <div style={{fontSize:28,fontWeight:700,color:"#ffffff",lineHeight:1.2,marginBottom:4}}>{tx.s1h1}</div>
+          <div style={{fontSize:28,fontWeight:700,lineHeight:1.2,marginBottom:12}}>
+            <span style={{color:"#ffffff"}}>{tx.s1h2}</span>
+            <span style={{color:"#f87171"}}>{tx.s1h2r}</span>
           </div>
-          <div style={{padding:"10px 10px 6px"}}>
-            {/* Mini chart rouge descendant */}
-            <div style={{background:"rgba(239,68,68,0.08)",borderRadius:8,padding:"8px 6px",marginBottom:8}}>
-              <svg width="100%" height="50" viewBox="0 0 120 50">
-                <polyline points="0,10 20,15 40,22 55,18 70,30 90,38 110,46" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"/>
-                <polygon points="0,10 20,15 40,22 55,18 70,30 90,38 110,46 110,50 0,50" fill="url(#rg)" opacity="0.3"/>
-                <defs><linearGradient id="rg" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#ef4444"/><stop offset="100%" stopColor="#ef4444" stopOpacity="0"/></linearGradient></defs>
-              </svg>
-            </div>
-            {[tx.s1e1,tx.s1e2].map((e,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:6,marginBottom:5,padding:"5px 6px",background:"rgba(239,68,68,0.1)",borderRadius:6}}>
-                <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill="#ef4444"/><path d="M4.5 4.5l5 5M9.5 4.5l-5 5" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                <span style={{fontSize:11,color:"#fca5a5",fontWeight:600}}>{e}</span>
-              </div>
-            ))}
+          <div style={{fontSize:13,color:"rgba(255,255,255,0.6)",lineHeight:1.5}}>
+            {tx.s1sub}<span style={{color:"#ffffff",fontWeight:700}}>{tx.s1bold}</span>
           </div>
-        </div>
-
-        {/* Droite — vert */}
-        <div style={{flex:1,borderRadius:16,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(110,231,183,0.2)",overflow:"hidden"}}>
-          <div style={{padding:"8px 10px",background:"rgba(110,231,183,0.1)",display:"flex",alignItems:"center",gap:6}}>
-            <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="7" fill="#6ee7b7"/><path d="M4 7l2.5 2.5 4-4" stroke="rgba(255,255,255,0.05)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            <span style={{fontSize:11,fontWeight:700,color:"#6ee7b7"}}>{tx.s1yep}</span>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,padding:"8px"}}>
-            {[[tx.s1wr,"52%"],[tx.s1dd,"4.2%"],[tx.s1pf,"1.87"],[tx.s1prob,"74%"]].map(([l,v],i)=>(
-              <div key={i} style={{background:"rgba(110,231,183,0.05)",borderRadius:8,padding:"6px 8px"}}>
-                <div style={{fontSize: 11,color:"rgba(255,255,255,0.4)",marginBottom:2}}>{l}</div>
-                <div style={{fontSize:15,fontWeight:700,color:"#ffffff"}}>{v}</div>
-                <SparkLine color="#6ee7b7"/>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 4 cartes icônes */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
-        {[
-          {icon:"📉",label:tx.s1c1,c:"#ef4444",bg:"rgba(239,68,68,0.08)"},
-          {icon:"⊗",label:tx.s1c2,c:"#ef4444",bg:"rgba(239,68,68,0.08)"},
-          {icon:"💰",label:tx.s1c3,c:"#6ee7b7",bg:"rgba(245,158,11,0.08)"},
-          {icon:"⚠️",label:tx.s1c4,c:"#6ee7b7",bg:"rgba(245,158,11,0.08)"},
-        ].map((c,i)=>(
-          <div key={i} style={{background:c.bg,border:"1px solid "+c.c+"30",borderRadius:14,padding:"14px 12px",textAlign:"center"}}>
-            <div style={{fontSize:26,marginBottom:8}}>{c.icon}</div>
-            <div style={{fontSize:12,fontWeight:600,color:"rgba(255,255,255,0.8)",lineHeight:1.4}}>{c.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Carte bas */}
-      <div style={{background:"rgba(239,68,68,0.06)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:18,padding:"20px",textAlign:"center"}}>
-        <div style={{fontSize:24,marginBottom:10}}>🚨</div>
-        <div style={{fontSize:15,fontWeight:700,color:"#ffffff",lineHeight:1.5}}>
-          {tx.s1bot}<span style={{color:"#f87171"}}>{tx.s1botr}</span>
         </div>
       </div>
     </div>
@@ -3348,16 +3303,16 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
 
   // ── Slide 2 ──────────────────────────────────────────────────────
   const Slide2 = () => (
-    <div style={{padding:"60px 20px 100px",overflowY:"auto",minHeight:"100vh"}}>
+    <div style={{height:"100%",overflow:"hidden",padding:"calc(60px + env(safe-area-inset-top)) 20px 16px",display:"flex",flexDirection:"column",gap:10}}>
       <div style={{fontSize:11,color:"rgba(255,255,255,0.35)",textAlign:"right",marginBottom:20,fontWeight:600}}>2/3</div>
       <div style={{textAlign:"center",marginBottom:14}}>
         <div style={{fontSize:27,fontWeight:700,color:"#ffffff",lineHeight:1.2,marginBottom:4}}>{tx.s2h1}</div>
         <div style={{fontSize:27,fontWeight:700,color:"#6ee7b7",lineHeight:1.2}}>{tx.s2h2}</div>
       </div>
-      <div style={{textAlign:"center",fontSize:13,color:"rgba(255,255,255,0.4)",lineHeight:1.6,marginBottom:22}}>{tx.s2sub}</div>
+      <div style={{textAlign:"center",fontSize:12,color:"rgba(255,255,255,0.4)",lineHeight:1.5,marginBottom:10}}>{tx.s2sub}</div>
 
       {/* Zone centrale : gauge + cartes gauche/droite */}
-      <div style={{position:"relative",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:18,minHeight:240}}>
+      <div style={{position:"relative",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:8,minHeight:180}}>
         {/* Cartes gauche */}
         <div style={{display:"flex",flexDirection:"column",gap:8,flex:1,marginRight:8}}>
           {[[tx.s1wr,"52%","#6ee7b7",false],[tx.s1pf,"1.87","#6ee7b7",false],
@@ -3416,7 +3371,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
 
   // ── Slide 3 ──────────────────────────────────────────────────────
   const Slide3 = () => (
-    <div style={{padding:"60px 20px 120px",overflowY:"auto",minHeight:"100vh"}}>
+    <div style={{height:"100%",overflow:"hidden",padding:"calc(60px + env(safe-area-inset-top)) 20px 16px",display:"flex",flexDirection:"column",gap:10}}>
       <div style={{fontSize:11,color:"rgba(255,255,255,0.35)",textAlign:"right",marginBottom:20,fontWeight:600}}>3/3</div>
       <div style={{textAlign:"center",marginBottom:12}}>
         <div style={{fontSize:26,fontWeight:700,color:"#ffffff",lineHeight:1.2,marginBottom:4}}>{tx.s3h1}</div>
@@ -3508,46 +3463,57 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
   const isLast = step === 2;
 
   return (
-    <div style={{minHeight:"100vh",background:"#06090f",position:"relative",maxWidth:480,margin:"0 auto",fontFamily:"-apple-system, sans-serif",color:"#FFFFFF",overflow:"hidden"}}>
-
-      {/* Halo ambré style Capital.com */}
-      <div style={{position:"absolute",top:"20%",left:"50%",transform:"translateX(-50%)",width:350,height:350,borderRadius:"50%",background:"radial-gradient(circle, rgba(52,211,153,0.22) 0%, rgba(100,60,5,0.08) 50%, transparent 70%)",pointerEvents:"none",zIndex:0}} />
-
-      {/* Slide actif */}
-      <div style={{paddingTop:"env(safe-area-inset-top)",position:"relative",zIndex:1}}>
-        {slides[step]}
-      </div>
+    <div style={{
+      height: "100vh", height: "100dvh",
+      background: "#06090f", position: "relative",
+      maxWidth: 480, margin: "0 auto",
+      fontFamily: "-apple-system, sans-serif", color: "#FFFFFF",
+      overflow: "hidden", display: "flex", flexDirection: "column",
+    }}>
 
       {/* Bouton Passer */}
       {!isLast && (
-        <button onClick={onDone} style={{position:"fixed",top:"calc(14px + env(safe-area-inset-top))",right:20,background:"none",border:"none",color:"rgba(110,231,183,0.5)",fontSize:13,fontWeight:600,cursor:"pointer",zIndex:20,fontFamily:"-apple-system, sans-serif"}}>
-          Passer →
+        <button onClick={onDone} style={{
+          position: "absolute", top: "calc(16px + env(safe-area-inset-top))", right: 20,
+          background: "none", border: "none", color: "rgba(255,255,255,0.45)",
+          fontSize: 13, fontWeight: 600, cursor: "pointer", zIndex: 20,
+        }}>
+          Passer
         </button>
       )}
 
+      {/* Slide actif — prend tout l'espace disponible */}
+      <div style={{ flex: 1, overflow: "hidden", paddingBottom: 80 }}>
+        {slides[step]}
+      </div>
+
       {/* Navigation bas fixe */}
-      <div style={{position:"fixed",bottom:0,left:0,right:0,background:"linear-gradient(transparent,#050300 40%)",padding:"20px 20px calc(24px + env(safe-area-inset-bottom))",display:"flex",alignItems:"center",justifyContent:"space-between",maxWidth:480,margin:"0 auto",zIndex:10}}>
+      <div style={{
+        position: "absolute", bottom: 0, left: 0, right: 0,
+        background: "linear-gradient(transparent, #06090f 50%)",
+        padding: "16px 24px calc(24px + env(safe-area-inset-bottom))",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        zIndex: 10,
+      }}>
         {/* Dots */}
-        <div style={{display:"flex",gap:6,flex:1,justifyContent:"center"}}>
-          {[0,1,2].map(i=>(
-            <div key={i} onClick={()=>setStep(i)} style={{
-              width:i===step?24:8,height:8,borderRadius:4,cursor:"pointer",
-              background:i===step?"linear-gradient(90deg,#6ee7b7,#6ee7b7)":"rgba(110,231,183,0.2)",
-              transition:"all .3s",
-            }}/>
+        <div style={{ display: "flex", gap: 6, flex: 1, justifyContent: "center" }}>
+          {[0,1,2].map(i => (
+            <div key={i} onClick={() => setStep(i)} style={{
+              width: i === step ? 24 : 8, height: 8, borderRadius: 4, cursor: "pointer",
+              background: i === step ? "#6ee7b7" : "rgba(110,231,183,0.2)",
+              transition: "all .3s",
+            }} />
           ))}
         </div>
-        {/* Bouton suivant */}
-        {!isLast && (
-          <button onClick={()=>setStep(s=>s+1)} style={{
-            padding:"13px 24px",borderRadius:100,border:"none",cursor:"pointer",
-            background:"#6ee7b7",
-            color:"#000000",fontSize:14,fontWeight:600,fontFamily:"-apple-system, sans-serif",
-            boxShadow:"0 4px 20px rgba(110,231,183,0.25)",
-          }}>
-            {step===0 ? tx.next : tx.next}
-          </button>
-        )}
+        {/* Bouton suivant / Commencer */}
+        <button onClick={isLast ? onDone : () => setStep(s => s + 1)} style={{
+          padding: "13px 24px", borderRadius: 100, border: "none", cursor: "pointer",
+          background: "#6ee7b7",
+          color: "#000000", fontSize: 14, fontWeight: 600,
+          boxShadow: "0 4px 20px rgba(110,231,183,0.25)",
+        }}>
+          {isLast ? (lang === "en" ? "Start" : lang === "es" ? "Comenzar" : "Commencer") : tx.next}
+        </button>
       </div>
     </div>
   );
