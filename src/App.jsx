@@ -2796,6 +2796,138 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
           )}
         </>
       )}
+
+      {/* ══════════════════════════════════════════════════
+          SECTION FUNDED — données simulées uniquement
+          Affichée uniquement si sim.funded existe
+      ══════════════════════════════════════════════════ */}
+      {sim && sim.funded && (
+        <>
+          {/* ── Séparateur titre ── */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 0 12px" }}>
+            <div style={{ flex: 1, height: 1, background: "rgba(110,231,183,0.15)" }} />
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", letterSpacing: 1.5 }}>
+              📈 Compte Funded simulé
+            </div>
+            <div style={{ flex: 1, height: 1, background: "rgba(110,231,183,0.15)" }} />
+          </div>
+
+          {/* ── KPIs Funded ── */}
+          <div className="card" style={{ border: "1px solid rgba(110,231,183,0.15)" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.55)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
+              Résumé sur {sim.funded.data.length} mois
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+              {[
+                { l: "Payout total versé", v: "$" + sim.funded.cumulPayout.toFixed(0), c: "#6ee7b7" },
+                { l: "Payout en attente", v: "$" + sim.funded.pendingPayout.toFixed(0), c: sim.funded.pendingPayout > 0 ? "#fbbf24" : "rgba(255,255,255,0.4)" },
+                { l: "Mois gagnants", v: sim.funded.winrateMonth.toFixed(0) + "%", c: sim.funded.winrateMonth >= 60 ? "#6ee7b7" : "#fbbf24" },
+                { l: "DD max simulé", v: sim.funded.maxDD.toFixed(2) + "%", c: sim.funded.maxDD < (model ? model.totalDD * 100 * 0.7 : 7) ? "#6ee7b7" : "#fbbf24" },
+                { l: "Equity finale", v: "$" + sim.funded.finalEquity.toFixed(0), c: sim.funded.finalEquity >= capital ? "#6ee7b7" : "#ef4444" },
+                { l: "Statut", v: sim.funded.status === "active" ? "ACTIF ✓" : "FERMÉ ✗", c: sim.funded.status === "active" ? "#6ee7b7" : "#ef4444" },
+              ].map(k => (
+                <div key={k.l} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px" }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>{k.l}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: k.c }}>{k.v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Tableau mensuel détaillé ── */}
+          <div className="card" style={{ border: "1px solid rgba(110,231,183,0.15)" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.55)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
+              Détail Mensuel
+            </div>
+            {/* Header */}
+            <div style={{ display: "grid", gridTemplateColumns: "30px 1fr 52px 52px 40px 32px 20px", gap: 4, marginBottom: 6, paddingBottom: 6, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              {["Mois", "Equity", "Profit%", "Payout", "Split", "Streak", ""].map(h => (
+                <div key={h} style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", fontWeight: 700 }}>{h}</div>
+              ))}
+            </div>
+            {/* Lignes */}
+            {sim.funded.data.map((r, i) => {
+              const isScale = !!r.scalingNote;
+              const isFail = r.status === "fail";
+              return (
+                <div key={i} style={{
+                  display: "grid", gridTemplateColumns: "30px 1fr 52px 52px 40px 32px 20px",
+                  gap: 4, padding: "7px 0",
+                  borderBottom: "1px solid rgba(255,255,255,0.04)",
+                  background: isScale ? "rgba(110,231,183,0.04)" : isFail ? "rgba(239,68,68,0.04)" : "transparent",
+                  borderRadius: isScale || isFail ? 8 : 0,
+                }}>
+                  {/* Mois */}
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", fontWeight: 600 }}>M{r.month}</div>
+                  {/* Equity */}
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)" }}>${(r.equity / 1000).toFixed(0)}k</div>
+                  {/* Profit% */}
+                  <div style={{ fontSize: 11, fontWeight: 700, color: r.profitPct >= 0 ? "#6ee7b7" : "#ef4444" }}>
+                    {r.profitPct >= 0 ? "+" : ""}{r.profitPct.toFixed(2)}%
+                  </div>
+                  {/* Payout */}
+                  <div style={{ fontSize: 11, fontWeight: 700, color: r.payout > 0 ? "#fbbf24" : "rgba(255,255,255,0.25)" }}>
+                    {r.payout > 0 ? "$" + r.payout.toFixed(0) : "-"}
+                  </div>
+                  {/* Split */}
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{r.currentSplit}%</div>
+                  {/* Streak */}
+                  <div style={{ fontSize: 10, color: r.streakMonths >= 4 ? "#6ee7b7" : "rgba(255,255,255,0.3)" }}>
+                    {r.streakMonths}/4{isScale ? " 📈" : ""}
+                  </div>
+                  {/* Statut */}
+                  <div style={{ fontSize: 11, color: isFail ? "#ef4444" : "#6ee7b7" }}>
+                    {isFail ? "✗" : "✓"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ── Calendrier PnL quotidien ── */}
+          {sim.funded.dailyLog && sim.funded.dailyLog.length > 0 && (
+            <div className="card" style={{ border: "1px solid rgba(110,231,183,0.12)", padding: 0, overflow: "hidden" }}>
+              <div style={{ padding: "14px 14px 0", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.55)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
+                Calendrier PnL
+              </div>
+              <div style={{ padding: "0 14px 14px" }}>
+                <CalendrierPnL dailyLog={sim.funded.dailyLog} />
+              </div>
+            </div>
+          )}
+
+          {/* ── Courbe equity funded ── */}
+          {sim.funded.data && sim.funded.data.length > 0 && (
+            <div className="card" style={{ border: "1px solid rgba(110,231,183,0.12)" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 4, textTransform: "uppercase", letterSpacing: 1 }}>
+                Courbe Equity Funded
+              </div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 12 }}>
+                Simulation mois par mois · {sim.funded.data.length} mois
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={sim.funded.data.map(r => ({ m: "M" + r.month, eq: r.equity, payout: r.payout > 0 ? r.payout : null }))}>
+                  <defs>
+                    <linearGradient id="gfunded" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.25} />
+                      <stop offset="100%" stopColor="#6ee7b7" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1a1a28" />
+                  <XAxis dataKey="m" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} />
+                  <YAxis tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v / 1000).toFixed(0) + "k"} domain={["auto", "auto"]} />
+                  <Tooltip
+                    formatter={(v, name) => [name === "payout" ? "$" + Number(v).toFixed(0) + " versé" : "$" + Number(v).toFixed(0), name === "eq" ? "Equity" : "Payout"]}
+                    contentStyle={{ background: "rgba(15,26,46,0.97)", border: "1px solid rgba(110,231,183,0.2)", borderRadius: 12, fontSize: 11 }}
+                  />
+                  <ReferenceLine y={capital} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 2" label={{ value: "Capital", fill: "rgba(255,255,255,0.3)", fontSize: 9 }} />
+                  <Area type="monotone" dataKey="eq" stroke="#6ee7b7" strokeWidth={2} fill="url(#gfunded)" dot={false} name="eq" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
