@@ -1127,7 +1127,12 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   ) : null;
 
   // Sauvegarder la config courante dans la liste des configs (Dashboard)
+  const [lastSavedCfgKey, setLastSavedCfgKey] = useState(null);
+  const currentCfgKey = [firmKey, safeModelKey, capital, winrate, tradesPerDay, dailyTargetPct, riskPct, clusteringPct, maxConsecLosses, instrument, lotSize, slPips, useFixedLot, split, newsImpact].join("|");
+  const configChanged = currentCfgKey !== lastSavedCfgKey;
+
   const saveCurrentConfig = () => {
+    if (!configChanged) return;
     try {
       const cfg = {
         id: Date.now(),
@@ -1141,6 +1146,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       list.unshift(cfg);
       localStorage.setItem("eapropfirm_saved_configs", JSON.stringify(list.slice(0, 12)));
       setSaveStatus(t("sim_config_saved"));
+      setLastSavedCfgKey(currentCfgKey);
       setTimeout(() => setSaveStatus(""), 2500);
     } catch (e) {}
   };
@@ -1234,8 +1240,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
       )}
 
-      {/* CARTE DRAWDOWN ESTIME */}
-      {dda && (
+      {/* CARTE DRAWDOWN ESTIME — mode avancé uniquement */}
+      {!isSimple && dda && (
         <div className="card" style={{ borderLeft: "3px solid " + (dda.simMaxDD < model.totalDD * 50 ? "#6ee7b7" : dda.simMaxDD < model.totalDD * 75 ? "#fbbf24" : "#ef4444") }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>
             Analyse Drawdown - Ta config
@@ -1511,7 +1517,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       {/* Bandeau mode débutant — affiché uniquement en mode simple */}
       {isSimple && (
         <div style={{ background:"rgba(110,231,183,0.06)", border:"1px solid rgba(110,231,183,0.15)", borderRadius:14, padding:"12px 14px", marginBottom:12, display:"flex", alignItems:"center", gap:10 }}>
-          <span style={{ fontSize:18 }}>🌱</span>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 16V9" stroke="#6ee7b7" strokeWidth="1.8" strokeLinecap="round"/><path d="M9 9C9 5 5 4 4 5c0 3 3 4 5 4" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round"/><path d="M9 12c0-3 4-4 5-3 0 3-3 4-5 4" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round"/></svg>
           <div>
             <div style={{ fontSize:12, fontWeight:700, color:"#6ee7b7" }}>Mode débutant actif</div>
             <div style={{ fontSize:11, color:"rgba(255,255,255,0.45)", marginTop:1 }}>
@@ -1664,12 +1670,38 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       </div>
 
       {/* Bouton sauvegarder la config */}
-      <button onClick={saveCurrentConfig} style={{
-        width: "100%", padding: "13px", borderRadius: 12, border: "1px dashed rgba(110,231,183,0.35)",
-        cursor: "pointer", background: "rgba(255,255,255,0.05)", color: "#6ee7b7", fontSize: 13, fontWeight: 700,
-        marginBottom: 12,
+      <button onClick={saveCurrentConfig} disabled={!configChanged} style={{
+        width: "100%", padding: "13px", borderRadius: 12,
+        border: saveStatus ? "1px solid #6ee7b7" : configChanged ? "1px dashed rgba(110,231,183,0.35)" : "1px dashed rgba(255,255,255,0.08)",
+        cursor: configChanged ? "pointer" : "default",
+        background: saveStatus ? "rgba(110,231,183,0.10)" : configChanged ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.02)",
+        color: saveStatus ? "#6ee7b7" : configChanged ? "#6ee7b7" : "rgba(255,255,255,0.25)",
+        fontSize: 13, fontWeight: 700, marginBottom: 12, transition: "all .2s",
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
       }}>
-        ★ {t("sim_save_config")}
+        {saveStatus ? (
+          <>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M2 7l3.5 3.5L12 3" stroke="#6ee7b7" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            {saveStatus}
+          </>
+        ) : configChanged ? (
+          <>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M10 1H3a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V4L10 1z" stroke="#6ee7b7" strokeWidth="1.4" strokeLinecap="round"/>
+              <path d="M9 1v3H4V1M4 8h6M4 10.5h4" stroke="#6ee7b7" strokeWidth="1.4" strokeLinecap="round"/>
+            </svg>
+            {t("sim_save_config")}
+          </>
+        ) : (
+          <>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M2 7l3.5 3.5L12 3" stroke="rgba(255,255,255,0.25)" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            Config déjà sauvegardée
+          </>
+        )}
       </button>
       </>)}
 
@@ -2251,23 +2283,23 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
       label = "RÈGLE DD DÉPASSÉE";
       color = "#ef4444";
       bg = "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(6,9,15,0.98))";
-      icon = "🚫";
+      icon = "XRED";
       displayPct = Math.min(passPct, 25); // plafonné car violation observée
     } else if (passPct >= 65) {
       label = "PROBABILITÉ FAVORABLE";
       color = "#6ee7b7";
       bg = "linear-gradient(135deg, rgba(110,231,183,0.10), rgba(6,9,15,0.98))";
-      icon = "✅";
+      icon = "CHK";
     } else if (passPct >= 40) {
       label = "RISQUE ÉLEVÉ";
       color = "#fbbf24";
       bg = "linear-gradient(135deg, rgba(251,191,36,0.10), rgba(6,9,15,0.98))";
-      icon = "⚠️";
+      icon = "WARN";
     } else {
       label = "PEU PROBABLE";
       color = "#ef4444";
       bg = "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(6,9,15,0.98))";
-      icon = "🚫";
+      icon = "XRED";
     }
     // Plafond de prudence : jamais afficher 100% (incertitude statistique)
     displayPct = Math.min(displayPct, 95);
@@ -2346,7 +2378,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
 
   const alertColor = (l) => l === "danger" ? "#ef4444" : l === "warning" ? "#fbbf24" : l === "ok" ? "#6ee7b7" : "rgba(255,255,255,0.55)";
   const alertBg = (l) => l === "danger" ? "rgba(239,68,68,0.08)" : l === "warning" ? "rgba(251,191,36,0.08)" : l === "ok" ? "rgba(255,255,255,0.05)" : "#0c1a3d";
-  const alertIcon = (l) => l === "danger" ? "⚠️" : l === "warning" ? "🟡" : l === "ok" ? "✅" : "💡";
+  const alertIcon = (l) => null; // icônes gérées par border-left couleur
 
   return (
     <div>
@@ -2501,7 +2533,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                   Analyse Backtest · {firm?.name || ""}
                 </div>
                 <div style={{ fontSize: 19, fontWeight: 700, color: verdict.color, lineHeight: 1.1 }}>
-                  {verdict.icon} {verdict.label}
+                  <VerdictIcon icon={verdict.icon} /> {verdict.label}
                 </div>
               </div>
               {/* Cercle probabilité */}
@@ -2566,7 +2598,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {verdict.factors.map((f, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "7px 10px", borderLeft: "3px solid " + f.c }}>
-                  <span style={{ fontSize: 12 }}>{f.c === "#6ee7b7" ? "✓" : f.c === "#fbbf24" ? "⚡" : "✗"}</span>
+                  <span style={{ fontSize: 12 }}>{f.c === "#6ee7b7" ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l2.5 2.5L10 3" stroke="#6ee7b7" strokeWidth="1.8" strokeLinecap="round"/></svg> : f.c === "#fbbf24" ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1l1.5 3.5L12 5l-3.5 3 1 4.5L6 10l-3.5 2.5 1-4.5L0 5l4.5-.5L6 1z" stroke="#fbbf24" strokeWidth="1.2" fill="none"/></svg> : <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="#ef4444" strokeWidth="1.8" strokeLinecap="round"/></svg>}</span>
                   <span style={{ fontSize: 11, color: "#FFFFFF" }}>{f.t}</span>
                 </div>
               ))}
@@ -2854,6 +2886,38 @@ const CAPITAL_OPTIONS = [6000, 15000, 25000, 50000, 100000, 200000];
 // ══════════════════════════════════════════════════════════════════
 // LANGUAGE PICKER — Premier écran (FR / EN / ES)
 // ══════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════
+// FLAG ICON — drapeaux SVG (pas d'emoji)
+// ══════════════════════════════════════════════════════════════════
+function FlagIcon({ lang, size = 28 }) {
+  const s = size;
+  if (lang === "fr") return (
+    <svg width={s} height={Math.round(s*0.75)} viewBox="0 0 24 18" rx="3">
+      <rect width="24" height="18" fill="#002395" rx="3"/>
+      <rect x="8" width="8" height="18" fill="#fff"/>
+      <rect x="16" width="8" height="18" fill="#ED2939" rx="3"/>
+      <rect width="8" height="18" fill="#002395" rx="3"/>
+    </svg>
+  );
+  if (lang === "en") return (
+    <svg width={s} height={Math.round(s*0.75)} viewBox="0 0 24 18">
+      <rect width="24" height="18" fill="#012169" rx="3"/>
+      <path d="M0 0l24 18M24 0L0 18" stroke="#fff" strokeWidth="3.5"/>
+      <path d="M0 0l24 18M24 0L0 18" stroke="#C8102E" strokeWidth="2"/>
+      <path d="M12 0v18M0 9h24" stroke="#fff" strokeWidth="5"/>
+      <path d="M12 0v18M0 9h24" stroke="#C8102E" strokeWidth="3"/>
+    </svg>
+  );
+  if (lang === "es") return (
+    <svg width={s} height={Math.round(s*0.75)} viewBox="0 0 24 18">
+      <rect width="24" height="18" fill="#AA151B" rx="3"/>
+      <rect x="0" y="4.5" width="24" height="9" fill="#F1BF00"/>
+    </svg>
+  );
+  return <div style={{ width: s, height: Math.round(s*0.75), background: "rgba(255,255,255,0.1)", borderRadius: 3 }}/>;
+}
+
 function LanguagePickerScreen({ onPick }) {
   const [selected, setSelected] = useState("fr");
 
@@ -2995,7 +3059,7 @@ function LanguagePickerScreen({ onPick }) {
                 </div>
                 {/* Texte */}
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 17, fontWeight: 700, color: sel ? "#000000" : "#FFFFFF", marginBottom: 2 }}>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: sel ? "#6ee7b7" : "#FFFFFF", marginBottom: 2 }}>
                     {l.label}
                   </div>
                   <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)" }}>
@@ -3282,7 +3346,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
           <GaugeRing pct={74} size={170}/>
           {/* Centre texte */}
           <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center"}}>
-            <div style={{fontSize:22,marginBottom:4}}>🎯</div>
+            <div style={{display:"flex",justifyContent:"center",marginBottom:4}}><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#6ee7b7" strokeWidth="1.8"/><circle cx="12" cy="12" r="5" stroke="#6ee7b7" strokeWidth="1.5"/><circle cx="12" cy="12" r="2" fill="#6ee7b7"/></svg></div>
             <div style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.7)",marginBottom:2}}>{tx.s2ready}</div>
             <div style={{fontSize:30,fontWeight:700,color:"#6ee7b7",lineHeight:1}}>74%</div>
           </div>
@@ -3290,7 +3354,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
 
         {/* Cartes droite */}
         <div style={{display:"flex",flexDirection:"column",gap:8,flex:1,marginLeft:8}}>
-          {[["📊",tx.s2stats],["📈",tx.s2proj],["🛡",tx.s2risk],["🎯",tx.s2val]].map(([ic,l],i)=>(
+          {[["CHART",tx.s2stats],["STATS",tx.s2proj],["SHIELD",tx.s2risk],["TARGET",tx.s2val]].map(([ic,l],i)=>(
             <div key={i} style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(110,231,183,0.12)",borderRadius:12,padding:"8px 10px",textAlign:"center"}}>
               <div style={{fontSize:20,marginBottom:4}}>{ic}</div>
               <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",fontWeight:600,lineHeight:1.3}}>{l}</div>
@@ -3720,11 +3784,11 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
   ];
 
   const LEVELS = [
-    { k:"beginner", emoji:"🌱", label:"Débutant",
+    { k:"beginner", label:"Débutant",
       desc:"Je débute dans le trading ou les prop firms. Je veux l'essentiel, sans complexité." },
-    { k:"experienced", emoji:"📈", label:"Expérimenté",
+    { k:"experienced", label:"Expérimenté",
       desc:"Je connais les bases. Je veux voir les métriques importantes de mon setup." },
-    { k:"professional", emoji:"⚡", label:"Professionnel",
+    { k:"professional", label:"Professionnel",
       desc:"Trader confirmé. Je veux accès à toutes les données, métriques avancées et statistiques." },
   ];
 
@@ -3784,9 +3848,9 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
               {[
-                { k:"propfirm", emoji:"🏆", label:"Challenge Prop Firm",
+                { k:"propfirm", label:"Challenge Prop Firm",
                   desc:"Je veux passer un challenge FTMO, FundedNext, E8, etc. pour obtenir un capital financé." },
-                { k:"classic", emoji:"📊", label:"Trading Classique",
+                { k:"classic", label:"Trading Classique",
                   desc:"Je trade avec mon propre capital et je veux simuler / optimiser ma gestion du risque." },
               ].map(opt => (
                 <button key={opt.k} onClick={() => setUsageType(opt.k)} style={{
@@ -3795,7 +3859,7 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
                   border: "1.5px solid " + (usageType === opt.k ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
                   textAlign:"left", transition:"all .15s",
                 }}>
-                  <div style={{ fontSize:24, marginBottom:8 }}>{opt.emoji}</div>
+                  <div style={{display:"flex",justifyContent:"center",marginBottom:8}}><TradingAvatar id={opt.k==="propfirm"?6:7} size={28} color={usageType===opt.k?"#6ee7b7":"rgba(255,255,255,0.5)"}/></div>
                   <div style={{ fontSize:17, fontWeight:700, color:"#ffffff", marginBottom:4 }}>{opt.label}</div>
                   <div style={{ fontSize:13, color:"rgba(255,255,255,0.45)", lineHeight:1.5 }}>{opt.desc}</div>
                   {usageType === opt.k && (
@@ -3926,7 +3990,7 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
                   textAlign:"left", transition:"all .15s",
                 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:6 }}>
-                    <span style={{ fontSize:22 }}>{lv.emoji}</span>
+                    <TradingAvatar id={lv.k==="beginner"?0:lv.k==="experienced"?1:9} size={22} color={level===lv.k?"#6ee7b7":"rgba(255,255,255,0.5)"}/>
                     <span style={{ fontSize:17, fontWeight:700, color:"#ffffff" }}>{lv.label}</span>
                     {level === lv.k && (
                       <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ marginLeft:"auto" }}>
@@ -3949,8 +4013,8 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
         )}
       </div>
 
-      {/* Bouton Continuer / Terminer */}
-      {step !== 1 && (
+      {/* Bouton Continuer / Terminer — masqué seulement si step 1 et propfirm (auto-avance au clic firm) */}
+      {!(step === 1 && usageType === "propfirm") && (
         <div style={{ padding:"20px 20px 0", position:"relative", zIndex:1 }}>
           <button
             onClick={canContinue() ? nextStep : undefined}
@@ -4044,7 +4108,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
             </svg>
           </button>
           <div>
-            <div style={{fontSize:16,fontWeight:700}}>Bonjour, <span style={{fontWeight:900}}>{user?.name || "Trader"}</span> 👋</div>
+            <div style={{fontSize:16,fontWeight:700}}>Hello <span style={{color:"#6ee7b7",fontWeight:700}}>trader</span></div>
             <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",marginTop:1}}>Prêt à simuler ton prochain challenge ?</div>
           </div>
         </div>
@@ -4107,7 +4171,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
 
       {/* ── APERÇU PERFORMANCE (= graphique Funded) ── */}
       {ls.funded ? (
-        <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16}}>
+        <div style={{marginBottom:"14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16}}>
           <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1,marginBottom:14}}>Aperçu Équité Funded</div>
           <ResponsiveContainer width="100%" height={200}>
             <ComposedChart data={ls.funded.data}>
@@ -4128,23 +4192,23 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
           </ResponsiveContainer>
         </div>
       ) : (
-        <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
+        <div style={{marginBottom:"14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
           Lance une simulation pour voir la courbe Funded
         </div>
       )}
 
       {/* ── TABLEAU PNL FUNDED ── */}
       {ls.funded ? (
-        <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,overflow:"hidden"}}>
+        <div style={{marginBottom:"14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,overflow:"hidden"}}>
           <CalendrierPnL dailyLog={ls.funded.dailyLog} />
         </div>
       ) : (
-        <div style={{margin:"0 16px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
+        <div style={{marginBottom:"14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
           Lance une simulation pour voir le tableau PnL
         </div>
       )}
       {/* ── 2 COLONNES : STATS + CONFIGS ── */}
-      <div style={{margin:"0 16px 14px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+      <div style={{marginBottom:"14px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         {/* STATISTIQUES */}
         <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:14}}>
           <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.4)",textTransform:"uppercase",letterSpacing: -0.2,marginBottom:12}}>Statistiques</div>
@@ -4218,8 +4282,8 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
       </>)}
 
       {/* ── CTA ── */}
-      <div style={{margin:"0 16px 16px",background:"rgba(110,231,183,0.05)",border:"1px solid rgba(110,231,183,0.12)",borderRadius:20,padding:"16px",display:"flex",alignItems:"center",gap:14}}>
-        <div style={{width:46,height:46,borderRadius:12,background:"rgba(110,231,183,0.1)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:22}}>🎯</div>
+      <div style={{marginBottom:"16px",background:"rgba(110,231,183,0.05)",border:"1px solid rgba(110,231,183,0.12)",borderRadius:20,padding:"16px",display:"flex",alignItems:"center",gap:14}}>
+        <div style={{width:46,height:46,borderRadius:12,background:"rgba(110,231,183,0.1)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#6ee7b7" strokeWidth="1.8"/><circle cx="11" cy="11" r="4" stroke="#6ee7b7" strokeWidth="1.5"/><circle cx="11" cy="11" r="1.5" fill="#6ee7b7"/></svg></div>
         <div style={{flex:1}}>
           <div style={{fontSize:14,fontWeight:700,marginBottom:2}}>Reste focus et discipliné</div>
           <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",lineHeight:1.4}}>Chaque jour est une étape de plus vers ta prochaine validation.</div>
@@ -4231,6 +4295,96 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
     </div>
   );
 }
+// ══════════════════════════════════════════════════════════════════
+// TRADING AVATAR — 12 icônes géométriques financières
+// ══════════════════════════════════════════════════════════════════
+function TradingAvatar({ id = 0, size = 32, color = "#6ee7b7" }) {
+  const s = size;
+  const avatars = [
+    // 0 — Chandelier haussier
+    <svg key={0} width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <rect x="9" y="6" width="6" height="10" rx="1" stroke={color} strokeWidth="1.8" fill={color} fillOpacity="0.2"/>
+      <line x1="12" y1="2" x2="12" y2="6" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="12" y1="16" x2="12" y2="20" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>,
+    // 1 — Graphique ligne montante
+    <svg key={1} width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <polyline points="3,18 8,12 13,15 21,6" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx="21" cy="6" r="2" fill={color}/>
+    </svg>,
+    // 2 — Bouclier (protection)
+    <svg key={2} width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <path d="M12 3L4 7v5c0 4.5 3.5 8.7 8 10 4.5-1.3 8-5.5 8-10V7L12 3z" stroke={color} strokeWidth="1.8" fill={color} fillOpacity="0.15"/>
+      <path d="M9 12l2 2 4-4" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
+    </svg>,
+    // 3 — Diamant
+    <svg key={3} width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <polygon points="12,3 21,9 17,21 7,21 3,9" stroke={color} strokeWidth="1.8" fill={color} fillOpacity="0.15"/>
+      <line x1="3" y1="9" x2="21" y2="9" stroke={color} strokeWidth="1.2"/>
+      <line x1="7" y1="9" x2="12" y2="3" stroke={color} strokeWidth="1.2"/>
+      <line x1="17" y1="9" x2="12" y2="3" stroke={color} strokeWidth="1.2"/>
+    </svg>,
+    // 4 — Rocket
+    <svg key={4} width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <path d="M12 2c0 0-4 4-4 10h8c0-6-4-10-4-10z" stroke={color} strokeWidth="1.6" fill={color} fillOpacity="0.15"/>
+      <rect x="9" y="12" width="6" height="5" rx="1" stroke={color} strokeWidth="1.4" fill={color} fillOpacity="0.1"/>
+      <path d="M9 16l-2 3h10l-2-3" stroke={color} strokeWidth="1.4" strokeLinecap="round"/>
+      <circle cx="12" cy="9" r="1.5" fill={color}/>
+    </svg>,
+    // 5 — Taureau (Bull)
+    <svg key={5} width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <path d="M5 8c-1-1-1-3 0-4l3 2" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
+      <path d="M19 8c1-1 1-3 0-4l-3 2" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
+      <ellipse cx="12" cy="13" rx="6" ry="5" stroke={color} strokeWidth="1.8" fill={color} fillOpacity="0.12"/>
+      <circle cx="9" cy="12" r="1" fill={color}/>
+      <circle cx="15" cy="12" r="1" fill={color}/>
+    </svg>,
+    // 6 — Couronne
+    <svg key={6} width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <path d="M3 18h18M5 18L3 8l5 4 4-6 4 6 5-4-2 10H5z" stroke={color} strokeWidth="1.8" strokeLinejoin="round" fill={color} fillOpacity="0.12"/>
+      <circle cx="3" cy="8" r="1.5" fill={color}/>
+      <circle cx="12" cy="2" r="1.5" fill={color}/>
+      <circle cx="21" cy="8" r="1.5" fill={color}/>
+    </svg>,
+    // 7 — Hexagone (algo/tech)
+    <svg key={7} width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <polygon points="12,2 20.7,7 20.7,17 12,22 3.3,17 3.3,7" stroke={color} strokeWidth="1.8" fill={color} fillOpacity="0.12"/>
+      <text x="12" y="16" textAnchor="middle" fill={color} fontSize="9" fontWeight="700" fontFamily="-apple-system">Σ</text>
+    </svg>,
+    // 8 — Cible
+    <svg key={8} width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="1.8"/>
+      <circle cx="12" cy="12" r="5" stroke={color} strokeWidth="1.5"/>
+      <circle cx="12" cy="12" r="2" fill={color}/>
+    </svg>,
+    // 9 — Éclair (vitesse)
+    <svg key={9} width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <path d="M13 2L5 14h7l-1 8 8-12h-7l1-8z" stroke={color} strokeWidth="1.8" strokeLinejoin="round" fill={color} fillOpacity="0.2"/>
+    </svg>,
+    // 10 — Médaille
+    <svg key={10} width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="15" r="7" stroke={color} strokeWidth="1.8" fill={color} fillOpacity="0.12"/>
+      <path d="M9 3h6l2 5-5 3-5-3 2-5z" stroke={color} strokeWidth="1.6" strokeLinejoin="round" fill={color} fillOpacity="0.2"/>
+      <path d="M10 15l1.5 1.5L15 12" stroke={color} strokeWidth="1.6" strokeLinecap="round"/>
+    </svg>,
+    // 11 — Delta (triangle / changement)
+    <svg key={11} width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <polygon points="12,3 22,21 2,21" stroke={color} strokeWidth="1.8" fill={color} fillOpacity="0.12" strokeLinejoin="round"/>
+      <line x1="12" y1="10" x2="12" y2="16" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
+      <circle cx="12" cy="18" r="1" fill={color}/>
+    </svg>,
+  ];
+  return avatars[id % avatars.length] || avatars[0];
+}
+
+
+function VerdictIcon({ icon }) {
+  if (icon === "CHK") return <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="#6ee7b7" strokeWidth="1.8" fill="rgba(110,231,183,0.15)"/><path d="M6 10l2.5 2.5L14 7" stroke="#6ee7b7" strokeWidth="2" strokeLinecap="round"/></svg>;
+  if (icon === "WARN") return <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2L1 17h18L10 2z" stroke="#fbbf24" strokeWidth="1.8" strokeLinejoin="round" fill="rgba(251,191,36,0.15)"/><line x1="10" y1="8" x2="10" y2="13" stroke="#fbbf24" strokeWidth="1.8" strokeLinecap="round"/><circle cx="10" cy="15.5" r="1" fill="#fbbf24"/></svg>;
+  if (icon === "XRED") return <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="#ef4444" strokeWidth="1.8" fill="rgba(239,68,68,0.15)"/><path d="M6.5 6.5l7 7M13.5 6.5l-7 7" stroke="#ef4444" strokeWidth="2" strokeLinecap="round"/></svg>;
+  return null;
+}
+
 function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, onReset }) {
   const firm = PROP_FIRMS[profile.firmKey] || PROP_FIRMS.fundednext;
   const fmtMoney = (v) => "$" + Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 });
@@ -4253,17 +4407,39 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
     <div>
       <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "-apple-system, sans-serif", marginBottom: 16 }}>{t("prof_title")}</div>
 
-      {/* Compte */}
+      {/* Compte + Avatar */}
       <div className="card">
-        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 10 }}>{t("prof_account")}</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 46, height: 46, borderRadius: 23, background: "#6ee7b7", color: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800 }}>
-            {(user.name || "?")[0].toUpperCase()}
+        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 12 }}>{t("prof_account")}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          {/* Avatar actuel */}
+          <div style={{ width: 56, height: 56, borderRadius: 28, background: "rgba(110,231,183,0.10)", border: "2px solid rgba(110,231,183,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <TradingAvatar id={profile.avatarId || 0} size={32} color="#6ee7b7" />
           </div>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700 }}>{user.name}</div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>{user.email || t("prof_guest")}</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>{user.email || t("prof_guest")}</div>
           </div>
+        </div>
+        {/* Sélection avatar */}
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 8 }}>Choisir un avatar</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 8 }}>
+          {[0,1,2,3,4,5,6,7,8,9,10,11].map(id => {
+            const sel = (profile.avatarId ?? 0) === id;
+            return (
+              <button key={id} onClick={() => {
+                const np = { ...profile, avatarId: id };
+                setProfile(np); saveApp({ profile: np });
+              }} style={{
+                width: "100%", aspectRatio: "1", borderRadius: 14, cursor: "pointer",
+                background: sel ? "rgba(110,231,183,0.12)" : "rgba(255,255,255,0.04)",
+                border: "1.5px solid " + (sel ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
+                display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "all .15s",
+              }}>
+                <TradingAvatar id={id} size={24} color={sel ? "#6ee7b7" : "rgba(255,255,255,0.5)"} />
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -4275,7 +4451,7 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", marginBottom: 6 }}>{t("prof_lang")}</div>
           <div style={{ display: "flex", gap: 8 }}>
-            {[{ k: "fr", label: "🇫🇷 Français" }, { k: "en", label: "🇬🇧 English" }].map(o => (
+            {[{ k: "fr", label: "Français" }, { k: "en", label: "English" }].map(o => (
               <button key={o.k} onClick={() => changeLang(o.k)} style={{
                 flex: 1, padding: "10px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 700,
                 background: lang === o.k ? "#6ee7b7" : "rgba(255,255,255,0.07)", color: lang === o.k ? "#000000" : "rgba(255,255,255,0.50)",
@@ -4325,8 +4501,8 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
         <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 12 }}>Mode d'affichage</div>
         <div style={{ display: "flex", gap: 8 }}>
           {[
-            { k: "simple", emoji: "🌱", label: "Simplifié" },
-            { k: "advanced", emoji: "⚡", label: "Avancé" },
+            { k: "simple", label: "Simplifié" },
+            { k: "advanced", label: "Avancé" },
           ].map(m => {
             const sel = (profile.displayMode || "advanced") === m.k;
             return (
@@ -4339,7 +4515,7 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
                 border: "1.5px solid " + (sel ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
                 textAlign: "center",
               }}>
-                <div style={{ fontSize: 18, marginBottom: 4 }}>{m.emoji}</div>
+                <div style={{ display:"flex",alignItems:"center",justifyContent:"center",marginBottom:4 }}><TradingAvatar id={m.k==="simple"?0:9} size={20} color={sel?"#6ee7b7":"rgba(255,255,255,0.5)"}/></div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: sel ? "#6ee7b7" : "rgba(255,255,255,0.65)" }}>{m.label}</div>
               </button>
             );
