@@ -4386,6 +4386,7 @@ function VerdictIcon({ icon }) {
 }
 
 function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, onReset }) {
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const firm = PROP_FIRMS[profile.firmKey] || PROP_FIRMS.fundednext;
   const fmtMoney = (v) => "$" + Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 });
 
@@ -4410,37 +4411,61 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
       {/* Compte + Avatar */}
       <div className="card">
         <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 12 }}>{t("prof_account")}</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          {/* Avatar actuel */}
-          <div style={{ width: 56, height: 56, borderRadius: 28, background: "rgba(110,231,183,0.10)", border: "2px solid rgba(110,231,183,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: showAvatarPicker ? 16 : 0 }}>
+          {/* Avatar cliquable */}
+          <button onClick={() => setShowAvatarPicker(v => !v)} style={{
+            width: 56, height: 56, borderRadius: 28, flexShrink: 0, cursor: "pointer",
+            background: "rgba(110,231,183,0.10)",
+            border: "2px solid " + (showAvatarPicker ? "#6ee7b7" : "rgba(110,231,183,0.25)"),
+            display: "flex", alignItems: "center", justifyContent: "center",
+            position: "relative", transition: "all .2s",
+          }}>
             <TradingAvatar id={profile.avatarId || 0} size={32} color="#6ee7b7" />
-          </div>
+            {/* Petit badge crayon */}
+            <div style={{
+              position: "absolute", bottom: -2, right: -2, width: 18, height: 18,
+              borderRadius: 9, background: "#6ee7b7", display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <path d="M6.5 1.5L8.5 3.5l-5 5H1.5V7l5-5.5z" stroke="#000" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+          </button>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700 }}>{user.name}</div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>{user.email || t("prof_guest")}</div>
+            <div style={{ fontSize: 11, color: "rgba(110,231,183,0.7)", marginTop: 3 }}>
+              {showAvatarPicker ? "Fermer" : "Modifier l'avatar"}
+            </div>
           </div>
         </div>
-        {/* Sélection avatar */}
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 8 }}>Choisir un avatar</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 8 }}>
-          {[0,1,2,3,4,5,6,7,8,9,10,11].map(id => {
-            const sel = (profile.avatarId ?? 0) === id;
-            return (
-              <button key={id} onClick={() => {
-                const np = { ...profile, avatarId: id };
-                setProfile(np); saveApp({ profile: np });
-              }} style={{
-                width: "100%", aspectRatio: "1", borderRadius: 14, cursor: "pointer",
-                background: sel ? "rgba(110,231,183,0.12)" : "rgba(255,255,255,0.04)",
-                border: "1.5px solid " + (sel ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
-                display: "flex", alignItems: "center", justifyContent: "center",
-                transition: "all .15s",
-              }}>
-                <TradingAvatar id={id} size={24} color={sel ? "#6ee7b7" : "rgba(255,255,255,0.5)"} />
-              </button>
-            );
-          })}
-        </div>
+
+        {/* Grille avatar — visible uniquement au clic */}
+        {showAvatarPicker && (
+          <div style={{ animation: "fadeIn .15s ease" }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.40)", marginBottom: 10 }}>Choisir un avatar</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 8 }}>
+              {[0,1,2,3,4,5,6,7,8,9,10,11].map(id => {
+                const sel = (profile.avatarId ?? 0) === id;
+                return (
+                  <button key={id} onClick={() => {
+                    const np = { ...profile, avatarId: id };
+                    setProfile(np); saveApp({ profile: np });
+                    setShowAvatarPicker(false);
+                  }} style={{
+                    width: "100%", aspectRatio: "1", borderRadius: 14, cursor: "pointer",
+                    background: sel ? "rgba(110,231,183,0.12)" : "rgba(255,255,255,0.04)",
+                    border: "1.5px solid " + (sel ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "all .15s",
+                  }}>
+                    <TradingAvatar id={id} size={24} color={sel ? "#6ee7b7" : "rgba(255,255,255,0.5)"} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Préférences */}
