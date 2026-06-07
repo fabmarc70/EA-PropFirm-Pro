@@ -1144,7 +1144,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       const raw = localStorage.getItem("eapropfirm_saved_configs");
       const list = raw ? JSON.parse(raw) : [];
       list.unshift(cfg);
-      localStorage.setItem("eapropfirm_saved_configs", JSON.stringify(list.slice(0, 12)));
+      localStorage.setItem("eapropfirm_saved_configs", JSON.stringify(list.slice(0, 3)));
       setSaveStatus(t("sim_config_saved"));
       setLastSavedCfgKey(currentCfgKey);
       setTimeout(() => setSaveStatus(""), 2500);
@@ -4044,7 +4044,16 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
   const [configs, setConfigs] = useState(() => {
     try { const r=localStorage.getItem("eapropfirm_saved_configs"); return r?JSON.parse(r):[]; } catch(e){return [];}
   });
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameVal, setRenameVal] = useState("");
+
   const deleteConfig=(id)=>{ const n=configs.filter(c=>c.id!==id); setConfigs(n); try{localStorage.setItem("eapropfirm_saved_configs",JSON.stringify(n));}catch(e){} };
+  const startRename=(cfg)=>{ setRenamingId(cfg.id); setRenameVal(cfg.name); };
+  const applyRename=(id)=>{
+    const n=configs.map(c=>c.id===id?{...c,name:renameVal.trim()||c.name}:c);
+    setConfigs(n); setRenamingId(null);
+    try{localStorage.setItem("eapropfirm_saved_configs",JSON.stringify(n));}catch(e){}
+  };
   const fmtMoney=(v,decimals=0)=>"$"+Math.abs(Number(v)).toLocaleString("en-US",{maximumFractionDigits:decimals});
   const ls = lastSim || {};
   const cap = ls.capital || profile.capital || 25000;
@@ -4132,7 +4141,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
       {hasData && (<>
 
       {/* ── SIMULATION EN COURS ── */}
-      <div style={{margin:"14px 16px",background:"linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))",border:"1px solid rgba(255,255,255,0.09)",borderRadius:20,padding:16}}>
+      <div style={{marginBottom:"14px",background:"linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))",border:"1px solid rgba(255,255,255,0.09)",borderRadius:20,padding:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
           <div>
             <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.3)",textTransform:"uppercase",letterSpacing: -0.2,marginBottom:4}}>TA SIMULATION EN COURS</div>
@@ -4251,26 +4260,53 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
           </button>
         </div>
 
-        {/* MES CONFIGS */}
+        {/* MES CONFIGS — max 3, renommage inline */}
         <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:14,display:"flex",flexDirection:"column"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-            <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.4)",textTransform:"uppercase",letterSpacing:1}}>Configs</div>
+            <div>
+              <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.4)",textTransform:"uppercase",letterSpacing:1}}>Configs</div>
+              <div style={{fontSize:9,color:"rgba(255,255,255,0.25)",marginTop:1}}>{configs.length}/3 slots</div>
+            </div>
             <button onClick={()=>goto("simulator")} style={{background:"none",border:"none",color:"#6ee7b7",fontSize:10,fontWeight:700,cursor:"pointer"}}>+ New</button>
           </div>
           {configs.length===0 ? (
             <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center",gap:8}}>
-              <div style={{fontSize:26,opacity:0.3}}>📁</div>
+              <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="4" y="8" width="20" height="16" rx="3" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5"/><path d="M9 8V6a5 5 0 0110 0v2" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" strokeLinecap="round"/></svg>
               <div style={{fontSize:10,color:"rgba(255,255,255,0.3)"}}>Aucune config sauvegardée</div>
             </div>
           ) : (
-            <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",gap:6}}>
-              {configs.slice(0,4).map(c=>{
+            <div style={{flex:1,display:"flex",flexDirection:"column",gap:6}}>
+              {configs.slice(0,3).map(c=>{
                 const cf=PROP_FIRMS[c.firmKey]||PROP_FIRMS.fundednext;
+                const isRenaming = renamingId === c.id;
                 return(
                   <div key={c.id} style={{background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"8px 10px"}}>
-                    <div style={{fontSize:11,fontWeight:700,color:"#FFFFFF",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.name}</div>
-                    <div style={{fontSize: 11,color:"rgba(255,255,255,0.35)",marginTop:2}}>{cf.name} · WR {c.winrate}%</div>
-                    <button onClick={()=>loadConfig(c)} style={{marginTop:6,width:"100%",padding:"4px",borderRadius:6,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(110,231,183,0.25)",color:"#6ee7b7",fontSize: 11,fontWeight:700,cursor:"pointer"}}>Charger</button>
+                    {/* Nom — éditable au clic */}
+                    {isRenaming ? (
+                      <div style={{display:"flex",gap:4,marginBottom:4}}>
+                        <input
+                          autoFocus
+                          value={renameVal}
+                          onChange={e=>setRenameVal(e.target.value)}
+                          onKeyDown={e=>{if(e.key==="Enter")applyRename(c.id);if(e.key==="Escape")setRenamingId(null);}}
+                          style={{flex:1,fontSize:11,fontWeight:700,background:"rgba(255,255,255,0.08)",border:"1px solid #6ee7b7",borderRadius:6,color:"#FFFFFF",padding:"3px 6px",outline:"none"}}
+                        />
+                        <button onClick={()=>applyRename(c.id)} style={{padding:"3px 8px",borderRadius:6,background:"#6ee7b7",border:"none",color:"#000",fontSize:10,fontWeight:700,cursor:"pointer"}}>OK</button>
+                        <button onClick={()=>setRenamingId(null)} style={{padding:"3px 6px",borderRadius:6,background:"rgba(255,255,255,0.08)",border:"none",color:"rgba(255,255,255,0.5)",fontSize:10,cursor:"pointer"}}>✕</button>
+                      </div>
+                    ) : (
+                      <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:2}}>
+                        <div style={{flex:1,fontSize:11,fontWeight:700,color:"#FFFFFF",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.name}</div>
+                        <button onClick={()=>startRename(c)} style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",padding:2,opacity:0.45,color:"#6ee7b7"}}>
+                          <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M7.5 1.5L10.5 4.5l-6 6H1.5V8l6-6.5z" stroke="#6ee7b7" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </button>
+                        <button onClick={()=>deleteConfig(c.id)} style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",padding:2,opacity:0.35,color:"#ef4444"}}>
+                          <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="#ef4444" strokeWidth="1.4" strokeLinecap="round"/></svg>
+                        </button>
+                      </div>
+                    )}
+                    <div style={{fontSize:10,color:"rgba(255,255,255,0.35)"}}>{cf.name} · WR {c.winrate}%</div>
+                    <button onClick={()=>loadConfig(c)} style={{marginTop:5,width:"100%",padding:"4px",borderRadius:6,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(110,231,183,0.25)",color:"#6ee7b7",fontSize:10,fontWeight:700,cursor:"pointer"}}>Charger</button>
                   </div>
                 );
               })}
