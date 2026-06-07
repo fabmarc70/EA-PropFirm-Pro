@@ -2198,56 +2198,115 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   // ── HTML parser (backtest MT4/MT5 .html) ─────────────────────
   const parseHTMLBacktest = (text) => {
     try {
-      if (typeof DOMParser === 'undefined') return { error: "DOMParser non disponible (contexte non-navigateur)" };
+      if (typeof DOMParser === 'undefined') return { error: "DOMParser non disponible" };
       const doc = new DOMParser().parseFromString(text, 'text/html');
       const tables = Array.from(doc.querySelectorAll('table'));
       if (!tables.length) return { error: "Aucune table trouvée dans le fichier HTML" };
 
+      // ── Détection du format MT4 Strategy Tester ──────────────────────────
+      // Ce format n'a PAS de header. Structure fixe :
+      // Col0=#  Col1=DateTime  Col2=Type  Col3=OrderID  Col4=Lots
+      // Col5=Price  Col6=SL  Col7=TP  Col8=Profit  Col9=Balance
+      // Types avec profit/balance : s/l, t/p, close, close at stop, balance
+      // Types à ignorer : buy, sell, modify
+      const CLOSED_TYPES = ['s/l','t/p','close','close at stop','balance','profit','stop loss','take profit'];
+      const isMT4StratTester = (table) => {
+        const rows = Array.from(table.querySelectorAll('tr'));
+        if (rows.length < 5) return false;
+        // Vérifier que les premières lignes ont bien ~10 colonnes numériques
+        let score = 0;
+        for (let i = 0; i < Math.min(10, rows.length); i++) {
+          const cells = Array.from(rows[i].querySelectorAll('td')).map(el => el.textContent.replace(/ /g,' ').trim());
+          if (cells.length >= 8 && !isNaN(parseInt(cells[0]))) score++;
+        }
+        return score >= 3;
+      };
+
+      // ── Chercher la table trades (celle avec beaucoup de lignes) ─────────
       let tradeTable = null;
-      let headerCells = [];
+      // Priorité : table avec header contenant profit+balance (format MT5 export)
       for (const table of tables) {
         const rows = table.querySelectorAll('tr');
         if (rows.length < 3) continue;
-        const cells = Array.from(rows[0].querySelectorAll('th, td')).map(el => el.textContent.toLowerCase().replace(/\s+/g,' ').trim());
-        if ((cells.some(c => c.includes('profit')) && cells.some(c => c.includes('balance'))) ||
-            (cells.some(c => c.includes('profit')) && cells.some(c => c.includes('type')))) {
-          tradeTable = table; headerCells = cells; break;
+        const hdr = Array.from(rows[0].querySelectorAll('th,td')).map(el => el.textContent.toLowerCase().trim());
+        if (hdr.some(c => c.includes('profit')) && hdr.some(c => c.includes('balance'))) {
+          tradeTable = table; break;
         }
       }
-      // Essayer la 2e table si la 1ère est un résumé
+      // Sinon : format MT4 Strategy Tester (pas de header)
       if (!tradeTable) {
         for (const table of tables) {
-          const cells = Array.from(table.querySelectorAll('th, td')).map(el => el.textContent.toLowerCase().trim());
-          if (cells.some(c => c.includes('profit'))) { tradeTable = table; headerCells = Array.from(table.querySelectorAll('tr')[0]?.querySelectorAll('th, td') || []).map(el => el.textContent.toLowerCase().trim()); break; }
+          if (isMT4StratTester(table)) { tradeTable = table; break; }
         }
       }
-      if (!tradeTable) return { error: "Aucune table de trades trouvée dans le HTML MT4/MT5" };
+      if (!tradeTable) return { error: "Format HTML non reconnu. Attendu : Strategy Tester MT4/MT5 ou export historique." };
 
-      const pIdx = headerCells.findIndex(h => h === 'profit' || h.includes('profit'));
-      const bIdx = headerCells.findIndex(h => h === 'balance' || h.includes('balance'));
-      const tIdx = headerCells.findIndex(h => h.includes('time') || h.includes('date'));
-      const tyIdx = headerCells.findIndex(h => h === 'type' || h.includes('type'));
-      const cIdx = headerCells.findIndex(h => h.includes('commission') || h.includes('comm'));
-      const sIdx = headerCells.findIndex(h => h.includes('swap'));
-      if (pIdx === -1) return { error: "Colonne Profit introuvable dans le HTML" };
+      // ── Détecter si la table a un header ou pas ──────────────────────────
+      const allRows = Array.from(tradeTable.querySelectorAll('tr'));
+      const firstRowCells = Array.from(allRows[0].querySelectorAll('th,td')).map(el => el.textContent.toLowerCase().trim());
+      const hasHeader = firstRowCells.some(c => c.includes('profit') || c.includes('balance') || c.includes('type'));
 
-      const rows = Array.from(tradeTable.querySelectorAll('tr'));
-      const parsed = []; let runningBalance = capital; let initBalance = null;
+      const parsed = [];
+      let runningBalance = capital;
+      let initBalance = null;
       let hasRealBalance = false;
-      for (let i = 1; i < rows.length; i++) {
-        const cells = Array.from(rows[i].querySelectorAll('td, th')).map(el => el.textContent.replace(/\xA0/g,' ').trim());
-        if (!cells[pIdx]) continue;
-        const p = parseFloat(cells[pIdx].replace(/[\s,]/g, '').replace(',', '.')); if (isNaN(p)) continue;
-        const comm = cIdx >= 0 ? parseFloat(cells[cIdx]?.replace(/[\s,]/g,'').replace(',','.')) || 0 : 0;
-        const swap = sIdx >= 0 ? parseFloat(cells[sIdx]?.replace(/[\s,]/g,'').replace(',','.')) || 0 : 0;
-        const net = p + comm + swap;
-        let balance = bIdx >= 0 ? parseFloat(cells[bIdx]?.replace(/[\s,]/g,'').replace(',','.') || '') : NaN;
-        if (!isNaN(balance) && balance > 0) hasRealBalance = true;
-        if (isNaN(balance)) { runningBalance += net; balance = runningBalance; }
-        if (initBalance === null) initBalance = balance - net;
-        parsed.push({ idx: i, time: (tIdx >= 0 ? cells[tIdx] : ''), type: (tyIdx >= 0 ? cells[tyIdx] : ''), profit: net, balance });
+
+      if (hasHeader) {
+        // ── FORMAT AVEC HEADER (MT5 export standard) ──────────────────────
+        const hdr = firstRowCells;
+        const pIdx = hdr.findIndex(h => h === 'profit' || h.includes('profit'));
+        const bIdx = hdr.findIndex(h => h === 'balance' || h.includes('balance'));
+        const tIdx = hdr.findIndex(h => h.includes('time') || h.includes('date'));
+        const tyIdx = hdr.findIndex(h => h === 'type' || h.includes('type'));
+        const cIdx = hdr.findIndex(h => h.includes('commission'));
+        const sIdx = hdr.findIndex(h => h.includes('swap'));
+        if (pIdx === -1) return { error: "Colonne Profit introuvable dans le header HTML" };
+
+        for (let i = 1; i < allRows.length; i++) {
+          const cells = Array.from(allRows[i].querySelectorAll('td,th')).map(el => el.textContent.replace(/ /g,' ').trim());
+          if (cells.length < 3) continue;
+          const pRaw = cells[pIdx] || '';
+          if (!pRaw) continue;
+          const p = parseFloat(pRaw.replace(/[\s,]/g,'').replace(',','.')); if (isNaN(p)) continue;
+          const comm = cIdx >= 0 ? parseFloat((cells[cIdx] || '').replace(/[\s,]/g,'')) || 0 : 0;
+          const swap = sIdx >= 0 ? parseFloat((cells[sIdx] || '').replace(/[\s,]/g,'')) || 0 : 0;
+          const net = p + comm + swap;
+          let balance = bIdx >= 0 ? parseFloat((cells[bIdx] || '').replace(/[\s,]/g,'')) : NaN;
+          if (!isNaN(balance) && balance > 0) hasRealBalance = true;
+          if (isNaN(balance)) { runningBalance += net; balance = runningBalance; }
+          if (initBalance === null) initBalance = balance - net;
+          parsed.push({ idx: i, time: tIdx >= 0 ? cells[tIdx] : '', type: tyIdx >= 0 ? cells[tyIdx] : '', profit: net, balance: +balance.toFixed(2) });
+        }
+      } else {
+        // ── FORMAT MT4 STRATEGY TESTER (sans header, colonnes fixes) ─────
+        // Col0=# Col1=DateTime Col2=Type Col3=Order Col4=Lots
+        // Col5=Price Col6=SL Col7=TP Col8=Profit Col9=Balance
+        for (let i = 0; i < allRows.length; i++) {
+          const cells = Array.from(allRows[i].querySelectorAll('td')).map(el => el.textContent.replace(/ /g,' ').trim());
+          if (cells.length < 8) continue;
+          const rowNum = parseInt(cells[0]);
+          if (isNaN(rowNum)) continue; // sauter lignes non-data
+          const type = (cells[2] || '').toLowerCase().trim();
+          // Garder uniquement les lignes de clôture (ont profit + balance renseignés)
+          const profitRaw = cells[8] || '';
+          const balanceRaw = cells[9] || '';
+          if (!profitRaw || !balanceRaw) continue;
+          const profit = parseFloat(profitRaw.replace(/[\s,]/g,'').replace(',','.'));
+          const balance = parseFloat(balanceRaw.replace(/[\s,]/g,'').replace(',','.'));
+          if (isNaN(profit) || isNaN(balance) || balance <= 0) continue;
+          hasRealBalance = true;
+          if (initBalance === null) initBalance = balance - profit;
+          parsed.push({
+            idx: rowNum,
+            time: cells[1] || '',
+            type: type,
+            profit: +profit.toFixed(2),
+            balance: +balance.toFixed(2),
+          });
+        }
       }
-      if (parsed.length === 0) return { error: "Aucun trade parsé dans le HTML - vérifie le format MT4/MT5" };
+
+      if (parsed.length === 0) return { error: "Aucune transaction clôturée trouvée. Vérifiez que le fichier contient des lignes s/l, t/p, close ou close at stop." };
       return { trades: parsed, format: 'html_backtest', initBalance: initBalance || null, balanceReconstructed: !hasRealBalance };
     } catch (e) { return { error: "Erreur lecture HTML: " + e.message }; }
   };
