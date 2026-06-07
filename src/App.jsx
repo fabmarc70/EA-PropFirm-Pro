@@ -658,6 +658,56 @@ function simulateFunded(capital, months, model, p, split) {
   };
 }
 
+
+// ══════════════════════════════════════════════════════════════════
+// INFO TIP — petit bouton ⓘ avec tooltip au tap
+// ══════════════════════════════════════════════════════════════════
+function InfoTip({ text }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <span style={{ position: "relative", display: "inline-flex", alignItems: "center", marginLeft: 6 }}>
+      <button
+        onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
+        style={{
+          width: 16, height: 16, borderRadius: "50%",
+          background: open ? "rgba(110,231,183,0.25)" : "rgba(255,255,255,0.12)",
+          border: "1px solid " + (open ? "#6ee7b7" : "rgba(255,255,255,0.25)"),
+          color: open ? "#6ee7b7" : "rgba(255,255,255,0.55)",
+          fontSize: 10, fontWeight: 700, lineHeight: "14px",
+          cursor: "pointer", padding: 0, display: "inline-flex",
+          alignItems: "center", justifyContent: "center",
+          flexShrink: 0, transition: "all .15s",
+        }}
+      >i</button>
+      {open && (
+        <>
+          {/* Overlay transparent pour fermer au clic */}
+          <div
+            onClick={() => setOpen(false)}
+            style={{ position: "fixed", inset: 0, zIndex: 998 }}
+          />
+          {/* Tooltip */}
+          <div style={{
+            position: "absolute", top: 22, left: "50%", transform: "translateX(-50%)",
+            background: "#0f1a2e", border: "1px solid rgba(110,231,183,0.3)",
+            borderRadius: 10, padding: "10px 12px",
+            fontSize: 12, color: "rgba(255,255,255,0.85)", lineHeight: 1.55,
+            width: 230, zIndex: 999,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+          }}>
+            <div style={{ position: "absolute", top: -5, left: "50%", transform: "translateX(-50%)",
+              width: 8, height: 8, background: "#0f1a2e",
+              border: "1px solid rgba(110,231,183,0.3)", borderBottom: "none", borderRight: "none",
+              transform: "translateX(-50%) rotate(45deg)",
+            }} />
+            {text}
+          </div>
+        </>
+      )}
+    </span>
+  );
+}
+
 function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab = () => {}, onSimResult = () => {}, displayMode = "advanced", usageType = "propfirm" }) {
   const isSimple = displayMode === "simple";
   const loadSaved = () => {
@@ -1356,7 +1406,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       )}
       <div className="card" style={{ border: "1px solid rgba(110,231,183,0.10)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: wrColor, textTransform: "uppercase", letterSpacing: 1 }}>Winrate global</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: wrColor, textTransform: "uppercase", letterSpacing: 1, display: "flex", alignItems: "center" }}>Winrate global<InfoTip text="Pourcentage de trades gagnants. Ex : 55% = sur 100 trades, 55 sont gagnants. Plus c'est élevé, mieux c'est — mais un bon RR peut compenser un winrate bas." /></span>
           <span style={{ fontSize: 24, fontWeight: 700, color: wrColor }}>{winrate}%</span>
         </div>
         <input type="range" min={30} max={90} step={1} value={winrate} onChange={e => setWinrate(parseInt(e.target.value))} />
@@ -1373,7 +1423,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       {/* JAUGE CLUSTERING + MAX PERTES CONSECUTIVES — mode avancé uniquement */}
       {!isSimple && <div className="card" style={{ border: "1px solid rgba(110,231,183,0.10)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: clColor, textTransform: "uppercase", letterSpacing: 1 }}>Clustering des pertes</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: clColor, textTransform: "uppercase", letterSpacing: 1, display: "flex", alignItems: "center" }}>Clustering des pertes<InfoTip text="Simule le réalisme psychologique : les pertes arrivent-elles en séries ? 0% = trades indépendants (théorique). 40-60% = réaliste. Plus c'est élevé, plus tu vivras de longues séries noires." /></span>
           <span style={{ fontSize: 24, fontWeight: 700, color: clColor }}>{clusteringPct}%</span>
         </div>
         <input type="range" min={0} max={100} step={5} value={clusteringPct} onChange={e => setClusteringPct(parseInt(e.target.value))} />
@@ -1384,8 +1434,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
         <div style={{ marginTop: 12, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.75)", textTransform: "uppercase", letterSpacing: 1 }}>
-              Max pertes consecutives EA
+            <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.75)", textTransform: "uppercase", letterSpacing: 1, display: "flex", alignItems: "center" }}>
+              Max pertes consecutives EA<InfoTip text="Le pire enchaînement de pertes connu de ton EA ou ta stratégie. Si ton EA a déjà perdu 6 fois de suite, mets 6. Cela calcule le risque max réel sur une journée." />
             </span>
             <span style={{ fontSize: 24, fontWeight: 700, color: "#6ee7b7" }}>{maxConsecLosses}</span>
           </div>
@@ -1580,7 +1630,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           {/* Risque/trade - C7 débutant + C2 hiérarchie */}
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: 700 }}>Risque par trade (%)</span>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: 700, display: "flex", alignItems: "center" }}>Risque par trade (%)<InfoTip text="% de ton capital perdu si le trade touche ton stop-loss. Règle d'or : ne jamais dépasser 1-2%. Ex : 0.5% sur 10 000$ = 50$ max perdu par trade." /></span>
               {useFixedLot && <span style={{ fontSize: 11, background: "#6ee7b720", color: "#6ee7b7", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>LOT AUTO</span>}
             </div>
             <input
@@ -1607,13 +1657,13 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </div>
 
           {[
-            { label: "Trades/jour", val: tradesPerDay, set: (v) => setTradesPerDay(Math.round(v)), min: 1, max: 15, step: 1 },
-            { label: "Objectif/jour (%)", val: dailyTargetPct, set: setDailyTargetPct, min: 0.05, max: 1.5, step: 0.05 },
-            { label: "Split (%)", val: split, set: setSplit, min: 80, max: 95, step: 5 },
-            { label: "Mois Funded", val: fundedMonths, set: setFundedMonths, min: 1, max: 60, step: 1 },
+            { label: "Trades/jour", tip: "Nombre de trades que tu passes par jour. 1 trade/jour = scalping tranquille. 5+ = actif. Influe sur la fréquence des gains ET des pertes.", val: tradesPerDay, set: (v) => setTradesPerDay(Math.round(v)), min: 1, max: 15, step: 1 },
+            { label: "Objectif/jour (%)", tip: "Gain quotidien visé en % du capital. Ex : 0.3% sur 10 000$ = objectif 30$/jour. Les prop firms demandent souvent 8-10% sur 30 jours. Ne pas viser trop haut — le risque monte avec l'objectif.", val: dailyTargetPct, set: setDailyTargetPct, min: 0.05, max: 1.5, step: 0.05 },
+            { label: "Split (%)", tip: "% des profits que tu gardes sur le compte financé. Ex : 80% = pour 1000$ de profit, tu reçois 800$ et la firm garde 200$.", val: split, set: setSplit, min: 80, max: 95, step: 5 },
+            { label: "Mois Funded", tip: "Durée simulée sur le compte financé après avoir réussi le challenge. Ex : 12 mois = projection de tes gains sur 1 an en tant que trader financé.", val: fundedMonths, set: setFundedMonths, min: 1, max: 60, step: 1 },
           ].map((f) => (
             <div key={f.label}>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700 }}>{f.label}</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700, display: "flex", alignItems: "center" }}>{f.label}{f.tip && <InfoTip text={f.tip} />}</div>
               <input type="number" value={f.val} min={f.min} max={f.max} step={f.step} onChange={e => f.set(parseFloat(e.target.value) || 0)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#FFFFFF", padding: "5px 8px", width: "100%", fontSize: 13 }} />
               <input type="range" min={f.min} max={f.max} step={f.step} value={f.val} onChange={e => f.set(parseFloat(e.target.value))} />
             </div>
