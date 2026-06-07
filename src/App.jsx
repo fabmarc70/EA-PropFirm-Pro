@@ -2849,11 +2849,22 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             ))}
           </div>
 
-          {/* ── COURBE EQUITY réel vs simulation ── */}
+        </>
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          BLOCS VISUELS — uniquement si trades importés
+          Jamais de données sim ici, tout vient de trades[]
+      ══════════════════════════════════════════════════════ */}
+      {trades.length > 0 && (
+        <>
+          {/* ── COURBE EQUITY : réel (trades) vs simulation (optionnel) ── */}
           {chartData.length > 0 && (
             <div className="card">
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 4, textTransform: "uppercase", letterSpacing: 1 }}>Courbe Equity — Réel vs Simulation</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 4, textTransform: "uppercase", letterSpacing: 1 }}>
+                Courbe Equity — Réel vs Simulation
+              </div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", marginBottom: 12 }}>
                 🟢 Réel (backtest importé){sim && sim.funded && sim.funded.data && sim.funded.data.length ? " · ⬜ Simulation" : ""}
               </div>
               <ResponsiveContainer width="100%" height={220}>
@@ -2876,7 +2887,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             </div>
           )}
 
-          {/* ── TABLEAU MENSUEL réel (construit depuis trades importés) ── */}
+          {/* ── TABLEAU MENSUEL — 100% calculé depuis trades importés ── */}
           {monthlyReel.length > 0 && (
             <div className="card" style={{ border: "1px solid rgba(110,231,183,0.12)" }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 12, textTransform: "uppercase", letterSpacing: 1 }}>
@@ -2908,16 +2919,10 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             </div>
           )}
 
-          {/* ── CALENDRIER PnL réel (construit depuis trades importés) ── */}
+          {/* ── CALENDRIER PnL — 100% calculé depuis trades importés ── */}
+          {/* Pas de conteneur card ici — CalendrierPnL a déjà son propre conteneur */}
           {dailyLogReel.length > 0 && (
-            <div className="card" style={{ border: "1px solid rgba(110,231,183,0.12)", padding: 0, overflow: "hidden" }}>
-              <div style={{ padding: "14px 14px 4px", fontSize: 11, fontWeight: 700, color: "#FFFFFF", textTransform: "uppercase", letterSpacing: 1 }}>
-                Calendrier PnL — Backtest réel
-              </div>
-              <div style={{ padding: "0 14px 14px" }}>
-                <CalendrierPnL dailyLog={dailyLogReel} />
-              </div>
-            </div>
+            <CalendrierPnL dailyLog={dailyLogReel} />
           )}
         </>
       )}
