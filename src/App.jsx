@@ -3292,20 +3292,20 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
         style={{
           position: "absolute", inset: 0,
           width: "100%", height: "100%",
-          objectFit: "cover", objectPosition: "center 55%",
+          objectFit: "contain", objectPosition: "center bottom",
           display: "block",
         }}
       />
-      {/* Gradient haut léger : juste assez pour lire le texte, pas assombrir */}
+      {/* Gradient haut : lisibilité texte sans assombrir l'image */}
       <div style={{
-        position: "absolute", top: 0, left: 0, right: 0, height: "48%",
-        background: "linear-gradient(180deg, rgba(6,9,15,0.92) 0%, rgba(6,9,15,0.75) 40%, rgba(6,9,15,0.3) 70%, transparent 100%)",
+        position: "absolute", top: 0, left: 0, right: 0, height: "38%",
+        background: "linear-gradient(180deg, rgba(6,9,15,0.88) 0%, rgba(6,9,15,0.6) 50%, transparent 100%)",
         pointerEvents: "none",
       }} />
       {/* Gradient bas nav */}
       <div style={{
         position: "absolute", bottom: 0, left: 0, right: 0, height: 90,
-        background: "linear-gradient(transparent 0%, rgba(6,9,15,0.95) 100%)",
+        background: "linear-gradient(transparent 0%, rgba(6,9,15,0.85) 100%)",
         pointerEvents: "none",
       }} />
       {/* Texte en haut */}
@@ -3337,18 +3337,18 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
         style={{
           position: "absolute", inset: 0,
           width: "100%", height: "100%",
-          objectFit: "cover", objectPosition: "center 55%",
+          objectFit: "cover", objectPosition: "center 40%",
           display: "block",
         }}
       />
       <div style={{
-        position: "absolute", top: 0, left: 0, right: 0, height: "48%",
-        background: "linear-gradient(180deg, rgba(6,9,15,0.92) 0%, rgba(6,9,15,0.75) 40%, rgba(6,9,15,0.3) 70%, transparent 100%)",
+        position: "absolute", top: 0, left: 0, right: 0, height: "38%",
+        background: "linear-gradient(180deg, rgba(6,9,15,0.88) 0%, rgba(6,9,15,0.6) 50%, transparent 100%)",
         pointerEvents: "none",
       }} />
       <div style={{
         position: "absolute", bottom: 0, left: 0, right: 0, height: 90,
-        background: "linear-gradient(transparent 0%, rgba(6,9,15,0.95) 100%)",
+        background: "linear-gradient(transparent 0%, rgba(6,9,15,0.85) 100%)",
         pointerEvents: "none",
       }} />
       <div style={{
@@ -3377,20 +3377,21 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
         src="/CBA95772-B4CE-481F-9780-A3197BBEE825_opt.jpg"
         alt="Prop Firm Simulator"
         style={{
-          position: "absolute", inset: 0,
-          width: "100%", height: "100%",
-          objectFit: "cover", objectPosition: "center 55%",
+          position: "absolute",
+          bottom: 80, left: 0, right: 0,
+          width: "100%", height: "auto",
+          objectFit: "contain",
           display: "block",
         }}
       />
       <div style={{
-        position: "absolute", top: 0, left: 0, right: 0, height: "48%",
-        background: "linear-gradient(180deg, rgba(6,9,15,0.92) 0%, rgba(6,9,15,0.75) 40%, rgba(6,9,15,0.3) 70%, transparent 100%)",
+        position: "absolute", top: 0, left: 0, right: 0, height: "38%",
+        background: "linear-gradient(180deg, rgba(6,9,15,0.88) 0%, rgba(6,9,15,0.6) 50%, transparent 100%)",
         pointerEvents: "none",
       }} />
       <div style={{
         position: "absolute", bottom: 0, left: 0, right: 0, height: 90,
-        background: "linear-gradient(transparent 0%, rgba(6,9,15,0.95) 100%)",
+        background: "linear-gradient(transparent 0%, rgba(6,9,15,0.85) 100%)",
         pointerEvents: "none",
       }} />
       <div style={{
