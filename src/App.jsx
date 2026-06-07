@@ -3943,9 +3943,6 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
                   background:"rgba(255,255,255,0.04)", border:"1px solid rgba(110,231,183,0.10)",
                   display:"flex", alignItems:"center", gap:16, cursor:"pointer", textAlign:"left", transition:"all .15s",
                 }}>
-                  <div style={{ width:48, height:48, borderRadius:12, background:"rgba(255,255,255,0.06)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                    <FirmLogo firmKey={f.k} size={36} />
-                  </div>
                   <div style={{ flex:1, fontSize:17, fontWeight:700, color:"#ffffff" }}>{f.label}</div>
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                     <path d="M7 5l5 5-5 5" stroke="#6ee7b7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -3990,9 +3987,6 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
               Pour le challenge {firm.name}.
             </div>
             <div style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(110,231,183,0.10)", borderRadius:18, padding:"14px 20px", display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
-              <div style={{ width:40, height:40, borderRadius:10, background:"rgba(255,255,255,0.06)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                <FirmLogo firmKey={firmKey} size={30} />
-              </div>
               <div style={{ flex:1, fontSize:16, fontWeight:700, color:"#ffffff" }}>{firm.name}</div>
               <button onClick={() => setStep(1)} style={{ background:"none", border:"none", color:"#6ee7b7", fontSize:14, fontWeight:700, cursor:"pointer" }}>Changer</button>
             </div>
