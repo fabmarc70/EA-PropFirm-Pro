@@ -3292,7 +3292,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
         style={{
           position: "absolute", inset: 0,
           width: "100%", height: "100%",
-          objectFit: "cover", objectPosition: "center 90%",
+          objectFit: "cover", objectPosition: "center 20%",
           display: "block",
         }}
       />
