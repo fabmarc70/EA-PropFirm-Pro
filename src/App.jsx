@@ -3265,13 +3265,13 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
   const Slide1 = () => (
     <div style={{
       height: "100%", display: "flex", flexDirection: "column",
-      overflow: "hidden", padding: "calc(22px + env(safe-area-inset-top)) 24px 0",
+      overflow: "hidden", padding: "calc(10px + env(safe-area-inset-top)) 24px 0",
     }}>
       {/* Compteur */}
-      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 14 }}>1 / 3</div>
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>1 / 3</div>
 
       {/* Titre + sous-titre EN HAUT */}
-      <div style={{ marginBottom: 20, flexShrink: 0 }}>
+      <div style={{ marginBottom: 12, flexShrink: 0 }}>
         <div style={{ fontSize: 28, fontWeight: 700, color: "#ffffff", lineHeight: 1.2, marginBottom: 4 }}>{tx.s1h1}</div>
         <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2, marginBottom: 12 }}>
           <span style={{ color: "#ffffff" }}>{tx.s1h2}</span>
@@ -3283,14 +3283,14 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
       </div>
 
       {/* Image EN DESSOUS — prend l'espace restant */}
-      <div style={{ flex: 1, borderRadius: "20px 20px 0 0", overflow: "hidden", position: "relative" }}>
+      <div style={{ flex: 1, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <img
           src="/9C04F5A9-504B-41BA-BB77-DB5B82902B46_opt.jpg"
           alt="Prop Firm Simulator"
           style={{
             width: "100%", height: "100%",
-            objectFit: "cover", objectPosition: "center top",
-            display: "block",
+            objectFit: "contain", objectPosition: "center center",
+            display: "block", maxHeight: "100%", maxWidth: "100%",
           }}
         />
         {/* Léger gradient haut pour transition douce */}
@@ -3306,27 +3306,27 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
   const Slide2 = () => (
     <div style={{
       height: "100%", display: "flex", flexDirection: "column",
-      overflow: "hidden", padding: "calc(22px + env(safe-area-inset-top)) 24px 0",
+      overflow: "hidden", padding: "calc(10px + env(safe-area-inset-top)) 24px 0",
     }}>
       {/* Compteur */}
-      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 14 }}>2 / 3</div>
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>2 / 3</div>
 
       {/* Titre + sous-titre EN HAUT */}
-      <div style={{ marginBottom: 18, flexShrink: 0 }}>
+      <div style={{ marginBottom: 12, flexShrink: 0 }}>
         <div style={{ fontSize: 27, fontWeight: 700, color: "#ffffff", lineHeight: 1.2, marginBottom: 4 }}>{tx.s2h1}</div>
         <div style={{ fontSize: 27, fontWeight: 700, color: "#6ee7b7", lineHeight: 1.2, marginBottom: 12 }}>{tx.s2h2}</div>
         <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>{tx.s2sub}</div>
       </div>
 
       {/* Image EN DESSOUS */}
-      <div style={{ flex: 1, borderRadius: "20px 20px 0 0", overflow: "hidden", position: "relative" }}>
+      <div style={{ flex: 1, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <img
           src="/6851BC14-AB5F-4662-813E-A5E7486744B7_opt.jpg"
           alt="Prop Firm Simulator"
           style={{
             width: "100%", height: "100%",
-            objectFit: "cover", objectPosition: "center top",
-            display: "block",
+            objectFit: "contain", objectPosition: "center center",
+            display: "block", maxHeight: "100%", maxWidth: "100%",
           }}
         />
         {/* Léger gradient haut */}
@@ -3342,13 +3342,13 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
   const Slide3 = () => (
     <div style={{
       height: "100%", display: "flex", flexDirection: "column",
-      overflow: "hidden", padding: "calc(22px + env(safe-area-inset-top)) 24px 0",
+      overflow: "hidden", padding: "calc(10px + env(safe-area-inset-top)) 24px 0",
     }}>
       {/* Compteur */}
-      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 14 }}>3 / 3</div>
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>3 / 3</div>
 
       {/* Titre + sous-titre EN HAUT */}
-      <div style={{ marginBottom: 18, flexShrink: 0 }}>
+      <div style={{ marginBottom: 12, flexShrink: 0 }}>
         <div style={{ fontSize: 26, fontWeight: 700, color: "#ffffff", lineHeight: 1.2, marginBottom: 4 }}>{tx.s3h1}</div>
         <div style={{ fontSize: 26, fontWeight: 700, color: "#6ee7b7", lineHeight: 1.2, marginBottom: 12 }}>{tx.s3h2}</div>
         <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
@@ -3357,14 +3357,14 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
       </div>
 
       {/* Image EN DESSOUS */}
-      <div style={{ flex: 1, borderRadius: "20px 20px 0 0", overflow: "hidden", position: "relative" }}>
+      <div style={{ flex: 1, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <img
           src="/CBA95772-B4CE-481F-9780-A3197BBEE825_opt.jpg"
           alt="Prop Firm Simulator"
           style={{
             width: "100%", height: "100%",
-            objectFit: "cover", objectPosition: "center top",
-            display: "block",
+            objectFit: "contain", objectPosition: "center center",
+            display: "block", maxHeight: "100%", maxWidth: "100%",
           }}
         />
         {/* Léger gradient haut */}
