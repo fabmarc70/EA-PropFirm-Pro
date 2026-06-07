@@ -611,7 +611,9 @@ function simulateFunded(capital, months, model, p, split) {
       // Après versement du payout, le compte funded repart de sa base.
       // Le profit a été distribué (payout) → il ne reste PAS dans l'équité.
       // Évite le double comptage (profit cumulé ET versé).
-      if (payout > 0) equity = currentCapital;
+      // Reset equity même si payout partiel (pendingPayout > 0 mais < seuil)
+      // Évite la surestimation sur les petits comptes
+      if (pendingPayout > 0 || payout > 0) equity = currentCapital;
     }
 
     let scalingNote = null;
@@ -1021,7 +1023,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     txt += "Winrate          : " + winrate + "%\n";
     txt += "Clustering pertes: " + clusteringPct + "%\n";
     txt += "Objectif/jour    : " + dailyTargetPct + "%\n";
-    txt += "RR necessaire    : 1:" + finalRR.toFixed(2) + "\n";
+    txt += "RR cible    : 1:" + finalRR.toFixed(2) + "\n";
     txt += "Profit/mois cible: " + (monthlyTarget * 100).toFixed(1) + "%\n";
     txt += sep + "\n";
     txt += "CHALLENGE\n";
@@ -1037,10 +1039,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     if (sim.funded) {
       const f = sim.funded;
       txt += "COMPTE FUNDED (" + fundedMonths + " mois) - " + (f.status === "active" ? "ACTIF" : "FERME") + "\n";
-      txt += "Capital final    : " + fmt(f.finalEquity) + "\n";
+      txt += "Payouts encaissés    : " + fmt(f.finalEquity) + "\n";
       txt += "Payout verse     : " + fmt2(f.cumulPayout) + "\n";
       txt += "En attente       : " + fmt2(f.pendingPayout) + "\n";
-      txt += "WR mensuel       : " + f.winrateMonth.toFixed(0) + "%\n";
+      txt += "Mois gagnants       : " + f.winrateMonth.toFixed(0) + "%\n";
       txt += "Mois gagnants    : " + f.winMonths + "/" + (f.winMonths + f.lossMonths) + "\n";
       txt += sep + "\n";
       txt += "DETAIL MENSUEL\n";
@@ -1334,7 +1336,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
         <div style={{ marginTop: 8, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "8px 10px", fontSize: 11, color: finalRRValid ? "#6ee7b7" : "#ef4444" }}>
           {finalRRValid
-            ? <>RR necessaire : <b>1:{finalRR.toFixed(2)}</b> (gain {fmt2(effectiveRiskAmount * finalRR)} / perte {fmt2(effectiveRiskAmount)})</>
+            ? <>RR cible : <b>1:{finalRR.toFixed(2)}</b> (gain {fmt2(effectiveRiskAmount * finalRR)} / perte {fmt2(effectiveRiskAmount)})</>
             : <>RR impossible ou &gt; 20 - winrate trop bas pour cet objectif.</>}
         </div>
       </div>
@@ -1829,10 +1831,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
                 {[
-                  { label: "Capital final", val: fmt(sim.funded.finalEquity), color: "#6ee7b7" },
+                  { label: "Payouts encaissés", val: fmt(sim.funded.finalEquity), color: "#6ee7b7" },
                   { label: "Payout verse", val: fmt(sim.funded.cumulPayout), color: "#6ee7b7" },
                   { label: "En attente", val: fmt2(sim.funded.pendingPayout), color: "rgba(255,255,255,0.55)" },
-                  { label: "WR mensuel", val: sim.funded.winrateMonth.toFixed(0) + "%", color: sim.funded.winrateMonth >= 60 ? "#6ee7b7" : "#fbbf24" },
+                  { label: "Mois gagnants", val: sim.funded.funded.winMonths + "/" + (funded.winMonths + funded.lossMonths), color: sim.funded.winrateMonth >= 60 ? "#6ee7b7" : "#fbbf24" },
                   { label: "Scaling", val: sim.funded.scalingCount + "x (+40%)", color: "rgba(255,255,255,0.55)" },
                   { label: "Split final", val: sim.funded.finalSplit + "%", color: sim.funded.finalSplit >= 90 ? "#6ee7b7" : "#fbbf24" },
                 ].map((k) => (
