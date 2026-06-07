@@ -1631,7 +1631,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
               <span style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: 700, display: "flex", alignItems: "center" }}>Risque par trade (%)<InfoTip text="% de ton capital perdu si le trade touche ton stop-loss. Règle d'or : ne jamais dépasser 1-2%. Ex : 0.5% sur 10 000$ = 50$ max perdu par trade." /></span>
-              {useFixedLot && <span style={{ fontSize: 11, background: "#6ee7b720", color: "#6ee7b7", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>LOT AUTO</span>}
+              {useFixedLot && <span style={{ fontSize: 8, background: "#6ee7b720", color: "#6ee7b7", borderRadius: 4, padding: "1px 4px", fontWeight: 700, lineHeight: 1.2, letterSpacing: 0.3 }}>LOT AUTO</span>}
             </div>
             <input
               type="number"
@@ -3342,7 +3342,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
         style={{
           position: "absolute", inset: 0,
           width: "100%", height: "100%",
-          objectFit: "cover", objectPosition: "center 10%",
+          objectFit: "cover", objectPosition: "center 3%",
           display: "block",
         }}
       />
