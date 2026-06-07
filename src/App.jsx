@@ -3282,116 +3282,142 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
     );
   };
 
-  // ── Slide 1 — Titre en haut + image en dessous ──────────────────
+  // ── Slide 1 — Layout style référence ──────────────────
   const Slide1 = () => (
     <div style={{
       height: "100%", display: "flex", flexDirection: "column",
-      overflow: "hidden", minHeight: 0, padding: "calc(10px + env(safe-area-inset-top)) 24px 0",
+      overflow: "hidden", minHeight: 0,
     }}>
-      {/* Compteur */}
-      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>1 / 3</div>
-
-      {/* Titre + sous-titre EN HAUT */}
-      <div style={{ marginBottom: 12, flexShrink: 0 }}>
-        <div style={{ fontSize: 28, fontWeight: 700, color: "#ffffff", lineHeight: 1.2, marginBottom: 4 }}>{tx.s1h1}</div>
-        <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2, marginBottom: 12 }}>
+      {/* Header : padding safe-area + titre */}
+      <div style={{ padding: "calc(14px + env(safe-area-inset-top)) 24px 0", flexShrink: 0 }}>
+        {/* Compteur discret */}
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontWeight: 500, marginBottom: 14 }}>1 / 3</div>
+        {/* Titre principal - grande typo */}
+        <div style={{ fontSize: 36, fontWeight: 800, color: "#ffffff", lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 6 }}>
+          {tx.s1h1}
+        </div>
+        <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 14 }}>
           <span style={{ color: "#ffffff" }}>{tx.s1h2}</span>
           <span style={{ color: "#f87171" }}>{tx.s1h2r}</span>
         </div>
-        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
-          {tx.s1sub}<span style={{ color: "#ffffff", fontWeight: 700 }}>{tx.s1bold}</span>
+        {/* Sous-titre */}
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, maxWidth: 320 }}>
+          {tx.s1sub}<span style={{ color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>{tx.s1bold}</span>
         </div>
       </div>
 
-      {/* Image EN DESSOUS — centrée dans l'espace restant */}
-      <div style={{ flex: 1, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 0 }}>
+      {/* Image — flex:1, prend tout l'espace restant */}
+      <div style={{ flex: 1, position: "relative", minHeight: 0, marginTop: 8 }}>
         <img
           src="/9C04F5A9-504B-41BA-BB77-DB5B82902B46_opt.jpg"
           alt="Prop Firm Simulator"
           style={{
-            width: "100%",
-            objectFit: "contain", objectPosition: "center center",
-            display: "block", maxHeight: "100%", maxWidth: "100%",
+            width: "100%", height: "100%",
+            objectFit: "cover", objectPosition: "center top",
+            display: "block",
           }}
         />
-        {/* Léger gradient haut pour transition douce */}
+        {/* Gradient haut : fondu depuis le fond */}
         <div style={{
-          position: "absolute", top: 0, left: 0, right: 0, height: 40,
-          background: "linear-gradient(#06090f, transparent)",
+          position: "absolute", top: 0, left: 0, right: 0, height: 60,
+          background: "linear-gradient(#06090f 0%, transparent 100%)",
+          pointerEvents: "none",
+        }} />
+        {/* Gradient bas : fondu vers le fond pour la nav */}
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0, height: 80,
+          background: "linear-gradient(transparent 0%, #06090f 100%)",
+          pointerEvents: "none",
         }} />
       </div>
     </div>
   );
 
-  // ── Slide 2 — Titre en haut + image en dessous ──────────────────
+  // ── Slide 2 — Layout style référence ──────────────────
   const Slide2 = () => (
     <div style={{
       height: "100%", display: "flex", flexDirection: "column",
-      overflow: "hidden", minHeight: 0, padding: "calc(10px + env(safe-area-inset-top)) 24px 0",
+      overflow: "hidden", minHeight: 0,
     }}>
-      {/* Compteur */}
-      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>2 / 3</div>
-
-      {/* Titre + sous-titre EN HAUT */}
-      <div style={{ marginBottom: 12, flexShrink: 0 }}>
-        <div style={{ fontSize: 27, fontWeight: 700, color: "#ffffff", lineHeight: 1.2, marginBottom: 4 }}>{tx.s2h1}</div>
-        <div style={{ fontSize: 27, fontWeight: 700, color: "#6ee7b7", lineHeight: 1.2, marginBottom: 12 }}>{tx.s2h2}</div>
-        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>{tx.s2sub}</div>
+      {/* Header */}
+      <div style={{ padding: "calc(14px + env(safe-area-inset-top)) 24px 0", flexShrink: 0 }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontWeight: 500, marginBottom: 14 }}>2 / 3</div>
+        <div style={{ fontSize: 36, fontWeight: 800, color: "#ffffff", lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 6 }}>
+          {tx.s2h1}
+        </div>
+        <div style={{ fontSize: 36, fontWeight: 800, color: "#6ee7b7", lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 14 }}>
+          {tx.s2h2}
+        </div>
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, maxWidth: 320 }}>
+          {tx.s2sub}
+        </div>
       </div>
 
-      {/* Image EN DESSOUS */}
-      <div style={{ flex: 1, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 0 }}>
+      {/* Image */}
+      <div style={{ flex: 1, position: "relative", minHeight: 0, marginTop: 8 }}>
         <img
           src="/6851BC14-AB5F-4662-813E-A5E7486744B7_opt.jpg"
           alt="Prop Firm Simulator"
           style={{
-            width: "100%",
-            objectFit: "contain", objectPosition: "center center",
-            display: "block", maxHeight: "100%", maxWidth: "100%",
+            width: "100%", height: "100%",
+            objectFit: "cover", objectPosition: "center top",
+            display: "block",
           }}
         />
-        {/* Léger gradient haut */}
         <div style={{
-          position: "absolute", top: 0, left: 0, right: 0, height: 40,
-          background: "linear-gradient(#06090f, transparent)",
+          position: "absolute", top: 0, left: 0, right: 0, height: 60,
+          background: "linear-gradient(#06090f 0%, transparent 100%)",
+          pointerEvents: "none",
+        }} />
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0, height: 80,
+          background: "linear-gradient(transparent 0%, #06090f 100%)",
+          pointerEvents: "none",
         }} />
       </div>
     </div>
   );
 
-  // ── Slide 3 — Titre en haut + image en dessous ──────────────────
+  // ── Slide 3 — Layout style référence ──────────────────
   const Slide3 = () => (
     <div style={{
       height: "100%", display: "flex", flexDirection: "column",
-      overflow: "hidden", minHeight: 0, padding: "calc(10px + env(safe-area-inset-top)) 24px 0",
+      overflow: "hidden", minHeight: 0,
     }}>
-      {/* Compteur */}
-      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>3 / 3</div>
-
-      {/* Titre + sous-titre EN HAUT */}
-      <div style={{ marginBottom: 12, flexShrink: 0 }}>
-        <div style={{ fontSize: 26, fontWeight: 700, color: "#ffffff", lineHeight: 1.2, marginBottom: 4 }}>{tx.s3h1}</div>
-        <div style={{ fontSize: 26, fontWeight: 700, color: "#6ee7b7", lineHeight: 1.2, marginBottom: 12 }}>{tx.s3h2}</div>
-        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
+      {/* Header */}
+      <div style={{ padding: "calc(14px + env(safe-area-inset-top)) 24px 0", flexShrink: 0 }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontWeight: 500, marginBottom: 14 }}>3 / 3</div>
+        <div style={{ fontSize: 34, fontWeight: 800, color: "#ffffff", lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 6 }}>
+          {tx.s3h1}
+        </div>
+        <div style={{ fontSize: 34, fontWeight: 800, color: "#6ee7b7", lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 14 }}>
+          {tx.s3h2}
+        </div>
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, maxWidth: 320 }}>
           {tx.s3sub1}<span style={{ color: "#f87171", fontWeight: 700 }}>{tx.s3subr}</span>{tx.s3sub2}
         </div>
       </div>
 
-      {/* Image EN DESSOUS */}
-      <div style={{ flex: 1, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 0 }}>
+      {/* Image */}
+      <div style={{ flex: 1, position: "relative", minHeight: 0, marginTop: 8 }}>
         <img
           src="/CBA95772-B4CE-481F-9780-A3197BBEE825_opt.jpg"
           alt="Prop Firm Simulator"
           style={{
-            width: "100%",
-            objectFit: "contain", objectPosition: "center center",
-            display: "block", maxHeight: "100%", maxWidth: "100%",
+            width: "100%", height: "100%",
+            objectFit: "cover", objectPosition: "center top",
+            display: "block",
           }}
         />
-        {/* Léger gradient haut */}
         <div style={{
-          position: "absolute", top: 0, left: 0, right: 0, height: 40,
-          background: "linear-gradient(#06090f, transparent)",
+          position: "absolute", top: 0, left: 0, right: 0, height: 60,
+          background: "linear-gradient(#06090f 0%, transparent 100%)",
+          pointerEvents: "none",
+        }} />
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0, height: 80,
+          background: "linear-gradient(transparent 0%, #06090f 100%)",
+          pointerEvents: "none",
         }} />
       </div>
     </div>
@@ -3606,54 +3632,156 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
 // ══════════════════════════════════════════════════════════════════
 function FirmLogo({ firmKey, size = 44 }) {
   const s = size;
+  // Logos SVG fidèles aux vraies identités visuelles des prop firms
   switch (firmKey) {
     case "ftmo": return (
+      // FTMO : losange bleu royal + texte FTMO blanc — identité officielle 2024
       <svg width={s} height={s} viewBox="0 0 44 44">
-        <defs><linearGradient id="ftmo-g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#1d4ed8"/><stop offset="100%" stopColor="#60a5fa"/></linearGradient></defs>
-        <polygon points="22,1 43,22 22,43 1,22" fill="url(#ftmo-g)"/>
-        <polygon points="22,11 32,22 22,33 12,22" fill="none" stroke="white" strokeWidth="1.5" opacity="0.5"/>
-        <line x1="22" y1="1" x2="22" y2="43" stroke="white" strokeWidth="0.8" opacity="0.3"/>
-        <line x1="1" y1="22" x2="43" y2="22" stroke="white" strokeWidth="0.8" opacity="0.3"/>
+        <defs>
+          <linearGradient id="ftmo-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#1a2744"/>
+            <stop offset="100%" stopColor="#0f1a35"/>
+          </linearGradient>
+          <linearGradient id="ftmo-diamond" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#2563eb"/>
+            <stop offset="100%" stopColor="#1d4ed8"/>
+          </linearGradient>
+        </defs>
+        <rect width="44" height="44" rx="10" fill="url(#ftmo-bg)"/>
+        {/* Losange caractéristique FTMO */}
+        <polygon points="22,4 38,22 22,40 6,22" fill="url(#ftmo-diamond)"/>
+        <polygon points="22,11 30,22 22,33 14,22" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5"/>
+        {/* Lignes croisées */}
+        <line x1="6" y1="22" x2="38" y2="22" stroke="rgba(255,255,255,0.2)" strokeWidth="0.8"/>
+        <line x1="22" y1="4" x2="22" y2="40" stroke="rgba(255,255,255,0.2)" strokeWidth="0.8"/>
       </svg>
     );
     case "fundednext": return (
+      // FundedNext : "FN" stylisé, couleurs violet→bleu électrique + fond sombre
       <svg width={s} height={s} viewBox="0 0 44 44">
-        <defs><linearGradient id="fn-g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#4338ca"/><stop offset="100%" stopColor="#818cf8"/></linearGradient></defs>
-        <circle cx="22" cy="22" r="20" fill="url(#fn-g)" opacity="0.15"/>
-        <path d="M22 4 L30 12 L26 12 L26 20 L18 20 L18 12 L14 12 Z" fill="url(#fn-g)"/>
-        <path d="M22 40 L14 32 L18 32 L18 24 L26 24 L26 32 L30 32 Z" fill="url(#fn-g)" opacity="0.7"/>
-        <path d="M4 22 L12 14 L12 18 L20 18 L20 26 L12 26 L12 30 Z" fill="url(#fn-g)" opacity="0.5"/>
-        <path d="M40 22 L32 30 L32 26 L24 26 L24 18 L32 18 L32 14 Z" fill="url(#fn-g)" opacity="0.85"/>
+        <defs>
+          <linearGradient id="fn-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#1a0a2e"/>
+            <stop offset="100%" stopColor="#0d1230"/>
+          </linearGradient>
+          <linearGradient id="fn-accent" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#8b5cf6"/>
+            <stop offset="50%" stopColor="#6366f1"/>
+            <stop offset="100%" stopColor="#3b82f6"/>
+          </linearGradient>
+        </defs>
+        <rect width="44" height="44" rx="10" fill="url(#fn-bg)"/>
+        {/* Symbole FN — flèche montante stylisée */}
+        <path d="M8 34 L8 14 L18 14 L18 20 L14 20 L14 34 Z" fill="url(#fn-accent)"/>
+        <path d="M22 34 L22 10 L36 26 L30 26 L30 34 Z" fill="url(#fn-accent)"/>
+        <path d="M22 10 L36 10 L36 26" fill="none" stroke="url(#fn-accent)" strokeWidth="4" strokeLinecap="round"/>
       </svg>
     );
     case "e8": return (
+      // E8 Markets : "E8" typographié, fond bleu nuit profond, accents bleu électrique
       <svg width={s} height={s} viewBox="0 0 44 44">
-        <defs><linearGradient id="e8-g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#3b4fd8"/><stop offset="100%" stopColor="#7c3aed"/></linearGradient></defs>
-        <rect width="44" height="44" rx="10" fill="#0d0d1a"/>
-        <text x="4" y="32" fontSize="26" fontWeight="700" fill="url(#e8-g)" fontFamily="Arial Black, sans-serif">E8</text>
+        <defs>
+          <linearGradient id="e8-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#06050f"/>
+            <stop offset="100%" stopColor="#0a0820"/>
+          </linearGradient>
+          <linearGradient id="e8-txt" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#60a5fa"/>
+            <stop offset="100%" stopColor="#3b82f6"/>
+          </linearGradient>
+        </defs>
+        <rect width="44" height="44" rx="10" fill="url(#e8-bg)"/>
+        {/* Bordure fine bleu */}
+        <rect width="44" height="44" rx="10" fill="none" stroke="#1e3a8a" strokeWidth="1"/>
+        {/* E */}
+        <rect x="6" y="10" width="14" height="3" rx="1" fill="url(#e8-txt)"/>
+        <rect x="6" y="10" width="3" height="24" rx="1" fill="url(#e8-txt)"/>
+        <rect x="6" y="20.5" width="11" height="3" rx="1" fill="url(#e8-txt)"/>
+        <rect x="6" y="31" width="14" height="3" rx="1" fill="url(#e8-txt)"/>
+        {/* 8 */}
+        <rect x="24" y="10" width="14" height="3" rx="1" fill="url(#e8-txt)"/>
+        <rect x="24" y="10" width="3" height="13" rx="1" fill="url(#e8-txt)"/>
+        <rect x="35" y="10" width="3" height="13" rx="1" fill="url(#e8-txt)"/>
+        <rect x="24" y="20.5" width="14" height="3" rx="1" fill="url(#e8-txt)"/>
+        <rect x="24" y="23.5" width="3" height="11" rx="1" fill="url(#e8-txt)"/>
+        <rect x="35" y="23.5" width="3" height="11" rx="1" fill="url(#e8-txt)"/>
+        <rect x="24" y="31" width="14" height="3" rx="1" fill="url(#e8-txt)"/>
       </svg>
     );
     case "alpha": return (
+      // Alpha Capital Group : triangle doré pointant vers le haut, fond sombre premium
       <svg width={s} height={s} viewBox="0 0 44 44">
-        <defs><linearGradient id="al-g" x1="0%" y1="0%" x2="50%" y2="100%"><stop offset="0%" stopColor="#fbbf24"/><stop offset="100%" stopColor="#6ee7b7"/></linearGradient></defs>
-        <polygon points="22,3 42,40 2,40" fill="url(#al-g)"/>
-        <polygon points="22,14 32,34 12,34" fill="#0d0d0d" opacity="0.6"/>
+        <defs>
+          <linearGradient id="alpha-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#0f0f0f"/>
+            <stop offset="100%" stopColor="#1a1200"/>
+          </linearGradient>
+          <linearGradient id="alpha-gold" x1="0%" y1="0%" x2="50%" y2="100%">
+            <stop offset="0%" stopColor="#fde68a"/>
+            <stop offset="50%" stopColor="#f59e0b"/>
+            <stop offset="100%" stopColor="#d97706"/>
+          </linearGradient>
+        </defs>
+        <rect width="44" height="44" rx="10" fill="url(#alpha-bg)"/>
+        {/* Triangle Alpha — grand */}
+        <polygon points="22,5 40,38 4,38" fill="url(#alpha-gold)"/>
+        {/* Triangle intérieur creux */}
+        <polygon points="22,15 33,36 11,36" fill="url(#alpha-bg)"/>
+        {/* Ligne dorée centrale */}
+        <line x1="22" y1="15" x2="22" y2="36" stroke="url(#alpha-gold)" strokeWidth="1.5" opacity="0.6"/>
       </svg>
     );
     case "the5ers": return (
+      // The 5%ers : "5" stylisé + vert caractéristique, fond sombre
       <svg width={s} height={s} viewBox="0 0 44 44">
-        <defs><linearGradient id="f5-g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#6ee7b7"/><stop offset="100%" stopColor="#fbbf24"/></linearGradient></defs>
-        <text x="1" y="30" fontSize="28" fontWeight="700" fill="url(#f5-g)" fontFamily="Arial Black, sans-serif">5%</text>
-        <text x="22" y="40" fontSize="11" fontWeight="700" fill="url(#f5-g)" fontFamily="Arial, sans-serif">ers</text>
+        <defs>
+          <linearGradient id="t5-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#071a0f"/>
+            <stop offset="100%" stopColor="#030d07"/>
+          </linearGradient>
+          <linearGradient id="t5-green" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#4ade80"/>
+            <stop offset="100%" stopColor="#16a34a"/>
+          </linearGradient>
+        </defs>
+        <rect width="44" height="44" rx="10" fill="url(#t5-bg)"/>
+        {/* Chiffre 5 stylisé */}
+        {/* Barre top */}
+        <rect x="9" y="8" width="22" height="4" rx="2" fill="url(#t5-green)"/>
+        {/* Barre gauche haut */}
+        <rect x="9" y="8" width="4" height="12" rx="2" fill="url(#t5-green)"/>
+        {/* Barre milieu */}
+        <rect x="9" y="18" width="22" height="4" rx="2" fill="url(#t5-green)"/>
+        {/* Arc bas droit */}
+        <path d="M13 22 Q13 36 22 36 Q31 36 31 28 Q31 22 22 22" fill="none" stroke="url(#t5-green)" strokeWidth="4" strokeLinecap="round"/>
+        {/* Cercle interne */}
+        <circle cx="22" cy="29" r="4" fill="url(#t5-green)" opacity="0.3"/>
       </svg>
     );
     case "fundingpips": return (
+      // FundingPips : "FP" + bâtonnets haussiers, couleur orange/rouge → rouge caractéristique
       <svg width={s} height={s} viewBox="0 0 44 44">
-        <rect width="44" height="44" rx="8" fill="rgba(255,255,255,0.05)"/>
-        <circle cx="10" cy="10" r="4" fill="white"/>
-        <rect x="6" y="16" width="8" height="20" rx="4" fill="white"/>
-        <rect x="20" y="8" width="8" height="28" rx="4" fill="white"/>
-        <path d="M28 8 Q38 8 38 18 Q38 28 28 28" fill="none" stroke="white" strokeWidth="7" strokeLinecap="round"/>
+        <defs>
+          <linearGradient id="fp-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#1a0a00"/>
+            <stop offset="100%" stopColor="#0f0500"/>
+          </linearGradient>
+          <linearGradient id="fp-red" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#f97316"/>
+            <stop offset="100%" stopColor="#dc2626"/>
+          </linearGradient>
+        </defs>
+        <rect width="44" height="44" rx="10" fill="url(#fp-bg)"/>
+        <rect width="44" height="44" rx="10" fill="none" stroke="rgba(249,115,22,0.3)" strokeWidth="1"/>
+        {/* Lettre F */}
+        <rect x="6" y="8" width="3.5" height="28" rx="1.5" fill="url(#fp-red)"/>
+        <rect x="6" y="8" width="14" height="3.5" rx="1.5" fill="url(#fp-red)"/>
+        <rect x="6" y="20" width="11" height="3.5" rx="1.5" fill="url(#fp-red)"/>
+        {/* Lettre P */}
+        <rect x="24" y="8" width="3.5" height="28" rx="1.5" fill="url(#fp-red)"/>
+        <rect x="24" y="8" width="12" height="3.5" rx="1.5" fill="url(#fp-red)"/>
+        <rect x="24" y="20" width="12" height="3.5" rx="1.5" fill="url(#fp-red)"/>
+        <rect x="33" y="8" width="3.5" height="15" rx="1.5" fill="url(#fp-red)"/>
       </svg>
     );
     default: return <div style={{width:s,height:s,background:"rgba(255,255,255,0.08)",borderRadius:10}}/>;
@@ -4628,7 +4756,14 @@ function NavBar({ t, active, goto }) {
 function WelcomeScreen({ onDone }) {
   const [phase, setPhase] = useState(0);
   // phase 0 = fade-in logo, phase 1 = texte, phase 2 = fade-out
+  // Preload onboarding images dès le WelcomeScreen pour éviter le délai
   useEffect(() => {
+    const imgs = [
+      "/9C04F5A9-504B-41BA-BB77-DB5B82902B46_opt.jpg",
+      "/6851BC14-AB5F-4662-813E-A5E7486744B7_opt.jpg",
+      "/CBA95772-B4CE-481F-9780-A3197BBEE825_opt.jpg",
+    ];
+    imgs.forEach(src => { const img = new Image(); img.src = src; });
     const t1 = setTimeout(() => setPhase(1), 400);
     const t2 = setTimeout(() => setPhase(2), 2200);
     const t3 = setTimeout(() => onDone(), 2800);
