@@ -3286,7 +3286,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
   const Slide1 = () => (
     <div style={{
       height: "100%", display: "flex", flexDirection: "column",
-      overflow: "hidden", padding: "calc(10px + env(safe-area-inset-top)) 24px 0",
+      overflow: "hidden", minHeight: 0, padding: "calc(10px + env(safe-area-inset-top)) 24px 0",
     }}>
       {/* Compteur */}
       <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>1 / 3</div>
@@ -3303,13 +3303,13 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
         </div>
       </div>
 
-      {/* Image EN DESSOUS — prend l'espace restant */}
-      <div style={{ flex: 1, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      {/* Image EN DESSOUS — centrée dans l'espace restant */}
+      <div style={{ flex: 1, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 0 }}>
         <img
           src="/9C04F5A9-504B-41BA-BB77-DB5B82902B46_opt.jpg"
           alt="Prop Firm Simulator"
           style={{
-            width: "100%", height: "100%",
+            width: "100%",
             objectFit: "contain", objectPosition: "center center",
             display: "block", maxHeight: "100%", maxWidth: "100%",
           }}
@@ -3327,7 +3327,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
   const Slide2 = () => (
     <div style={{
       height: "100%", display: "flex", flexDirection: "column",
-      overflow: "hidden", padding: "calc(10px + env(safe-area-inset-top)) 24px 0",
+      overflow: "hidden", minHeight: 0, padding: "calc(10px + env(safe-area-inset-top)) 24px 0",
     }}>
       {/* Compteur */}
       <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>2 / 3</div>
@@ -3340,12 +3340,12 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
       </div>
 
       {/* Image EN DESSOUS */}
-      <div style={{ flex: 1, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ flex: 1, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 0 }}>
         <img
           src="/6851BC14-AB5F-4662-813E-A5E7486744B7_opt.jpg"
           alt="Prop Firm Simulator"
           style={{
-            width: "100%", height: "100%",
+            width: "100%",
             objectFit: "contain", objectPosition: "center center",
             display: "block", maxHeight: "100%", maxWidth: "100%",
           }}
@@ -3363,7 +3363,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
   const Slide3 = () => (
     <div style={{
       height: "100%", display: "flex", flexDirection: "column",
-      overflow: "hidden", padding: "calc(10px + env(safe-area-inset-top)) 24px 0",
+      overflow: "hidden", minHeight: 0, padding: "calc(10px + env(safe-area-inset-top)) 24px 0",
     }}>
       {/* Compteur */}
       <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>3 / 3</div>
@@ -3378,12 +3378,12 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
       </div>
 
       {/* Image EN DESSOUS */}
-      <div style={{ flex: 1, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ flex: 1, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 0 }}>
         <img
           src="/CBA95772-B4CE-481F-9780-A3197BBEE825_opt.jpg"
           alt="Prop Firm Simulator"
           style={{
-            width: "100%", height: "100%",
+            width: "100%",
             objectFit: "contain", objectPosition: "center center",
             display: "block", maxHeight: "100%", maxWidth: "100%",
           }}
