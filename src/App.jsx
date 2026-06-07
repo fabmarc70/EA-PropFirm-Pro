@@ -4718,17 +4718,170 @@ function NavBar({ t, active, goto }) {
 // ══════════════════════════════════════════════════════════════════
 // ROOT — Routeur principal de l'application
 // ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// WELCOME SCREEN — premier lancement, juste le nom de l'app
+// ══════════════════════════════════════════════════════════════════
+function WelcomeScreen({ onDone }) {
+  const [phase, setPhase] = useState(0);
+  // phase 0 = fade-in logo, phase 1 = texte, phase 2 = fade-out
+  useEffect(() => {
+    const t1 = setTimeout(() => setPhase(1), 400);
+    const t2 = setTimeout(() => setPhase(2), 2200);
+    const t3 = setTimeout(() => onDone(), 2800);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999,
+      background: "#06090f",
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      opacity: phase === 2 ? 0 : 1,
+      transition: "opacity 0.6s ease",
+    }}>
+      {/* Halo radial */}
+      <div style={{ position: "absolute", top: "30%", left: "50%", transform: "translateX(-50%)", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(52,211,153,0.15) 0%, transparent 70%)", pointerEvents: "none" }} />
+
+      {/* Logo */}
+      <div style={{
+        opacity: phase >= 1 ? 1 : 0,
+        transform: phase >= 1 ? "translateY(0)" : "translateY(20px)",
+        transition: "all 0.6s cubic-bezier(0.16,1,0.3,1)",
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 28,
+      }}>
+        <img
+          src="/app-icon.png"
+          alt="Prop Firm Simulator"
+          style={{ width: 100, height: 100, borderRadius: 24, boxShadow: "0 12px 40px rgba(0,0,0,0.6), 0 0 60px rgba(52,211,153,0.12)" }}
+        />
+        <div style={{ textAlign: "center", lineHeight: 1 }}>
+          <div style={{ fontSize: 34, fontWeight: 700, color: "#6ee7b7", letterSpacing: -0.5, textTransform: "uppercase" }}>
+            PROP FIRM
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 4, textTransform: "uppercase", marginTop: 6 }}>
+            SIMULATOR
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SPLASH SCREEN — après login, chargement des données
+// ══════════════════════════════════════════════════════════════════
+function SplashScreen({ user, onReady }) {
+  const [step, setStep]       = useState(0);
+  const [progress, setProgress] = useState(0);
+
+  const steps = [
+    { label: "Profil chargé",         duration: 350 },
+    { label: "Configuration restaurée", duration: 400 },
+    { label: "Historique des simulations", duration: 350 },
+    { label: "Prêt",                  duration: 300 },
+  ];
+
+  useEffect(() => {
+    let current = 0;
+    const run = () => {
+      if (current >= steps.length) {
+        // Petite pause finale avant de lancer l'app
+        setTimeout(() => onReady(), 300);
+        return;
+      }
+      setStep(current);
+      setProgress(Math.round(((current + 1) / steps.length) * 100));
+      setTimeout(() => {
+        current++;
+        run();
+      }, steps[current].duration);
+    };
+    const init = setTimeout(run, 200);
+    return () => clearTimeout(init);
+  }, []);
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9998,
+      background: "#06090f",
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      fontFamily: "-apple-system, sans-serif",
+      paddingBottom: "env(safe-area-inset-bottom)",
+    }}>
+      {/* Halo */}
+      <div style={{ position: "absolute", top: "20%", left: "50%", transform: "translateX(-50%)", width: 350, height: 350, borderRadius: "50%", background: "radial-gradient(circle, rgba(52,211,153,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
+
+      {/* Logo + nom */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, marginBottom: 60 }}>
+        <img
+          src="/app-icon.png"
+          alt="Prop Firm Simulator"
+          style={{ width: 80, height: 80, borderRadius: 20, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
+        />
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", letterSpacing: -0.3 }}>
+            PROP FIRM
+          </div>
+          <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.35)", letterSpacing: 4, textTransform: "uppercase", marginTop: 3 }}>
+            SIMULATOR
+          </div>
+        </div>
+        {user && (
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: -8 }}>
+            Hello <span style={{ color: "#6ee7b7", fontWeight: 600 }}>trader</span>
+          </div>
+        )}
+      </div>
+
+      {/* Barre de progression */}
+      <div style={{ width: 240, marginBottom: 16 }}>
+        <div style={{ height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden" }}>
+          <div style={{
+            height: "100%", borderRadius: 2,
+            background: "linear-gradient(90deg, #059669, #6ee7b7)",
+            width: progress + "%",
+            transition: "width 0.35s cubic-bezier(0.4,0,0.2,1)",
+          }} />
+        </div>
+      </div>
+
+      {/* Label étape en cours */}
+      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", height: 16, textAlign: "center" }}>
+        {steps[step]?.label}
+      </div>
+
+      {/* Points animés */}
+      <div style={{ display: "flex", gap: 6, marginTop: 20 }}>
+        {steps.map((_, i) => (
+          <div key={i} style={{
+            width: 6, height: 6, borderRadius: 3,
+            background: i <= step ? "#6ee7b7" : "rgba(255,255,255,0.12)",
+            transition: "background 0.3s",
+          }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const app0 = loadApp();
-  const [lang, setLangState] = useState(app0.profile?.lang ?? null); // null = pas encore choisi
+  const [lang, setLangState] = useState(app0.profile?.lang ?? null);
   const [onboarded, setOnboarded] = useState(app0.onboarded ?? false);
   const [user, setUser] = useState(app0.user ?? null);
   const [setupDone, setSetupDone] = useState(app0.setupDone ?? false);
   const [profile, setProfile] = useState(app0.profile ?? { lang: "fr", firmKey: "fundednext", capital: 25000 });
-  const [screen, setScreen] = useState("dashboard"); // écran de la navbar
-  const [simTab, setSimTab] = useState("challenge");  // onglet interne du simulateur
+  const [screen, setScreen] = useState("dashboard");
+  const [simTab, setSimTab] = useState("challenge");
   const [lastSim, setLastSim] = useState(app0.lastSim ?? null);
-  const [simKey, setSimKey] = useState(0); // force remount du simulateur au chargement d'une config
+  const [simKey, setSimKey] = useState(0);
+
+  // Welcome : affiché une seule fois au tout premier lancement
+  const [showWelcome, setShowWelcome] = useState(!app0.welcomeSeen);
+  // Splash : affiché après chaque login (chargement données)
+  const [showSplash, setShowSplash] = useState(false);
 
   const t = makeT(lang);
   const setLang = (l) => { setLangState(l); saveApp({ profile: { ...profile, lang: l } }); };
@@ -4779,6 +4932,19 @@ export default function App() {
 
   // ── Flow d'entrée ──
   // 0. Choix de la langue (tout premier écran)
+  // Welcome — premier lancement uniquement
+  if (showWelcome) {
+    return <WelcomeScreen onDone={() => {
+      setShowWelcome(false);
+      saveApp({ welcomeSeen: true });
+    }} />;
+  }
+
+  // Splash — après login
+  if (showSplash) {
+    return <SplashScreen user={user} onReady={() => setShowSplash(false)} />;
+  }
+
   if (!lang) {
     return <LanguagePickerScreen onPick={(l) => { setLangState(l); saveApp({ profile: { ...loadApp().profile, lang: l } }); }} />;
   }
@@ -4786,7 +4952,11 @@ export default function App() {
     return <OnboardingScreen t={t} lang={lang} setLang={setLang} onDone={() => { setOnboarded(true); saveApp({ onboarded: true }); }} />;
   }
   if (!user) {
-    return <LoginScreen t={t} lang={lang} setLang={setLang} onAuth={(u) => { setUser(u); saveApp({ user: u }); }} />;
+    return <LoginScreen t={t} lang={lang} setLang={setLang} onAuth={(u) => {
+      setUser(u);
+      saveApp({ user: u });
+      setShowSplash(true); // splash après login
+    }} />;
   }
   if (!setupDone) {
     return <ProfileSetupScreen t={t} lang={lang} setLang={setLang} onDone={(p) => { setProfile(p); setSetupDone(true); }} />;
