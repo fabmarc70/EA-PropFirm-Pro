@@ -3285,21 +3285,21 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
   // ── Slide 1 ──────────────────
   const Slide1 = () => (
     <div style={{ height: "100%", position: "relative", overflow: "hidden" }}>
-      {/* Image : centrée verticalement sur le bas du sujet */}
+      {/* Image cover pleine largeur, poussée vers le bas pour ne pas superposer le texte */}
       <img
         src="/9C04F5A9-504B-41BA-BB77-DB5B82902B46_opt.jpg"
         alt="Prop Firm Simulator"
         style={{
           position: "absolute", inset: 0,
           width: "100%", height: "100%",
-          objectFit: "contain", objectPosition: "center bottom",
+          objectFit: "cover", objectPosition: "center 80%",
           display: "block",
         }}
       />
-      {/* Gradient haut : lisibilité texte sans assombrir l'image */}
+      {/* Gradient haut : couvre la zone texte uniquement */}
       <div style={{
-        position: "absolute", top: 0, left: 0, right: 0, height: "38%",
-        background: "linear-gradient(180deg, rgba(6,9,15,0.88) 0%, rgba(6,9,15,0.6) 50%, transparent 100%)",
+        position: "absolute", top: 0, left: 0, right: 0, height: "45%",
+        background: "linear-gradient(180deg, #06090f 0%, #06090f 25%, rgba(6,9,15,0.7) 55%, transparent 100%)",
         pointerEvents: "none",
       }} />
       {/* Gradient bas nav */}
