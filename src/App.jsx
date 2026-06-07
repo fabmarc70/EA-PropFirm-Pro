@@ -904,11 +904,36 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         : (ph1.days || []).map((d, idx) => ({ i: idx + 1, v: d.equity }));
       const equityCurve = rawCurve.slice(0, 90);
 
-      // Statistiques trades
-      const totalTrades = (ph1.totalWins || 0) + (ph1.totalLosses || 0);
-      const tradeWR = ph1.tradeWinrate ? ph1.tradeWinrate.toFixed(1) : winrate;
-      const bestTrade = +(effectiveRiskAmount * finalRR).toFixed(0);
-      const worstTrade = -effectiveRiskAmount;
+      // ── Stats réelles de la simulation (toutes phases + funded) ──
+      const allWins    = phaseResults.reduce((s, ph) => s + (ph?.totalWins  || 0), 0)
+                       + (funded?.winMonths || 0);  // mois gagnants funded
+      const allLosses  = phaseResults.reduce((s, ph) => s + (ph?.totalLosses || 0), 0)
+                       + (funded?.lossMonths || 0);
+      const totalTrades = (ph1.totalWins || 0) + (ph1.totalLosses || 0); // Phase 1 uniquement pour WR
+      const tradeWR = ph1.tradeWinrate ? +ph1.tradeWinrate.toFixed(1) : winrate;
+
+      // Meilleur et pire trade — lus depuis le dailyLog réel (pas théoriques)
+      const allDailyLog = funded?.dailyLog || ph1?.days || [];
+      let bestTrade = 0, worstTrade = 0;
+      if (funded?.dailyLog?.length) {
+        // Lire depuis le log journalier funded
+        funded.dailyLog.forEach(d => {
+          if (d.pnl > bestTrade)  bestTrade  = d.pnl;
+          if (d.pnl < worstTrade) worstTrade = d.pnl;
+        });
+      }
+      // Si pas de funded, utiliser les jours de phase 1
+      if (bestTrade === 0 && worstTrade === 0 && ph1?.days?.length) {
+        let prevEq = capital;
+        ph1.days.forEach(d => {
+          const dayPnl = d.equity - prevEq;
+          if (dayPnl > bestTrade)  bestTrade  = +dayPnl.toFixed(2);
+          if (dayPnl < worstTrade) worstTrade = +dayPnl.toFixed(2);
+          prevEq = d.equity;
+        });
+      }
+      bestTrade  = +bestTrade.toFixed(2);
+      worstTrade = +worstTrade.toFixed(2);
 
       // PnL calendrier
       const dailyLog = funded?.dailyLog || [];
@@ -922,7 +947,11 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         splitStart: model.splitStart, splitMax: model.splitMax,
         equityCurve, dailyLog,
         winrate: tradeWR, rr: +finalRR.toFixed(2),
-        totalTrades, wins: ph1.totalWins || 0, losses: ph1.totalLosses || 0,
+        totalTrades,
+        wins:  ph1.totalWins  || 0,
+        losses: ph1.totalLosses || 0,
+        tradeWinsAllPhases: allWins,
+        tradeLossesAllPhases: allLosses,
         bestTrade, worstTrade,
         profitAmount: +((ph1.profit || 0) * capital).toFixed(2),
         // ── Funded complet pour Dashboard ──
@@ -4233,13 +4262,13 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
             </svg>
             <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
               <div style={{fontSize:14,fontWeight:700,color:"#6ee7b7"}}>{wr.toFixed(1)}%</div>
-              <div style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>Winrate</div>
+              <div style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>WR réel</div>
             </div>
           </div>
           {[
-            {l:"Trades gagnants",v:wins,c:"#6ee7b7"},
-            {l:"Trades perdants",v:losses,c:"#f87171"},
-            {l:"Winrate",v:wr.toFixed(1)+"%",c:"#6ee7b7"},
+            {l:"Trades gagnants", v: wins,   c:"#6ee7b7"},
+            {l:"Trades perdants", v: losses, c:"#f87171"},
+            {l:"Total trades",    v: totalTrades, c:"#FFFFFF"},
           ].map((s,i)=>(
             <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
               <span style={{fontSize:10,color:"rgba(255,255,255,0.4)"}}>{s.l}</span>
@@ -4248,8 +4277,18 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
           ))}
           <div style={{borderTop:"1px solid rgba(255,255,255,0.05)",marginTop:8,paddingTop:8}}>
             {[
-              {l:"Meilleur trade",v:"+"+fmtMoney(bestTrade),c:"#6ee7b7"},
-              {l:"Pire trade",v:"-"+fmtMoney(Math.abs(worstTrade)),c:"#f87171"},
+              {l:"Meilleur jour",
+               v: bestTrade > 0 ? "+$"+fmtMoney(bestTrade) : bestTrade < 0 ? "-$"+fmtMoney(Math.abs(bestTrade)) : "$0",
+               c: bestTrade >= 0 ? "#6ee7b7" : "#f87171"},
+              {l:"Pire jour",
+               v: worstTrade < 0 ? "-$"+fmtMoney(Math.abs(worstTrade)) : worstTrade > 0 ? "+$"+fmtMoney(worstTrade) : "$0",
+               c: worstTrade <= 0 ? "#f87171" : "#6ee7b7"},
+              {l:"Profit Phase 1",
+               v: profitAmount >= 0 ? "+$"+fmtMoney(profitAmount) : "-$"+fmtMoney(Math.abs(profitAmount)),
+               c: profitAmount >= 0 ? "#6ee7b7" : "#f87171"},
+              {l:"RR cible",
+               v: rr > 0 ? "1:" + rr : "—",
+               c: "rgba(255,255,255,0.85)"},
             ].map((s,i)=>(
               <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
                 <span style={{fontSize:10,color:"rgba(255,255,255,0.4)"}}>{s.l}</span>
