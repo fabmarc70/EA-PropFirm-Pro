@@ -3302,70 +3302,38 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
     </div>
   );
 
-  // ── Slide 2 ──────────────────────────────────────────────────────
+  // ── Slide 2 — Titre en haut + image en dessous ──────────────────
   const Slide2 = () => (
-    <div style={{height:"100%",overflow:"hidden",padding:"calc(60px + env(safe-area-inset-top)) 20px 16px",display:"flex",flexDirection:"column",gap:10}}>
-      <div style={{fontSize:11,color:"rgba(255,255,255,0.35)",textAlign:"right",marginBottom:20,fontWeight:600}}>2/3</div>
-      <div style={{textAlign:"center",marginBottom:14}}>
-        <div style={{fontSize:27,fontWeight:700,color:"#ffffff",lineHeight:1.2,marginBottom:4}}>{tx.s2h1}</div>
-        <div style={{fontSize:27,fontWeight:700,color:"#6ee7b7",lineHeight:1.2}}>{tx.s2h2}</div>
-      </div>
-      <div style={{textAlign:"center",fontSize:12,color:"rgba(255,255,255,0.4)",lineHeight:1.5,marginBottom:10}}>{tx.s2sub}</div>
+    <div style={{
+      height: "100%", display: "flex", flexDirection: "column",
+      overflow: "hidden", padding: "calc(22px + env(safe-area-inset-top)) 24px 0",
+    }}>
+      {/* Compteur */}
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 14 }}>2 / 3</div>
 
-      {/* Zone centrale : gauge + cartes gauche/droite */}
-      <div style={{position:"relative",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:8,minHeight:180}}>
-        {/* Cartes gauche */}
-        <div style={{display:"flex",flexDirection:"column",gap:8,flex:1,marginRight:8}}>
-          {[[tx.s1wr,"52%","#6ee7b7",false],[tx.s1pf,"1.87","#6ee7b7",false],
-            [tx.s1dd,"4.2%","#ef4444",true],[tx.s1prob,"74%","#6ee7b7",false]].map(([l,v,c,dn],i)=>(
-            <div key={i} style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(110,231,183,0.12)",borderRadius:12,padding:"8px 10px"}}>
-              <div style={{fontSize: 11,color:"rgba(255,255,255,0.4)",marginBottom:2}}>{l}</div>
-              <div style={{fontSize:16,fontWeight:700,color:"#ffffff"}}>{v}</div>
-              <SparkLine color={c} down={dn}/>
-            </div>
-          ))}
-        </div>
-
-        {/* Gauge centrale */}
-        <div style={{position:"relative",width:170,height:170,flexShrink:0}}>
-          {/* Halo */}
-          <div style={{position:"absolute",inset:-10,borderRadius:"50%",background:"radial-gradient(circle,rgba(110,231,183,0.15) 0%,transparent 70%)"}}/>
-          <GaugeRing pct={74} size={170}/>
-          {/* Centre texte */}
-          <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center"}}>
-            <div style={{display:"flex",justifyContent:"center",marginBottom:4}}><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#6ee7b7" strokeWidth="1.8"/><circle cx="12" cy="12" r="5" stroke="#6ee7b7" strokeWidth="1.5"/><circle cx="12" cy="12" r="2" fill="#6ee7b7"/></svg></div>
-            <div style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.7)",marginBottom:2}}>{tx.s2ready}</div>
-            <div style={{fontSize:30,fontWeight:700,color:"#6ee7b7",lineHeight:1}}>74%</div>
-          </div>
-        </div>
-
-        {/* Cartes droite */}
-        <div style={{display:"flex",flexDirection:"column",gap:8,flex:1,marginLeft:8}}>
-          {[["CHART",tx.s2stats],["STATS",tx.s2proj],["SHIELD",tx.s2risk],["TARGET",tx.s2val]].map(([ic,l],i)=>(
-            <div key={i} style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(110,231,183,0.12)",borderRadius:12,padding:"8px 10px",textAlign:"center"}}>
-              <div style={{fontSize:20,marginBottom:4}}>{ic}</div>
-              <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",fontWeight:600,lineHeight:1.3}}>{l}</div>
-            </div>
-          ))}
-        </div>
+      {/* Titre + sous-titre EN HAUT */}
+      <div style={{ marginBottom: 18, flexShrink: 0 }}>
+        <div style={{ fontSize: 27, fontWeight: 700, color: "#ffffff", lineHeight: 1.2, marginBottom: 4 }}>{tx.s2h1}</div>
+        <div style={{ fontSize: 27, fontWeight: 700, color: "#6ee7b7", lineHeight: 1.2, marginBottom: 12 }}>{tx.s2h2}</div>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>{tx.s2sub}</div>
       </div>
 
-      {/* 4 badges check */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
-        {[tx.s2k1,tx.s2k2,tx.s2k3,tx.s2k4].map((k,i)=>(
-          <div key={i} style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(110,231,183,0.2)",borderRadius:12,padding:"10px 12px",display:"flex",alignItems:"center",gap:8}}>
-            <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="9" fill="rgba(110,231,183,0.15)"/><circle cx="9" cy="9" r="9" fill="none" stroke="#6ee7b7" strokeWidth="1.2"/><path d="M5.5 9l2.5 2.5 4.5-4.5" stroke="#6ee7b7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            <span style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,0.85)",lineHeight:1.3}}>{k}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Carte bas */}
-      <div style={{background:"rgba(110,231,183,0.05)",border:"1px solid rgba(110,231,183,0.15)",borderRadius:18,padding:"20px",textAlign:"center"}}>
-        <div style={{fontSize:24,marginBottom:10}}>🛡</div>
-        <div style={{fontSize:15,fontWeight:700,color:"#ffffff",lineHeight:1.5}}>
-          {tx.s2bot1}<span style={{color:"#6ee7b7"}}>{tx.s2bot2}</span>{tx.s2bot3}
-        </div>
+      {/* Image EN DESSOUS */}
+      <div style={{ flex: 1, borderRadius: "20px 20px 0 0", overflow: "hidden", position: "relative" }}>
+        <img
+          src="/6851BC14-AB5F-4662-813E-A5E7486744B7.png"
+          alt="Prop Firm Simulator"
+          style={{
+            width: "100%", height: "100%",
+            objectFit: "cover", objectPosition: "center top",
+            display: "block",
+          }}
+        />
+        {/* Léger gradient haut */}
+        <div style={{
+          position: "absolute", top: 0, left: 0, right: 0, height: 40,
+          background: "linear-gradient(#06090f, transparent)",
+        }} />
       </div>
     </div>
   );
