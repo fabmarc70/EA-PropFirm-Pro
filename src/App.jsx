@@ -3261,42 +3261,43 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
     );
   };
 
-  // ── Slide 1 — Image hero plein écran ──────────────────────────────
+  // ── Slide 1 — Titre en haut + image en dessous ──────────────────
   const Slide1 = () => (
     <div style={{
-      height:"100%", display:"flex", flexDirection:"column", overflow:"hidden",
+      height: "100%", display: "flex", flexDirection: "column",
+      overflow: "hidden", padding: "calc(22px + env(safe-area-inset-top)) 24px 0",
     }}>
-      {/* Image plein écran */}
-      <div style={{flex:1, position:"relative", overflow:"hidden"}}>
+      {/* Compteur */}
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 14 }}>1 / 3</div>
+
+      {/* Titre + sous-titre EN HAUT */}
+      <div style={{ marginBottom: 20, flexShrink: 0 }}>
+        <div style={{ fontSize: 28, fontWeight: 700, color: "#ffffff", lineHeight: 1.2, marginBottom: 4 }}>{tx.s1h1}</div>
+        <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2, marginBottom: 12 }}>
+          <span style={{ color: "#ffffff" }}>{tx.s1h2}</span>
+          <span style={{ color: "#f87171" }}>{tx.s1h2r}</span>
+        </div>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
+          {tx.s1sub}<span style={{ color: "#ffffff", fontWeight: 700 }}>{tx.s1bold}</span>
+        </div>
+      </div>
+
+      {/* Image EN DESSOUS — prend l'espace restant */}
+      <div style={{ flex: 1, borderRadius: "20px 20px 0 0", overflow: "hidden", position: "relative" }}>
         <img
           src="/9C04F5A9-504B-41BA-BB77-DB5B82902B46.png"
           alt="Prop Firm Simulator"
           style={{
-            width:"100%", height:"100%",
-            objectFit:"cover", objectPosition:"center top",
-            display:"block",
+            width: "100%", height: "100%",
+            objectFit: "cover", objectPosition: "center top",
+            display: "block",
           }}
         />
-        {/* Gradient overlay bas */}
+        {/* Léger gradient haut pour transition douce */}
         <div style={{
-          position:"absolute", bottom:0, left:0, right:0, height:"60%",
-          background:"linear-gradient(transparent, rgba(6,9,15,0.90) 50%, #06090f 100%)",
-        }}/>
-        {/* Texte sur l'image */}
-        <div style={{
-          position:"absolute", bottom:0, left:0, right:0,
-          padding:"0 24px 24px",
-        }}>
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.35)",fontWeight:600,letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>1 / 3</div>
-          <div style={{fontSize:28,fontWeight:700,color:"#ffffff",lineHeight:1.2,marginBottom:4}}>{tx.s1h1}</div>
-          <div style={{fontSize:28,fontWeight:700,lineHeight:1.2,marginBottom:12}}>
-            <span style={{color:"#ffffff"}}>{tx.s1h2}</span>
-            <span style={{color:"#f87171"}}>{tx.s1h2r}</span>
-          </div>
-          <div style={{fontSize:13,color:"rgba(255,255,255,0.6)",lineHeight:1.5}}>
-            {tx.s1sub}<span style={{color:"#ffffff",fontWeight:700}}>{tx.s1bold}</span>
-          </div>
-        </div>
+          position: "absolute", top: 0, left: 0, right: 0, height: 40,
+          background: "linear-gradient(#06090f, transparent)",
+        }} />
       </div>
     </div>
   );
