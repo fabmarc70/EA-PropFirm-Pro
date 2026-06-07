@@ -663,7 +663,7 @@ function simulateFunded(capital, months, model, p, split) {
 // INFO TIP — petit bouton ⓘ avec tooltip au tap
 // ══════════════════════════════════════════════════════════════════
 function InfoTip({ text }) {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
   return (
     <span style={{ position: "relative", display: "inline-flex", alignItems: "center", marginLeft: 6 }}>
       <button
@@ -695,7 +695,7 @@ function InfoTip({ text }) {
             width: 230, zIndex: 999,
             boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
           }}>
-            <div style={{ position: "absolute", top: -5, left: "50%", transform: "translateX(-50%)",
+            <div style={{ position: "absolute", top: -5, left: "50%",
               width: 8, height: 8, background: "#0f1a2e",
               border: "1px solid rgba(110,231,183,0.3)", borderBottom: "none", borderRight: "none",
               transform: "translateX(-50%) rotate(45deg)",
@@ -3468,7 +3468,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
 
   return (
     <div style={{
-      height: "100vh", height: "100dvh",
+      height: "100dvh",
       background: "#06090f", position: "relative",
       maxWidth: 480, margin: "0 auto",
       fontFamily: "-apple-system, sans-serif", color: "#FFFFFF",
