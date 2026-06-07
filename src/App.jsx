@@ -3282,143 +3282,139 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
     );
   };
 
-  // ── Slide 1 — Layout style référence ──────────────────
+  // ── Slide 1 — Image plein écran, texte superposé en haut ──────────────────
   const Slide1 = () => (
     <div style={{
-      height: "100%", display: "flex", flexDirection: "column",
-      overflow: "hidden", minHeight: 0,
+      height: "100%", position: "relative", overflow: "hidden",
     }}>
-      {/* Header : padding safe-area + titre */}
-      <div style={{ padding: "calc(14px + env(safe-area-inset-top)) 24px 0", flexShrink: 0 }}>
-        {/* Compteur discret */}
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontWeight: 500, marginBottom: 14 }}>1 / 3</div>
-        {/* Titre principal - grande typo */}
-        <div style={{ fontSize: 36, fontWeight: 800, color: "#ffffff", lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 6 }}>
+      {/* Image plein écran en fond */}
+      <img
+        src="/9C04F5A9-504B-41BA-BB77-DB5B82902B46_opt.jpg"
+        alt="Prop Firm Simulator"
+        style={{
+          position: "absolute", inset: 0,
+          width: "100%", height: "100%",
+          objectFit: "cover", objectPosition: "center 30%",
+          display: "block",
+        }}
+      />
+      {/* Gradient fort en haut pour lisibilité du texte */}
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0, height: "55%",
+        background: "linear-gradient(180deg, #06090f 0%, #06090f 35%, rgba(6,9,15,0.85) 60%, transparent 100%)",
+        pointerEvents: "none",
+      }} />
+      {/* Gradient bas pour la nav */}
+      <div style={{
+        position: "absolute", bottom: 0, left: 0, right: 0, height: 100,
+        background: "linear-gradient(transparent 0%, #06090f 100%)",
+        pointerEvents: "none",
+      }} />
+      {/* Texte superposé en haut */}
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0,
+        padding: "calc(14px + env(safe-area-inset-top)) 24px 0",
+        zIndex: 2,
+      }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 500, marginBottom: 12 }}>1 / 3</div>
+        <div style={{ fontSize: 36, fontWeight: 800, color: "#ffffff", lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 4 }}>
           {tx.s1h1}
         </div>
         <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 14 }}>
           <span style={{ color: "#ffffff" }}>{tx.s1h2}</span>
           <span style={{ color: "#f87171" }}>{tx.s1h2r}</span>
         </div>
-        {/* Sous-titre */}
-        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, maxWidth: 320 }}>
-          {tx.s1sub}<span style={{ color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>{tx.s1bold}</span>
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.55, maxWidth: 300 }}>
+          {tx.s1sub}<span style={{ color: "#ffffff", fontWeight: 700 }}>{tx.s1bold}</span>
         </div>
-      </div>
-
-      {/* Image — flex:1, prend tout l'espace restant */}
-      <div style={{ flex: 1, position: "relative", minHeight: 0, marginTop: 8 }}>
-        <img
-          src="/9C04F5A9-504B-41BA-BB77-DB5B82902B46_opt.jpg"
-          alt="Prop Firm Simulator"
-          style={{
-            width: "100%", height: "100%",
-            objectFit: "cover", objectPosition: "center top",
-            display: "block",
-          }}
-        />
-        {/* Gradient haut : fondu depuis le fond */}
-        <div style={{
-          position: "absolute", top: 0, left: 0, right: 0, height: 60,
-          background: "linear-gradient(#06090f 0%, transparent 100%)",
-          pointerEvents: "none",
-        }} />
-        {/* Gradient bas : fondu vers le fond pour la nav */}
-        <div style={{
-          position: "absolute", bottom: 0, left: 0, right: 0, height: 80,
-          background: "linear-gradient(transparent 0%, #06090f 100%)",
-          pointerEvents: "none",
-        }} />
       </div>
     </div>
   );
 
-  // ── Slide 2 — Layout style référence ──────────────────
+  // ── Slide 2 — Image plein écran, texte superposé en haut ──────────────────
   const Slide2 = () => (
     <div style={{
-      height: "100%", display: "flex", flexDirection: "column",
-      overflow: "hidden", minHeight: 0,
+      height: "100%", position: "relative", overflow: "hidden",
     }}>
-      {/* Header */}
-      <div style={{ padding: "calc(14px + env(safe-area-inset-top)) 24px 0", flexShrink: 0 }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontWeight: 500, marginBottom: 14 }}>2 / 3</div>
-        <div style={{ fontSize: 36, fontWeight: 800, color: "#ffffff", lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 6 }}>
+      <img
+        src="/6851BC14-AB5F-4662-813E-A5E7486744B7_opt.jpg"
+        alt="Prop Firm Simulator"
+        style={{
+          position: "absolute", inset: 0,
+          width: "100%", height: "100%",
+          objectFit: "cover", objectPosition: "center 30%",
+          display: "block",
+        }}
+      />
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0, height: "55%",
+        background: "linear-gradient(180deg, #06090f 0%, #06090f 35%, rgba(6,9,15,0.85) 60%, transparent 100%)",
+        pointerEvents: "none",
+      }} />
+      <div style={{
+        position: "absolute", bottom: 0, left: 0, right: 0, height: 100,
+        background: "linear-gradient(transparent 0%, #06090f 100%)",
+        pointerEvents: "none",
+      }} />
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0,
+        padding: "calc(14px + env(safe-area-inset-top)) 24px 0",
+        zIndex: 2,
+      }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 500, marginBottom: 12 }}>2 / 3</div>
+        <div style={{ fontSize: 36, fontWeight: 800, color: "#ffffff", lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 4 }}>
           {tx.s2h1}
         </div>
         <div style={{ fontSize: 36, fontWeight: 800, color: "#6ee7b7", lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 14 }}>
           {tx.s2h2}
         </div>
-        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, maxWidth: 320 }}>
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.55, maxWidth: 300 }}>
           {tx.s2sub}
         </div>
-      </div>
-
-      {/* Image */}
-      <div style={{ flex: 1, position: "relative", minHeight: 0, marginTop: 8 }}>
-        <img
-          src="/6851BC14-AB5F-4662-813E-A5E7486744B7_opt.jpg"
-          alt="Prop Firm Simulator"
-          style={{
-            width: "100%", height: "100%",
-            objectFit: "cover", objectPosition: "center top",
-            display: "block",
-          }}
-        />
-        <div style={{
-          position: "absolute", top: 0, left: 0, right: 0, height: 60,
-          background: "linear-gradient(#06090f 0%, transparent 100%)",
-          pointerEvents: "none",
-        }} />
-        <div style={{
-          position: "absolute", bottom: 0, left: 0, right: 0, height: 80,
-          background: "linear-gradient(transparent 0%, #06090f 100%)",
-          pointerEvents: "none",
-        }} />
       </div>
     </div>
   );
 
-  // ── Slide 3 — Layout style référence ──────────────────
+  // ── Slide 3 — Image plein écran, texte superposé en haut ──────────────────
   const Slide3 = () => (
     <div style={{
-      height: "100%", display: "flex", flexDirection: "column",
-      overflow: "hidden", minHeight: 0,
+      height: "100%", position: "relative", overflow: "hidden",
     }}>
-      {/* Header */}
-      <div style={{ padding: "calc(14px + env(safe-area-inset-top)) 24px 0", flexShrink: 0 }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontWeight: 500, marginBottom: 14 }}>3 / 3</div>
-        <div style={{ fontSize: 34, fontWeight: 800, color: "#ffffff", lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 6 }}>
+      <img
+        src="/CBA95772-B4CE-481F-9780-A3197BBEE825_opt.jpg"
+        alt="Prop Firm Simulator"
+        style={{
+          position: "absolute", inset: 0,
+          width: "100%", height: "100%",
+          objectFit: "cover", objectPosition: "center 30%",
+          display: "block",
+        }}
+      />
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0, height: "55%",
+        background: "linear-gradient(180deg, #06090f 0%, #06090f 35%, rgba(6,9,15,0.85) 60%, transparent 100%)",
+        pointerEvents: "none",
+      }} />
+      <div style={{
+        position: "absolute", bottom: 0, left: 0, right: 0, height: 100,
+        background: "linear-gradient(transparent 0%, #06090f 100%)",
+        pointerEvents: "none",
+      }} />
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0,
+        padding: "calc(14px + env(safe-area-inset-top)) 24px 0",
+        zIndex: 2,
+      }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 500, marginBottom: 12 }}>3 / 3</div>
+        <div style={{ fontSize: 34, fontWeight: 800, color: "#ffffff", lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 4 }}>
           {tx.s3h1}
         </div>
         <div style={{ fontSize: 34, fontWeight: 800, color: "#6ee7b7", lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 14 }}>
           {tx.s3h2}
         </div>
-        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, maxWidth: 320 }}>
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.55, maxWidth: 300 }}>
           {tx.s3sub1}<span style={{ color: "#f87171", fontWeight: 700 }}>{tx.s3subr}</span>{tx.s3sub2}
         </div>
-      </div>
-
-      {/* Image */}
-      <div style={{ flex: 1, position: "relative", minHeight: 0, marginTop: 8 }}>
-        <img
-          src="/CBA95772-B4CE-481F-9780-A3197BBEE825_opt.jpg"
-          alt="Prop Firm Simulator"
-          style={{
-            width: "100%", height: "100%",
-            objectFit: "cover", objectPosition: "center top",
-            display: "block",
-          }}
-        />
-        <div style={{
-          position: "absolute", top: 0, left: 0, right: 0, height: 60,
-          background: "linear-gradient(#06090f 0%, transparent 100%)",
-          pointerEvents: "none",
-        }} />
-        <div style={{
-          position: "absolute", bottom: 0, left: 0, right: 0, height: 80,
-          background: "linear-gradient(transparent 0%, #06090f 100%)",
-          pointerEvents: "none",
-        }} />
       </div>
     </div>
   );
