@@ -3285,7 +3285,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
       {/* Image EN DESSOUS — prend l'espace restant */}
       <div style={{ flex: 1, borderRadius: "20px 20px 0 0", overflow: "hidden", position: "relative" }}>
         <img
-          src="/9C04F5A9-504B-41BA-BB77-DB5B82902B46.png"
+          src="/9C04F5A9-504B-41BA-BB77-DB5B82902B46_opt.jpg"
           alt="Prop Firm Simulator"
           style={{
             width: "100%", height: "100%",
@@ -3321,7 +3321,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
       {/* Image EN DESSOUS */}
       <div style={{ flex: 1, borderRadius: "20px 20px 0 0", overflow: "hidden", position: "relative" }}>
         <img
-          src="/6851BC14-AB5F-4662-813E-A5E7486744B7.png"
+          src="/6851BC14-AB5F-4662-813E-A5E7486744B7_opt.jpg"
           alt="Prop Firm Simulator"
           style={{
             width: "100%", height: "100%",
@@ -3338,92 +3338,40 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
     </div>
   );
 
-  // ── Slide 3 ──────────────────────────────────────────────────────
+  // ── Slide 3 — Titre en haut + image en dessous ──────────────────
   const Slide3 = () => (
-    <div style={{height:"100%",overflow:"hidden",padding:"calc(60px + env(safe-area-inset-top)) 20px 16px",display:"flex",flexDirection:"column",gap:10}}>
-      <div style={{fontSize:11,color:"rgba(255,255,255,0.35)",textAlign:"right",marginBottom:20,fontWeight:600}}>3/3</div>
-      <div style={{textAlign:"center",marginBottom:12}}>
-        <div style={{fontSize:26,fontWeight:700,color:"#ffffff",lineHeight:1.2,marginBottom:4}}>{tx.s3h1}</div>
-        <div style={{fontSize:26,fontWeight:700,color:"#6ee7b7",lineHeight:1.2}}>{tx.s3h2}</div>
-      </div>
-      <div style={{textAlign:"center",fontSize:14,color:"rgba(255,255,255,0.45)",lineHeight:1.6,marginBottom:24}}>
-        {tx.s3sub1}<span style={{color:"#f87171",fontWeight:700}}>{tx.s3subr}</span>{tx.s3sub2}
-      </div>
+    <div style={{
+      height: "100%", display: "flex", flexDirection: "column",
+      overflow: "hidden", padding: "calc(22px + env(safe-area-inset-top)) 24px 0",
+    }}>
+      {/* Compteur */}
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", marginBottom: 14 }}>3 / 3</div>
 
-      {/* Balance stylisée */}
-      <div style={{position:"relative",height:80,marginBottom:8}}>
-        {/* Poutre SVG */}
-        <svg width="100%" height="80" viewBox="0 0 320 80" style={{position:"absolute",top:0,left:0}}>
-          {/* Pilier central */}
-          <rect x="155" y="25" width="10" height="50" rx="5" fill="#2a2020"/>
-          {/* Boule */}
-          <circle cx="160" cy="25" r="8" fill="#3a3030"/>
-          {/* Poutre inclinée (gauche plus bas = plus lourd) */}
-          <path d="M20 42 Q160 22 300 32" fill="none" stroke="#3a3030" strokeWidth="7" strokeLinecap="round"/>
-          {/* Chaînes gauche */}
-          <line x1="30" y1="45" x2="30" y2="62" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" strokeDasharray="3 2"/>
-          <line x1="70" y1="40" x2="70" y2="62" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" strokeDasharray="3 2"/>
-          {/* Chaînes droite */}
-          <line x1="250" y1="35" x2="250" y2="52" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" strokeDasharray="3 2"/>
-          <line x1="290" y1="32" x2="290" y2="52" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" strokeDasharray="3 2"/>
-          {/* Plateau gauche (rouge) */}
-          <ellipse cx="50" cy="65" rx="44" ry="7" fill="#3a1515"/>
-          <ellipse cx="50" cy="63" rx="36" ry="5" fill="#ef4444" opacity="0.25"/>
-          {/* Plateau droite (vert) */}
-          <ellipse cx="270" cy="55" rx="40" ry="6" fill="#0f2a1a"/>
-          <ellipse cx="270" cy="53" rx="32" ry="4" fill="#6ee7b7" opacity="0.2"/>
-          {/* Base */}
-          <ellipse cx="160" cy="78" rx="36" ry="6" fill="#2a2020"/>
-        </svg>
-      </div>
-
-      {/* Les deux plateaux contenus */}
-      <div style={{display:"flex",gap:10,marginBottom:20}}>
-        {/* Plateau gauche — rouge (challenge perdu) */}
-        <div style={{flex:1,background:"rgba(239,68,68,0.07)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:16,padding:"14px 12px",textAlign:"center"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginBottom:10}}>
-            <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="9" fill="#ef4444"/><path d="M5.5 5.5l7 7M12.5 5.5l-7 7" stroke="white" strokeWidth="1.8" strokeLinecap="round"/></svg>
-            <span style={{fontSize:12,fontWeight:700,color:"#f87171"}}>{tx.s3lost}</span>
-          </div>
-          {/* Mini chart descendant */}
-          <div style={{margin:"0 auto 10px",width:"80%"}}>
-            <svg width="100%" height="36" viewBox="0 0 80 36">
-              <defs><linearGradient id="rch" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ef4444" stopOpacity="0.4"/><stop offset="100%" stopColor="#ef4444" stopOpacity="0"/></linearGradient></defs>
-              <polygon points="0,4 16,6 32,14 48,20 64,28 80,34 80,36 0,36" fill="url(#rch)"/>
-              <polyline points="0,4 16,6 32,14 48,20 64,28 80,34" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"/>
-            </svg>
-          </div>
-          <div style={{fontSize:22,fontWeight:700,color:"#f87171"}}>99$</div>
-          <div style={{fontSize:13,color:"rgba(255,255,255,0.4)",margin:"2px 0"}}>à</div>
-          <div style={{fontSize:24,fontWeight:700,color:"#f87171"}}>500$</div>
-        </div>
-
-        {/* Plateau droite — vert (simulator) */}
-        <div style={{flex:1,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(110,231,183,0.3)",borderRadius:16,padding:"14px 12px",textAlign:"center"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginBottom:10}}>
-            <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="9" fill="rgba(110,231,183,0.2)"/><path d="M5 9l3 3 5-5" stroke="#6ee7b7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            <span style={{fontSize:11,fontWeight:700,color:"#6ee7b7"}}>{tx.s3sim}</span>
-          </div>
-          <div style={{marginBottom:12}}>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.35)",marginBottom:4}}>🛡</div>
-          </div>
-          <div style={{fontSize:22,fontWeight:700,color:"#6ee7b7",marginBottom:4}}>{tx.s3mo}</div>
-          <div style={{fontSize:13,color:"rgba(255,255,255,0.3)",margin:"4px 0"}}>ou</div>
-          <div style={{fontSize:20,fontWeight:700,color:"#6ee7b7"}}>{tx.s3yr}</div>
+      {/* Titre + sous-titre EN HAUT */}
+      <div style={{ marginBottom: 18, flexShrink: 0 }}>
+        <div style={{ fontSize: 26, fontWeight: 700, color: "#ffffff", lineHeight: 1.2, marginBottom: 4 }}>{tx.s3h1}</div>
+        <div style={{ fontSize: 26, fontWeight: 700, color: "#6ee7b7", lineHeight: 1.2, marginBottom: 12 }}>{tx.s3h2}</div>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
+          {tx.s3sub1}<span style={{ color: "#f87171", fontWeight: 700 }}>{tx.s3subr}</span>{tx.s3sub2}
         </div>
       </div>
 
-      {/* Carte bas + CTA */}
-      <div style={{background:"rgba(110,231,183,0.05)",border:"1px solid rgba(110,231,183,0.15)",borderRadius:20,padding:"22px 20px",textAlign:"center"}}>
-        <div style={{fontSize:26,marginBottom:10}}>🛡</div>
-        <div style={{fontSize:17,fontWeight:700,color:"#ffffff",lineHeight:1.4,marginBottom:4}}>{tx.s3bt1}</div>
-        <div style={{fontSize:17,fontWeight:700,color:"#6ee7b7",lineHeight:1.4,marginBottom:18}}>{tx.s3bt2}</div>
-        <button onClick={onDone} style={{
-          width:"100%",padding:"18px",borderRadius:100,
-          background:"#6ee7b7",color:"#000000",
-          fontSize:16,fontWeight:700,border:"none",cursor:"pointer",
-          boxShadow:"0 4px 24px rgba(110,231,183,0.3)",
-        }}>{tx.s3cta}</button>
+      {/* Image EN DESSOUS */}
+      <div style={{ flex: 1, borderRadius: "20px 20px 0 0", overflow: "hidden", position: "relative" }}>
+        <img
+          src="/CBA95772-B4CE-481F-9780-A3197BBEE825_opt.jpg"
+          alt="Prop Firm Simulator"
+          style={{
+            width: "100%", height: "100%",
+            objectFit: "cover", objectPosition: "center top",
+            display: "block",
+          }}
+        />
+        {/* Léger gradient haut */}
+        <div style={{
+          position: "absolute", top: 0, left: 0, right: 0, height: 40,
+          background: "linear-gradient(#06090f, transparent)",
+        }} />
       </div>
     </div>
   );
