@@ -1817,24 +1817,50 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               </div>
             );
           })}
-          {/* Bouton accès direct au Funded */}
-          <button onClick={() => setTab("funded")} style={{
-            width: "100%", padding: 15, marginTop: 4, borderRadius: 12, cursor: "pointer",
-            background: "#6ee7b7", color: "#000000", fontSize: 15, fontWeight: 600,
-            border: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            boxShadow: "0 4px 20px rgba(110,231,183,0.25)",
-          }}>
-            Voir mon compte Funded
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M7 4l5 5-5 5" stroke="#000000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
+          {/* Bouton accès direct au Funded — uniquement si challenge réussi */}
+          {sim?.allPassed && sim?.funded ? (
+            <button onClick={() => setTab("funded")} style={{
+              width: "100%", padding: 15, marginTop: 4, borderRadius: 12, cursor: "pointer",
+              background: "#6ee7b7", color: "#000000", fontSize: 15, fontWeight: 600,
+              border: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              boxShadow: "0 4px 20px rgba(110,231,183,0.25)",
+            }}>
+              Voir mon compte Funded
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path d="M7 4l5 5-5 5" stroke="#000000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          ) : sim && !sim.allPassed ? (
+            <div style={{ marginTop: 4, padding: "12px 14px", background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.20)", borderRadius: 12, fontSize: 12, color: "rgba(255,255,255,0.55)", textAlign: "center" }}>
+              Passe toutes les phases du challenge pour accéder au compte Funded
+            </div>
+          ) : null}
         </div>
       )}
 
       {/* TAB FUNDED */}
-      {tab === "funded" && sim && (
-        sim.funded ? (
+      {tab === "funded" && (
+        !sim ? (
+          <div className="card" style={{ textAlign: "center", padding: 32 }}>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>
+              Lance une simulation Challenge d'abord pour accéder au compte Funded.
+            </div>
+            <button onClick={() => setTab("challenge")} style={{ marginTop: 14, padding: "11px 20px", borderRadius: 10, background: "#6ee7b7", color: "#000", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer" }}>
+              Aller au Challenge
+            </button>
+          </div>
+        ) : !sim.funded || !sim.allPassed ? (
+          <div className="card" style={{ textAlign: "center", padding: 32 }}>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.6, marginBottom: 14 }}>
+              {!sim.allPassed
+                ? "Le challenge n'a pas été validé. Modifie tes paramètres et relance la simulation."
+                : "Le compte Funded n'a pas pu être généré. Relance la simulation."}
+            </div>
+            <button onClick={() => setTab("challenge")} style={{ padding: "11px 20px", borderRadius: 10, background: "rgba(255,255,255,0.07)", color: "#6ee7b7", fontSize: 13, fontWeight: 700, border: "1px solid rgba(110,231,183,0.25)", cursor: "pointer" }}>
+              Retour au Challenge
+            </button>
+          </div>
+        ) : (
           <>
             {/* Bouton retour Challenge */}
             <button onClick={() => setTab("challenge")} style={{
@@ -1933,11 +1959,6 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               </div>
             </div>
           </>
-        ) : (
-          <div className="card" style={{ textAlign: "center", padding: 30 }}>
-            <div style={{ color: "#ef4444", fontWeight: 700 }}>Challenge non passe</div>
-            <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 12, marginTop: 8 }}>Monte le winrate ou reduis le clustering</div>
-          </div>
         )
       )}
 
