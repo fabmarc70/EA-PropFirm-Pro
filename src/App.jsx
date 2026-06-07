@@ -1886,10 +1886,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
                 {[
-                  { label: "Payouts encaissés", val: fmt(sim.funded.finalEquity), color: "#6ee7b7" },
-                  { label: "Payout verse", val: fmt(sim.funded.cumulPayout), color: "#6ee7b7" },
+                  { label: "Payouts encaissés", val: fmt(sim.funded.cumulPayout), color: "#6ee7b7" },
                   { label: "En attente", val: fmt2(sim.funded.pendingPayout), color: "rgba(255,255,255,0.55)" },
-                  { label: "Mois gagnants", val: sim.funded.funded.winMonths + "/" + (funded.winMonths + funded.lossMonths), color: sim.funded.winrateMonth >= 60 ? "#6ee7b7" : "#fbbf24" },
+                  { label: "Solde compte", val: fmt(sim.funded.finalEquity), color: "rgba(255,255,255,0.85)" },
+                  { label: "Mois gagnants", val: sim.funded.winMonths + "/" + (sim.funded.winMonths + sim.funded.lossMonths), color: sim.funded.winrateMonth >= 60 ? "#6ee7b7" : "#fbbf24" },
                   { label: "Scaling", val: sim.funded.scalingCount + "x (+40%)", color: "rgba(255,255,255,0.55)" },
                   { label: "Split final", val: sim.funded.finalSplit + "%", color: sim.funded.finalSplit >= 90 ? "#6ee7b7" : "#fbbf24" },
                 ].map((k) => (
