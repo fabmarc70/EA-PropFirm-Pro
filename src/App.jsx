@@ -3282,137 +3282,130 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
     );
   };
 
-  // ── Slide 1 — Image plein écran, texte superposé en haut ──────────────────
+  // ── Slide 1 ──────────────────
   const Slide1 = () => (
-    <div style={{
-      height: "100%", position: "relative", overflow: "hidden",
-    }}>
-      {/* Image plein écran en fond */}
+    <div style={{ height: "100%", position: "relative", overflow: "hidden" }}>
+      {/* Image : centrée verticalement sur le bas du sujet */}
       <img
         src="/9C04F5A9-504B-41BA-BB77-DB5B82902B46_opt.jpg"
         alt="Prop Firm Simulator"
         style={{
           position: "absolute", inset: 0,
           width: "100%", height: "100%",
-          objectFit: "cover", objectPosition: "center 30%",
+          objectFit: "cover", objectPosition: "center 55%",
           display: "block",
         }}
       />
-      {/* Gradient fort en haut pour lisibilité du texte */}
+      {/* Gradient haut léger : juste assez pour lire le texte, pas assombrir */}
       <div style={{
-        position: "absolute", top: 0, left: 0, right: 0, height: "55%",
-        background: "linear-gradient(180deg, #06090f 0%, #06090f 35%, rgba(6,9,15,0.85) 60%, transparent 100%)",
+        position: "absolute", top: 0, left: 0, right: 0, height: "48%",
+        background: "linear-gradient(180deg, rgba(6,9,15,0.92) 0%, rgba(6,9,15,0.75) 40%, rgba(6,9,15,0.3) 70%, transparent 100%)",
         pointerEvents: "none",
       }} />
-      {/* Gradient bas pour la nav */}
+      {/* Gradient bas nav */}
       <div style={{
-        position: "absolute", bottom: 0, left: 0, right: 0, height: 100,
-        background: "linear-gradient(transparent 0%, #06090f 100%)",
+        position: "absolute", bottom: 0, left: 0, right: 0, height: 90,
+        background: "linear-gradient(transparent 0%, rgba(6,9,15,0.95) 100%)",
         pointerEvents: "none",
       }} />
-      {/* Texte superposé en haut */}
+      {/* Texte en haut */}
       <div style={{
         position: "absolute", top: 0, left: 0, right: 0,
-        padding: "calc(14px + env(safe-area-inset-top)) 24px 0",
+        padding: "calc(12px + env(safe-area-inset-top)) 22px 0",
         zIndex: 2,
       }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 500, marginBottom: 12 }}>1 / 3</div>
-        <div style={{ fontSize: 36, fontWeight: 800, color: "#ffffff", lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 4 }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 500, marginBottom: 10 }}>1 / 3</div>
+        <div style={{ fontSize: 28, fontWeight: 800, color: "#ffffff", lineHeight: 1.15, letterSpacing: -0.3, marginBottom: 2 }}>
           {tx.s1h1}
         </div>
-        <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 14 }}>
-          <span style={{ color: "#ffffff" }}>{tx.s1h2}</span>
-          <span style={{ color: "#f87171" }}>{tx.s1h2r}</span>
+        <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.15, letterSpacing: -0.3, marginBottom: 12 }}>
+          <span style={{ color: "#ffffff" }}>{tx.s1h2}</span><span style={{ color: "#f87171" }}>{tx.s1h2r}</span>
         </div>
-        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.55, maxWidth: 300 }}>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
           {tx.s1sub}<span style={{ color: "#ffffff", fontWeight: 700 }}>{tx.s1bold}</span>
         </div>
       </div>
     </div>
   );
 
-  // ── Slide 2 — Image plein écran, texte superposé en haut ──────────────────
+  // ── Slide 2 ──────────────────
   const Slide2 = () => (
-    <div style={{
-      height: "100%", position: "relative", overflow: "hidden",
-    }}>
+    <div style={{ height: "100%", position: "relative", overflow: "hidden" }}>
       <img
         src="/6851BC14-AB5F-4662-813E-A5E7486744B7_opt.jpg"
         alt="Prop Firm Simulator"
         style={{
           position: "absolute", inset: 0,
           width: "100%", height: "100%",
-          objectFit: "cover", objectPosition: "center 30%",
+          objectFit: "cover", objectPosition: "center 55%",
           display: "block",
         }}
       />
       <div style={{
-        position: "absolute", top: 0, left: 0, right: 0, height: "55%",
-        background: "linear-gradient(180deg, #06090f 0%, #06090f 35%, rgba(6,9,15,0.85) 60%, transparent 100%)",
+        position: "absolute", top: 0, left: 0, right: 0, height: "48%",
+        background: "linear-gradient(180deg, rgba(6,9,15,0.92) 0%, rgba(6,9,15,0.75) 40%, rgba(6,9,15,0.3) 70%, transparent 100%)",
         pointerEvents: "none",
       }} />
       <div style={{
-        position: "absolute", bottom: 0, left: 0, right: 0, height: 100,
-        background: "linear-gradient(transparent 0%, #06090f 100%)",
+        position: "absolute", bottom: 0, left: 0, right: 0, height: 90,
+        background: "linear-gradient(transparent 0%, rgba(6,9,15,0.95) 100%)",
         pointerEvents: "none",
       }} />
       <div style={{
         position: "absolute", top: 0, left: 0, right: 0,
-        padding: "calc(14px + env(safe-area-inset-top)) 24px 0",
+        padding: "calc(12px + env(safe-area-inset-top)) 22px 0",
         zIndex: 2,
       }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 500, marginBottom: 12 }}>2 / 3</div>
-        <div style={{ fontSize: 36, fontWeight: 800, color: "#ffffff", lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 4 }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 500, marginBottom: 10 }}>2 / 3</div>
+        <div style={{ fontSize: 28, fontWeight: 800, color: "#ffffff", lineHeight: 1.15, letterSpacing: -0.3, marginBottom: 2 }}>
           {tx.s2h1}
         </div>
-        <div style={{ fontSize: 36, fontWeight: 800, color: "#6ee7b7", lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 14 }}>
+        <div style={{ fontSize: 28, fontWeight: 800, color: "#6ee7b7", lineHeight: 1.15, letterSpacing: -0.3, marginBottom: 12 }}>
           {tx.s2h2}
         </div>
-        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.55, maxWidth: 300 }}>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
           {tx.s2sub}
         </div>
       </div>
     </div>
   );
 
-  // ── Slide 3 — Image plein écran, texte superposé en haut ──────────────────
+  // ── Slide 3 ──────────────────
   const Slide3 = () => (
-    <div style={{
-      height: "100%", position: "relative", overflow: "hidden",
-    }}>
+    <div style={{ height: "100%", position: "relative", overflow: "hidden" }}>
       <img
         src="/CBA95772-B4CE-481F-9780-A3197BBEE825_opt.jpg"
         alt="Prop Firm Simulator"
         style={{
           position: "absolute", inset: 0,
           width: "100%", height: "100%",
-          objectFit: "cover", objectPosition: "center 30%",
+          objectFit: "cover", objectPosition: "center 55%",
           display: "block",
         }}
       />
       <div style={{
-        position: "absolute", top: 0, left: 0, right: 0, height: "55%",
-        background: "linear-gradient(180deg, #06090f 0%, #06090f 35%, rgba(6,9,15,0.85) 60%, transparent 100%)",
+        position: "absolute", top: 0, left: 0, right: 0, height: "48%",
+        background: "linear-gradient(180deg, rgba(6,9,15,0.92) 0%, rgba(6,9,15,0.75) 40%, rgba(6,9,15,0.3) 70%, transparent 100%)",
         pointerEvents: "none",
       }} />
       <div style={{
-        position: "absolute", bottom: 0, left: 0, right: 0, height: 100,
-        background: "linear-gradient(transparent 0%, #06090f 100%)",
+        position: "absolute", bottom: 0, left: 0, right: 0, height: 90,
+        background: "linear-gradient(transparent 0%, rgba(6,9,15,0.95) 100%)",
         pointerEvents: "none",
       }} />
       <div style={{
         position: "absolute", top: 0, left: 0, right: 0,
-        padding: "calc(14px + env(safe-area-inset-top)) 24px 0",
+        padding: "calc(12px + env(safe-area-inset-top)) 22px 0",
         zIndex: 2,
       }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 500, marginBottom: 12 }}>3 / 3</div>
-        <div style={{ fontSize: 34, fontWeight: 800, color: "#ffffff", lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 4 }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 500, marginBottom: 10 }}>3 / 3</div>
+        <div style={{ fontSize: 28, fontWeight: 800, color: "#ffffff", lineHeight: 1.15, letterSpacing: -0.3, marginBottom: 2 }}>
           {tx.s3h1}
         </div>
-        <div style={{ fontSize: 34, fontWeight: 800, color: "#6ee7b7", lineHeight: 1.1, letterSpacing: -0.5, marginBottom: 14 }}>
+        <div style={{ fontSize: 28, fontWeight: 800, color: "#6ee7b7", lineHeight: 1.15, letterSpacing: -0.3, marginBottom: 12 }}>
           {tx.s3h2}
         </div>
-        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.55, maxWidth: 300 }}>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
           {tx.s3sub1}<span style={{ color: "#f87171", fontWeight: 700 }}>{tx.s3subr}</span>{tx.s3sub2}
         </div>
       </div>
