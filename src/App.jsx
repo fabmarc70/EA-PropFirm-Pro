@@ -786,10 +786,37 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const [slPips, setSlPips] = useState(saved.slPips ?? 70);
   const [useFixedLot, setUseFixedLot] = useState(saved.useFixedLot ?? false);
   const [newsImpact, setNewsImpact] = useState(saved.newsImpact ?? false);
+  // payoutMonths = Set des mois COCHÉS (payout activé). Vide par défaut = tout décoché.
   const [payoutMonths, setPayoutMonths] = useState(() => new Set());
   const togglePayoutMonth = (month) => setPayoutMonths(prev => {
-    const next = new Set(prev); next.has(month) ? next.delete(month) : next.add(month); return next;
-  }); // réduit le split pour les trades en fenêtre news
+    const next = new Set(prev);
+    next.has(month) ? next.delete(month) : next.add(month);
+    return next;
+  });
+  // Calcul dynamique : le payout effectif d'un mois coché inclut les payouts
+  // accumulés des mois précédents qui étaient décochés.
+  const computeEffectivePayouts = (data) => {
+    if (!data) return {};
+    let pending = 0;
+    const result = {};
+    data.forEach(r => {
+      const isChecked = payoutMonths.has(r.month);
+      if (r.payout > 0) {
+        if (isChecked) {
+          // Ce mois est coché → on verse son payout + ce qui s'est accumulé
+          result[r.month] = { effective: +(r.payout + pending).toFixed(2), pending: +pending.toFixed(2), checked: true };
+          pending = 0;
+        } else {
+          // Mois décoché → on accumule
+          result[r.month] = { effective: 0, pending: 0, checked: false };
+          pending += r.payout;
+        }
+      } else {
+        result[r.month] = { effective: 0, pending: 0, checked: false };
+      }
+    });
+    return result;
+  }; // réduit le split pour les trades en fenêtre news
   const [sim, setSim] = useState(null);
   const [seed, setSeed] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -1992,41 +2019,60 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                     </tr>
                   </thead>
                   <tbody>
-                    {sim.funded.data.map(r => (
+                    {(() => {
+                      const epMap = computeEffectivePayouts(sim.funded.data);
+                      return sim.funded.data.map(r => {
+                      const ep = epMap[r.month] || { effective: 0, pending: 0, checked: false };
+                      const checked = ep.checked;
+                      const hasPayout = r.payout > 0;
+                      return (
                       <tr key={r.month} style={{ borderBottom: "1px solid #0f0f18", background: r.scalingNote ? "rgba(255,255,255,0.05)" : "transparent" }}>
                         <td style={{ padding: "5px 4px", color: "rgba(255,255,255,0.55)", textAlign: "right" }}>M{r.month}</td>
                         <td style={{ padding: "5px 4px", color: "#FFFFFF", textAlign: "right" }}>{fmt(r.equity)}</td>
                         <td style={{ padding: "5px 4px", textAlign: "right", color: r.profitPct >= 0 ? "#6ee7b7" : "#ef4444" }}>
                           {(r.profitPct >= 0 ? "+" : "") + r.profitPct.toFixed(2)}%
                         </td>
-                        {(() => {
-                          const off = payoutMonths.has(r.month);
-                          return (
-                            <td
-                              style={{ padding: "5px 4px", textAlign: "right", cursor: r.payout > 0 ? "pointer" : "default", userSelect: "none" }}
-                              onClick={() => r.payout > 0 && togglePayoutMonth(r.month)}
-                            >
-                              {r.payout > 0 ? (
-                                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
-                                  <span style={{
-                                    display: "inline-flex", alignItems: "center", justifyContent: "center",
-                                    width: 15, height: 15, borderRadius: 4,
-                                    border: "1.5px solid " + (off ? "rgba(255,255,255,0.2)" : "#6ee7b7"),
-                                    background: off ? "transparent" : "rgba(110,231,183,0.12)",
-                                    fontSize: 9, fontWeight: 700,
-                                    color: off ? "rgba(255,255,255,0.2)" : "#6ee7b7",
-                                    transition: "all .15s", flexShrink: 0,
-                                  }}>{off ? "" : "✓"}</span>
-                                  <span style={{ fontWeight: off ? 400 : 700, color: off ? "rgba(255,255,255,0.2)" : "#fbbf24", textDecoration: off ? "line-through" : "none" }}>
-                                    {fmt(r.payout)}
-                                  </span>
-                                </span>
-                              ) : (
-                                <span style={{ color: "rgba(255,255,255,0.2)" }}>—</span>
-                              )}
-                            </td>
-                          );
-                        })()}
+                        {/* Payout — cliquable, alignement fixe checkbox + montant */}
+                        <td
+                          style={{ padding: "5px 4px", cursor: hasPayout ? "pointer" : "default", userSelect: "none" }}
+                          onClick={() => hasPayout && togglePayoutMonth(r.month)}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 5 }}>
+                            {/* Checkbox — toujours présente si payout possible */}
+                            {hasPayout ? (
+                              <span style={{
+                                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                                width: 15, height: 15, borderRadius: 4, flexShrink: 0,
+                                border: "1.5px solid " + (checked ? "#6ee7b7" : "rgba(255,255,255,0.25)"),
+                                background: checked ? "rgba(110,231,183,0.12)" : "transparent",
+                                fontSize: 9, fontWeight: 700,
+                                color: checked ? "#6ee7b7" : "transparent",
+                                transition: "all .15s",
+                              }}>{checked ? "✓" : ""}</span>
+                            ) : (
+                              <span style={{ width: 15, height: 15, flexShrink: 0, display: "inline-block" }} />
+                            )}
+                            {/* Montant — affiché toujours aligné */}
+                            <span style={{
+                              fontWeight: checked ? 700 : 400,
+                              color: checked ? "#fbbf24" : "rgba(255,255,255,0.25)",
+                              textDecoration: checked ? "none" : "line-through",
+                              minWidth: 48, textAlign: "right",
+                              fontSize: 11,
+                            }}>
+                              {hasPayout ? (checked && ep.pending > 0
+                                ? fmt(ep.effective)   // payout + cumul des mois précédents
+                                : fmt(r.payout)
+                              ) : "—"}
+                            </span>
+                          </div>
+                          {/* Badge cumul si payout > payout de base */}
+                          {checked && ep.pending > 0 && (
+                            <div style={{ fontSize: 8, color: "#6ee7b7", textAlign: "right", marginTop: 1, opacity: 0.75 }}>
+                              +{fmt(ep.pending)} reporté
+                            </div>
+                          )}
+                        </td>
                         <td style={{ padding: "5px 4px", textAlign: "right", color: r.currentSplit >= 90 ? "#6ee7b7" : "rgba(255,255,255,0.55)" }}>
                           {r.currentSplit}%
                         </td>
@@ -2037,7 +2083,9 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                           {r.status === "active" ? "\u2713" : "\u2717"}
                         </td>
                       </tr>
-                    ))}
+                      );
+                      });
+                    })()}
                   </tbody>
                 </table>
               </div>
