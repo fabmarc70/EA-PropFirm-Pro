@@ -793,26 +793,55 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     next.has(month) ? next.delete(month) : next.add(month);
     return next;
   });
-  // Calcul dynamique : le payout effectif d'un mois coché inclut les payouts
-  // accumulés des mois précédents qui étaient décochés.
+  // Recalcule l'equity ET le payout ligne par ligne selon les coches.
+  // Logique : mois coché = payout sorti, equity repart de la base.
+  //           mois décoché = profit reste dans l'equity du mois suivant.
   const computeEffectivePayouts = (data) => {
     if (!data) return {};
-    let pending = 0;
     const result = {};
-    data.forEach(r => {
+    // On repart de l'equity de base du premier mois
+    let runningEquity = data.length > 0 ? data[0].equity - (data[0].payout > 0 && payoutMonths.has(data[0].month) ? 0 : 0) : 0;
+    // Accumuler le profit non versé
+    let accumulated = 0;
+
+    data.forEach((r, i) => {
       const isChecked = payoutMonths.has(r.month);
+      // L'equity réelle de ce mois = equity simulée + ce qui s'est accumulé des mois précédents
+      const baseEquity = r.equity; // equity originale de la simulation
+      const effectiveEquity = +(baseEquity + accumulated).toFixed(2);
+      const profitThisMonth = +(r.profitPct / 100 * (i === 0 ? baseEquity : data[i-1].equity)).toFixed(2);
+
       if (r.payout > 0) {
         if (isChecked) {
-          // Ce mois est coché → on verse son payout + ce qui s'est accumulé
-          result[r.month] = { effective: +(r.payout + pending).toFixed(2), pending: +pending.toFixed(2), checked: true };
-          pending = 0;
+          // Payout coché : on sort le profit → equity repart de la base
+          // Le payout effectif = payout simulé + accumulated (gains reportés)
+          const effectivePayout = +(r.payout + accumulated * r.currentSplit / 100).toFixed(2);
+          result[r.month] = {
+            checked: true,
+            effectiveEquity: baseEquity, // equity repart de la base après payout
+            effectivePayout,
+            profitPct: r.profitPct, // inchangé
+          };
+          accumulated = 0; // reset car on a versé
         } else {
-          // Mois décoché → on accumule
-          result[r.month] = { effective: 0, pending: 0, checked: false };
-          pending += r.payout;
+          // Payout décoché : le profit reste dans l'equity
+          const retainedProfit = r.payout / (r.currentSplit / 100); // profit brut = payout / split
+          accumulated = +(accumulated + retainedProfit).toFixed(2);
+          result[r.month] = {
+            checked: false,
+            effectiveEquity: +(baseEquity + accumulated).toFixed(2),
+            effectivePayout: 0,
+            profitPct: r.profitPct,
+          };
         }
       } else {
-        result[r.month] = { effective: 0, pending: 0, checked: false };
+        // Mois sans payout (perte ou profit < seuil)
+        result[r.month] = {
+          checked: false,
+          effectiveEquity: +(baseEquity + accumulated).toFixed(2),
+          effectivePayout: 0,
+          profitPct: r.profitPct,
+        };
       }
     });
     return result;
@@ -2022,23 +2051,25 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                     {(() => {
                       const epMap = computeEffectivePayouts(sim.funded.data);
                       return sim.funded.data.map(r => {
-                      const ep = epMap[r.month] || { effective: 0, pending: 0, checked: false };
+                      const ep = epMap[r.month] || { checked: false, effectiveEquity: r.equity, effectivePayout: 0 };
                       const checked = ep.checked;
                       const hasPayout = r.payout > 0;
                       return (
                       <tr key={r.month} style={{ borderBottom: "1px solid #0f0f18", background: r.scalingNote ? "rgba(255,255,255,0.05)" : "transparent" }}>
                         <td style={{ padding: "5px 4px", color: "rgba(255,255,255,0.55)", textAlign: "right" }}>M{r.month}</td>
-                        <td style={{ padding: "5px 4px", color: "#FFFFFF", textAlign: "right" }}>{fmt(r.equity)}</td>
+                        {/* Equity dynamique : augmente si payout non versé les mois précédents */}
+                        <td style={{ padding: "5px 4px", color: "#FFFFFF", textAlign: "right" }}>
+                          {fmt(ep.effectiveEquity)}
+                        </td>
                         <td style={{ padding: "5px 4px", textAlign: "right", color: r.profitPct >= 0 ? "#6ee7b7" : "#ef4444" }}>
                           {(r.profitPct >= 0 ? "+" : "") + r.profitPct.toFixed(2)}%
                         </td>
-                        {/* Payout — cliquable, alignement fixe checkbox + montant */}
+                        {/* Payout — cliquable, checkbox + montant alignés */}
                         <td
                           style={{ padding: "5px 4px", cursor: hasPayout ? "pointer" : "default", userSelect: "none" }}
                           onClick={() => hasPayout && togglePayoutMonth(r.month)}
                         >
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 5 }}>
-                            {/* Checkbox — toujours présente si payout possible */}
                             {hasPayout ? (
                               <span style={{
                                 display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -2052,26 +2083,15 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                             ) : (
                               <span style={{ width: 15, height: 15, flexShrink: 0, display: "inline-block" }} />
                             )}
-                            {/* Montant — affiché toujours aligné */}
                             <span style={{
                               fontWeight: checked ? 700 : 400,
                               color: checked ? "#fbbf24" : "rgba(255,255,255,0.25)",
                               textDecoration: checked ? "none" : "line-through",
-                              minWidth: 48, textAlign: "right",
-                              fontSize: 11,
+                              minWidth: 48, textAlign: "right", fontSize: 11,
                             }}>
-                              {hasPayout ? (checked && ep.pending > 0
-                                ? fmt(ep.effective)   // payout + cumul des mois précédents
-                                : fmt(r.payout)
-                              ) : "—"}
+                              {hasPayout ? fmt(checked ? ep.effectivePayout : r.payout) : "—"}
                             </span>
                           </div>
-                          {/* Badge cumul si payout > payout de base */}
-                          {checked && ep.pending > 0 && (
-                            <div style={{ fontSize: 8, color: "#6ee7b7", textAlign: "right", marginTop: 1, opacity: 0.75 }}>
-                              +{fmt(ep.pending)} reporté
-                            </div>
-                          )}
                         </td>
                         <td style={{ padding: "5px 4px", textAlign: "right", color: r.currentSplit >= 90 ? "#6ee7b7" : "rgba(255,255,255,0.55)" }}>
                           {r.currentSplit}%
