@@ -740,7 +740,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       values: {
         winrate: 48, tradesPerDay: 0.33, dailyTargetPct: 0.16,
         riskPct: 0.2, clusteringPct: 35, maxConsecLosses: 4,
-        instrument: "XAUUSD", lotSize: 0.1, slPips: 150,
+        instrument: "XAUUSD", lotSize: 0.1, slPips: 70,
         useFixedLot: true, split: 80,
       }
     },
@@ -755,7 +755,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       values: {
         winrate: 47, tradesPerDay: 0.28, dailyTargetPct: 0.14,
         riskPct: 0.2, clusteringPct: 40, maxConsecLosses: 7,
-        instrument: "XAUUSD", lotSize: 0.1, slPips: 150,
+        instrument: "XAUUSD", lotSize: 0.1, slPips: 70,
         useFixedLot: true, split: 80,
       }
     },
@@ -783,7 +783,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   // LOT / INSTRUMENT
   const [instrument, setInstrument] = useState(saved.instrument ?? "XAUUSD");
   const [lotSize, setLotSize] = useState(saved.lotSize ?? 0.1);
-  const [slPips, setSlPips] = useState(saved.slPips ?? 150);
+  const [slPips, setSlPips] = useState(saved.slPips ?? 70);
   const [useFixedLot, setUseFixedLot] = useState(saved.useFixedLot ?? false);
   const [newsImpact, setNewsImpact] = useState(saved.newsImpact ?? false); // réduit le split pour les trades en fenêtre news
   const [sim, setSim] = useState(null);
@@ -832,8 +832,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   // Table d'AIDE à la conversion lot (NON utilisée dans la simulation)
   // pipValuePerLot = $ par pip pour 1.0 lot standard (valeurs indicatives 2026)
   const INSTRUMENTS = {
+    // XAUUSD : 1 pip = 0.1, valeur = $10/pip/lot (ICMarkets, FTMO, FundedNext confirmé)
     "XAUUSD": { pipValuePerLot: 10.0,  pipSize: 0.10,   label: "Or / USD",        decimals: 2 },
-    "XAGUSD": { pipValuePerLot: 50.0,  pipSize: 0.01,   label: "Argent / USD",    decimals: 3 },
+    // XAGUSD : 1 pip = 0.001, valeur = $1/pip/lot (vérifié sur trades réels)
+    "XAGUSD": { pipValuePerLot: 1.0,   pipSize: 0.001,  label: "Argent / USD",    decimals: 3 },
     "EURUSD": { pipValuePerLot: 10.0,  pipSize: 0.0001, label: "EUR / USD",       decimals: 5 },
     "GBPUSD": { pipValuePerLot: 10.0,  pipSize: 0.0001, label: "GBP / USD",       decimals: 5 },
     "AUDUSD": { pipValuePerLot: 10.0,  pipSize: 0.0001, label: "AUD / USD",       decimals: 5 },
@@ -1651,6 +1653,9 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             {useFixedLot
               ? <div style={{ fontSize: 11, color: "#6ee7b7", marginTop: 3, lineHeight: 1.4 }}>
                   Lot {lotSize} × {slPips} pips × ${pipVal}/pip = <b>{fmt2(effectiveRiskAmount)}</b>
+                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginLeft: 4 }}>
+                    ({(slPips * instInfo.pipSize).toFixed(instInfo.decimals > 2 ? 4 : 1)} pts)
+                  </span>
                 </div>
               : <input type="range" min={0.05} max={2} step={0.05} value={riskPct} onChange={e => setRiskPct(parseFloat(e.target.value))} />
             }
