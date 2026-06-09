@@ -785,7 +785,11 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const [lotSize, setLotSize] = useState(saved.lotSize ?? 0.1);
   const [slPips, setSlPips] = useState(saved.slPips ?? 70);
   const [useFixedLot, setUseFixedLot] = useState(saved.useFixedLot ?? false);
-  const [newsImpact, setNewsImpact] = useState(saved.newsImpact ?? false); // réduit le split pour les trades en fenêtre news
+  const [newsImpact, setNewsImpact] = useState(saved.newsImpact ?? false);
+  const [payoutMonths, setPayoutMonths] = useState(() => new Set());
+  const togglePayoutMonth = (month) => setPayoutMonths(prev => {
+    const next = new Set(prev); next.has(month) ? next.delete(month) : next.add(month); return next;
+  }); // réduit le split pour les trades en fenêtre news
   const [sim, setSim] = useState(null);
   const [seed, setSeed] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -1995,9 +1999,34 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                         <td style={{ padding: "5px 4px", textAlign: "right", color: r.profitPct >= 0 ? "#6ee7b7" : "#ef4444" }}>
                           {(r.profitPct >= 0 ? "+" : "") + r.profitPct.toFixed(2)}%
                         </td>
-                        <td style={{ padding: "5px 4px", textAlign: "right", fontWeight: r.payout > 0 ? 700 : 400, color: r.payout > 0 ? "#fbbf24" : "rgba(255,255,255,0.3)" }}>
-                          {r.payout > 0 ? fmt(r.payout) : "-"}
-                        </td>
+                        {(() => {
+                          const off = payoutMonths.has(r.month);
+                          return (
+                            <td
+                              style={{ padding: "5px 4px", textAlign: "right", cursor: r.payout > 0 ? "pointer" : "default", userSelect: "none" }}
+                              onClick={() => r.payout > 0 && togglePayoutMonth(r.month)}
+                            >
+                              {r.payout > 0 ? (
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
+                                  <span style={{
+                                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                                    width: 15, height: 15, borderRadius: 4,
+                                    border: "1.5px solid " + (off ? "rgba(255,255,255,0.2)" : "#6ee7b7"),
+                                    background: off ? "transparent" : "rgba(110,231,183,0.12)",
+                                    fontSize: 9, fontWeight: 700,
+                                    color: off ? "rgba(255,255,255,0.2)" : "#6ee7b7",
+                                    transition: "all .15s", flexShrink: 0,
+                                  }}>{off ? "" : "✓"}</span>
+                                  <span style={{ fontWeight: off ? 400 : 700, color: off ? "rgba(255,255,255,0.2)" : "#fbbf24", textDecoration: off ? "line-through" : "none" }}>
+                                    {fmt(r.payout)}
+                                  </span>
+                                </span>
+                              ) : (
+                                <span style={{ color: "rgba(255,255,255,0.2)" }}>—</span>
+                              )}
+                            </td>
+                          );
+                        })()}
                         <td style={{ padding: "5px 4px", textAlign: "right", color: r.currentSplit >= 90 ? "#6ee7b7" : "rgba(255,255,255,0.55)" }}>
                           {r.currentSplit}%
                         </td>
