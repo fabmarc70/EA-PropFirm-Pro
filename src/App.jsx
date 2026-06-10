@@ -2537,42 +2537,96 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
     if (realPF < 1.0) factors.push({ t: `Profit Factor ${realPF.toFixed(2)} — stratégie perdante sur la période`, c: "#ef4444" });
     else factors.push({ t: `Profit Factor ${realPF.toFixed(2)} — ${realPF >= 1.5 ? "solide" : "acceptable"}`, c: realPF >= 1.5 ? "#6ee7b7" : "#fbbf24" });
 
-    // ── Verdict global — PRUDENT, jamais 100% de certitude ──
-    // Si une règle est violée dans le backtest réel, le verdict le reflète
+    // ══════════════════════════════════════════════════════════════
+    // VERDICT — Les FAITS du backtest priment sur la projection Monte Carlo.
+    // Hiérarchie de décision :
+    //  1. Le backtest réel a-t-il VIOLÉ une règle ? (DD dépassé) → ÉCHEC
+    //  2. Le backtest réel est-il PERDANT ? (profit final < 0) → ÉCHEC
+    //  3. Le backtest atteint-il la cible de la 1ère phase ? → sinon INSUFFISANT
+    //  4. La stratégie est-elle rentable ? (PF >= 1) → sinon ÉCHEC
+    //  Seulement SI tous les faits sont OK → on regarde la projection Monte Carlo
+    // ══════════════════════════════════════════════════════════════
+    const firstPhaseTarget = phasesTargets[0] || 8; // cible 1ère phase en %
+    const isLosing = finalProfit < 0;                 // backtest perdant
+    const isUnprofitable = realPF < 1.0;              // stratégie non rentable
+    const reachedFirstTarget = finalProfit >= firstPhaseTarget; // atteint cible P1
+    // Données insuffisantes : trop peu de trades pour être fiable
+    const tooFewTrades = trds.length < 20;
+
     let label, color, bg, icon;
     let displayPct = passPct;
+    let verdictReason = "";
+
     if (ddViolated) {
-      // Le backtest réel a violé la limite DD → échec factuel
+      // FAIT 1 : violation DD observée → échec factuel
       label = "RÈGLE DD DÉPASSÉE";
       color = "#ef4444";
       bg = "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(6,9,15,0.98))";
       icon = "XRED";
-      displayPct = Math.min(passPct, 25); // plafonné car violation observée
-    } else if (passPct >= 65) {
+      displayPct = Math.min(passPct, 5);
+      verdictReason = `Le backtest a atteint ${maxDD.toFixed(1)}% de drawdown, dépassant la limite ${ddLimitPct}%. Sur ces données, le challenge est échoué.`;
+    } else if (isLosing) {
+      // FAIT 2 : backtest perdant → échec factuel
+      label = "BACKTEST PERDANT";
+      color = "#ef4444";
+      bg = "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(6,9,15,0.98))";
+      icon = "XRED";
+      displayPct = 0;
+      verdictReason = `Le backtest finit à ${finalProfit.toFixed(1)}% (perte). Une stratégie perdante ne peut pas passer un challenge prop firm.`;
+    } else if (isUnprofitable) {
+      // FAIT 3 : Profit Factor < 1 → stratégie structurellement perdante
+      label = "STRATÉGIE NON RENTABLE";
+      color = "#ef4444";
+      bg = "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(6,9,15,0.98))";
+      icon = "XRED";
+      displayPct = Math.min(passPct, 8);
+      verdictReason = `Profit Factor de ${realPF.toFixed(2)} (< 1.0) : la stratégie perd plus qu'elle ne gagne sur la période. Échec probable.`;
+    } else if (tooFewTrades) {
+      // FAIT 4 : données insuffisantes
+      label = "DONNÉES INSUFFISANTES";
+      color = "#fbbf24";
+      bg = "linear-gradient(135deg, rgba(251,191,36,0.10), rgba(6,9,15,0.98))";
+      icon = "WARN";
+      displayPct = Math.min(passPct, 40);
+      verdictReason = `Seulement ${trds.length} trades : échantillon trop faible pour conclure. Importe un backtest plus long (100+ trades) pour un verdict fiable.`;
+    } else if (!reachedFirstTarget) {
+      // FAIT 5 : profitable mais n'atteint pas la cible de la 1ère phase
+      label = "OBJECTIF NON ATTEINT";
+      color = "#fbbf24";
+      bg = "linear-gradient(135deg, rgba(251,191,36,0.10), rgba(6,9,15,0.98))";
+      icon = "WARN";
+      displayPct = Math.min(passPct, 45);
+      verdictReason = `Profit final ${finalProfit.toFixed(1)}% < cible Phase 1 (${firstPhaseTarget}%). La stratégie est rentable mais pas assez performante pour valider le challenge sur cette période.`;
+    } else if (passPct >= 65 && matchScore >= 50) {
+      // Tous les faits sont bons ET la projection est favorable
       label = "PROBABILITÉ FAVORABLE";
       color = "#6ee7b7";
       bg = "linear-gradient(135deg, rgba(110,231,183,0.10), rgba(6,9,15,0.98))";
       icon = "CHK";
+      verdictReason = `Backtest rentable (PF ${realPF.toFixed(2)}), cible Phase 1 atteinte (${finalProfit.toFixed(1)}%), DD maîtrisé (${maxDD.toFixed(1)}%). Projection Monte Carlo favorable.`;
     } else if (passPct >= 40) {
       label = "RISQUE ÉLEVÉ";
       color = "#fbbf24";
       bg = "linear-gradient(135deg, rgba(251,191,36,0.10), rgba(6,9,15,0.98))";
       icon = "WARN";
+      verdictReason = `Backtest correct mais projection Monte Carlo incertaine (${passPct}%). La marge est faible — surveille ton risque par trade.`;
     } else {
       label = "PEU PROBABLE";
       color = "#ef4444";
       bg = "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(6,9,15,0.98))";
       icon = "XRED";
+      verdictReason = `Projection Monte Carlo défavorable (${passPct}%) malgré un backtest non perdant. Risque de violation DD avant d'atteindre la cible.`;
     }
-    // Plafond de prudence : jamais afficher 100% (incertitude statistique)
+    // Plafond de prudence : jamais 100%
     displayPct = Math.min(displayPct, 95);
 
     return {
-      passPct: displayPct, matchScore, label, color, bg, icon, factors,
+      passPct: displayPct, matchScore, label, color, bg, icon, factors, verdictReason,
       realWR: (realWR*100).toFixed(0), realRR: realRR.toFixed(2), realPF: realPF.toFixed(2),
       maxDD: maxDD.toFixed(2), maxDDTrailing: maxDDTrailing.toFixed(2), maxDDAbsolute: Math.max(0, maxDDAbsolute).toFixed(2),
       ddViolated, ddLimitPct, finalProfit: finalProfit.toFixed(2),
       phasesPassed, totalPhases, isTrailing,
+      isLosing, isUnprofitable, reachedFirstTarget, firstPhaseTarget, tooFewTrades,
     };
   };
 
@@ -2885,6 +2939,18 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               </div>
             </div>
 
+            {/* Raison du verdict — explication claire pour l'utilisateur */}
+            {verdict.verdictReason && (
+              <div style={{
+                background: "rgba(0,0,0,0.25)", borderRadius: 10, padding: "11px 13px",
+                marginBottom: 14, borderLeft: "3px solid " + verdict.color,
+              }}>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", lineHeight: 1.55 }}>
+                  {verdict.verdictReason}
+                </div>
+              </div>
+            )}
+
             {/* Lecture factuelle du backtest */}
             <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
               <div style={{ flex: 1, background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px" }}>
@@ -3048,6 +3114,11 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             </div>
           )}
 
+          {/* ── CALENDRIER PnL — AU-DESSUS du tableau mensuel (100% trades importés) ── */}
+          {dailyLogReel.length > 0 && (
+            <CalendrierPnL dailyLog={dailyLogReel} />
+          )}
+
           {/* ── TABLEAU MENSUEL — 100% calculé depuis trades importés ── */}
           {monthlyReel.length > 0 && (
             <div className="card" style={{ border: "1px solid rgba(110,231,183,0.12)" }}>
@@ -3078,12 +3149,6 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                 </div>
               ))}
             </div>
-          )}
-
-          {/* ── CALENDRIER PnL — 100% calculé depuis trades importés ── */}
-          {/* Pas de conteneur card ici — CalendrierPnL a déjà son propre conteneur */}
-          {dailyLogReel.length > 0 && (
-            <CalendrierPnL dailyLog={dailyLogReel} />
           )}
         </>
       )}
