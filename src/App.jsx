@@ -535,6 +535,8 @@ function simulatePhase(capital, cfg, model, p) {
 }
 
 function simulateFunded(capital, months, model, p, split) {
+  // Jours de trading par mois : 30 si weekend inclus, 21 sinon (jours ouvrés)
+  const TD_MONTH_DYNAMIC = p.includeWeekend ? 30 : 21;
   const dailyDDLimit = capital * model.dailyDD;
   const floorEquity = capital * (1 - model.totalDD);
   const riskAmount = capital * p.riskPct;
@@ -545,7 +547,7 @@ function simulateFunded(capital, months, model, p, split) {
   const data = [];
   let status = "active", scalingCount = 0;
   let winMonths = 0, lossMonths = 0;
-  const TD_MONTH = 21;
+  const TD_MONTH = TD_MONTH_DYNAMIC;
   let maxDD = 0;
 
   const PAYOUT_MIN = 50; // seuil reel FundedNext ($50 hors USDT)
@@ -786,6 +788,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const [slPips, setSlPips] = useState(saved.slPips ?? 70);
   const [useFixedLot, setUseFixedLot] = useState(saved.useFixedLot ?? false);
   const [newsImpact, setNewsImpact] = useState(saved.newsImpact ?? false);
+  // Weekend inclus : par défaut désactivé pour prop firm (forex 24/5), libre pour classique
+  const [includeWeekend, setIncludeWeekend] = useState(saved.includeWeekend ?? false);
   // payoutMonths = Set des mois COCHÉS (payout activé). Vide par défaut = tout décoché.
   const [payoutMonths, setPayoutMonths] = useState(() => new Set());
   const togglePayoutMonth = (month) => setPayoutMonths(prev => {
@@ -855,7 +859,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     try {
       const configToSave = {
         firmKey, modelKey, capital, riskPct: useFixedLot ? lotRiskPct : riskPct, dailyTargetPct, winrate,
-        tradesPerDay, clusteringPct, maxConsecLosses, split, fundedMonths,
+        tradesPerDay, clusteringPct, maxConsecLosses, split, fundedMonths, includeWeekend,
         instrument, lotSize, slPips, useFixedLot, newsImpact, activePreset
       };
       localStorage.setItem("eapropfirm_config", JSON.stringify(configToSave));
@@ -863,7 +867,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       const t = setTimeout(() => setSaveStatus(""), 1500);
       return () => clearTimeout(t);
     } catch (e) { /* localStorage indisponible (artefact) - ignore */ }
-  }, [firmKey, modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, split, fundedMonths, instrument, lotSize, slPips, useFixedLot]);
+  }, [firmKey, modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, split, fundedMonths, instrument, lotSize, slPips, useFixedLot, includeWeekend]);
 
   const firm = PROP_FIRMS[firmKey] || PROP_FIRMS.fundednext;
   const firmModels = firm.models;
@@ -874,7 +878,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const clustering = clusteringPct / 100;
   const fee = challengeFee(capital);
   const w = winrate / 100;
-  const monthlyTarget = dailyTarget * 21;
+  const monthlyTarget = dailyTarget * (includeWeekend ? 30 : 21);
 
   // ══════════════════════════════════════════════════════════════
   // MOTEUR DE RISQUE UNIVERSEL — indépendant du broker / plateforme
@@ -975,6 +979,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     winrate,
     clustering,
     maxConsecLosses,
+    includeWeekend,
   };
 
   useEffect(() => {
@@ -1077,7 +1082,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         } : null,
       });
     } catch (e) {}
-  }, [firmKey, modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, splitRate, fundedMonths, seed, useFixedLot, lotSize, slPips, instrument, newsImpact]);
+  }, [firmKey, modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, splitRate, fundedMonths, seed, useFixedLot, lotSize, slPips, instrument, newsImpact, includeWeekend]);
 
   const netResult = () => {
     if (!sim) return null;
@@ -1652,6 +1657,37 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               Split effectif reduit de {(splitRate * 100).toFixed(0)}% a {(effectiveSplitRate * 100).toFixed(1)}%
               {" "}(85% normal + 15% x 40% = {(effectiveSplitRate * 100).toFixed(1)}%).<br/>
               Pertes en news = 100% comptabilisees (deja inclus dans simulation).
+            </div>
+          )}
+        </div>
+
+        {/* TOGGLE WEEKEND INCLUS */}
+        <div style={{ marginTop: 10, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: includeWeekend ? "#6ee7b7" : "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1, display: "flex", alignItems: "center" }}>
+                Weekend inclus
+                <InfoTip text={usageType === "classic"
+                  ? "Trading classique : active le weekend pour trader 7j/7 (crypto, indices 24/7). Désactivé = lundi à vendredi uniquement."
+                  : "La plupart des prop firms ferment le forex le weekend (marché fermé). Active uniquement si tu trades du crypto le weekend (FTMO, FundingPips l'autorisent). Désactivé = lundi à vendredi (21 jours/mois)."} />
+              </div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2, lineHeight: 1.4 }}>
+                {includeWeekend
+                  ? "Trading 7j/7 — 30 jours/mois simulés (crypto, indices 24/7)"
+                  : "Lundi → Vendredi — 21 jours ouvrés/mois (forex 24/5)"}
+              </div>
+            </div>
+            <div onClick={() => setIncludeWeekend(v => !v)} style={{
+              width: 36, height: 20, borderRadius: 10, background: includeWeekend ? "#6ee7b7" : "rgba(255,255,255,0.08)",
+              border: "1px solid " + (includeWeekend ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
+              position: "relative", cursor: "pointer", transition: "all .2s", flexShrink: 0, marginLeft: 10
+            }}>
+              <div style={{ position: "absolute", top: 2, left: includeWeekend ? 18 : 2, width: 14, height: 14, borderRadius: 7, background: "#fff", transition: "all .2s" }} />
+            </div>
+          </div>
+          {includeWeekend && usageType !== "classic" && (
+            <div style={{ marginTop: 6, background: "rgba(110,231,183,0.06)", border: "1px solid rgba(110,231,183,0.18)", borderRadius: 12, padding: "7px 10px", fontSize: 10, color: "#6ee7b7", lineHeight: 1.5 }}>
+              ⚠️ Vérifie les règles de ta prop firm : le forex est fermé le weekend. Le weekend ne s'applique qu'au crypto/indices 24/7 selon les firms.
             </div>
           )}
         </div>
