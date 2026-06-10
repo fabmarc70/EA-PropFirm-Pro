@@ -1954,8 +1954,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       )}
 
       {/* TAB FUNDED */}
-      {tab === "funded" && (
+      {(tab === "funded" || tab === "montecarlo") && (
+        // En montecarlo : on n'affiche le Funded QUE s'il existe (sinon rien, le MC s'affiche seul)
         !sim ? (
+          tab === "montecarlo" ? null : (
           <div className="card" style={{ textAlign: "center", padding: 32 }}>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>
               Lance une simulation Challenge d'abord pour accéder au compte Funded.
@@ -1964,7 +1966,9 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               Aller au Challenge
             </button>
           </div>
+          )
         ) : !sim.funded || !sim.allPassed ? (
+          tab === "montecarlo" ? null : (
           <div className="card" style={{ textAlign: "center", padding: 32 }}>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.6, marginBottom: 14 }}>
               {!sim.allPassed
@@ -1975,20 +1979,33 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               Retour au Challenge
             </button>
           </div>
+          )
         ) : (
           <>
-            {/* Bouton retour Challenge */}
-            <button onClick={() => setTab("challenge")} style={{
-              display: "flex", alignItems: "center", gap: 6, marginBottom: 12,
-              background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)",
-              borderRadius: 10, padding: "9px 14px", cursor: "pointer",
-              color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: 600,
-            }}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M10 4L6 8l4 4" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              Retour au Challenge
-            </button>
+            {/* Bouton retour Challenge — masqué en Monte Carlo */}
+            {tab === "funded" && (
+              <button onClick={() => setTab("challenge")} style={{
+                display: "flex", alignItems: "center", gap: 6, marginBottom: 12,
+                background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)",
+                borderRadius: 10, padding: "9px 14px", cursor: "pointer",
+                color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: 600,
+              }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M10 4L6 8l4 4" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Retour au Challenge
+              </button>
+            )}
+            {/* Titre section quand affiché dans Monte Carlo */}
+            {tab === "montecarlo" && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <div style={{ flex: 1, height: 1, background: "rgba(110,231,183,0.15)" }} />
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", letterSpacing: 1.5 }}>
+                  Compte Funded
+                </div>
+                <div style={{ flex: 1, height: 1, background: "rgba(110,231,183,0.15)" }} />
+              </div>
+            )}
             <div className="card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>Compte Funded - {fundedMonths} mois</div>
@@ -2114,9 +2131,19 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         )
       )}
 
-      {/* TAB MONTE CARLO */}
+      {/* TAB MONTE CARLO — affiché sous le Funded */}
       {tab === "montecarlo" && finalRRValid && (
         <div>
+          {/* Séparateur titre Monte Carlo (visible si Funded affiché au-dessus) */}
+          {sim && sim.funded && sim.allPassed && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 0 14px" }}>
+              <div style={{ flex: 1, height: 1, background: "rgba(110,231,183,0.15)" }} />
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", letterSpacing: 1.5 }}>
+                Analyse Monte Carlo
+              </div>
+              <div style={{ flex: 1, height: 1, background: "rgba(110,231,183,0.15)" }} />
+            </div>
+          )}
           {/* Résumé stats compact */}
           <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.20)", borderRadius: 14, padding: 16, marginBottom: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
