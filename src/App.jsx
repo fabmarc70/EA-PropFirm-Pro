@@ -3255,14 +3255,16 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
   const buildCalendarGrid = () => {
     const grid = [];
     if (journalMode) {
-      // Mode journal : grille complète du mois (30 jours), chaque jour cliquable
+      // Mode journal : grille complète du mois (30 jours), TOUS les jours cliquables
+      // (y compris weekend — l'utilisateur décide de saisir ou non)
       for (let dayNum = 1; dayNum <= 30; dayNum++) {
         const dow = (dayNum - 1) % 7;
-        const isWeekday = dow < 5;
+        const isWeekend = dow >= 5;
         const entry = journalData[String(dayNum)];
         grid.push({
           dayNum,
-          trading: isWeekday,
+          trading: true, // tous les jours saisissables en mode journal
+          isWeekendDay: isWeekend, // pour le style visuel
           journalEntry: entry || null,
           data: entry ? { pnl: entry.pnl, wins: entry.wins, losses: entry.losses } : null,
         });
@@ -3359,7 +3361,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
       {/* En-tete jours semaine */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3, marginBottom: 3 }}>
         {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((j, i) => (
-          <div key={i} style={{ textAlign: "center", fontSize: 11, color: i >= 5 ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.35)", fontWeight: 700, paddingBottom: 4 }}>{j}</div>
+          <div key={i} style={{ textAlign: "center", fontSize: 11, color: (i >= 5 && !journalMode) ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.35)", fontWeight: 700, paddingBottom: 4 }}>{j}</div>
         ))}
       </div>
 
@@ -3368,8 +3370,8 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
         {grid.map((cell, i) => {
           const hasData = cell.data && (cell.data.pnl !== undefined && cell.data.pnl !== null);
           const c = (cell.trading && hasData) ? cellColor(cell.data.pnl) : { bg: "#0d0d15", fg: "rgba(255,255,255,0.05)", border: "1px solid #12121a", numColor: "rgba(255,255,255,0.05)" };
-          const isWeekend = !cell.trading;
-          // En mode journal : toutes les cases (sauf weekend) sont cliquables
+          const isWeekend = journalMode ? cell.isWeekendDay : !cell.trading;
+          // En mode journal : TOUTES les cases sont cliquables (weekend inclus)
           const clickable = journalMode && cell.trading;
           const emptyJournalCell = journalMode && cell.trading && !hasData;
           return (
@@ -3391,7 +3393,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
-                opacity: isWeekend ? 0.35 : 1,
+                opacity: (isWeekend && !journalMode) ? 0.35 : (isWeekend && journalMode ? 0.6 : 1),
                 cursor: clickable ? "pointer" : "default",
                 transition: "all .15s",
               }}>
