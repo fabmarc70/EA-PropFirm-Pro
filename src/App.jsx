@@ -3220,26 +3220,60 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   );
 }
 
-function CalendrierPnL({ dailyLog }) {
+function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null }) {
   const [selectedMonth, setSelectedMonth] = useState(1);
+  const [editingDay, setEditingDay] = useState(null); // jour en cours d'édition (mode journal)
+  const [formWins, setFormWins] = useState("");
+  const [formLosses, setFormLosses] = useState("");
+  const [formGain, setFormGain] = useState("");
 
-  if (!dailyLog || dailyLog.length === 0) return null;
+  if (!dailyLog || dailyLog.length === 0) {
+    // En mode journal, on affiche quand même un calendrier vide à remplir
+    if (!journalMode) return null;
+  }
 
-  const months = [...new Set(dailyLog.map(d => d.month))];
-  const monthDays = dailyLog.filter(d => d.month === selectedMonth);
+  const safeLog = dailyLog || [];
+  const months = journalMode ? [selectedMonth] : [...new Set(safeLog.map(d => d.month))];
+  const monthDays = safeLog.filter(d => d.month === selectedMonth);
 
-  const monthPnl = monthDays.reduce((s, d) => s + d.pnl, 0);
-  const winDays = monthDays.filter(d => d.pnl > 0).length;
-  const lossDays = monthDays.filter(d => d.pnl < 0).length;
-  const bestDay = monthDays.length ? Math.max(...monthDays.map(d => d.pnl)) : 0;
-  const worstDay = monthDays.length ? Math.min(...monthDays.map(d => d.pnl)) : 0;
+  // En mode journal : les données viennent de journalData (clé = numéro de jour)
+  // Format journalData : { "1": {wins, losses, pnl}, "2": {...}, ... }
+  const journalDays = journalMode
+    ? Object.keys(journalData).map(k => ({ dayNum: parseInt(k), ...journalData[k] }))
+    : [];
+
+  // P&L et stats : en mode journal, basé sur journalData ; sinon sur monthDays
+  const statsSource = journalMode
+    ? journalDays.map(d => ({ pnl: d.pnl, wins: d.wins, losses: d.losses }))
+    : monthDays;
+  const monthPnl = statsSource.reduce((s, d) => s + (d.pnl || 0), 0);
+  const winDays = statsSource.filter(d => (d.pnl || 0) > 0).length;
+  const lossDays = statsSource.filter(d => (d.pnl || 0) < 0).length;
+  const bestDay = statsSource.length ? Math.max(...statsSource.map(d => d.pnl || 0)) : 0;
+  const worstDay = statsSource.length ? Math.min(...statsSource.map(d => d.pnl || 0)) : 0;
 
   const buildCalendarGrid = () => {
     const grid = [];
+    if (journalMode) {
+      // Mode journal : grille complète du mois (30 jours), chaque jour cliquable
+      for (let dayNum = 1; dayNum <= 30; dayNum++) {
+        const dow = (dayNum - 1) % 7;
+        const isWeekday = dow < 5;
+        const entry = journalData[String(dayNum)];
+        grid.push({
+          dayNum,
+          trading: isWeekday,
+          journalEntry: entry || null,
+          data: entry ? { pnl: entry.pnl, wins: entry.wins, losses: entry.losses } : null,
+        });
+      }
+      return grid;
+    }
+    // Mode normal (simulation) : inchangé
     let tradingIdx = 0;
     let dayNum = 1;
     while (tradingIdx < monthDays.length && dayNum <= 31) {
-      const dow = (dayNum - 1) % 7; // 0-4 = semaine, 5-6 = weekend
+      const dow = (dayNum - 1) % 7;
       if (dow < 5 && tradingIdx < monthDays.length) {
         grid.push({ dayNum, trading: true, data: monthDays[tradingIdx] });
         tradingIdx++;
@@ -3252,7 +3286,9 @@ function CalendrierPnL({ dailyLog }) {
   };
   const grid = buildCalendarGrid();
 
-  const maxAbsPnl = monthDays.length ? Math.max(...monthDays.map(d => Math.abs(d.pnl)), 1) : 1;
+  const maxAbsPnl = journalMode
+    ? (journalDays.length ? Math.max(...journalDays.map(d => Math.abs(d.pnl || 0)), 1) : 1)
+    : (monthDays.length ? Math.max(...monthDays.map(d => Math.abs(d.pnl)), 1) : 1);
 
   const cellColor = (pnl) => {
     if (pnl === undefined || pnl === null)
@@ -3279,8 +3315,14 @@ function CalendrierPnL({ dailyLog }) {
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 15, color: "#FFFFFF" }}>Calendrier PnL</div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginTop: 1 }}>Mois {selectedMonth} - simulation jour par jour</div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: "#FFFFFF" }}>
+            {journalMode ? "Journal de trading" : "Calendrier PnL"}
+          </div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginTop: 1 }}>
+            {journalMode
+              ? (journalMonthLabel || "Clique un jour pour saisir tes trades")
+              : "Mois " + selectedMonth + " - simulation jour par jour"}
+          </div>
         </div>
         <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
           <button onClick={() => setSelectedMonth(Math.max(1, selectedMonth - 1))}
@@ -3324,24 +3366,46 @@ function CalendrierPnL({ dailyLog }) {
       {/* Grille calendrier */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
         {grid.map((cell, i) => {
-          const c = cell.trading && cell.data ? cellColor(cell.data.pnl) : { bg: "#0d0d15", fg: "rgba(255,255,255,0.05)", border: "1px solid #12121a", numColor: "rgba(255,255,255,0.05)" };
+          const hasData = cell.data && (cell.data.pnl !== undefined && cell.data.pnl !== null);
+          const c = (cell.trading && hasData) ? cellColor(cell.data.pnl) : { bg: "#0d0d15", fg: "rgba(255,255,255,0.05)", border: "1px solid #12121a", numColor: "rgba(255,255,255,0.05)" };
           const isWeekend = !cell.trading;
+          // En mode journal : toutes les cases (sauf weekend) sont cliquables
+          const clickable = journalMode && cell.trading;
+          const emptyJournalCell = journalMode && cell.trading && !hasData;
           return (
-            <div key={i} style={{
-              background: c.bg,
-              border: c.border,
-              borderRadius: 8,
-              padding: "5px 4px",
-              minHeight: 52,
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              opacity: isWeekend ? 0.35 : 1,
-            }}>
-              <div style={{ fontSize: 10, color: c.numColor, fontWeight: 700 }}>
+            <div key={i}
+              onClick={() => {
+                if (!clickable) return;
+                const existing = journalData[String(cell.dayNum)];
+                setEditingDay(cell.dayNum);
+                setFormWins(existing ? String(existing.wins) : "");
+                setFormLosses(existing ? String(existing.losses) : "");
+                setFormGain(existing ? String(existing.pnl) : "");
+              }}
+              style={{
+                background: emptyJournalCell ? "rgba(255,255,255,0.03)" : c.bg,
+                border: emptyJournalCell ? "1px dashed rgba(255,255,255,0.15)" : c.border,
+                borderRadius: 8,
+                padding: "5px 4px",
+                minHeight: 52,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                opacity: isWeekend ? 0.35 : 1,
+                cursor: clickable ? "pointer" : "default",
+                transition: "all .15s",
+              }}>
+              <div style={{ fontSize: 10, color: emptyJournalCell ? "rgba(255,255,255,0.4)" : c.numColor, fontWeight: 700 }}>
                 {cell.dayNum}
               </div>
-              {cell.trading && cell.data && (
+              {/* Case vide en mode journal : croix grise + */}
+              {emptyJournalCell && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flex: 1 }}>
+                  <span style={{ fontSize: 18, color: "rgba(255,255,255,0.25)", fontWeight: 300, lineHeight: 1 }}>+</span>
+                </div>
+              )}
+              {/* Case avec données (simulation OU journal rempli) */}
+              {cell.trading && hasData && (
                 <>
                   <div style={{ fontSize: 11, color: c.fg, fontWeight: 700, textAlign: "center", lineHeight: 1.2 }}>
                     {cell.data.pnl >= 0 ? "+" : ""}
@@ -3360,6 +3424,82 @@ function CalendrierPnL({ dailyLog }) {
           );
         })}
       </div>
+
+      {/* ── MODAL SAISIE JOURNAL ── */}
+      {journalMode && editingDay !== null && (
+        <div
+          onClick={() => setEditingDay(null)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 1000, padding: 20,
+          }}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#12121a", border: "1px solid rgba(110,231,183,0.25)",
+              borderRadius: 18, padding: 20, width: "100%", maxWidth: 340,
+            }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#FFFFFF", marginBottom: 4 }}>
+              Jour {editingDay}
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginBottom: 16 }}>
+              Saisis tes résultats de la journée
+            </div>
+
+            {/* Trades gagnants */}
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", display: "block", marginBottom: 5 }}>Trades gagnants</label>
+              <input type="number" inputMode="numeric" value={formWins} onChange={e => setFormWins(e.target.value)}
+                placeholder="0"
+                style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(110,231,183,0.2)", borderRadius: 10, padding: "10px 12px", color: "#FFFFFF", fontSize: 15, fontWeight: 600, outline: "none", boxSizing: "border-box" }} />
+            </div>
+
+            {/* Trades perdants */}
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", display: "block", marginBottom: 5 }}>Trades perdants</label>
+              <input type="number" inputMode="numeric" value={formLosses} onChange={e => setFormLosses(e.target.value)}
+                placeholder="0"
+                style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "10px 12px", color: "#FFFFFF", fontSize: 15, fontWeight: 600, outline: "none", boxSizing: "border-box" }} />
+            </div>
+
+            {/* Gain du jour */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", display: "block", marginBottom: 5 }}>Gain / Perte du jour ($)</label>
+              <input type="number" inputMode="decimal" value={formGain} onChange={e => setFormGain(e.target.value)}
+                placeholder="ex: 250 ou -120"
+                style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "10px 12px", color: "#FFFFFF", fontSize: 15, fontWeight: 600, outline: "none", boxSizing: "border-box" }} />
+            </div>
+
+            {/* Boutons */}
+            <div style={{ display: "flex", gap: 8 }}>
+              {journalData[String(editingDay)] && (
+                <button
+                  onClick={() => { if (onJournalSave) onJournalSave(editingDay, null); setEditingDay(null); }}
+                  style={{ padding: "11px 14px", borderRadius: 10, background: "rgba(239,68,68,0.1)", color: "#f87171", fontSize: 13, fontWeight: 700, border: "1px solid rgba(239,68,68,0.25)", cursor: "pointer" }}>
+                  Effacer
+                </button>
+              )}
+              <button
+                onClick={() => setEditingDay(null)}
+                style={{ flex: 1, padding: "11px 14px", borderRadius: 10, background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: 700, border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer" }}>
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  const wins = parseInt(formWins) || 0;
+                  const losses = parseInt(formLosses) || 0;
+                  const pnl = parseFloat(formGain) || 0;
+                  if (onJournalSave) onJournalSave(editingDay, { wins, losses, pnl });
+                  setEditingDay(null);
+                }}
+                style={{ flex: 1, padding: "11px 14px", borderRadius: 10, background: "#6ee7b7", color: "#000", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                Enregistrer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Legende */}
       <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
@@ -4552,6 +4692,64 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
   );
 }
 // ══════════════════════════════════════════════════════════════════
+// NOTIFICATIONS LOCALES — rappel quotidien 21h
+// Contrainte iOS : notif locale fonctionne app ouverte/arrière-plan.
+// (vrai push app fermée nécessiterait un serveur + Web Push)
+// ══════════════════════════════════════════════════════════════════
+const NOTIF_KEY = "eapropfirm_notif";
+function loadNotifPref() {
+  try { const r = localStorage.getItem(NOTIF_KEY); return r ? JSON.parse(r) : { enabled: false, hour: 21 }; }
+  catch (e) { return { enabled: false, hour: 21 }; }
+}
+function saveNotifPref(pref) {
+  try { localStorage.setItem(NOTIF_KEY, JSON.stringify(pref)); } catch (e) {}
+}
+// Demande la permission de notification
+async function requestNotifPermission() {
+  if (typeof Notification === "undefined") return "unsupported";
+  if (Notification.permission === "granted") return "granted";
+  if (Notification.permission === "denied") return "denied";
+  try { return await Notification.requestPermission(); }
+  catch (e) { return "denied"; }
+}
+// Envoie une notification (via service worker si dispo, sinon directe)
+async function fireNotification(title, body) {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  const options = {
+    body,
+    icon: "/pwa-192x192.png",
+    badge: "/pwa-192x192.png",
+    tag: "daily-reminder",
+    renotify: true,
+  };
+  try {
+    if ("serviceWorker" in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg && reg.showNotification) { reg.showNotification(title, options); return; }
+    }
+    new Notification(title, options);
+  } catch (e) {
+    try { new Notification(title, options); } catch (e2) {}
+  }
+}
+// Vérifie s'il faut déclencher le rappel (appelé au montage + à intervalle)
+function checkDailyReminder() {
+  const pref = loadNotifPref();
+  if (!pref.enabled) return;
+  const now = new Date();
+  const hour = pref.hour ?? 21;
+  // On vérifie qu'on est après l'heure cible ET qu'on n'a pas déjà notifié aujourd'hui
+  const todayKey = now.getFullYear() + "-" + (now.getMonth()+1) + "-" + now.getDate();
+  if (now.getHours() >= hour && pref.lastFired !== todayKey) {
+    fireNotification(
+      "EA PropFirm Pro",
+      "N'oublie pas de remplir ton journal de trading du jour 📓"
+    );
+    saveNotifPref({ ...pref, lastFired: todayKey });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
 // DASHBOARD (page d'accueil)
 // ══════════════════════════════════════════════════════════════════
 function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) {
@@ -4563,6 +4761,65 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
   });
   const [renamingId, setRenamingId] = useState(null);
   const [renameVal, setRenameVal] = useState("");
+  // ── Journal de trading ──
+  const [journalMode, setJournalMode] = useState(false);
+  const [journalMonth, setJournalMonth] = useState(() => {
+    const now = new Date();
+    return now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+  });
+  const [journal, setJournal] = useState(() => {
+    try { const r = localStorage.getItem("eapropfirm_journal"); return r ? JSON.parse(r) : {}; }
+    catch (e) { return {}; }
+  });
+  // Sauvegarde une entrée du journal pour le mois courant
+  const saveJournalEntry = (day, entry) => {
+    setJournal(prev => {
+      const next = { ...prev };
+      if (!next[journalMonth]) next[journalMonth] = {};
+      else next[journalMonth] = { ...next[journalMonth] };
+      if (entry === null) {
+        delete next[journalMonth][String(day)];
+      } else {
+        next[journalMonth][String(day)] = entry;
+      }
+      try { localStorage.setItem("eapropfirm_journal", JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
+  };
+  const journalMonthData = journal[journalMonth] || {};
+
+  // ── Notifications cloche ──
+  const [notifPref, setNotifPref] = useState(() => loadNotifPref());
+  const [showNotifPanel, setShowNotifPanel] = useState(false);
+  // Vérifie le rappel au montage + toutes les minutes tant que l'app est ouverte
+  useEffect(() => {
+    checkDailyReminder();
+    const id = setInterval(checkDailyReminder, 60000);
+    return () => clearInterval(id);
+  }, []);
+  // Active/désactive les notifications
+  const toggleNotif = async () => {
+    if (!notifPref.enabled) {
+      const perm = await requestNotifPermission();
+      if (perm === "granted") {
+        const next = { ...notifPref, enabled: true, hour: notifPref.hour ?? 21 };
+        setNotifPref(next); saveNotifPref(next);
+        // Notif de confirmation immédiate
+        fireNotification("Notifications activées ✅", "Tu recevras un rappel chaque jour après " + (next.hour) + "h pour ton journal.");
+      } else if (perm === "denied") {
+        alert("Les notifications sont bloquées. Active-les dans les réglages de ton navigateur/téléphone pour cette app.");
+      } else if (perm === "unsupported") {
+        alert("Ton navigateur ne supporte pas les notifications. Sur iPhone, ajoute l'app à l'écran d'accueil d'abord.");
+      }
+    } else {
+      const next = { ...notifPref, enabled: false };
+      setNotifPref(next); saveNotifPref(next);
+    }
+  };
+  const setNotifHour = (h) => {
+    const next = { ...notifPref, hour: h };
+    setNotifPref(next); saveNotifPref(next);
+  };
 
   const deleteConfig=(id)=>{ const n=configs.filter(c=>c.id!==id); setConfigs(n); try{localStorage.setItem("eapropfirm_saved_configs",JSON.stringify(n));}catch(e){} };
   const startRename=(cfg)=>{ setRenamingId(cfg.id); setRenameVal(cfg.name); };
@@ -4639,10 +4896,63 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
           </div>
         </div>
         <div style={{position:"relative"}}>
-          <button style={{width:38,height:38,borderRadius:10,background:"rgba(255,255,255,0.08)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
-            <svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M9 0C6.8 0 5 1.8 5 4v1.1C3.4 5.9 2 7.8 2 10v4l-2 2v1h18v-1l-2-2v-4c0-2.2-1.4-4.1-3-4.9V4c0-2.2-1.8-4-4-4z" fill="white" opacity="0.8"/><path d="M7 18c0 1.1.9 2 2 2s2-.9 2-2H7z" fill="white" opacity="0.6"/></svg>
+          <button onClick={() => setShowNotifPanel(v => !v)} style={{width:38,height:38,borderRadius:10,background:"rgba(255,255,255,0.08)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
+            <svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M9 0C6.8 0 5 1.8 5 4v1.1C3.4 5.9 2 7.8 2 10v4l-2 2v1h18v-1l-2-2v-4c0-2.2-1.4-4.1-3-4.9V4c0-2.2-1.8-4-4-4z" fill={notifPref.enabled ? "#6ee7b7" : "white"} opacity={notifPref.enabled ? "1" : "0.8"}/><path d="M7 18c0 1.1.9 2 2 2s2-.9 2-2H7z" fill={notifPref.enabled ? "#6ee7b7" : "white"} opacity="0.6"/></svg>
           </button>
-          <div style={{position:"absolute",top:7,right:7,width:8,height:8,borderRadius:4,background:"#6ee7b7",border:"2px solid #000"}}/>
+          {notifPref.enabled && <div style={{position:"absolute",top:7,right:7,width:8,height:8,borderRadius:4,background:"#6ee7b7",border:"2px solid #000"}}/>}
+
+          {/* Panneau notifications */}
+          {showNotifPanel && (
+            <>
+              <div onClick={() => setShowNotifPanel(false)} style={{ position: "fixed", inset: 0, zIndex: 998 }} />
+              <div style={{
+                position: "absolute", top: 46, right: 0, zIndex: 999,
+                width: 270, background: "#12121a", border: "1px solid rgba(110,231,183,0.2)",
+                borderRadius: 16, padding: 16, boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#FFFFFF", marginBottom: 4 }}>Rappel quotidien</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.5, marginBottom: 14 }}>
+                  Reçois un rappel chaque jour pour remplir ton journal de trading.
+                </div>
+
+                {/* Toggle activation */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                  <span style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", fontWeight: 600 }}>
+                    {notifPref.enabled ? "Activé" : "Désactivé"}
+                  </span>
+                  <div onClick={toggleNotif} style={{
+                    width: 44, height: 24, borderRadius: 12, background: notifPref.enabled ? "#6ee7b7" : "rgba(255,255,255,0.1)",
+                    border: "1px solid " + (notifPref.enabled ? "#6ee7b7" : "rgba(255,255,255,0.1)"),
+                    position: "relative", cursor: "pointer", transition: "all .2s",
+                  }}>
+                    <div style={{ position: "absolute", top: 2, left: notifPref.enabled ? 22 : 2, width: 18, height: 18, borderRadius: 9, background: "#fff", transition: "all .2s" }} />
+                  </div>
+                </div>
+
+                {/* Choix de l'heure */}
+                {notifPref.enabled && (
+                  <div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 6 }}>Heure du rappel</div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {[18, 19, 20, 21, 22].map(h => (
+                        <button key={h} onClick={() => setNotifHour(h)} style={{
+                          flex: 1, minWidth: 40, padding: "8px 0", borderRadius: 8,
+                          background: (notifPref.hour ?? 21) === h ? "#6ee7b7" : "rgba(255,255,255,0.06)",
+                          color: (notifPref.hour ?? 21) === h ? "#000" : "rgba(255,255,255,0.6)",
+                          fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer",
+                        }}>{h}h</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Note iOS */}
+                <div style={{ marginTop: 12, fontSize: 9, color: "rgba(255,255,255,0.3)", lineHeight: 1.4 }}>
+                  Sur iPhone : ajoute l'app à l'écran d'accueil pour activer les notifications.
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -4723,16 +5033,63 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
         </div>
       )}
 
-      {/* ── TABLEAU PNL FUNDED ── */}
-      {ls.funded ? (
-        <div style={{marginBottom:"14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,overflow:"hidden"}}>
-          <CalendrierPnL dailyLog={ls.funded.dailyLog} />
+      {/* ── CALENDRIER PNL / JOURNAL DE TRADING ── */}
+      <div style={{marginBottom:"14px"}}>
+        {/* Toggle mode journal */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, padding: "0 2px" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}>
+            {journalMode ? "📓 Journal de trading" : "📊 Calendrier PnL"}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 11, color: journalMode ? "#6ee7b7" : "rgba(255,255,255,0.4)", fontWeight: 600 }}>
+              Mode journal
+            </span>
+            <div onClick={() => setJournalMode(v => !v)} style={{
+              width: 38, height: 22, borderRadius: 11, background: journalMode ? "#6ee7b7" : "rgba(255,255,255,0.1)",
+              border: "1px solid " + (journalMode ? "#6ee7b7" : "rgba(255,255,255,0.1)"),
+              position: "relative", cursor: "pointer", transition: "all .2s", flexShrink: 0,
+            }}>
+              <div style={{ position: "absolute", top: 2, left: journalMode ? 18 : 2, width: 16, height: 16, borderRadius: 8, background: "#fff", transition: "all .2s" }} />
+            </div>
+          </div>
         </div>
-      ) : (
-        <div style={{marginBottom:"14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
-          Lance une simulation pour voir le tableau PnL
-        </div>
-      )}
+
+        {/* Sélecteur de mois en mode journal */}
+        {journalMode && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <input
+              type="month"
+              value={journalMonth}
+              onChange={e => setJournalMonth(e.target.value)}
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(110,231,183,0.2)", borderRadius: 10, padding: "8px 12px", color: "#FFFFFF", fontSize: 13, fontWeight: 600, outline: "none", colorScheme: "dark" }}
+            />
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+              {Object.keys(journalMonthData).length} jour(s) saisi(s)
+            </span>
+          </div>
+        )}
+
+        {/* Le calendrier : mode journal OU mode simulation */}
+        {journalMode ? (
+          <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,overflow:"hidden"}}>
+            <CalendrierPnL
+              dailyLog={[]}
+              journalMode={true}
+              journalData={journalMonthData}
+              onJournalSave={saveJournalEntry}
+              journalMonthLabel={"Clique un jour pour saisir tes trades · " + journalMonth}
+            />
+          </div>
+        ) : ls.funded ? (
+          <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,overflow:"hidden"}}>
+            <CalendrierPnL dailyLog={ls.funded.dailyLog} />
+          </div>
+        ) : (
+          <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
+            Lance une simulation pour voir le tableau PnL, ou active le mode journal pour saisir tes trades réels.
+          </div>
+        )}
+      </div>
       {/* ── 2 COLONNES : STATS + CONFIGS ── */}
       <div style={{marginBottom:"14px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         {/* STATISTIQUES */}

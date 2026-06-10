@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'notif-sw.js'],
       manifest: {
         name: 'EA PropFirm Pro',
         short_name: 'PropFirm Pro',
@@ -38,6 +38,7 @@ export default defineConfig({
         ]
       },
       workbox: {
+        importScripts: ['notif-sw.js'],
         globPatterns: ['**/*.{js,css,html,svg,ico,jpg}'],
         globIgnores: [
           '**/9C04F5A9*.png',
