@@ -2304,8 +2304,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               </ResponsiveContainer>
             </div>
 
-            {/* CALENDRIER PnL */}
-            <CalendrierPnL dailyLog={sim.funded.dailyLog} />
+            {/* CALENDRIER PnL — jours skippés répartis aléatoirement selon la récurrence EA */}
+            <CalendrierPnL dailyLog={sim.funded.dailyLog} newsSkipDays={newsSkipDays} activeDays={activeDays} />
 
             <div className="card">
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: "#fbbf24" }}>Detail Mensuel</div>
@@ -3559,7 +3559,7 @@ function compressImage(file, maxDim = 900, quality = 0.72) {
   });
 }
 
-function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null }) {
+function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, newsSkipDays = 0, activeDays = [1,2,3,4,5] }) {
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [editingDay, setEditingDay] = useState(null); // jour en cours d'édition (mode journal)
   const [formWins, setFormWins] = useState(0);
@@ -3615,21 +3615,56 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
       }
       return grid;
     }
-    // Mode simulation : grille fixe 28 jours (4 semaines complètes)
-    // Les jours non tradés (recurrence EA, news skip) s'affichent en cases vides
-    // pour le confort visuel et la cohérence du calendrier mensuel.
+    // ── Mode simulation : grille 28 jours avec répartition ALÉATOIRE des jours skippés ──
+    // Les jours d'annonces (NFP, FOMC, CPI...) ne tombent pas toujours le même jour
+    // → On utilise un PRNG seedé par le numéro de mois pour répartir les skips
+    // Logique professionnelle : chaque semaine, newsSkipDays jours actifs sont choisis
+    // aléatoirement comme "jours d'annonces" → vides sur le calendrier.
+
+    // PRNG déterministe (sin-based) — seedé par numéro de mois pour cohérence
+    const prng = (n) => {
+      const x = Math.sin(selectedMonth * 9301 + n * 49297 + 233280) * 233280;
+      return x - Math.floor(x);
+    };
+
+    // Jours actifs EA (0=Lun..4=Ven, exclure weekends)
+    const eaDows = new Set((activeDays || [1,2,3,4,5]).filter(d => d >= 1 && d <= 5).map(d => d - 1));
+
     let tradingIdx = 0;
-    for (let dayNum = 1; dayNum <= 28; dayNum++) {
-      const dow = (dayNum - 1) % 7; // 0=Lun … 6=Dim
-      const isWeekend = dow >= 5;
-      if (!isWeekend && tradingIdx < monthDays.length) {
-        // Jour tradé avec données
-        grid.push({ dayNum, trading: true, data: monthDays[tradingIdx] });
-        tradingIdx++;
-      } else {
-        // Case vide : jour non tradé (EA off ce jour) ou weekend
-        // isEmptyWeekday = jour ouvrable sans données (visuellement distinct du weekend)
-        grid.push({ dayNum, trading: false, data: null, isEmptyWeekday: !isWeekend });
+    for (let week = 0; week < 4; week++) {
+      // Pour cette semaine : choisir aléatoirement quels jours actifs sont des "news days"
+      const eaActiveArr = Array.from(eaDows); // [0,1,2,3,4] par défaut
+      const skipCount = Math.min(newsSkipDays, eaActiveArr.length);
+
+      // Fisher-Yates shuffle seedé → résultat différent par semaine ET par mois
+      const shuffled = [...eaActiveArr];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(prng(selectedMonth * 1000 + week * 100 + i) * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      const skipDowsThisWeek = new Set(shuffled.slice(0, skipCount));
+
+      // Construire les 7 cases de la semaine
+      for (let d = 0; d < 7; d++) {
+        const dayNum = week * 7 + d + 1;
+        const isWeekend = d >= 5;
+        const isEaActive = eaDows.has(d);
+        const isNewsSkip = skipDowsThisWeek.has(d);
+
+        if (isWeekend) {
+          // Weekend : case très sombre (le calendrier affiche toujours Sam/Dim)
+          grid.push({ dayNum, trading: false, data: null, isEmptyWeekday: false });
+        } else if (!isEaActive || isNewsSkip) {
+          // Jour non tradé : EA ne trade pas ce jour OU c'est un jour d'annonce
+          grid.push({ dayNum, trading: false, data: null, isEmptyWeekday: true });
+        } else if (tradingIdx < monthDays.length) {
+          // Jour tradé avec données de simulation
+          grid.push({ dayNum, trading: true, data: monthDays[tradingIdx] });
+          tradingIdx++;
+        } else {
+          // Fin des données de simulation → case vide (fin de mois)
+          grid.push({ dayNum, trading: false, data: null, isEmptyWeekday: true });
+        }
       }
     }
     return grid;
