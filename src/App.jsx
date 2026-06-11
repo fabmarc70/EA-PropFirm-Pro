@@ -551,8 +551,8 @@ function simulatePhase(capital, cfg, model, p) {
 }
 
 function simulateFunded(capital, months, model, p, split) {
-  // Jours de trading par mois : 30 si weekend inclus, 21 sinon (jours ouvrés)
-  const TD_MONTH_DYNAMIC = p.includeWeekend ? 30 : 21;
+  // Jours de trading par mois : override récurrence si fourni, sinon calcul standard
+  const TD_MONTH_DYNAMIC = p.tdMonthOverride || (p.includeWeekend ? 30 : 21);
   const dailyDDLimit = capital * model.dailyDD;
   const floorEquity = capital * (1 - model.totalDD);
   const riskAmount = capital * p.riskPct;
@@ -807,6 +807,36 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const [newsImpact, setNewsImpact] = useState(saved.newsImpact ?? false);
   // Weekend inclus : par défaut désactivé pour prop firm (forex 24/5), libre pour classique
   const [includeWeekend, setIncludeWeekend] = useState(saved.includeWeekend ?? false);
+  // ── Récurrence EA ──
+  // Jours actifs : "1"=Lun, "2"=Mar, "3"=Mer, "4"=Jeu, "5"=Ven, "6"=Sam, "7"=Dim
+  const [activeDays, setActiveDays] = useState(() => {
+    const saved = loadPremium(); // réutilise localStorage
+    try {
+      const r = localStorage.getItem("eapropfirm_activedays");
+      return r ? JSON.parse(r) : [1,2,3,4,5]; // Lun-Ven par défaut
+    } catch (e) { return [1,2,3,4,5]; }
+  });
+  const toggleDay = (d) => {
+    setActiveDays(prev => {
+      const next = prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d];
+      const sorted = next.sort((a,b) => a - b);
+      try { localStorage.setItem("eapropfirm_activedays", JSON.stringify(sorted)); } catch(e) {}
+      return sorted;
+    });
+  };
+  // Jours d'annonces évités par mois (NFP, FOMC, CPI...)
+  const [newsSkipDays, setNewsSkipDays] = useState(() => {
+    try {
+      const r = localStorage.getItem("eapropfirm_newsskip");
+      return r ? parseInt(r) : 0;
+    } catch (e) { return 0; }
+  });
+  const setAndSaveNewsSkip = (v) => {
+    const val = Math.max(0, Math.min(10, v));
+    setNewsSkipDays(val);
+    try { localStorage.setItem("eapropfirm_newsskip", String(val)); } catch (e) {}
+  };
+
   // payoutMonths = Set des mois DÉCOCHÉS (payout désactivé). Vide par défaut = TOUT COCHÉ.
   const [payoutMonths, setPayoutMonths] = useState(() => new Set());
   const togglePayoutMonth = (month) => setPayoutMonths(prev => {
@@ -893,7 +923,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const clustering = clusteringPct / 100;
   const fee = challengeFee(capital);
   const w = winrate / 100;
-  const monthlyTarget = dailyTarget * (includeWeekend ? 30 : 21);
+  const monthlyTarget = dailyTarget * tdMonthRecurrence;
 
   // ══════════════════════════════════════════════════════════════
   // MOTEUR DE RISQUE UNIVERSEL — indépendant du broker / plateforme
@@ -987,6 +1017,14 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     ? splitRate * (1 - newsRatio + newsRatio * 0.4)  // 85% normal + 15% × 40%
     : splitRate;
 
+  // Calcul des jours de trading effectifs par mois selon récurrence EA
+  // Semaines Lundi-Vendredi = 5j, donc ratio par rapport aux 5 jours ouvrés
+  const baseWeekDays = includeWeekend ? 7 : 5;
+  const activeDaysInBase = activeDays.filter(d => includeWeekend ? d >= 1 : d <= 5).length;
+  const activeDayRatio = baseWeekDays > 0 ? activeDaysInBase / baseWeekDays : 1;
+  // TD_MONTH_RECURRENCE = jours de base × ratio jours actifs - jours annonces évités
+  const tdMonthRecurrence = Math.max(1, Math.round((includeWeekend ? 30 : 21) * activeDayRatio) - newsSkipDays);
+
   const p = {
     tradesPerDay,
     riskPct:        effectiveRisk,
@@ -995,6 +1033,9 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     clustering,
     maxConsecLosses,
     includeWeekend,
+    activeDays,
+    newsSkipDays,
+    tdMonthOverride: tdMonthRecurrence, // override TD_MONTH dans simulateFunded
   };
 
   useEffect(() => {
@@ -1705,6 +1746,104 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               ⚠️ Vérifie les règles de ta prop firm : le forex est fermé le weekend. Le weekend ne s'applique qu'au crypto/indices 24/7 selon les firms.
             </div>
           )}
+        </div>
+
+        {/* ══════ RÉCURRENCE EA ══════ */}
+        <div style={{ marginTop: 10, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 12 }}>
+
+          {/* Label section */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1, display: "flex", alignItems: "center", gap: 5 }}>
+                Récurrence EA
+                <InfoTip text={"Configure les jours où ton EA trade réellement et les journées d'annonces qu'il évite. Impacte directement le nombre de jours tradés/mois dans la simulation."} />
+              </div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>
+                {tdMonthRecurrence} jour{tdMonthRecurrence > 1 ? "s" : ""} tradé{tdMonthRecurrence > 1 ? "s" : ""}/mois estimé{tdMonthRecurrence > 1 ? "s" : ""}
+                {newsSkipDays > 0 && <span style={{ color: "#fbbf24" }}> · {newsSkipDays}j annonces évités</span>}
+              </div>
+            </div>
+          </div>
+
+          {/* Jours de trading actifs */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 7, fontWeight: 600 }}>
+              Jours où ton EA trade
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {[
+                { d: 1, label: "Lu" },
+                { d: 2, label: "Ma" },
+                { d: 3, label: "Me" },
+                { d: 4, label: "Je" },
+                { d: 5, label: "Ve" },
+                { d: 6, label: "Sa" },
+                { d: 7, label: "Di" },
+              ].map(({ d, label }) => {
+                const isWeekend = d >= 6;
+                const active = activeDays.includes(d);
+                const disabled = isWeekend && !includeWeekend;
+                return (
+                  <button
+                    key={d}
+                    onClick={() => { if (!disabled) toggleDay(d); }}
+                    style={{
+                      flex: 1, height: 36, borderRadius: 9,
+                      background: active && !disabled
+                        ? (isWeekend ? "rgba(251,191,36,0.18)" : "rgba(110,231,183,0.18)")
+                        : "rgba(255,255,255,0.04)",
+                      border: active && !disabled
+                        ? ("1.5px solid " + (isWeekend ? "#fbbf24" : "#6ee7b7"))
+                        : "1.5px solid rgba(255,255,255,0.08)",
+                      color: disabled
+                        ? "rgba(255,255,255,0.12)"
+                        : (active ? (isWeekend ? "#fbbf24" : "#6ee7b7") : "rgba(255,255,255,0.35)"),
+                      fontSize: 11, fontWeight: 700, cursor: disabled ? "default" : "pointer",
+                      transition: "all .15s",
+                    }}>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Jours d'annonces évités */}
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: 600 }}>
+                Jours d'annonces évités/mois
+              </div>
+              <InfoTip text={"Nombre de jours/mois où ton EA ne trade pas à cause des grosses annonces : NFP (1/mois), FOMC (~0.7/mois), CPI (1/mois), PPI (1/mois), etc. 0 = pas de filtre news."} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {/* Stepper */}
+              <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 12, height: 40, overflow: "hidden", flex: 1 }}>
+                <button
+                  onClick={() => setAndSaveNewsSkip(newsSkipDays - 1)}
+                  style={{ width: 40, height: "100%", background: "transparent", border: "none", color: newsSkipDays > 0 ? "#fbbf24" : "rgba(255,255,255,0.15)", fontSize: 20, cursor: newsSkipDays > 0 ? "pointer" : "default", flexShrink: 0 }}>
+                  −
+                </button>
+                <div style={{ flex: 1, textAlign: "center", fontSize: 16, fontWeight: 700, color: newsSkipDays > 0 ? "#fbbf24" : "rgba(255,255,255,0.35)" }}>
+                  {newsSkipDays}
+                </div>
+                <button
+                  onClick={() => setAndSaveNewsSkip(newsSkipDays + 1)}
+                  style={{ width: 40, height: "100%", background: newsSkipDays < 10 ? "rgba(251,191,36,0.10)" : "rgba(255,255,255,0.03)", border: "none", color: newsSkipDays < 10 ? "#fbbf24" : "rgba(255,255,255,0.15)", fontSize: 20, cursor: newsSkipDays < 10 ? "pointer" : "default", flexShrink: 0 }}>
+                  +
+                </button>
+              </div>
+              {/* Annonces de référence */}
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", lineHeight: 1.6, flex: 1 }}>
+                NFP: 1j<br/>FOMC: ~1j<br/>CPI+PPI: 2j
+              </div>
+            </div>
+            {newsSkipDays > 0 && (
+              <div style={{ marginTop: 7, fontSize: 10, color: "rgba(251,191,36,0.7)", lineHeight: 1.4 }}>
+                Ton EA évite {newsSkipDays} jour{newsSkipDays > 1 ? "s" : ""}/mois → simulation sur {tdMonthRecurrence} jour{tdMonthRecurrence > 1 ? "s" : ""}/mois réels.
+              </div>
+            )}
+          </div>
         </div>
       </div>}
 
