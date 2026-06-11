@@ -3588,155 +3588,184 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
         <div
           onClick={() => setEditingDay(null)}
           style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)",
+            position: "fixed", inset: 0, zIndex: 1000,
+            background: "rgba(0,0,0,0.8)",
             display: "flex", alignItems: "flex-end", justifyContent: "center",
-            zIndex: 1000,
           }}>
+
+          {/* Bottom sheet — structure : header + scroll + footer */}
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: "#12121a", border: "1px solid rgba(110,231,183,0.25)",
-              borderRadius: "20px 20px 0 0", padding: "20px 20px calc(20px + env(safe-area-inset-bottom))",
               width: "100%", maxWidth: 480,
+              background: "#12121a",
+              border: "1px solid rgba(110,231,183,0.18)",
+              borderRadius: "22px 22px 0 0",
+              display: "flex", flexDirection: "column",
+              maxHeight: "92svh",
             }}>
 
-            {/* Handle + titre */}
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 16px" }} />
-            <div style={{ fontSize: 18, fontWeight: 700, color: "#FFFFFF", marginBottom: 3 }}>
-              Jour {editingDay}
-            </div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 18 }}>
-              Saisis tes résultats de la journée
-            </div>
-
-            {/* ── Trades gagnants — stepper ── */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", display: "block", marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.5 }}>Trades gagnants</label>
-              <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(110,231,183,0.2)", borderRadius: 14, overflow: "hidden", height: 52 }}>
-                <button
-                  onClick={() => setFormWins(v => Math.max(0, v - 1))}
-                  style={{ width: 56, height: "100%", background: "transparent", border: "none", color: formWins > 0 ? "#6ee7b7" : "rgba(255,255,255,0.2)", fontSize: 24, fontWeight: 300, cursor: formWins > 0 ? "pointer" : "default", flexShrink: 0 }}>
-                  −
-                </button>
-                <div style={{ flex: 1, textAlign: "center", fontSize: 22, fontWeight: 700, color: formWins > 0 ? "#6ee7b7" : "rgba(255,255,255,0.4)" }}>
-                  {formWins}
+            {/* ── HEADER FIXE ── */}
+            <div style={{ padding: "14px 20px 12px", flexShrink: 0 }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 14px" }} />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: "#FFFFFF", letterSpacing: -0.3 }}>
+                    Jour {editingDay}
+                  </div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
+                    Saisis tes résultats de la journée
+                  </div>
                 </div>
-                <button
-                  onClick={() => setFormWins(v => v + 1)}
-                  style={{ width: 56, height: "100%", background: "rgba(110,231,183,0.10)", border: "none", color: "#6ee7b7", fontSize: 24, fontWeight: 300, cursor: "pointer", flexShrink: 0 }}>
-                  +
-                </button>
+                {/* Bouton Effacer (si entrée existante) */}
+                {journalData[String(editingDay)] && (
+                  <button
+                    onClick={() => { if (onJournalSave) onJournalSave(editingDay, null); setEditingDay(null); }}
+                    style={{ padding: "7px 12px", borderRadius: 10, background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 12, fontWeight: 700, border: "1px solid rgba(239,68,68,0.18)", cursor: "pointer" }}>
+                    Effacer
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* ── Trades perdants — stepper ── */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", display: "block", marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.5 }}>Trades perdants</label>
-              <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 14, overflow: "hidden", height: 52 }}>
-                <button
-                  onClick={() => setFormLosses(v => Math.max(0, v - 1))}
-                  style={{ width: 56, height: "100%", background: "transparent", border: "none", color: formLosses > 0 ? "#f87171" : "rgba(255,255,255,0.2)", fontSize: 24, fontWeight: 300, cursor: formLosses > 0 ? "pointer" : "default", flexShrink: 0 }}>
-                  −
-                </button>
-                <div style={{ flex: 1, textAlign: "center", fontSize: 22, fontWeight: 700, color: formLosses > 0 ? "#f87171" : "rgba(255,255,255,0.4)" }}>
-                  {formLosses}
-                </div>
-                <button
-                  onClick={() => setFormLosses(v => v + 1)}
-                  style={{ width: 56, height: "100%", background: "rgba(239,68,68,0.10)", border: "none", color: "#f87171", fontSize: 24, fontWeight: 300, cursor: "pointer", flexShrink: 0 }}>
-                  +
-                </button>
-              </div>
-            </div>
+            {/* Séparateur */}
+            <div style={{ height: 1, background: "rgba(255,255,255,0.06)", flexShrink: 0 }} />
 
-            {/* ── Gain / Perte — toggle signe + input numérique ── */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", display: "block", marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.5 }}>Gain / Perte ($)</label>
-              <div style={{ display: "flex", gap: 8 }}>
-                {/* Toggle +/- */}
-                <div style={{ display: "flex", borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }}>
-                  <button
-                    onClick={() => setFormGainSign(1)}
-                    style={{ width: 44, height: 52, background: formGainSign > 0 ? "rgba(110,231,183,0.18)" : "transparent", border: "none", color: formGainSign > 0 ? "#6ee7b7" : "rgba(255,255,255,0.3)", fontSize: 20, fontWeight: 700, cursor: "pointer", transition: "all .15s" }}>
-                    +
-                  </button>
-                  <button
-                    onClick={() => setFormGainSign(-1)}
-                    style={{ width: 44, height: 52, background: formGainSign < 0 ? "rgba(239,68,68,0.18)" : "transparent", border: "none", color: formGainSign < 0 ? "#f87171" : "rgba(255,255,255,0.3)", fontSize: 20, fontWeight: 700, cursor: "pointer", transition: "all .15s" }}>
-                    −
-                  </button>
+            {/* ── ZONE SCROLLABLE ── */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", WebkitOverflowScrolling: "touch" }}>
+
+              {/* Trades gagnants + perdants — côte à côte */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+                {/* Gagnants */}
+                <div>
+                  <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Gagnants</label>
+                  <div style={{ display: "flex", alignItems: "center", background: "rgba(110,231,183,0.05)", border: "1px solid rgba(110,231,183,0.2)", borderRadius: 14, height: 54, overflow: "hidden" }}>
+                    <button
+                      onClick={() => setFormWins(v => Math.max(0, v - 1))}
+                      style={{ width: 44, height: "100%", background: "transparent", border: "none", borderRight: "1px solid rgba(110,231,183,0.12)", color: formWins > 0 ? "#6ee7b7" : "rgba(255,255,255,0.15)", fontSize: 22, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      −
+                    </button>
+                    <div style={{ flex: 1, textAlign: "center", fontSize: 24, fontWeight: 800, color: formWins > 0 ? "#6ee7b7" : "rgba(255,255,255,0.35)" }}>
+                      {formWins}
+                    </div>
+                    <button
+                      onClick={() => setFormWins(v => v + 1)}
+                      style={{ width: 44, height: "100%", background: "rgba(110,231,183,0.10)", border: "none", borderLeft: "1px solid rgba(110,231,183,0.12)", color: "#6ee7b7", fontSize: 22, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      +
+                    </button>
+                  </div>
                 </div>
-                {/* Input montant (uniquement chiffres positifs) */}
-                <div style={{ flex: 1, position: "relative" }}>
+
+                {/* Perdants */}
+                <div>
+                  <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Perdants</label>
+                  <div style={{ display: "flex", alignItems: "center", background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 14, height: 54, overflow: "hidden" }}>
+                    <button
+                      onClick={() => setFormLosses(v => Math.max(0, v - 1))}
+                      style={{ width: 44, height: "100%", background: "transparent", border: "none", borderRight: "1px solid rgba(239,68,68,0.12)", color: formLosses > 0 ? "#f87171" : "rgba(255,255,255,0.15)", fontSize: 22, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      −
+                    </button>
+                    <div style={{ flex: 1, textAlign: "center", fontSize: 24, fontWeight: 800, color: formLosses > 0 ? "#f87171" : "rgba(255,255,255,0.35)" }}>
+                      {formLosses}
+                    </div>
+                    <button
+                      onClick={() => setFormLosses(v => v + 1)}
+                      style={{ width: 44, height: "100%", background: "rgba(239,68,68,0.10)", border: "none", borderLeft: "1px solid rgba(239,68,68,0.12)", color: "#f87171", fontSize: 22, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      +
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Gain / Perte ── */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Gain / Perte ($)</label>
+                  {/* Aperçu résultat — HORS du champ, plus d'overlap */}
+                  {formGainAbs !== "" && formGainAbs !== "0" && (
+                    <div style={{ fontSize: 13, fontWeight: 800, color: formGainSign > 0 ? "#6ee7b7" : "#f87171" }}>
+                      {formGainSign > 0 ? "+" : "−"}{formGainAbs} $
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+                  {/* Toggle signe */}
+                  <div style={{ display: "flex", flexDirection: "column", borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", width: 52, flexShrink: 0 }}>
+                    <button
+                      onClick={() => setFormGainSign(1)}
+                      style={{ flex: 1, background: formGainSign > 0 ? "rgba(110,231,183,0.20)" : "transparent", border: "none", borderBottom: "1px solid rgba(255,255,255,0.08)", color: formGainSign > 0 ? "#6ee7b7" : "rgba(255,255,255,0.35)", fontSize: 20, fontWeight: 800, cursor: "pointer", transition: "all .15s" }}>
+                      +
+                    </button>
+                    <button
+                      onClick={() => setFormGainSign(-1)}
+                      style={{ flex: 1, background: formGainSign < 0 ? "rgba(239,68,68,0.20)" : "transparent", border: "none", color: formGainSign < 0 ? "#f87171" : "rgba(255,255,255,0.35)", fontSize: 20, fontWeight: 800, cursor: "pointer", transition: "all .15s" }}>
+                      −
+                    </button>
+                  </div>
+                  {/* Input montant — sans overlay, propre */}
                   <input
                     type="number"
-                    inputMode="numeric"
+                    inputMode="decimal"
                     min="0"
                     value={formGainAbs}
                     onChange={e => setFormGainAbs(e.target.value.replace(/-/g, ""))}
                     placeholder="0"
                     style={{
-                      width: "100%", height: 52, background: "rgba(255,255,255,0.05)",
+                      flex: 1, height: 60,
+                      background: formGainSign > 0 ? "rgba(110,231,183,0.05)" : "rgba(239,68,68,0.05)",
                       border: "1px solid " + (formGainSign > 0 ? "rgba(110,231,183,0.25)" : "rgba(239,68,68,0.25)"),
-                      borderRadius: 14, padding: "0 14px",
+                      borderRadius: 14, padding: "0 16px",
                       color: formGainSign > 0 ? "#6ee7b7" : "#f87171",
-                      fontSize: 22, fontWeight: 700, outline: "none", boxSizing: "border-box",
+                      fontSize: 26, fontWeight: 800, outline: "none", boxSizing: "border-box",
                     }}
                   />
-                  {formGainAbs !== "" && (
-                    <div style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "rgba(255,255,255,0.35)", pointerEvents: "none" }}>
-                      {formGainSign > 0 ? "+" : "−"}{formGainAbs}$
-                    </div>
-                  )}
                 </div>
               </div>
-            </div>
 
-            {/* ── Upload captures MT4/MT5 avec détection de date ── */}
-            <div style={{ marginBottom: 18 }}>
-              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", display: "block", marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                Captures MT4/MT5 ({formImages.length}/3)
-              </label>
-              {/* Alerte doublon potentiel */}
-              {imgDateWarn && (
-                <div style={{ marginBottom: 8, padding: "9px 12px", borderRadius: 10, background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.25)", fontSize: 11, color: "#fbbf24", lineHeight: 1.4 }}>
-                  ⚠️ {imgDateWarn}
-                </div>
-              )}
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {formImages.map((img, idx) => (
-                  <div key={idx} style={{ position: "relative", width: 68, height: 68 }}>
-                    <img
-                      src={img}
-                      alt={"capture " + (idx+1)}
-                      onClick={() => setViewerImg(img)}
-                      style={{ width: 68, height: 68, objectFit: "cover", borderRadius: 10, border: "1px solid rgba(110,231,183,0.25)", cursor: "pointer" }}
-                    />
-                    <button
-                      onClick={() => setFormImages(prev => prev.filter((_, i) => i !== idx))}
-                      style={{ position: "absolute", top: -5, right: -5, width: 20, height: 20, borderRadius: 10, background: "#ef4444", color: "#fff", border: "2px solid #12121a", fontSize: 10, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      ✕
-                    </button>
+              {/* ── Captures MT4/MT5 ── */}
+              <div>
+                <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>
+                  Captures MT4/MT5 ({formImages.length}/3)
+                </label>
+                {imgDateWarn && (
+                  <div style={{ marginBottom: 8, padding: "9px 11px", borderRadius: 10, background: "rgba(251,191,36,0.07)", border: "1px solid rgba(251,191,36,0.2)", fontSize: 11, color: "#fbbf24", lineHeight: 1.4 }}>
+                    ⚠️ {imgDateWarn}
                   </div>
-                ))}
-                {formImages.length < 3 && (
-                  <label style={{
-                    width: 68, height: 68, borderRadius: 10, border: "1.5px dashed rgba(255,255,255,0.2)",
-                    display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
-                    background: "rgba(255,255,255,0.03)", flexDirection: "column", gap: 3,
-                    transition: "border-color .15s",
-                  }}>
-                    <span style={{ fontSize: 20, color: imgLoading ? "#6ee7b7" : "rgba(255,255,255,0.35)", lineHeight: 1 }}>{imgLoading ? "⏳" : "+"}</span>
-                    <span style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: 0.5 }}>{imgLoading ? "" : "photo"}</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      style={{ display: "none" }}
-                      onChange={async (e) => {
-                        const file = e.target.files && e.target.files[0];
-                        e.target.value = "";
-                        if (!file) return;
+                )}
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {formImages.map((img, idx) => (
+                    <div key={idx} style={{ position: "relative", width: 72, height: 72 }}>
+                      <img
+                        src={img}
+                        alt={"capture " + (idx+1)}
+                        onClick={() => setViewerImg(img)}
+                        style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(110,231,183,0.2)", cursor: "pointer" }}
+                      />
+                      <button
+                        onClick={() => setFormImages(prev => prev.filter((_, i) => i !== idx))}
+                        style={{ position: "absolute", top: -6, right: -6, width: 22, height: 22, borderRadius: 11, background: "#ef4444", color: "#fff", border: "2px solid #12121a", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  {formImages.length < 3 && (
+                    <label style={{
+                      width: 72, height: 72, borderRadius: 12,
+                      border: "1.5px dashed rgba(255,255,255,0.18)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", background: "rgba(255,255,255,0.02)",
+                      flexDirection: "column", gap: 4,
+                    }}>
+                      <span style={{ fontSize: 22, color: imgLoading ? "#6ee7b7" : "rgba(255,255,255,0.3)", lineHeight: 1 }}>{imgLoading ? "⏳" : "+"}</span>
+                      <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", textTransform: "uppercase", letterSpacing: 0.5 }}>{imgLoading ? "" : "photo"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: "none" }}
+                        onChange={async (e) => {
+                          const file = e.target.files && e.target.files[0];
+                          e.target.value = "";
+                          if (!file) return;
                         setImgLoading(true);
                         setImgDateWarn(null);
                         try {
@@ -3771,25 +3800,22 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                           alert("Impossible de lire cette image.");
                         }
                         setImgLoading(false);
-                      }}
-                    />
-                  </label>
-                )}
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
               </div>
-            </div>
+            </div>{/* fin scroll */}
 
-            {/* Boutons action */}
-            <div style={{ display: "flex", gap: 10 }}>
-              {journalData[String(editingDay)] && (
-                <button
-                  onClick={() => { if (onJournalSave) onJournalSave(editingDay, null); setEditingDay(null); }}
-                  style={{ padding: "14px 16px", borderRadius: 14, background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 13, fontWeight: 700, border: "1px solid rgba(239,68,68,0.2)", cursor: "pointer", flexShrink: 0 }}>
-                  Effacer
-                </button>
-              )}
+            {/* Séparateur footer */}
+            <div style={{ height: 1, background: "rgba(255,255,255,0.06)", flexShrink: 0 }} />
+
+            {/* ── FOOTER FIXE — boutons toujours visibles ── */}
+            <div style={{ padding: "14px 20px calc(14px + env(safe-area-inset-bottom, 0px))", display: "flex", gap: 10, flexShrink: 0, background: "#12121a" }}>
               <button
                 onClick={() => setEditingDay(null)}
-                style={{ flex: 1, padding: "14px", borderRadius: 14, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.65)", fontSize: 14, fontWeight: 700, border: "1px solid rgba(255,255,255,0.10)", cursor: "pointer" }}>
+                style={{ flex: 1, padding: "16px", borderRadius: 14, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.65)", fontSize: 15, fontWeight: 700, border: "1px solid rgba(255,255,255,0.10)", cursor: "pointer" }}>
                 Annuler
               </button>
               <button
@@ -3802,7 +3828,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                   if (onJournalSave) onJournalSave(editingDay, entry);
                   setEditingDay(null);
                 }}
-                style={{ flex: 1, padding: "14px", borderRadius: 14, background: "linear-gradient(135deg, #6ee7b7, #34d399)", color: "#000", fontSize: 14, fontWeight: 800, border: "none", cursor: "pointer" }}>
+                style={{ flex: 2, padding: "16px", borderRadius: 14, background: "linear-gradient(135deg, #6ee7b7, #34d399)", color: "#000", fontSize: 15, fontWeight: 800, border: "none", cursor: "pointer", boxShadow: "0 4px 16px rgba(110,231,183,0.25)" }}>
                 Enregistrer
               </button>
             </div>
@@ -3810,7 +3836,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
         </div>
       )}
 
-      {/* ── VISIONNEUSE IMAGE PLEIN ÉCRAN ── */}
+            {/* ── VISIONNEUSE IMAGE PLEIN ÉCRAN ── */}
       {viewerImg && (
         <div
           onClick={() => setViewerImg(null)}
