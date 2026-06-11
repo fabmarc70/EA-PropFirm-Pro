@@ -861,6 +861,15 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       const next = prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d];
       const sorted = next.sort((a,b) => a - b);
       try { localStorage.setItem("eapropfirm_activedays", JSON.stringify(sorted)); } catch(e) {}
+      // Auto-corriger newsSkipDays si supérieur au nouveau nombre de jours actifs
+      const newActiveCount = sorted.filter(x => x <= 5).length; // jours ouvrés actifs
+      setNewsSkipDays(prev => {
+        const corrected = Math.min(prev, newActiveCount);
+        if (corrected !== prev) {
+          try { localStorage.setItem("eapropfirm_newsskip", String(corrected)); } catch(e) {}
+        }
+        return corrected;
+      });
       return sorted;
     });
   };
@@ -872,7 +881,11 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     } catch (e) { return 0; }
   });
   const setAndSaveNewsSkip = (v) => {
-    const val = Math.max(0, Math.min(10, v));
+    // Cap à activeDaysInBase : impossible d'éviter plus de jours que l'EA ne trade
+    // activeDaysInBase est défini plus bas dans le composant mais c'est sûr car
+    // cette fonction n'est appelée que depuis des event handlers (après le render)
+    const maxSkip = typeof activeDaysInBase !== "undefined" ? activeDaysInBase : 7;
+    const val = Math.max(0, Math.min(maxSkip, v));
     setNewsSkipDays(val);
     try { localStorage.setItem("eapropfirm_newsskip", String(val)); } catch (e) {}
   };
@@ -3602,18 +3615,22 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
       }
       return grid;
     }
-    // Mode normal (simulation) : inchangé
+    // Mode simulation : grille fixe 28 jours (4 semaines complètes)
+    // Les jours non tradés (recurrence EA, news skip) s'affichent en cases vides
+    // pour le confort visuel et la cohérence du calendrier mensuel.
     let tradingIdx = 0;
-    let dayNum = 1;
-    while (tradingIdx < monthDays.length && dayNum <= 31) {
-      const dow = (dayNum - 1) % 7;
-      if (dow < 5 && tradingIdx < monthDays.length) {
+    for (let dayNum = 1; dayNum <= 28; dayNum++) {
+      const dow = (dayNum - 1) % 7; // 0=Lun … 6=Dim
+      const isWeekend = dow >= 5;
+      if (!isWeekend && tradingIdx < monthDays.length) {
+        // Jour tradé avec données
         grid.push({ dayNum, trading: true, data: monthDays[tradingIdx] });
         tradingIdx++;
       } else {
-        grid.push({ dayNum, trading: false, data: null });
+        // Case vide : jour non tradé (EA off ce jour) ou weekend
+        // isEmptyWeekday = jour ouvrable sans données (visuellement distinct du weekend)
+        grid.push({ dayNum, trading: false, data: null, isEmptyWeekday: !isWeekend });
       }
-      dayNum++;
     }
     return grid;
   };
@@ -3700,8 +3717,13 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
         {grid.map((cell, i) => {
           const hasData = cell.data && (cell.data.pnl !== undefined && cell.data.pnl !== null);
-          const c = (cell.trading && hasData) ? cellColor(cell.data.pnl) : { bg: "#0d0d15", fg: "rgba(255,255,255,0.05)", border: "1px solid #12121a", numColor: "rgba(255,255,255,0.05)" };
-          const isWeekend = journalMode ? cell.isWeekendDay : !cell.trading;
+          // Style : jour tradé (données) | jour vide ouvrable | weekend
+          const c = (cell.trading && hasData)
+            ? cellColor(cell.data.pnl)
+            : cell.isEmptyWeekday
+              ? { bg: "rgba(255,255,255,0.02)", fg: "rgba(255,255,255,0.18)", border: "1px solid rgba(255,255,255,0.07)", numColor: "rgba(255,255,255,0.2)" }
+              : { bg: "#0d0d15", fg: "rgba(255,255,255,0.03)", border: "1px solid #12121a", numColor: "rgba(255,255,255,0.04)" };
+          const isWeekend = journalMode ? cell.isWeekendDay : !cell.trading && !cell.isEmptyWeekday;
           // En mode journal : TOUTES les cases sont cliquables (weekend inclus)
           const clickable = journalMode && cell.trading;
           const emptyJournalCell = journalMode && cell.trading && !hasData;
@@ -3739,6 +3761,12 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
               {emptyJournalCell && (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flex: 1 }}>
                   <span style={{ fontSize: 18, color: "rgba(255,255,255,0.25)", fontWeight: 300, lineHeight: 1 }}>+</span>
+                </div>
+              )}
+              {/* Case vide en mode simulation : jour non tradé (EA recurrence/news skip) */}
+              {!journalMode && cell.isEmptyWeekday && !hasData && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flex: 1 }}>
+                  <span style={{ fontSize: 14, color: "rgba(255,255,255,0.15)", lineHeight: 1 }}>—</span>
                 </div>
               )}
               {/* Case avec données (simulation OU journal rempli) */}
