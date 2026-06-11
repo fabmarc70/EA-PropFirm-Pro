@@ -5383,7 +5383,10 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
   const [renamingId, setRenamingId] = useState(null);
   const [renameVal, setRenameVal] = useState("");
   // ── Journal de trading (hook partagé avec Mes Trades) ──
-  const [journalMode, setJournalMode] = useState(false);
+  const [journalMode, setJournalMode] = useState(() => {
+    try { return localStorage.getItem("eapropfirm_journalmode") === "1"; }
+    catch (e) { return false; }
+  });
   const { journalMonth, setJournalMonth, saveJournalEntry, monthData: journalMonthData } = useJournal();
 
   // ── Notifications cloche ──
@@ -5603,34 +5606,6 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         </div>
       </div>
 
-      {/* ── APERÇU PERFORMANCE (= graphique Funded) ── */}
-      {ls.funded ? (
-        <div style={{marginBottom:"14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16}}>
-          <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1,marginBottom:14}}>Aperçu Équité Funded</div>
-          <ResponsiveContainer width="100%" height={200}>
-            <ComposedChart data={ls.funded.data}>
-              <defs>
-                <linearGradient id="perf-funded" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.25} />
-                  <stop offset="100%" stopColor="#6ee7b7" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "M" + v} />
-              <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v / 1000).toFixed(0) + "k"} domain={["auto", "auto"]} />
-              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, fontSize: 11 }} />
-              <ReferenceLine y={cap} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 2" />
-              <Area type="monotone" dataKey="equity" stroke="#6ee7b7" strokeWidth={2} fill="url(#perf-funded)" dot={false} name="Equity" />
-              <Line type="monotone" dataKey="cumul" stroke="rgba(110,231,183,0.6)" strokeWidth={1.5} dot={false} name="Payout Cumule" strokeDasharray="5 3" />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-      ) : (
-        <div style={{marginBottom:"14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
-          Lance une simulation pour voir la courbe Funded
-        </div>
-      )}
-
       {/* ── CALENDRIER PNL / JOURNAL DE TRADING ── */}
       <div style={{marginBottom:"14px"}}>
         {/* Toggle mode journal */}
@@ -5643,7 +5618,14 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
               Mode journal
               {!premiumAccess && <span style={{ marginLeft: 5, fontSize: 10 }}>🔒</span>}
             </span>
-            <div onClick={() => { if (!premiumAccess) { requirePremium(); return; } setJournalMode(v => !v); }} style={{
+            <div onClick={() => {
+              if (!premiumAccess) { requirePremium(); return; }
+              setJournalMode(v => {
+                const next = !v;
+                try { localStorage.setItem("eapropfirm_journalmode", next ? "1" : "0"); } catch(e) {}
+                return next;
+              });
+            }} style={{
               width: 38, height: 22, borderRadius: 11, background: journalMode ? "#6ee7b7" : "rgba(255,255,255,0.1)",
               border: "1px solid " + (journalMode ? "#6ee7b7" : "rgba(255,255,255,0.1)"),
               position: "relative", cursor: "pointer", transition: "all .2s", flexShrink: 0,
@@ -5689,6 +5671,34 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           </div>
         )}
       </div>
+      {/* ── APERÇU PERFORMANCE (= graphique Funded) ── */}
+      {ls.funded ? (
+        <div style={{marginBottom:"14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16}}>
+          <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1,marginBottom:14}}>Aperçu Équité Funded</div>
+          <ResponsiveContainer width="100%" height={200}>
+            <ComposedChart data={ls.funded.data}>
+              <defs>
+                <linearGradient id="perf-funded" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.25} />
+                  <stop offset="100%" stopColor="#6ee7b7" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "M" + v} />
+              <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v / 1000).toFixed(0) + "k"} domain={["auto", "auto"]} />
+              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, fontSize: 11 }} />
+              <ReferenceLine y={cap} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 2" />
+              <Area type="monotone" dataKey="equity" stroke="#6ee7b7" strokeWidth={2} fill="url(#perf-funded)" dot={false} name="Equity" />
+              <Line type="monotone" dataKey="cumul" stroke="rgba(110,231,183,0.6)" strokeWidth={1.5} dot={false} name="Payout Cumule" strokeDasharray="5 3" />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <div style={{marginBottom:"14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
+          Lance une simulation pour voir la courbe Funded
+        </div>
+      )}
+
       {/* ── 2 COLONNES : STATS + CONFIGS ── */}
       <div style={{marginBottom:"14px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         {/* STATISTIQUES */}
