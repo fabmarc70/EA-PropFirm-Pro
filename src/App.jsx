@@ -23,7 +23,12 @@ const I18N = {
     ob_start: "Commencer",
     // Login
     login_title: "Connexion",
-    login_subtitle: "Accede a ton simulateur",
+    login_subtitle: "Connecte-toi pour commencer",
+    login_tagline: "Valide ta stratégie avant de risquer un challenge.",
+    login_google: "Continuer avec Google",
+    login_apple: "Continuer avec Apple",
+    login_privacy: "Connexion sécurisée. Aucune donnée partagée sans ton accord.",
+    login_trial_badge: "7 jours d'essai gratuit · sans engagement",
     login_email: "Email",
     login_password: "Mot de passe",
     login_btn: "Se connecter",
@@ -104,7 +109,12 @@ const I18N = {
     ob_next: "Siguiente",
     ob_start: "Empezar",
     login_title: "Iniciar sesion",
-    login_subtitle: "Accede a tu simulador",
+    login_subtitle: "Inicia sesión para empezar",
+    login_tagline: "Valida tu estrategia antes de arriesgar un challenge.",
+    login_google: "Continuar con Google",
+    login_apple: "Continuar con Apple",
+    login_privacy: "Conexión segura. Ningún dato compartido sin tu permiso.",
+    login_trial_badge: "7 días de prueba gratis · sin compromiso",
     login_email: "Correo",
     login_password: "Contrasena",
     login_btn: "Iniciar sesion",
@@ -180,7 +190,12 @@ const I18N = {
     ob_next: "Next",
     ob_start: "Get started",
     login_title: "Sign in",
-    login_subtitle: "Access your simulator",
+    login_subtitle: "Sign in to get started",
+    login_tagline: "Validate your strategy before risking a challenge.",
+    login_google: "Continue with Google",
+    login_apple: "Continue with Apple",
+    login_privacy: "Secure sign-in. No data shared without your consent.",
+    login_trial_badge: "7-day free trial · no commitment",
     login_email: "Email",
     login_password: "Password",
     login_btn: "Sign in",
@@ -711,8 +726,9 @@ function InfoTip({ text }) {
   );
 }
 
-function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab = () => {}, onSimResult = () => {}, displayMode = "advanced", usageType = "propfirm" }) {
-  const isSimple = displayMode === "simple";
+function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab = () => {}, onSimResult = () => {}, displayMode = "advanced", usageType = "propfirm", premiumAccess = true, requirePremium = () => {} }) {
+  // Mode avancé = premium. Sans accès → forcé en mode simple (débutant).
+  const isSimple = displayMode === "simple" || !premiumAccess;
   const loadSaved = () => {
     try {
       const raw = localStorage.getItem("eapropfirm_config");
@@ -1851,7 +1867,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       </div>
 
       {/* Bouton sauvegarder la config */}
-      <button onClick={saveCurrentConfig} disabled={!configChanged} style={{
+      <button onClick={() => { if (!premiumAccess) { requirePremium(); return; } saveCurrentConfig(); }} disabled={!premiumAccess ? false : !configChanged} style={{
         width: "100%", padding: "13px", borderRadius: 12,
         border: saveStatus ? "1px solid #6ee7b7" : configChanged ? "1px dashed rgba(110,231,183,0.35)" : "1px dashed rgba(255,255,255,0.08)",
         cursor: configChanged ? "pointer" : "default",
@@ -1873,7 +1889,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               <path d="M10 1H3a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V4L10 1z" stroke="#6ee7b7" strokeWidth="1.4" strokeLinecap="round"/>
               <path d="M9 1v3H4V1M4 8h6M4 10.5h4" stroke="#6ee7b7" strokeWidth="1.4" strokeLinecap="round"/>
             </svg>
-            {t("sim_save_config")}
+            {t("sim_save_config")}{!premiumAccess && " 🔒"}
           </>
         ) : (
           <>
@@ -1900,13 +1916,21 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             const data = sim.phaseResults[i];
             const color = i === 0 ? "#6ee7b7" : "rgba(255,255,255,0.55)";
             return (
-              <div className="card" key={i}>
+              <div className="card" key={i} style={{ position: "relative" }}>
+                {/* Lock premium sur les résultats détaillés (winrate, taux de réussite) */}
+                {!premiumAccess && data && (
+                  <LockOverlay onUnlock={requirePremium} label={lang === "en" ? "Unlock your real success rate" : lang === "es" ? "Desbloquea tu tasa de éxito real" : "Débloque ton taux de réussite réel"} />
+                )}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                   <div style={{ fontWeight: 700, fontSize: 14 }}>{ph.label} - Objectif +{(ph.target * 100)}%</div>
                   {data ? (
+                    !premiumAccess ? (
+                      <span className="tag" style={{ background: "rgba(110,231,183,0.1)", color: "#6ee7b7", border: "1px solid rgba(110,231,183,0.3)" }}>🔒 Premium</span>
+                    ) : (
                     <span className="tag" style={{ background: phaseIcon(data.status).bg, color: phaseIcon(data.status).color }}>
                       {phaseIcon(data.status).icon} {phaseIcon(data.status).label}
                     </span>
+                    )
                   ) : (
                     <span className="tag" style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.65)", border: "1px solid rgba(255,255,255,0.08)" }}>VERROUILLE</span>
                   )}
@@ -1969,13 +1993,13 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           })}
           {/* Bouton accès direct au Funded — uniquement si challenge réussi */}
           {sim?.allPassed && sim?.funded ? (
-            <button onClick={() => setTab("funded")} style={{
+            <button onClick={() => { if (!premiumAccess) { requirePremium(); return; } setTab("funded"); }} style={{
               width: "100%", padding: 15, marginTop: 4, borderRadius: 12, cursor: "pointer",
               background: "#6ee7b7", color: "#000000", fontSize: 15, fontWeight: 600,
               border: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               boxShadow: "0 4px 20px rgba(110,231,183,0.25)",
             }}>
-              Voir mon compte Funded
+              Voir mon compte Funded{!premiumAccess && " 🔒"}
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <path d="M7 4l5 5-5 5" stroke="#000000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -3343,12 +3367,14 @@ function compressImage(file, maxDim = 900, quality = 0.72) {
 function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null }) {
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [editingDay, setEditingDay] = useState(null); // jour en cours d'édition (mode journal)
-  const [formWins, setFormWins] = useState("");
-  const [formLosses, setFormLosses] = useState("");
-  const [formGain, setFormGain] = useState("");
-  const [formImages, setFormImages] = useState([]); // captures MT4/MT5 (base64)
-  const [viewerImg, setViewerImg] = useState(null); // visionneuse plein écran
+  const [formWins, setFormWins] = useState(0);
+  const [formLosses, setFormLosses] = useState(0);
+  const [formGainAbs, setFormGainAbs] = useState(""); // valeur absolue (toujours positive)
+  const [formGainSign, setFormGainSign] = useState(1); // +1 ou -1
+  const [formImages, setFormImages] = useState([]);
+  const [viewerImg, setViewerImg] = useState(null);
   const [imgLoading, setImgLoading] = useState(false);
+  const [imgDateWarn, setImgDateWarn] = useState(null); // alerte doublon potentiel
 
   if (!dailyLog || dailyLog.length === 0) {
     // En mode journal, on affiche quand même un calendrier vide à remplir
@@ -3503,10 +3529,13 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 if (!clickable) return;
                 const existing = journalData[String(cell.dayNum)];
                 setEditingDay(cell.dayNum);
-                setFormWins(existing ? String(existing.wins) : "");
-                setFormLosses(existing ? String(existing.losses) : "");
-                setFormGain(existing ? String(existing.pnl) : "");
+                setFormWins(existing ? existing.wins : 0);
+                setFormLosses(existing ? existing.losses : 0);
+                const existingPnl = existing ? existing.pnl : 0;
+                setFormGainAbs(existingPnl !== 0 ? String(Math.abs(existingPnl)) : "");
+                setFormGainSign(existingPnl < 0 ? -1 : 1);
                 setFormImages(existing && existing.images ? existing.images : []);
+                setImgDateWarn(null);
               }}
               style={{
                 background: emptyJournalCell ? "rgba(255,255,255,0.03)" : c.bg,
@@ -3559,86 +3588,183 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
         <div
           onClick={() => setEditingDay(null)}
           style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            zIndex: 1000, padding: 20,
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)",
+            display: "flex", alignItems: "flex-end", justifyContent: "center",
+            zIndex: 1000,
           }}>
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
               background: "#12121a", border: "1px solid rgba(110,231,183,0.25)",
-              borderRadius: 18, padding: 20, width: "100%", maxWidth: 340,
+              borderRadius: "20px 20px 0 0", padding: "20px 20px calc(20px + env(safe-area-inset-bottom))",
+              width: "100%", maxWidth: 480,
             }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#FFFFFF", marginBottom: 4 }}>
+
+            {/* Handle + titre */}
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 16px" }} />
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#FFFFFF", marginBottom: 3 }}>
               Jour {editingDay}
             </div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 18 }}>
               Saisis tes résultats de la journée
             </div>
 
-            {/* Trades gagnants */}
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", display: "block", marginBottom: 5 }}>Trades gagnants</label>
-              <input type="number" inputMode="numeric" value={formWins} onChange={e => setFormWins(e.target.value)}
-                placeholder="0"
-                style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(110,231,183,0.2)", borderRadius: 10, padding: "10px 12px", color: "#FFFFFF", fontSize: 15, fontWeight: 600, outline: "none", boxSizing: "border-box" }} />
+            {/* ── Trades gagnants — stepper ── */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", display: "block", marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.5 }}>Trades gagnants</label>
+              <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(110,231,183,0.2)", borderRadius: 14, overflow: "hidden", height: 52 }}>
+                <button
+                  onClick={() => setFormWins(v => Math.max(0, v - 1))}
+                  style={{ width: 56, height: "100%", background: "transparent", border: "none", color: formWins > 0 ? "#6ee7b7" : "rgba(255,255,255,0.2)", fontSize: 24, fontWeight: 300, cursor: formWins > 0 ? "pointer" : "default", flexShrink: 0 }}>
+                  −
+                </button>
+                <div style={{ flex: 1, textAlign: "center", fontSize: 22, fontWeight: 700, color: formWins > 0 ? "#6ee7b7" : "rgba(255,255,255,0.4)" }}>
+                  {formWins}
+                </div>
+                <button
+                  onClick={() => setFormWins(v => v + 1)}
+                  style={{ width: 56, height: "100%", background: "rgba(110,231,183,0.10)", border: "none", color: "#6ee7b7", fontSize: 24, fontWeight: 300, cursor: "pointer", flexShrink: 0 }}>
+                  +
+                </button>
+              </div>
             </div>
 
-            {/* Trades perdants */}
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", display: "block", marginBottom: 5 }}>Trades perdants</label>
-              <input type="number" inputMode="numeric" value={formLosses} onChange={e => setFormLosses(e.target.value)}
-                placeholder="0"
-                style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "10px 12px", color: "#FFFFFF", fontSize: 15, fontWeight: 600, outline: "none", boxSizing: "border-box" }} />
+            {/* ── Trades perdants — stepper ── */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", display: "block", marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.5 }}>Trades perdants</label>
+              <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 14, overflow: "hidden", height: 52 }}>
+                <button
+                  onClick={() => setFormLosses(v => Math.max(0, v - 1))}
+                  style={{ width: 56, height: "100%", background: "transparent", border: "none", color: formLosses > 0 ? "#f87171" : "rgba(255,255,255,0.2)", fontSize: 24, fontWeight: 300, cursor: formLosses > 0 ? "pointer" : "default", flexShrink: 0 }}>
+                  −
+                </button>
+                <div style={{ flex: 1, textAlign: "center", fontSize: 22, fontWeight: 700, color: formLosses > 0 ? "#f87171" : "rgba(255,255,255,0.4)" }}>
+                  {formLosses}
+                </div>
+                <button
+                  onClick={() => setFormLosses(v => v + 1)}
+                  style={{ width: 56, height: "100%", background: "rgba(239,68,68,0.10)", border: "none", color: "#f87171", fontSize: 24, fontWeight: 300, cursor: "pointer", flexShrink: 0 }}>
+                  +
+                </button>
+              </div>
             </div>
 
-            {/* Gain du jour */}
+            {/* ── Gain / Perte — toggle signe + input numérique ── */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", display: "block", marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.5 }}>Gain / Perte ($)</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                {/* Toggle +/- */}
+                <div style={{ display: "flex", borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }}>
+                  <button
+                    onClick={() => setFormGainSign(1)}
+                    style={{ width: 44, height: 52, background: formGainSign > 0 ? "rgba(110,231,183,0.18)" : "transparent", border: "none", color: formGainSign > 0 ? "#6ee7b7" : "rgba(255,255,255,0.3)", fontSize: 20, fontWeight: 700, cursor: "pointer", transition: "all .15s" }}>
+                    +
+                  </button>
+                  <button
+                    onClick={() => setFormGainSign(-1)}
+                    style={{ width: 44, height: 52, background: formGainSign < 0 ? "rgba(239,68,68,0.18)" : "transparent", border: "none", color: formGainSign < 0 ? "#f87171" : "rgba(255,255,255,0.3)", fontSize: 20, fontWeight: 700, cursor: "pointer", transition: "all .15s" }}>
+                    −
+                  </button>
+                </div>
+                {/* Input montant (uniquement chiffres positifs) */}
+                <div style={{ flex: 1, position: "relative" }}>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="0"
+                    value={formGainAbs}
+                    onChange={e => setFormGainAbs(e.target.value.replace(/-/g, ""))}
+                    placeholder="0"
+                    style={{
+                      width: "100%", height: 52, background: "rgba(255,255,255,0.05)",
+                      border: "1px solid " + (formGainSign > 0 ? "rgba(110,231,183,0.25)" : "rgba(239,68,68,0.25)"),
+                      borderRadius: 14, padding: "0 14px",
+                      color: formGainSign > 0 ? "#6ee7b7" : "#f87171",
+                      fontSize: 22, fontWeight: 700, outline: "none", boxSizing: "border-box",
+                    }}
+                  />
+                  {formGainAbs !== "" && (
+                    <div style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "rgba(255,255,255,0.35)", pointerEvents: "none" }}>
+                      {formGainSign > 0 ? "+" : "−"}{formGainAbs}$
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Upload captures MT4/MT5 avec détection de date ── */}
             <div style={{ marginBottom: 18 }}>
-              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", display: "block", marginBottom: 5 }}>Gain / Perte du jour ($)</label>
-              <input type="number" inputMode="decimal" value={formGain} onChange={e => setFormGain(e.target.value)}
-                placeholder="ex: 250 ou -120"
-                style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "10px 12px", color: "#FFFFFF", fontSize: 15, fontWeight: 600, outline: "none", boxSizing: "border-box" }} />
-            </div>
-
-            {/* Upload captures MT4/MT5 */}
-            <div style={{ marginBottom: 18 }}>
-              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", display: "block", marginBottom: 6 }}>
-                Captures d'écran MT4/MT5 ({formImages.length}/3)
+              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", display: "block", marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                Captures MT4/MT5 ({formImages.length}/3)
               </label>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {/* Alerte doublon potentiel */}
+              {imgDateWarn && (
+                <div style={{ marginBottom: 8, padding: "9px 12px", borderRadius: 10, background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.25)", fontSize: 11, color: "#fbbf24", lineHeight: 1.4 }}>
+                  ⚠️ {imgDateWarn}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {formImages.map((img, idx) => (
-                  <div key={idx} style={{ position: "relative", width: 64, height: 64 }}>
+                  <div key={idx} style={{ position: "relative", width: 68, height: 68 }}>
                     <img
                       src={img}
                       alt={"capture " + (idx+1)}
                       onClick={() => setViewerImg(img)}
-                      style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8, border: "1px solid rgba(110,231,183,0.25)", cursor: "pointer" }}
+                      style={{ width: 68, height: 68, objectFit: "cover", borderRadius: 10, border: "1px solid rgba(110,231,183,0.25)", cursor: "pointer" }}
                     />
                     <button
                       onClick={() => setFormImages(prev => prev.filter((_, i) => i !== idx))}
-                      style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: 9, background: "#ef4444", color: "#fff", border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
+                      style={{ position: "absolute", top: -5, right: -5, width: 20, height: 20, borderRadius: 10, background: "#ef4444", color: "#fff", border: "2px solid #12121a", fontSize: 10, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       ✕
                     </button>
                   </div>
                 ))}
                 {formImages.length < 3 && (
                   <label style={{
-                    width: 64, height: 64, borderRadius: 8, border: "1px dashed rgba(255,255,255,0.25)",
+                    width: 68, height: 68, borderRadius: 10, border: "1.5px dashed rgba(255,255,255,0.2)",
                     display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
-                    background: "rgba(255,255,255,0.03)", flexDirection: "column", gap: 2,
+                    background: "rgba(255,255,255,0.03)", flexDirection: "column", gap: 3,
+                    transition: "border-color .15s",
                   }}>
-                    <span style={{ fontSize: 18, color: "rgba(255,255,255,0.4)", lineHeight: 1 }}>{imgLoading ? "…" : "+"}</span>
-                    <span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>{imgLoading ? "" : "photo"}</span>
+                    <span style={{ fontSize: 20, color: imgLoading ? "#6ee7b7" : "rgba(255,255,255,0.35)", lineHeight: 1 }}>{imgLoading ? "⏳" : "+"}</span>
+                    <span style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: 0.5 }}>{imgLoading ? "" : "photo"}</span>
                     <input
                       type="file"
                       accept="image/*"
+                      capture="environment"
                       style={{ display: "none" }}
                       onChange={async (e) => {
                         const file = e.target.files && e.target.files[0];
                         e.target.value = "";
                         if (!file) return;
                         setImgLoading(true);
+                        setImgDateWarn(null);
                         try {
+                          // ── Détection de date via lastModified ──
+                          const fileDate = new Date(file.lastModified);
+                          const fileDay = fileDate.getDate();
+                          const fileMonth = fileDate.getMonth() + 1; // 1-12
+                          const fileYear = fileDate.getFullYear();
+                          // On essaie de matcher le mois du journal (journalMonthLabel contient "YYYY-MM")
+                          const journalYearMonth = journalMonthLabel ? journalMonthLabel.slice(-7) : null; // "YYYY-MM"
+                          if (journalYearMonth) {
+                            const [jYear, jMonth] = journalYearMonth.split("-").map(Number);
+                            if (fileYear === jYear && fileMonth === jMonth) {
+                              // Même mois — vérifier si le jour est déjà saisi
+                              if (fileDay !== editingDay) {
+                                // Image d'un autre jour du même mois
+                                const hasEntry = journalData[String(fileDay)];
+                                if (hasEntry) {
+                                  setImgDateWarn("Cette capture semble dater du Jour " + fileDay + " (déjà saisi). Assure-toi de l'ajouter au bon jour.");
+                                } else {
+                                  setImgDateWarn("Cette capture semble dater du Jour " + fileDay + ". Tu es en train de saisir le Jour " + editingDay + ".");
+                                }
+                              }
+                            } else if (fileYear !== jYear || fileMonth !== jMonth) {
+                              // Mois différent
+                              setImgDateWarn("Cette capture semble dater du " + fileDay + "/" + fileMonth + "/" + fileYear + " (hors du mois en cours).");
+                            }
+                          }
                           const compressed = await compressImage(file);
                           setFormImages(prev => prev.length < 3 ? [...prev, compressed] : prev);
                         } catch (err) {
@@ -3652,31 +3778,31 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
               </div>
             </div>
 
-            {/* Boutons */}
-            <div style={{ display: "flex", gap: 8 }}>
+            {/* Boutons action */}
+            <div style={{ display: "flex", gap: 10 }}>
               {journalData[String(editingDay)] && (
                 <button
                   onClick={() => { if (onJournalSave) onJournalSave(editingDay, null); setEditingDay(null); }}
-                  style={{ padding: "11px 14px", borderRadius: 10, background: "rgba(239,68,68,0.1)", color: "#f87171", fontSize: 13, fontWeight: 700, border: "1px solid rgba(239,68,68,0.25)", cursor: "pointer" }}>
+                  style={{ padding: "14px 16px", borderRadius: 14, background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 13, fontWeight: 700, border: "1px solid rgba(239,68,68,0.2)", cursor: "pointer", flexShrink: 0 }}>
                   Effacer
                 </button>
               )}
               <button
                 onClick={() => setEditingDay(null)}
-                style={{ flex: 1, padding: "11px 14px", borderRadius: 10, background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: 700, border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer" }}>
+                style={{ flex: 1, padding: "14px", borderRadius: 14, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.65)", fontSize: 14, fontWeight: 700, border: "1px solid rgba(255,255,255,0.10)", cursor: "pointer" }}>
                 Annuler
               </button>
               <button
                 onClick={() => {
-                  const wins = parseInt(formWins) || 0;
-                  const losses = parseInt(formLosses) || 0;
-                  const pnl = parseFloat(formGain) || 0;
+                  const wins = formWins;
+                  const losses = formLosses;
+                  const pnl = +(parseFloat(formGainAbs) || 0) * formGainSign;
                   const entry = { wins, losses, pnl };
                   if (formImages.length > 0) entry.images = formImages;
                   if (onJournalSave) onJournalSave(editingDay, entry);
                   setEditingDay(null);
                 }}
-                style={{ flex: 1, padding: "11px 14px", borderRadius: 10, background: "#6ee7b7", color: "#000", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                style={{ flex: 1, padding: "14px", borderRadius: 14, background: "linear-gradient(135deg, #6ee7b7, #34d399)", color: "#000", fontSize: 14, fontWeight: 800, border: "none", cursor: "pointer" }}>
                 Enregistrer
               </button>
             </div>
@@ -3724,6 +3850,49 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
 // HELPERS PERSISTANCE APP (profil, auth, onboarding)
 // ══════════════════════════════════════════════════════════════════
 const APP_KEY = "eapropfirm_app";
+
+// ══════════════════════════════════════════════════════════════════
+// PREMIUM / TRIAL — 7 jours d'essai dès la 1ère connexion.
+// Plus tard relié à RevenueCat. Pour l'instant : statut local.
+// ══════════════════════════════════════════════════════════════════
+const TRIAL_DAYS = 7;
+const PREMIUM_KEY = "eapropfirm_premium";
+
+function loadPremium() {
+  try {
+    const r = localStorage.getItem(PREMIUM_KEY);
+    return r ? JSON.parse(r) : { trialStart: null, subscribed: false };
+  } catch (e) { return { trialStart: null, subscribed: false }; }
+}
+function savePremium(patch) {
+  const cur = loadPremium();
+  const next = { ...cur, ...patch };
+  try { localStorage.setItem(PREMIUM_KEY, JSON.stringify(next)); } catch (e) {}
+  return next;
+}
+// Démarre le trial à la 1ère connexion (si pas déjà démarré)
+function startTrialIfNeeded() {
+  const p = loadPremium();
+  if (!p.trialStart && !p.subscribed) {
+    return savePremium({ trialStart: Date.now() });
+  }
+  return p;
+}
+// Jours restants de trial (0 si expiré)
+function trialDaysLeft() {
+  const p = loadPremium();
+  if (p.subscribed) return Infinity;
+  if (!p.trialStart) return TRIAL_DAYS;
+  const elapsed = (Date.now() - p.trialStart) / (1000 * 60 * 60 * 24);
+  return Math.max(0, Math.ceil(TRIAL_DAYS - elapsed));
+}
+// L'utilisateur a-t-il accès au premium ? (abonné OU trial actif)
+function hasPremiumAccess() {
+  const p = loadPremium();
+  if (p.subscribed) return true;
+  return trialDaysLeft() > 0;
+}
+
 function loadApp() {
   try { const r = localStorage.getItem(APP_KEY); return r ? JSON.parse(r) : {}; } catch (e) { return {}; }
 }
@@ -4287,10 +4456,6 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
 // LOGIN — Google & Apple uniquement
 // ══════════════════════════════════════════════════════════════════
 function LoginScreen({ t, lang, setLang, onAuth }) {
-  const [mode, setMode] = useState("signup"); // signup | login
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
 
@@ -4316,23 +4481,6 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
     setAuthError(""); setAuthLoading(true);
     try {
       const fbUser = provider === "google" ? await fbSignInGoogle() : await fbSignInApple();
-      onAuth(fbUserToAppUser(fbUser));
-    } catch (e) {
-      setAuthError(friendlyError(e.code));
-    }
-    setAuthLoading(false);
-  };
-
-  // Auth email/mot de passe — Firebase
-  const handleEmailAuth = async () => {
-    setAuthError("");
-    if (!email.includes("@")) { setAuthError(t("login_err_email")); return; }
-    if (password.length < 6) { setAuthError("Mot de passe trop court (min 6)"); return; }
-    setAuthLoading(true);
-    try {
-      const fbUser = mode === "signup"
-        ? await fbSignUpEmail(email.trim(), password, name.trim())
-        : await fbSignInEmail(email.trim(), password);
       onAuth(fbUserToAppUser(fbUser));
     } catch (e) {
       setAuthError(friendlyError(e.code));
@@ -4374,25 +4522,32 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
           </div>
         </div>
         <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.5, marginTop: 12 }}>
-          {mode === "signup" ? "Crée ton compte en quelques secondes" : "Bon retour parmi les traders préparés."}
+          {t("login_tagline")}
         </div>
       </div>
 
-      {/* Carte inscription */}
+      {/* Carte connexion — Google + Apple uniquement */}
       <div style={{ margin:"0 20px", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(110,231,183,0.15)", borderRadius:24, padding:"26px 20px", position:"relative", zIndex:1, backdropFilter:"blur(20px)" }}>
 
-        {/* Header gradient */}
         <div style={{ textAlign:"center", marginBottom:22 }}>
           <span style={{ fontSize:15, fontWeight:600, color: "rgba(255,255,255,0.5)" }}>
-            {mode === "signup" ? "Inscription rapide et sécurisée" : "Connexion rapide et sécurisée"}
+            {t("login_subtitle")}
           </span>
         </div>
 
+        {/* Erreur auth */}
+        {authError && (
+          <div style={{ marginBottom:14, padding:"11px 13px", borderRadius:12, background:"rgba(239,68,68,0.10)", border:"1px solid rgba(239,68,68,0.25)", color:"#f87171", fontSize:13, lineHeight:1.4, textAlign:"center" }}>
+            {authError}
+          </div>
+        )}
+
         {/* Bouton Google */}
-        <button onClick={() => handleSocialAuth("google")} style={{
+        <button onClick={() => handleSocialAuth("google")} disabled={authLoading} style={{
           width:"100%", padding:"17px 20px", borderRadius:16, marginBottom:12,
-          background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.10)",
-          display:"flex", alignItems:"center", cursor:"pointer",
+          background:"#ffffff", border:"none",
+          display:"flex", alignItems:"center", cursor: authLoading ? "default" : "pointer",
+          opacity: authLoading ? 0.6 : 1,
         }}>
           <svg width="24" height="24" viewBox="0 0 24 24" style={{ flexShrink:0 }}>
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -4400,74 +4555,29 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
           </svg>
-          <span style={{ flex:1, fontSize:16, fontWeight:700, color:"#ffffff", textAlign:"center" }}>
-            Continuer avec Google
+          <span style={{ flex:1, fontSize:16, fontWeight:700, color:"#1f1f1f", textAlign:"center" }}>
+            {authLoading ? "..." : t("login_google")}
           </span>
         </button>
 
         {/* Bouton Apple */}
-        <button onClick={() => handleSocialAuth("apple")} style={{
+        <button onClick={() => handleSocialAuth("apple")} disabled={authLoading} style={{
           width:"100%", padding:"17px 20px", borderRadius:16,
-          background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.10)",
-          display:"flex", alignItems:"center", cursor:"pointer",
+          background:"#000000", border:"1px solid rgba(255,255,255,0.18)",
+          display:"flex", alignItems:"center", cursor: authLoading ? "default" : "pointer",
+          opacity: authLoading ? 0.6 : 1,
         }}>
           <svg width="20" height="24" viewBox="0 0 20 24" fill="white" style={{ flexShrink:0 }}>
             <path d="M16.125 12.578c-.028-2.65 2.16-3.935 2.26-3.998-1.232-1.8-3.149-2.047-3.831-2.075-1.63-.163-3.18.95-4.007.95-.825 0-2.105-.924-3.456-.9-1.78.025-3.41 1.025-4.328 2.6-1.843 3.195-.473 7.943 1.328 10.543.88 1.275 1.934 2.712 3.314 2.66 1.33-.052 1.835-.858 3.444-.858 1.612 0 2.068.858 3.48.83 1.432-.026 2.342-1.3 3.215-2.578.995-1.453 1.412-2.876 1.44-2.948-.03-.014-2.79-1.075-2.82-4.227z"/>
             <path d="M13.595 4.35c.718-.89 1.208-2.127 1.075-3.35-1.04.042-2.3.69-3.047 1.577-.668.782-1.252 2.03-1.094 3.23 1.163.09 2.35-.59 3.066-1.457z"/>
           </svg>
           <span style={{ flex:1, fontSize:16, fontWeight:700, color:"#ffffff", textAlign:"center" }}>
-            Continuer avec Apple
+            {authLoading ? "..." : t("login_apple")}
           </span>
         </button>
 
-        {/* Séparateur */}
-        <div style={{ display:"flex", alignItems:"center", gap:12, margin:"20px 0" }}>
-          <div style={{ flex:1, height:1, background:"rgba(255,255,255,0.09)" }}/>
-          <span style={{ fontSize:14, color:"rgba(255,255,255,0.28)", fontWeight:500 }}>{t("login_or")}</span>
-          <div style={{ flex:1, height:1, background:"rgba(255,255,255,0.09)" }}/>
-        </div>
-
-        {/* ── Formulaire email / mot de passe (Firebase) ── */}
-        {mode === "signup" && (
-          <input
-            type="text" value={name} onChange={e => setName(e.target.value)}
-            placeholder={t("login_name")}
-            autoComplete="name"
-            style={{ width:"100%", boxSizing:"border-box", marginBottom:10, padding:"15px 16px", borderRadius:14, background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff", fontSize:15, outline:"none" }}
-          />
-        )}
-        <input
-          type="email" value={email} onChange={e => setEmail(e.target.value)}
-          placeholder={t("login_email")}
-          autoComplete="email" inputMode="email" autoCapitalize="none"
-          style={{ width:"100%", boxSizing:"border-box", marginBottom:10, padding:"15px 16px", borderRadius:14, background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff", fontSize:15, outline:"none" }}
-        />
-        <input
-          type="password" value={password} onChange={e => setPassword(e.target.value)}
-          placeholder={t("login_password")}
-          autoComplete={mode === "signup" ? "new-password" : "current-password"}
-          style={{ width:"100%", boxSizing:"border-box", marginBottom:12, padding:"15px 16px", borderRadius:14, background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff", fontSize:15, outline:"none" }}
-        />
-
-        {/* Erreur auth */}
-        {authError && (
-          <div style={{ marginBottom:12, padding:"10px 12px", borderRadius:10, background:"rgba(239,68,68,0.10)", border:"1px solid rgba(239,68,68,0.25)", color:"#f87171", fontSize:12, lineHeight:1.4 }}>
-            {authError}
-          </div>
-        )}
-
-        {/* Bouton valider */}
-        <button onClick={handleEmailAuth} disabled={authLoading} style={{
-          width:"100%", padding:"16px 20px", borderRadius:14, marginBottom:18,
-          background: authLoading ? "rgba(110,231,183,0.4)" : "#6ee7b7",
-          color:"#000", fontSize:16, fontWeight:700, border:"none",
-          cursor: authLoading ? "default" : "pointer",
-        }}>
-          {authLoading ? "..." : (mode === "signup" ? t("login_signup") : t("login_btn"))}
-        </button>
-
         {/* Note confidentialité */}
-        <div style={{ display:"flex", alignItems:"flex-start", gap:14 }}>
+        <div style={{ display:"flex", alignItems:"flex-start", gap:14, marginTop:20 }}>
           <div style={{ flexShrink:0, width:42, height:42, borderRadius:21, background:"rgba(110,231,183,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
             <svg width="20" height="22" viewBox="0 0 20 22" fill="none">
               <rect x="1" y="9" width="18" height="12" rx="3" stroke="#6ee7b7" strokeWidth="1.5"/>
@@ -4476,25 +4586,22 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
             </svg>
           </div>
           <div style={{ fontSize:13, color:"rgba(255,255,255,0.38)", lineHeight:1.6, paddingTop:3 }}>
-            Aucune information sensible ne sera partagée sans ton accord.
+            {t("login_privacy")}
           </div>
         </div>
       </div>
 
-      {/* Déjà un compte / toggle */}
-      <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"36px 24px 0", textAlign:"center" }}>
-        <div style={{ fontSize:15, color:"rgba(255,255,255,0.38)", marginBottom:10 }}>
-          {mode === "signup" ? "Déjà un compte ?" : "Pas encore de compte ?"}
+      {/* Badge essai gratuit 7 jours */}
+      <div style={{ textAlign:"center", marginTop:22, position:"relative", zIndex:1 }}>
+        <div style={{ display:"inline-flex", alignItems:"center", gap:7, padding:"9px 16px", borderRadius:20, background:"rgba(110,231,183,0.10)", border:"1px solid rgba(110,231,183,0.22)" }}>
+          <span style={{ fontSize:14 }}>🎁</span>
+          <span style={{ fontSize:13, fontWeight:600, color:"#6ee7b7" }}>{t("login_trial_badge")}</span>
         </div>
-        <button onClick={() => setMode(mode === "signup" ? "login" : "signup")} style={{
-          background:"none", border:"none", cursor:"pointer",
-          fontSize:16, fontWeight:700, color:"#6ee7b7", paddingBottom:0,
-        }}>
-          {mode === "signup" ? "Se connecter" : "Créer un compte"}
-        </button>
       </div>
 
-      {/* CGU + Politique */}
+      <div style={{ flex:1 }} />
+
+            {/* CGU + Politique */}
       <div style={{ padding:"28px 24px 0", textAlign:"center", lineHeight:1.6 }}>
         <div style={{ fontSize:13, color:"rgba(255,255,255,0.28)" }}>En créant un compte, tu acceptes nos</div>
         <div style={{ fontSize:13 }}>
@@ -5037,7 +5144,7 @@ function checkDailyReminder() {
 // ══════════════════════════════════════════════════════════════════
 // DASHBOARD (page d'accueil)
 // ══════════════════════════════════════════════════════════════════
-function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) {
+function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, premiumAccess = true, daysLeft = 0, requirePremium = () => {} }) {
   const firm = PROP_FIRMS[profile.firmKey] || PROP_FIRMS.fundednext;
   const fm = firm.models[lastSim?.modelKey] || firm.models["2step"] || Object.values(firm.models)[0];
   const [perfPeriod, setPerfPeriod] = useState("7J");
@@ -5305,8 +5412,9 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 11, color: journalMode ? "#6ee7b7" : "rgba(255,255,255,0.4)", fontWeight: 600 }}>
               Mode journal
+              {!premiumAccess && <span style={{ marginLeft: 5, fontSize: 10 }}>🔒</span>}
             </span>
-            <div onClick={() => setJournalMode(v => !v)} style={{
+            <div onClick={() => { if (!premiumAccess) { requirePremium(); return; } setJournalMode(v => !v); }} style={{
               width: 38, height: 22, borderRadius: 11, background: journalMode ? "#6ee7b7" : "rgba(255,255,255,0.1)",
               border: "1px solid " + (journalMode ? "#6ee7b7" : "rgba(255,255,255,0.1)"),
               position: "relative", cursor: "pointer", transition: "all .2s", flexShrink: 0,
@@ -5567,7 +5675,7 @@ function VerdictIcon({ icon }) {
   return null;
 }
 
-function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, onReset }) {
+function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, onReset, premium = {}, daysLeft = 0, onUpgrade = () => {} }) {
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const firm = PROP_FIRMS[profile.firmKey] || PROP_FIRMS.fundednext;
   const fmtMoney = (v) => "$" + Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 });
@@ -5589,6 +5697,38 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
   return (
     <div>
       <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "-apple-system, sans-serif", marginBottom: 16 }}>{t("prof_title")}</div>
+
+      {/* Carte abonnement / trial */}
+      <div onClick={() => { if (!premium.subscribed) onUpgrade(); }} style={{
+        marginBottom: 16, borderRadius: 18, padding: "16px 18px", cursor: premium.subscribed ? "default" : "pointer",
+        background: premium.subscribed
+          ? "linear-gradient(135deg, rgba(110,231,183,0.14), rgba(52,211,153,0.06))"
+          : "linear-gradient(135deg, rgba(251,191,36,0.10), rgba(255,255,255,0.03))",
+        border: "1px solid " + (premium.subscribed ? "rgba(110,231,183,0.3)" : "rgba(251,191,36,0.25)"),
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", gap: 6 }}>
+              {premium.subscribed
+                ? (lang === "en" ? "Premium active" : lang === "es" ? "Premium activo" : "Premium actif")
+                : (lang === "en" ? "Free trial" : lang === "es" ? "Prueba gratis" : "Essai gratuit")}
+              {premium.subscribed && <span style={{ fontSize: 13 }}>✓</span>}
+            </div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 3 }}>
+              {premium.subscribed
+                ? (premium.plan === "year" ? "79,99 €/an" : "9,99 €/mois")
+                : (daysLeft > 0
+                    ? (lang === "en" ? daysLeft + " days left" : lang === "es" ? daysLeft + " días restantes" : daysLeft + " jours restants")
+                    : (lang === "en" ? "Trial ended" : lang === "es" ? "Prueba terminada" : "Essai terminé"))}
+            </div>
+          </div>
+          {!premium.subscribed && (
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#000", background: "#6ee7b7", padding: "8px 16px", borderRadius: 12 }}>
+              {lang === "en" ? "Upgrade" : lang === "es" ? "Mejorar" : "Passer Premium"}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Compte + Avatar */}
       <div className="card">
@@ -5978,11 +6118,274 @@ function SplashScreen({ user, onReady }) {
   );
 }
 
+// ══════════════════════════════════════════════════════════════════
+// LOCK OVERLAY — floute le contenu premium + cadenas élégant cliquable
+// ══════════════════════════════════════════════════════════════════
+function LockOverlay({ onUnlock, label, compact = false }) {
+  return (
+    <div
+      onClick={onUnlock}
+      style={{
+        position: "absolute", inset: 0, zIndex: 5,
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        background: "rgba(6,9,15,0.55)", backdropFilter: "blur(7px)", WebkitBackdropFilter: "blur(7px)",
+        borderRadius: "inherit", cursor: "pointer", gap: compact ? 6 : 10, padding: 16, textAlign: "center",
+      }}>
+      <div style={{
+        width: compact ? 38 : 52, height: compact ? 38 : 52, borderRadius: compact ? 19 : 26,
+        background: "linear-gradient(135deg, rgba(110,231,183,0.2), rgba(52,211,153,0.1))",
+        border: "1.5px solid rgba(110,231,183,0.45)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        boxShadow: "0 4px 20px rgba(110,231,183,0.2)",
+      }}>
+        <svg width={compact ? 17 : 23} height={compact ? 17 : 23} viewBox="0 0 24 24" fill="none">
+          <rect x="4" y="11" width="16" height="10" rx="2.5" stroke="#6ee7b7" strokeWidth="1.8"/>
+          <path d="M8 11V7a4 4 0 018 0v4" stroke="#6ee7b7" strokeWidth="1.8" strokeLinecap="round"/>
+          <circle cx="12" cy="16" r="1.4" fill="#6ee7b7"/>
+        </svg>
+      </div>
+      {label && (
+        <div style={{ fontSize: compact ? 11 : 13, fontWeight: 700, color: "#fff", maxWidth: 220, lineHeight: 1.35 }}>
+          {label}
+        </div>
+      )}
+      {!compact && (
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", padding: "6px 14px", borderRadius: 14, background: "rgba(110,231,183,0.12)", border: "1px solid rgba(110,231,183,0.3)" }}>
+          Premium
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PAYWALL — premium, axé valeur + aversion à la perte.
+// Prêt pour RevenueCat (les boutons appelleront purchasePackage plus tard).
+// ══════════════════════════════════════════════════════════════════
+function PaywallScreen({ t, lang, daysLeft, onSubscribe, onClose, canClose = true }) {
+  const [plan, setPlan] = useState("year"); // "year" | "month"
+
+  const L = {
+    fr: {
+      title: "Débloque ton plein potentiel",
+      sub: "Les traders qui valident leur stratégie AVANT le challenge évitent de perdre leurs frais d'inscription.",
+      expired: "Ton essai gratuit est terminé",
+      expiring: daysLeft <= 2 ? `Plus que ${daysLeft} jour${daysLeft>1?"s":""} d'essai` : `${daysLeft} jours d'essai restants`,
+      lossTitle: "Ce que tu risques sans préparation",
+      loss1: "150 à 600 € de frais de challenge perdus à chaque échec",
+      loss2: "Des semaines de trading réel gâchées sur une stratégie non viable",
+      loss3: "Repasser à la caisse encore et encore",
+      valueTitle: "Ce que Premium t'apporte",
+      v1: "Simulateur avancé complet (drawdown, clustering, Kelly, lot auto)",
+      v2: "Analyse Monte Carlo : ta probabilité réelle de passer",
+      v3: "Page Funded : payouts, scaling, equity mois par mois",
+      v4: "Mes Trades : importe ton backtest, verdict de réussite",
+      v5: "Journal de trading + captures MT4/MT5 illimitées",
+      v6: "Sauvegarde de toutes tes configurations",
+      year: "Annuel", month: "Mensuel",
+      yearPrice: "79,99 €", monthPrice: "9,99 €",
+      yearPer: "/an", monthPer: "/mois",
+      yearSave: "ÉCONOMISE 33 %", yearMonthly: "soit 6,67 €/mois",
+      bestValue: "MEILLEUR PRIX",
+      cta: "Continuer",
+      ctaTrial: daysLeft > 0 ? "Continuer mon essai" : "S'abonner maintenant",
+      restore: "Restaurer mes achats",
+      terms: "Sans engagement · Annulable à tout moment",
+      socialProof: "Rejoint par des milliers de traders prop firm",
+    },
+    en: {
+      title: "Unlock your full potential",
+      sub: "Traders who validate their strategy BEFORE the challenge avoid losing their entry fees.",
+      expired: "Your free trial has ended",
+      expiring: daysLeft <= 2 ? `Only ${daysLeft} day${daysLeft>1?"s":""} of trial left` : `${daysLeft} trial days left`,
+      lossTitle: "What you risk without preparation",
+      loss1: "$150 to $600 in challenge fees lost on every failure",
+      loss2: "Weeks of real trading wasted on a non-viable strategy",
+      loss3: "Paying again and again",
+      valueTitle: "What Premium gives you",
+      v1: "Full advanced simulator (drawdown, clustering, Kelly, auto lot)",
+      v2: "Monte Carlo analysis: your real probability of passing",
+      v3: "Funded page: payouts, scaling, month-by-month equity",
+      v4: "My Trades: import your backtest, pass/fail verdict",
+      v5: "Trading journal + unlimited MT4/MT5 screenshots",
+      v6: "Save all your configurations",
+      year: "Annual", month: "Monthly",
+      yearPrice: "$79.99", monthPrice: "$9.99",
+      yearPer: "/yr", monthPer: "/mo",
+      yearSave: "SAVE 33%", yearMonthly: "$6.67/month",
+      bestValue: "BEST VALUE",
+      cta: "Continue",
+      ctaTrial: daysLeft > 0 ? "Continue my trial" : "Subscribe now",
+      restore: "Restore purchases",
+      terms: "No commitment · Cancel anytime",
+      socialProof: "Joined by thousands of prop firm traders",
+    },
+    es: {
+      title: "Desbloquea todo tu potencial",
+      sub: "Los traders que validan su estrategia ANTES del challenge evitan perder sus cuotas de inscripción.",
+      expired: "Tu prueba gratuita ha terminado",
+      expiring: daysLeft <= 2 ? `Solo ${daysLeft} día${daysLeft>1?"s":""} de prueba` : `${daysLeft} días de prueba restantes`,
+      lossTitle: "Lo que arriesgas sin preparación",
+      loss1: "150 a 600 € en cuotas de challenge perdidas en cada fallo",
+      loss2: "Semanas de trading real desperdiciadas en una estrategia no viable",
+      loss3: "Pagar una y otra vez",
+      valueTitle: "Lo que Premium te aporta",
+      v1: "Simulador avanzado completo (drawdown, clustering, Kelly, lote auto)",
+      v2: "Análisis Monte Carlo: tu probabilidad real de pasar",
+      v3: "Página Funded: payouts, scaling, equity mes a mes",
+      v4: "Mis Trades: importa tu backtest, veredicto de éxito",
+      v5: "Diario de trading + capturas MT4/MT5 ilimitadas",
+      v6: "Guarda todas tus configuraciones",
+      year: "Anual", month: "Mensual",
+      yearPrice: "79,99 €", monthPrice: "9,99 €",
+      yearPer: "/año", monthPer: "/mes",
+      yearSave: "AHORRA 33%", yearMonthly: "6,67 €/mes",
+      bestValue: "MEJOR PRECIO",
+      cta: "Continuar",
+      ctaTrial: daysLeft > 0 ? "Continuar mi prueba" : "Suscribirse ahora",
+      restore: "Restaurar compras",
+      terms: "Sin compromiso · Cancela cuando quieras",
+      socialProof: "Se han unido miles de traders de prop firm",
+    },
+  };
+  const x = L[lang] || L.en;
+  const expired = daysLeft <= 0;
+
+  return (
+    <div style={{ minHeight:"100vh", background:"#06090f", maxWidth:480, margin:"0 auto", position:"relative", overflow:"hidden", fontFamily:"-apple-system, sans-serif", paddingBottom:"calc(28px + env(safe-area-inset-bottom))" }}>
+      {/* Halo premium */}
+      <div style={{ position:"absolute", top:-40, left:"50%", transform:"translateX(-50%)", width:360, height:360, borderRadius:"50%", background:"radial-gradient(circle, rgba(110,231,183,0.20) 0%, transparent 68%)", pointerEvents:"none", zIndex:0 }} />
+
+      <div style={{ position:"relative", zIndex:1, padding:"calc(16px + env(safe-area-inset-top)) 22px 0" }}>
+        {/* Close (si autorisé) */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14, minHeight:34 }}>
+          <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px", borderRadius:16, background: expired ? "rgba(239,68,68,0.12)" : "rgba(251,191,36,0.12)", border:"1px solid " + (expired ? "rgba(239,68,68,0.3)":"rgba(251,191,36,0.3)") }}>
+            <span style={{ fontSize:12, fontWeight:700, color: expired ? "#f87171" : "#fbbf24" }}>
+              {expired ? x.expired : x.expiring}
+            </span>
+          </div>
+          {canClose && !expired && (
+            <button onClick={onClose} style={{ width:34, height:34, borderRadius:17, background:"rgba(255,255,255,0.08)", border:"none", color:"rgba(255,255,255,0.6)", fontSize:16, cursor:"pointer" }}>✕</button>
+          )}
+        </div>
+
+        {/* Titre */}
+        <div style={{ fontSize:27, fontWeight:800, color:"#fff", lineHeight:1.12, letterSpacing:-0.5, marginBottom:10 }}>
+          {x.title}
+        </div>
+        <div style={{ fontSize:14, color:"rgba(255,255,255,0.6)", lineHeight:1.5, marginBottom:22 }}>
+          {x.sub}
+        </div>
+
+        {/* Bloc aversion à la perte */}
+        <div style={{ background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.18)", borderRadius:16, padding:"15px 16px", marginBottom:18 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"#f87171", textTransform:"uppercase", letterSpacing:1, marginBottom:10 }}>
+            {x.lossTitle}
+          </div>
+          {[x.loss1, x.loss2, x.loss3].map((l, i) => (
+            <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:9, marginBottom: i<2?8:0 }}>
+              <span style={{ color:"#f87171", fontSize:13, lineHeight:1.4, flexShrink:0 }}>✕</span>
+              <span style={{ fontSize:13, color:"rgba(255,255,255,0.75)", lineHeight:1.45 }}>{l}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Bloc valeur */}
+        <div style={{ background:"rgba(110,231,183,0.05)", border:"1px solid rgba(110,231,183,0.18)", borderRadius:16, padding:"15px 16px", marginBottom:22 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"#6ee7b7", textTransform:"uppercase", letterSpacing:1, marginBottom:10 }}>
+            {x.valueTitle}
+          </div>
+          {[x.v1, x.v2, x.v3, x.v4, x.v5, x.v6].map((v, i) => (
+            <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:9, marginBottom: i<5?9:0 }}>
+              <span style={{ color:"#6ee7b7", fontSize:13, lineHeight:1.4, flexShrink:0, fontWeight:700 }}>✓</span>
+              <span style={{ fontSize:13, color:"rgba(255,255,255,0.85)", lineHeight:1.45 }}>{v}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Sélecteur de plan */}
+        <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:18 }}>
+          {/* Annuel */}
+          <div onClick={() => setPlan("year")} style={{
+            position:"relative", borderRadius:16, padding:"16px 18px", cursor:"pointer",
+            background: plan==="year" ? "rgba(110,231,183,0.10)" : "rgba(255,255,255,0.04)",
+            border: "2px solid " + (plan==="year" ? "#6ee7b7" : "rgba(255,255,255,0.10)"),
+          }}>
+            <div style={{ position:"absolute", top:-10, right:16, background:"#6ee7b7", color:"#000", fontSize:9, fontWeight:800, padding:"3px 9px", borderRadius:8, letterSpacing:0.5 }}>
+              {x.bestValue}
+            </div>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div>
+                <div style={{ fontSize:15, fontWeight:700, color:"#fff" }}>{x.year}</div>
+                <div style={{ fontSize:11, color:"#6ee7b7", marginTop:2, fontWeight:600 }}>{x.yearSave} · {x.yearMonthly}</div>
+              </div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontSize:20, fontWeight:800, color:"#fff" }}>{x.yearPrice}</div>
+                <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{x.yearPer}</div>
+              </div>
+            </div>
+          </div>
+          {/* Mensuel */}
+          <div onClick={() => setPlan("month")} style={{
+            borderRadius:16, padding:"16px 18px", cursor:"pointer",
+            background: plan==="month" ? "rgba(110,231,183,0.10)" : "rgba(255,255,255,0.04)",
+            border: "2px solid " + (plan==="month" ? "#6ee7b7" : "rgba(255,255,255,0.10)"),
+          }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div style={{ fontSize:15, fontWeight:700, color:"#fff" }}>{x.month}</div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontSize:20, fontWeight:800, color:"#fff" }}>{x.monthPrice}</div>
+                <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{x.monthPer}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* CTA principal */}
+        <button onClick={() => onSubscribe(plan)} style={{
+          width:"100%", padding:"18px", borderRadius:16, border:"none",
+          background:"linear-gradient(135deg, #6ee7b7, #34d399)", color:"#000",
+          fontSize:17, fontWeight:800, cursor:"pointer", boxShadow:"0 6px 24px rgba(110,231,183,0.3)",
+          marginBottom:12,
+        }}>
+          {x.ctaTrial}
+        </button>
+
+        {/* Preuve sociale */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginBottom:14 }}>
+          <span style={{ color:"#fbbf24", fontSize:13, letterSpacing:1 }}>★★★★★</span>
+          <span style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{x.socialProof}</span>
+        </div>
+
+        {/* Restore + terms */}
+        <div style={{ textAlign:"center" }}>
+          <button onClick={() => onSubscribe("restore")} style={{ background:"none", border:"none", color:"rgba(255,255,255,0.5)", fontSize:13, fontWeight:600, cursor:"pointer", marginBottom:8 }}>
+            {x.restore}
+          </button>
+          <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)" }}>{x.terms}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const app0 = loadApp();
   const [lang, setLangState] = useState(app0.profile?.lang ?? null);
   const [onboarded, setOnboarded] = useState(app0.onboarded ?? false);
   const [user, setUser] = useState(app0.user ?? null);
+  // ── Premium / trial ──
+  const [premium, setPremium] = useState(() => loadPremium());
+  const [showPaywall, setShowPaywall] = useState(false);
+  // Recalcule l'accès premium (abonné ou trial actif)
+  const premiumAccess = premium.subscribed || (() => {
+    if (!premium.trialStart) return true; // trial pas encore démarré = accès le temps du setup
+    const elapsed = (Date.now() - premium.trialStart) / (1000*60*60*24);
+    return elapsed < TRIAL_DAYS;
+  })();
+  const daysLeft = premium.subscribed ? Infinity : (premium.trialStart
+    ? Math.max(0, Math.ceil(TRIAL_DAYS - (Date.now() - premium.trialStart)/(1000*60*60*24)))
+    : TRIAL_DAYS);
   // Session Firebase : restaure/synchronise l'utilisateur connecté au démarrage.
   // Si Firebase a une session active → priorité à Firebase.
   // Si Firebase est déconnecté mais qu'un user local "guest" existe → on le garde.
@@ -6027,6 +6430,11 @@ export default function App() {
     ? (simTab === "trades" ? "trades" : simTab === "montecarlo" ? "montecarlo" : "simulator")
     : screen;
   const navGoto = (k) => {
+    // Monte Carlo et Mes Trades sont premium → paywall si pas d'accès
+    if ((k === "trades" || k === "montecarlo") && !premiumAccess) {
+      setShowPaywall(true);
+      return;
+    }
     if (k === "trades") { setSimTab("trades"); setScreen("simulator"); }
     else if (k === "montecarlo") { setSimTab("montecarlo"); setScreen("simulator"); }
     else if (k === "simulator") { setSimTab("challenge"); setScreen("simulator"); }
@@ -6084,11 +6492,38 @@ export default function App() {
     return <LoginScreen t={t} lang={lang} setLang={setLang} onAuth={(u) => {
       setUser(u);
       saveApp({ user: u });
-      setShowSplash(true); // splash après login
+      const p = startTrialIfNeeded(); // démarre les 7 jours à la 1ère connexion
+      setPremium(p);
+      setShowSplash(true);
     }} />;
   }
   if (!setupDone) {
     return <ProfileSetupScreen t={t} lang={lang} setLang={setLang} onDone={(p) => { setProfile(p); setSetupDone(true); }} />;
+  }
+
+  // Handler d'abonnement — pour l'instant simule l'achat, plus tard RevenueCat
+  const handleSubscribe = (plan) => {
+    if (plan === "restore") {
+      // RevenueCat.restorePurchases() plus tard
+      const p = loadPremium();
+      if (p.subscribed) { setPremium(p); setShowPaywall(false); }
+      else alert(lang === "en" ? "No active subscription found." : lang === "es" ? "No se encontró suscripción activa." : "Aucun abonnement actif trouvé.");
+      return;
+    }
+    // TODO RevenueCat.purchasePackage(plan)
+    const p = savePremium({ subscribed: true, plan, subscribedAt: Date.now() });
+    setPremium(p);
+    setShowPaywall(false);
+  };
+
+  // Paywall FORCÉ si le trial est expiré et pas abonné
+  if (!premium.subscribed && premium.trialStart && daysLeft <= 0) {
+    return <PaywallScreen t={t} lang={lang} daysLeft={0} onSubscribe={handleSubscribe} onClose={() => {}} canClose={false} />;
+  }
+
+  // Paywall ouvert manuellement (clic sur feature verrouillée)
+  if (showPaywall) {
+    return <PaywallScreen t={t} lang={lang} daysLeft={daysLeft} onSubscribe={handleSubscribe} onClose={() => setShowPaywall(false)} canClose={true} />;
   }
 
   // ── App principale avec navbar ──
@@ -6115,13 +6550,13 @@ export default function App() {
         position: "relative", zIndex: 1,
       }}>
         {screen === "dashboard" && (
-          <DashboardScreen t={t} lang={lang} user={user} profile={profile} lastSim={lastSim} goto={goto} loadConfig={loadConfig} />
+          <DashboardScreen t={t} lang={lang} user={user} profile={profile} lastSim={lastSim} goto={goto} loadConfig={loadConfig} premiumAccess={premiumAccess} daysLeft={daysLeft} requirePremium={() => setShowPaywall(true)} />
         )}
         {screen === "simulator" && (
-          <SimulatorScreen key={simKey} t={t} lang={lang} tab={simTab} setTab={setSimTab} onSimResult={handleSimResult} displayMode={profile.displayMode || "advanced"} usageType={profile.usageType || "propfirm"} />
+          <SimulatorScreen key={simKey} t={t} lang={lang} tab={simTab} setTab={setSimTab} onSimResult={handleSimResult} displayMode={profile.displayMode || "advanced"} usageType={profile.usageType || "propfirm"} premiumAccess={premiumAccess} requirePremium={() => setShowPaywall(true)} />
         )}
         {screen === "profile" && (
-          <ProfileScreen t={t} lang={lang} setLang={setLang} user={user} profile={profile} setProfile={setProfile} onLogout={logout} onReset={reset} />
+          <ProfileScreen t={t} lang={lang} setLang={setLang} user={user} profile={profile} setProfile={setProfile} onLogout={logout} onReset={reset} premium={premium} daysLeft={daysLeft} onUpgrade={() => setShowPaywall(true)} />
         )}
       </div>
       <NavBar t={t} active={navActive} goto={navGoto} />
