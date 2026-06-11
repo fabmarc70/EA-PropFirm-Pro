@@ -3728,120 +3728,96 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
           onClick={() => setEditingDay(null)}
           style={{
             position: "fixed", inset: 0, zIndex: 1000,
-            background: "rgba(0,0,0,0.8)",
-            display: "flex", alignItems: "flex-end", justifyContent: "center",
+            background: "rgba(0,0,0,0.75)",
+            // Aligner en HAUT → clavier iOS s'ouvre EN DESSOUS du formulaire
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "center",
+            paddingTop: "calc(env(safe-area-inset-top, 16px) + 12px)",
+            paddingLeft: 16, paddingRight: 16,
+            overflowX: "hidden",
           }}>
 
-          {/* Bottom sheet — structure : header + scroll + footer */}
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              width: "100%", maxWidth: 480,
+              width: "100%",
+              maxWidth: 430,
               background: "#12121a",
-              border: "1px solid rgba(110,231,183,0.18)",
-              borderRadius: "22px 22px 0 0",
-              display: "flex", flexDirection: "column",
-              maxHeight: "92svh",
+              border: "1px solid rgba(110,231,183,0.22)",
+              borderRadius: 20,
+              overflowX: "hidden", // bloque tout scroll horizontal
+              display: "flex",
+              flexDirection: "column",
             }}>
 
-            {/* ── HEADER FIXE ── */}
-            <div style={{ padding: "14px 20px 12px", flexShrink: 0 }}>
-              <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 14px" }} />
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            {/* ── HEADER ── */}
+            <div style={{ padding: "14px 18px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              <div style={{ width: 32, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.12)", margin: "0 auto 12px" }} />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: "#FFFFFF", letterSpacing: -0.3 }}>
-                    Jour {editingDay}
-                  </div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
-                    Saisis tes résultats de la journée
-                  </div>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", letterSpacing: -0.3 }}>Jour {editingDay}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", marginTop: 1 }}>Résultats de la journée</div>
                 </div>
-                {/* Bouton Effacer (si entrée existante) */}
                 {journalData[String(editingDay)] && (
                   <button
                     onClick={() => { if (onJournalSave) onJournalSave(editingDay, null); setEditingDay(null); }}
-                    style={{ padding: "7px 12px", borderRadius: 10, background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 12, fontWeight: 700, border: "1px solid rgba(239,68,68,0.18)", cursor: "pointer" }}>
+                    style={{ padding: "6px 11px", borderRadius: 9, background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 11, fontWeight: 700, border: "1px solid rgba(239,68,68,0.18)", cursor: "pointer" }}>
                     Effacer
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Séparateur */}
-            <div style={{ height: 1, background: "rgba(255,255,255,0.06)", flexShrink: 0 }} />
+            {/* ── CONTENU (pas de scroll horizontal) ── */}
+            <div style={{ padding: "14px 18px", overflowX: "hidden" }}>
 
-            {/* ── ZONE SCROLLABLE ── */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", WebkitOverflowScrolling: "touch" }}>
-
-              {/* Trades gagnants + perdants — côte à côte */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+              {/* Gagnants + Perdants côte à côte */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
                 {/* Gagnants */}
                 <div>
-                  <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Gagnants</label>
-                  <div style={{ display: "flex", alignItems: "center", background: "rgba(110,231,183,0.05)", border: "1px solid rgba(110,231,183,0.2)", borderRadius: 14, height: 54, overflow: "hidden" }}>
-                    <button
-                      onClick={() => setFormWins(v => Math.max(0, v - 1))}
-                      style={{ width: 44, height: "100%", background: "transparent", border: "none", borderRight: "1px solid rgba(110,231,183,0.12)", color: formWins > 0 ? "#6ee7b7" : "rgba(255,255,255,0.15)", fontSize: 22, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      −
-                    </button>
-                    <div style={{ flex: 1, textAlign: "center", fontSize: 24, fontWeight: 800, color: formWins > 0 ? "#6ee7b7" : "rgba(255,255,255,0.35)" }}>
-                      {formWins}
-                    </div>
-                    <button
-                      onClick={() => setFormWins(v => v + 1)}
-                      style={{ width: 44, height: "100%", background: "rgba(110,231,183,0.10)", border: "none", borderLeft: "1px solid rgba(110,231,183,0.12)", color: "#6ee7b7", fontSize: 22, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      +
-                    </button>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 5 }}>Gagnants</div>
+                  <div style={{ display: "flex", alignItems: "center", height: 46, borderRadius: 12, overflow: "hidden", border: "1.5px solid rgba(110,231,183,0.22)", background: "rgba(110,231,183,0.04)" }}>
+                    <button onClick={() => setFormWins(v => Math.max(0, v - 1))}
+                      style={{ width: 40, height: "100%", background: "transparent", border: "none", borderRight: "1px solid rgba(110,231,183,0.12)", color: formWins > 0 ? "#6ee7b7" : "rgba(255,255,255,0.12)", fontSize: 20, cursor: "pointer", flexShrink: 0 }}>−</button>
+                    <div style={{ flex: 1, textAlign: "center", fontSize: 20, fontWeight: 800, color: formWins > 0 ? "#6ee7b7" : "rgba(255,255,255,0.3)" }}>{formWins}</div>
+                    <button onClick={() => setFormWins(v => v + 1)}
+                      style={{ width: 40, height: "100%", background: "rgba(110,231,183,0.10)", border: "none", borderLeft: "1px solid rgba(110,231,183,0.12)", color: "#6ee7b7", fontSize: 20, cursor: "pointer", flexShrink: 0 }}>+</button>
                   </div>
                 </div>
 
                 {/* Perdants */}
                 <div>
-                  <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Perdants</label>
-                  <div style={{ display: "flex", alignItems: "center", background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 14, height: 54, overflow: "hidden" }}>
-                    <button
-                      onClick={() => setFormLosses(v => Math.max(0, v - 1))}
-                      style={{ width: 44, height: "100%", background: "transparent", border: "none", borderRight: "1px solid rgba(239,68,68,0.12)", color: formLosses > 0 ? "#f87171" : "rgba(255,255,255,0.15)", fontSize: 22, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      −
-                    </button>
-                    <div style={{ flex: 1, textAlign: "center", fontSize: 24, fontWeight: 800, color: formLosses > 0 ? "#f87171" : "rgba(255,255,255,0.35)" }}>
-                      {formLosses}
-                    </div>
-                    <button
-                      onClick={() => setFormLosses(v => v + 1)}
-                      style={{ width: 44, height: "100%", background: "rgba(239,68,68,0.10)", border: "none", borderLeft: "1px solid rgba(239,68,68,0.12)", color: "#f87171", fontSize: 22, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      +
-                    </button>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 5 }}>Perdants</div>
+                  <div style={{ display: "flex", alignItems: "center", height: 46, borderRadius: 12, overflow: "hidden", border: "1.5px solid rgba(239,68,68,0.22)", background: "rgba(239,68,68,0.04)" }}>
+                    <button onClick={() => setFormLosses(v => Math.max(0, v - 1))}
+                      style={{ width: 40, height: "100%", background: "transparent", border: "none", borderRight: "1px solid rgba(239,68,68,0.12)", color: formLosses > 0 ? "#f87171" : "rgba(255,255,255,0.12)", fontSize: 20, cursor: "pointer", flexShrink: 0 }}>−</button>
+                    <div style={{ flex: 1, textAlign: "center", fontSize: 20, fontWeight: 800, color: formLosses > 0 ? "#f87171" : "rgba(255,255,255,0.3)" }}>{formLosses}</div>
+                    <button onClick={() => setFormLosses(v => v + 1)}
+                      style={{ width: 40, height: "100%", background: "rgba(239,68,68,0.10)", border: "none", borderLeft: "1px solid rgba(239,68,68,0.12)", color: "#f87171", fontSize: 20, cursor: "pointer", flexShrink: 0 }}>+</button>
                   </div>
                 </div>
               </div>
 
-              {/* ── Gain / Perte ── */}
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                  <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Gain / Perte ($)</label>
-                  {/* Aperçu résultat — HORS du champ, plus d'overlap */}
+              {/* Gain / Perte — compact */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7 }}>Gain / Perte ($)</div>
                   {formGainAbs !== "" && formGainAbs !== "0" && (
-                    <div style={{ fontSize: 13, fontWeight: 800, color: formGainSign > 0 ? "#6ee7b7" : "#f87171" }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: formGainSign > 0 ? "#6ee7b7" : "#f87171" }}>
                       {formGainSign > 0 ? "+" : "−"}{formGainAbs} $
                     </div>
                   )}
                 </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
-                  {/* Toggle signe */}
-                  <div style={{ display: "flex", flexDirection: "column", borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", width: 52, flexShrink: 0 }}>
-                    <button
-                      onClick={() => setFormGainSign(1)}
-                      style={{ flex: 1, background: formGainSign > 0 ? "rgba(110,231,183,0.20)" : "transparent", border: "none", borderBottom: "1px solid rgba(255,255,255,0.08)", color: formGainSign > 0 ? "#6ee7b7" : "rgba(255,255,255,0.35)", fontSize: 20, fontWeight: 800, cursor: "pointer", transition: "all .15s" }}>
-                      +
-                    </button>
-                    <button
-                      onClick={() => setFormGainSign(-1)}
-                      style={{ flex: 1, background: formGainSign < 0 ? "rgba(239,68,68,0.20)" : "transparent", border: "none", color: formGainSign < 0 ? "#f87171" : "rgba(255,255,255,0.35)", fontSize: 20, fontWeight: 800, cursor: "pointer", transition: "all .15s" }}>
-                      −
-                    </button>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {/* Toggle +/− vertical compact */}
+                  <div style={{ display: "flex", flexDirection: "column", borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.10)", width: 44, height: 46, flexShrink: 0 }}>
+                    <button onClick={() => setFormGainSign(1)}
+                      style={{ flex: 1, background: formGainSign > 0 ? "rgba(110,231,183,0.22)" : "transparent", border: "none", borderBottom: "1px solid rgba(255,255,255,0.08)", color: formGainSign > 0 ? "#6ee7b7" : "rgba(255,255,255,0.3)", fontSize: 16, fontWeight: 800, cursor: "pointer" }}>+</button>
+                    <button onClick={() => setFormGainSign(-1)}
+                      style={{ flex: 1, background: formGainSign < 0 ? "rgba(239,68,68,0.22)" : "transparent", border: "none", color: formGainSign < 0 ? "#f87171" : "rgba(255,255,255,0.3)", fontSize: 16, fontWeight: 800, cursor: "pointer" }}>−</button>
                   </div>
-                  {/* Input montant — sans overlay, propre */}
+                  {/* Input compact — même hauteur que les steppers */}
                   <input
                     type="number"
                     inputMode="decimal"
@@ -3850,57 +3826,45 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                     onChange={e => setFormGainAbs(e.target.value.replace(/-/g, ""))}
                     placeholder="0"
                     style={{
-                      flex: 1, height: 60,
+                      flex: 1, height: 46,
                       background: formGainSign > 0 ? "rgba(110,231,183,0.05)" : "rgba(239,68,68,0.05)",
-                      border: "1px solid " + (formGainSign > 0 ? "rgba(110,231,183,0.25)" : "rgba(239,68,68,0.25)"),
-                      borderRadius: 14, padding: "0 16px",
+                      border: "1.5px solid " + (formGainSign > 0 ? "rgba(110,231,183,0.22)" : "rgba(239,68,68,0.22)"),
+                      borderRadius: 12,
+                      padding: "0 14px",
                       color: formGainSign > 0 ? "#6ee7b7" : "#f87171",
-                      fontSize: 26, fontWeight: 800, outline: "none", boxSizing: "border-box",
+                      fontSize: 20, fontWeight: 800,
+                      outline: "none",
+                      boxSizing: "border-box",
+                      minWidth: 0, // évite overflow flex
                     }}
                   />
                 </div>
               </div>
 
-              {/* ── Captures MT4/MT5 ── */}
+              {/* Captures MT4/MT5 — compact */}
               <div>
-                <label style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 7 }}>
                   Captures MT4/MT5 ({formImages.length}/3)
-                </label>
+                </div>
                 {imgDateWarn && (
-                  <div style={{ marginBottom: 8, padding: "9px 11px", borderRadius: 10, background: "rgba(251,191,36,0.07)", border: "1px solid rgba(251,191,36,0.2)", fontSize: 11, color: "#fbbf24", lineHeight: 1.4 }}>
+                  <div style={{ marginBottom: 7, padding: "8px 10px", borderRadius: 9, background: "rgba(251,191,36,0.07)", border: "1px solid rgba(251,191,36,0.2)", fontSize: 10, color: "#fbbf24", lineHeight: 1.4 }}>
                     ⚠️ {imgDateWarn}
                   </div>
                 )}
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "nowrap" }}>
                   {formImages.map((img, idx) => (
-                    <div key={idx} style={{ position: "relative", width: 72, height: 72 }}>
-                      <img
-                        src={img}
-                        alt={"capture " + (idx+1)}
-                        onClick={() => setViewerImg(img)}
-                        style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(110,231,183,0.2)", cursor: "pointer" }}
-                      />
-                      <button
-                        onClick={() => setFormImages(prev => prev.filter((_, i) => i !== idx))}
-                        style={{ position: "absolute", top: -6, right: -6, width: 22, height: 22, borderRadius: 11, background: "#ef4444", color: "#fff", border: "2px solid #12121a", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        ✕
-                      </button>
+                    <div key={idx} style={{ position: "relative", width: 64, height: 64, flexShrink: 0 }}>
+                      <img src={img} alt={"c"+(idx+1)} onClick={() => setViewerImg(img)}
+                        style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 10, border: "1px solid rgba(110,231,183,0.2)", cursor: "pointer", display: "block" }} />
+                      <button onClick={() => setFormImages(prev => prev.filter((_, i) => i !== idx))}
+                        style={{ position: "absolute", top: -5, right: -5, width: 18, height: 18, borderRadius: 9, background: "#ef4444", color: "#fff", border: "2px solid #12121a", fontSize: 10, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
                     </div>
                   ))}
                   {formImages.length < 3 && (
-                    <label style={{
-                      width: 72, height: 72, borderRadius: 12,
-                      border: "1.5px dashed rgba(255,255,255,0.18)",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      cursor: "pointer", background: "rgba(255,255,255,0.02)",
-                      flexDirection: "column", gap: 4,
-                    }}>
-                      <span style={{ fontSize: 22, color: imgLoading ? "#6ee7b7" : "rgba(255,255,255,0.3)", lineHeight: 1 }}>{imgLoading ? "⏳" : "+"}</span>
-                      <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", textTransform: "uppercase", letterSpacing: 0.5 }}>{imgLoading ? "" : "photo"}</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        style={{ display: "none" }}
+                    <label style={{ width: 64, height: 64, flexShrink: 0, borderRadius: 10, border: "1.5px dashed rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "rgba(255,255,255,0.02)", flexDirection: "column", gap: 3 }}>
+                      <span style={{ fontSize: 18, color: imgLoading ? "#6ee7b7" : "rgba(255,255,255,0.3)", lineHeight: 1 }}>{imgLoading ? "⏳" : "+"}</span>
+                      <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)", textTransform: "uppercase" }}>{imgLoading ? "" : "photo"}</span>
+                      <input type="file" accept="image/*" style={{ display: "none" }}
                         onChange={async (e) => {
                           const file = e.target.files && e.target.files[0];
                           e.target.value = "";
@@ -3939,41 +3903,35 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                           alert("Impossible de lire cette image.");
                         }
                         setImgLoading(false);
-                        }}
-                      />
+                        }} />
                     </label>
                   )}
                 </div>
               </div>
-            </div>{/* fin scroll */}
+            </div>
 
-            {/* Séparateur footer */}
-            <div style={{ height: 1, background: "rgba(255,255,255,0.06)", flexShrink: 0 }} />
-
-            {/* ── FOOTER FIXE — boutons toujours visibles ── */}
-            <div style={{ padding: "14px 20px calc(14px + env(safe-area-inset-bottom, 0px))", display: "flex", gap: 10, flexShrink: 0, background: "#12121a" }}>
-              <button
-                onClick={() => setEditingDay(null)}
-                style={{ flex: 1, padding: "16px", borderRadius: 14, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.65)", fontSize: 15, fontWeight: 700, border: "1px solid rgba(255,255,255,0.10)", cursor: "pointer" }}>
+            {/* ── FOOTER BOUTONS ── */}
+            <div style={{ padding: "12px 18px 14px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 8 }}>
+              <button onClick={() => setEditingDay(null)}
+                style={{ flex: 1, padding: "13px", borderRadius: 12, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 700, border: "1px solid rgba(255,255,255,0.09)", cursor: "pointer" }}>
                 Annuler
               </button>
-              <button
-                onClick={() => {
-                  const wins = formWins;
-                  const losses = formLosses;
+              <button onClick={() => {
                   const pnl = +(parseFloat(formGainAbs) || 0) * formGainSign;
-                  const entry = { wins, losses, pnl };
+                  const entry = { wins: formWins, losses: formLosses, pnl };
                   if (formImages.length > 0) entry.images = formImages;
                   if (onJournalSave) onJournalSave(editingDay, entry);
                   setEditingDay(null);
                 }}
-                style={{ flex: 2, padding: "16px", borderRadius: 14, background: "linear-gradient(135deg, #6ee7b7, #34d399)", color: "#000", fontSize: 15, fontWeight: 800, border: "none", cursor: "pointer", boxShadow: "0 4px 16px rgba(110,231,183,0.25)" }}>
+                style={{ flex: 2, padding: "13px", borderRadius: 12, background: "linear-gradient(135deg,#6ee7b7,#34d399)", color: "#000", fontSize: 14, fontWeight: 800, border: "none", cursor: "pointer", boxShadow: "0 3px 12px rgba(110,231,183,0.2)" }}>
                 Enregistrer
               </button>
             </div>
           </div>
         </div>
       )}
+
+      
 
             {/* ── VISIONNEUSE IMAGE PLEIN ÉCRAN ── */}
       {viewerImg && (
