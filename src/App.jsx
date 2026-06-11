@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser } from "./firebase.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -4287,11 +4288,56 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
 // ══════════════════════════════════════════════════════════════════
 function LoginScreen({ t, lang, setLang, onAuth }) {
   const [mode, setMode] = useState("signup"); // signup | login
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
 
-  // Auth sociale simulée (mock local — prêt pour intégration Supabase OAuth)
-  const handleSocialAuth = (provider) => {
-    const names = { google: "Utilisateur Google", apple: "Utilisateur Apple" };
-    onAuth({ name: names[provider], email: provider + "@mock.local", guest: false, provider });
+  // Messages d'erreur Firebase lisibles
+  const friendlyError = (code) => {
+    const map = {
+      "auth/email-already-in-use": "Cet email a déjà un compte. Connecte-toi.",
+      "auth/invalid-email": "Email invalide.",
+      "auth/weak-password": "Mot de passe trop faible (min 6 caractères).",
+      "auth/wrong-password": "Mot de passe incorrect.",
+      "auth/invalid-credential": "Email ou mot de passe incorrect.",
+      "auth/user-not-found": "Aucun compte avec cet email. Inscris-toi.",
+      "auth/too-many-requests": "Trop de tentatives. Réessaie dans quelques minutes.",
+      "auth/popup-closed-by-user": "Connexion annulée.",
+      "auth/popup-blocked": "Popup bloquée par le navigateur. Autorise les popups.",
+      "auth/network-request-failed": "Problème réseau. Vérifie ta connexion.",
+    };
+    return map[code] || "Erreur de connexion. Réessaie.";
+  };
+
+  // Auth sociale — Firebase
+  const handleSocialAuth = async (provider) => {
+    setAuthError(""); setAuthLoading(true);
+    try {
+      const fbUser = provider === "google" ? await fbSignInGoogle() : await fbSignInApple();
+      onAuth(fbUserToAppUser(fbUser));
+    } catch (e) {
+      setAuthError(friendlyError(e.code));
+    }
+    setAuthLoading(false);
+  };
+
+  // Auth email/mot de passe — Firebase
+  const handleEmailAuth = async () => {
+    setAuthError("");
+    if (!email.includes("@")) { setAuthError(t("login_err_email")); return; }
+    if (password.length < 6) { setAuthError("Mot de passe trop court (min 6)"); return; }
+    setAuthLoading(true);
+    try {
+      const fbUser = mode === "signup"
+        ? await fbSignUpEmail(email.trim(), password, name.trim())
+        : await fbSignInEmail(email.trim(), password);
+      onAuth(fbUserToAppUser(fbUser));
+    } catch (e) {
+      setAuthError(friendlyError(e.code));
+    }
+    setAuthLoading(false);
   };
 
   return (
@@ -4377,9 +4423,48 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
         {/* Séparateur */}
         <div style={{ display:"flex", alignItems:"center", gap:12, margin:"20px 0" }}>
           <div style={{ flex:1, height:1, background:"rgba(255,255,255,0.09)" }}/>
-          <span style={{ fontSize:14, color:"rgba(255,255,255,0.28)", fontWeight:500 }}>ou</span>
+          <span style={{ fontSize:14, color:"rgba(255,255,255,0.28)", fontWeight:500 }}>{t("login_or")}</span>
           <div style={{ flex:1, height:1, background:"rgba(255,255,255,0.09)" }}/>
         </div>
+
+        {/* ── Formulaire email / mot de passe (Firebase) ── */}
+        {mode === "signup" && (
+          <input
+            type="text" value={name} onChange={e => setName(e.target.value)}
+            placeholder={t("login_name")}
+            autoComplete="name"
+            style={{ width:"100%", boxSizing:"border-box", marginBottom:10, padding:"15px 16px", borderRadius:14, background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff", fontSize:15, outline:"none" }}
+          />
+        )}
+        <input
+          type="email" value={email} onChange={e => setEmail(e.target.value)}
+          placeholder={t("login_email")}
+          autoComplete="email" inputMode="email" autoCapitalize="none"
+          style={{ width:"100%", boxSizing:"border-box", marginBottom:10, padding:"15px 16px", borderRadius:14, background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff", fontSize:15, outline:"none" }}
+        />
+        <input
+          type="password" value={password} onChange={e => setPassword(e.target.value)}
+          placeholder={t("login_password")}
+          autoComplete={mode === "signup" ? "new-password" : "current-password"}
+          style={{ width:"100%", boxSizing:"border-box", marginBottom:12, padding:"15px 16px", borderRadius:14, background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff", fontSize:15, outline:"none" }}
+        />
+
+        {/* Erreur auth */}
+        {authError && (
+          <div style={{ marginBottom:12, padding:"10px 12px", borderRadius:10, background:"rgba(239,68,68,0.10)", border:"1px solid rgba(239,68,68,0.25)", color:"#f87171", fontSize:12, lineHeight:1.4 }}>
+            {authError}
+          </div>
+        )}
+
+        {/* Bouton valider */}
+        <button onClick={handleEmailAuth} disabled={authLoading} style={{
+          width:"100%", padding:"16px 20px", borderRadius:14, marginBottom:18,
+          background: authLoading ? "rgba(110,231,183,0.4)" : "#6ee7b7",
+          color:"#000", fontSize:16, fontWeight:700, border:"none",
+          cursor: authLoading ? "default" : "pointer",
+        }}>
+          {authLoading ? "..." : (mode === "signup" ? t("login_signup") : t("login_btn"))}
+        </button>
 
         {/* Note confidentialité */}
         <div style={{ display:"flex", alignItems:"flex-start", gap:14 }}>
@@ -5898,6 +5983,23 @@ export default function App() {
   const [lang, setLangState] = useState(app0.profile?.lang ?? null);
   const [onboarded, setOnboarded] = useState(app0.onboarded ?? false);
   const [user, setUser] = useState(app0.user ?? null);
+  // Session Firebase : restaure/synchronise l'utilisateur connecté au démarrage.
+  // Si Firebase a une session active → priorité à Firebase.
+  // Si Firebase est déconnecté mais qu'un user local "guest" existe → on le garde.
+  useEffect(() => {
+    const unsub = fbOnAuthChange((fbUser) => {
+      if (fbUser) {
+        const u = fbUserToAppUser(fbUser);
+        setUser(u);
+        saveApp({ user: u });
+      } else {
+        // Pas de session Firebase : on ne déconnecte que les comptes Firebase (uid présent)
+        const cur = loadApp().user;
+        if (cur && cur.uid) { setUser(null); saveApp({ user: null }); }
+      }
+    });
+    return unsub;
+  }, []);
   const [setupDone, setSetupDone] = useState(app0.setupDone ?? false);
   const [profile, setProfile] = useState(app0.profile ?? { lang: "fr", firmKey: "fundednext", capital: 25000 });
   const [screen, setScreen] = useState("dashboard");
@@ -5996,7 +6098,10 @@ export default function App() {
     setProfile({ lang: "fr", firmKey: "fundednext", capital: 25000 });
     setLastSim(null); setScreen("dashboard");
   };
-  const logout = () => { setUser(null); saveApp({ user: null }); };
+  const logout = () => {
+    fbSignOut().catch(() => {});
+    setUser(null); saveApp({ user: null });
+  };
 
   return (
     <div style={{ background: "#06090f", minHeight: "100vh", maxWidth: 480, margin: "0 auto", position: "relative" }}>

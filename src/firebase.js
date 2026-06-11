@@ -1,0 +1,76 @@
+// ══════════════════════════════════════════════════════════════════
+// FIREBASE — Auth uniquement pour le moment.
+// Les données (journal, configs, simulations) et fichiers restent en
+// localStorage. Firestore/Storage seront branchés dans une phase future.
+// ══════════════════════════════════════════════════════════════════
+import { initializeApp } from "firebase/app";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  OAuthProvider,
+  signInWithPopup,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut,
+  updateProfile,
+} from "firebase/auth";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCYqMoWp-3BpU_yJZALoioSbTf1zb7HL3g",
+  authDomain: "propfirmpro-ffbd0.firebaseapp.com",
+  projectId: "propfirmpro-ffbd0",
+  storageBucket: "propfirmpro-ffbd0.firebasestorage.app",
+  messagingSenderId: "347644770866",
+  appId: "1:347644770866:web:7c018710f2ca36f4221a2b",
+  measurementId: "G-749EWFBMVB",
+};
+
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+
+// Analytics : chargé en différé, sans bloquer si non supporté (iOS standalone etc.)
+import("firebase/analytics").then(({ getAnalytics, isSupported }) => {
+  isSupported().then((ok) => { if (ok) getAnalytics(app); }).catch(() => {});
+}).catch(() => {});
+
+// ── Providers ──
+const googleProvider = new GoogleAuthProvider();
+const appleProvider = new OAuthProvider("apple.com");
+
+// ── API simple consommée par l'app ──
+export async function fbSignInGoogle() {
+  const res = await signInWithPopup(auth, googleProvider);
+  return res.user;
+}
+export async function fbSignInApple() {
+  const res = await signInWithPopup(auth, appleProvider);
+  return res.user;
+}
+export async function fbSignUpEmail(email, password, name) {
+  const res = await createUserWithEmailAndPassword(auth, email, password);
+  if (name) { try { await updateProfile(res.user, { displayName: name }); } catch (e) {} }
+  return res.user;
+}
+export async function fbSignInEmail(email, password) {
+  const res = await signInWithEmailAndPassword(auth, email, password);
+  return res.user;
+}
+export function fbOnAuthChange(callback) {
+  return onAuthStateChanged(auth, callback);
+}
+export function fbSignOut() {
+  return signOut(auth);
+}
+// Convertit un user Firebase vers le format interne de l'app
+export function fbUserToAppUser(fbUser) {
+  if (!fbUser) return null;
+  return {
+    name: fbUser.displayName || (fbUser.email ? fbUser.email.split("@")[0] : "Trader"),
+    email: fbUser.email || "",
+    uid: fbUser.uid,
+    photo: fbUser.photoURL || null,
+    provider: (fbUser.providerData && fbUser.providerData[0] && fbUser.providerData[0].providerId) || "password",
+    guest: false,
+  };
+}
