@@ -6751,6 +6751,11 @@ export default function App() {
   const [screen, setScreen] = useState("dashboard");
   const [simTab, setSimTab] = useState("challenge");
   const [lastSim, setLastSim] = useState(app0.lastSim ?? null);
+
+  // Scroll to top à chaque changement de page ou d'onglet
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [screen, simTab]);
   const [simKey, setSimKey] = useState(0);
 
   // Welcome : affiché une seule fois au tout premier lancement
