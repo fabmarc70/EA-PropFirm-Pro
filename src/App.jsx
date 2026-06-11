@@ -6329,207 +6329,302 @@ function LockOverlay({ onUnlock, label, compact = false }) {
 // Prêt pour RevenueCat (les boutons appelleront purchasePackage plus tard).
 // ══════════════════════════════════════════════════════════════════
 function PaywallScreen({ t, lang, daysLeft, onSubscribe, onClose, canClose = true }) {
-  const [plan, setPlan] = useState("year"); // "year" | "month"
+  const [plan, setPlan] = useState("month"); // mensuel populaire par défaut
+  const expired = daysLeft <= 0;
 
   const L = {
     fr: {
-      title: "Débloque ton plein potentiel",
+      badge: expired ? "Essai terminé" : daysLeft + " jours d'essai restants",
+      title1: "Débloque ton",
+      title2: "plein potentiel",
       sub: "Les traders qui valident leur stratégie AVANT le challenge évitent de perdre leurs frais d'inscription.",
-      expired: "Ton essai gratuit est terminé",
-      expiring: daysLeft <= 2 ? `Plus que ${daysLeft} jour${daysLeft>1?"s":""} d'essai` : `${daysLeft} jours d'essai restants`,
-      lossTitle: "Ce que tu risques sans préparation",
-      loss1: "150 à 600 € de frais de challenge perdus à chaque échec",
-      loss2: "Des semaines de trading réel gâchées sur une stratégie non viable",
-      loss3: "Repasser à la caisse encore et encore",
-      valueTitle: "Ce que Premium t'apporte",
-      v1: "Simulateur avancé complet (drawdown, clustering, Kelly, lot auto)",
-      v2: "Analyse Monte Carlo : ta probabilité réelle de passer",
-      v3: "Page Funded : payouts, scaling, equity mois par mois",
-      v4: "Mes Trades : importe ton backtest, verdict de réussite",
-      v5: "Journal de trading + captures MT4/MT5 illimitées",
-      v6: "Sauvegarde de toutes tes configurations",
-      year: "Annuel", month: "Mensuel",
-      yearPrice: "79,99 €", monthPrice: "9,99 €",
-      yearPer: "/an", monthPer: "/mois",
-      yearSave: "ÉCONOMISE 33 %", yearMonthly: "soit 6,67 €/mois",
+      riskTitle: "CE QUE TU RISQUES\nSANS PRÉPARATION",
+      r1: "150 à 600 € de frais de challenge perdus à chaque échec",
+      r2: "Des semaines de trading réel gâchées sur une stratégie non viable",
+      r3: "Repasser à la caisse encore et encore",
+      proTitle: "CE QUE PREMIUM\nT'APPORTE",
+      p1: "Simulateur avancé complet (drawdown, clustering, Kelly, lot auto)",
+      p2: "Analyse Monte Carlo : ta probabilité réelle de passer",
+      p3: "Page Funded : payouts, scaling, equity mois par mois",
+      p4: "Mes Trades : importe ton backtest, verdict de réussite",
+      p5: "Journal de trading + captures MT4/MT5 illimitées",
+      p6: "Sauvegarde de toutes tes configurations",
+      toolBanner: "UN OUTIL CONÇU PAR ET POUR LES TRADERS",
+      f1a: "Plus de données.", f1b: "Meilleures décisions.",
+      f2: "Valide ta stratégie avant de risquer.",
+      f3: "Évite les erreurs coûteuses.",
+      f4: "Maximise tes chances de succès.",
+      popular: "POPULAIRE",
       bestValue: "MEILLEUR PRIX",
-      cta: "Continuer",
-      ctaTrial: daysLeft > 0 ? "Continuer mon essai" : "S'abonner maintenant",
+      monthLabel: "Mensuel", monthPrice: "9,99 €", monthPer: "/mois",
+      yearLabel: "Annuel", yearPrice: "79,99 €", yearPer: "/an",
+      yearSave: "ÉCONOMISE 33 %", yearSub: "soit 6,67 €/mois",
+      trust1: "Paiement 100 % sécurisé", trust2: "Annulation à tout moment", trust3: "Satisfait ou remboursé",
+      cta: expired ? "S'abonner maintenant" : "Continuer mon essai",
+      stars: "Rejoint par des milliers de traders prop firm",
       restore: "Restaurer mes achats",
-      terms: "Sans engagement · Annulable à tout moment",
-      socialProof: "Rejoint par des milliers de traders prop firm",
     },
     en: {
-      title: "Unlock your full potential",
+      badge: expired ? "Trial ended" : daysLeft + " trial days left",
+      title1: "Unlock your", title2: "full potential",
       sub: "Traders who validate their strategy BEFORE the challenge avoid losing their entry fees.",
-      expired: "Your free trial has ended",
-      expiring: daysLeft <= 2 ? `Only ${daysLeft} day${daysLeft>1?"s":""} of trial left` : `${daysLeft} trial days left`,
-      lossTitle: "What you risk without preparation",
-      loss1: "$150 to $600 in challenge fees lost on every failure",
-      loss2: "Weeks of real trading wasted on a non-viable strategy",
-      loss3: "Paying again and again",
-      valueTitle: "What Premium gives you",
-      v1: "Full advanced simulator (drawdown, clustering, Kelly, auto lot)",
-      v2: "Monte Carlo analysis: your real probability of passing",
-      v3: "Funded page: payouts, scaling, month-by-month equity",
-      v4: "My Trades: import your backtest, pass/fail verdict",
-      v5: "Trading journal + unlimited MT4/MT5 screenshots",
-      v6: "Save all your configurations",
-      year: "Annual", month: "Monthly",
-      yearPrice: "$79.99", monthPrice: "$9.99",
-      yearPer: "/yr", monthPer: "/mo",
-      yearSave: "SAVE 33%", yearMonthly: "$6.67/month",
-      bestValue: "BEST VALUE",
-      cta: "Continue",
-      ctaTrial: daysLeft > 0 ? "Continue my trial" : "Subscribe now",
+      riskTitle: "WHAT YOU RISK\nWITHOUT PREP",
+      r1: "$150 to $600 in challenge fees lost on every failure",
+      r2: "Weeks of real trading wasted on a non-viable strategy",
+      r3: "Paying again and again",
+      proTitle: "WHAT PREMIUM\nGIVES YOU",
+      p1: "Full advanced simulator (drawdown, clustering, Kelly, auto lot)",
+      p2: "Monte Carlo: your real probability of passing",
+      p3: "Funded page: payouts, scaling, month-by-month equity",
+      p4: "My Trades: import your backtest, pass/fail verdict",
+      p5: "Trading journal + unlimited MT4/MT5 screenshots",
+      p6: "Save all your configurations",
+      toolBanner: "A TOOL BUILT BY AND FOR TRADERS",
+      f1a: "More data.", f1b: "Better decisions.",
+      f2: "Validate before risking.", f3: "Avoid costly mistakes.", f4: "Maximize your success.",
+      popular: "POPULAR", bestValue: "BEST VALUE",
+      monthLabel: "Monthly", monthPrice: "$9.99", monthPer: "/mo",
+      yearLabel: "Annual", yearPrice: "$79.99", yearPer: "/yr",
+      yearSave: "SAVE 33%", yearSub: "$6.67/month",
+      trust1: "100% secure payment", trust2: "Cancel anytime", trust3: "Satisfied or refunded",
+      cta: expired ? "Subscribe now" : "Continue my trial",
+      stars: "Joined by thousands of prop firm traders",
       restore: "Restore purchases",
-      terms: "No commitment · Cancel anytime",
-      socialProof: "Joined by thousands of prop firm traders",
     },
     es: {
-      title: "Desbloquea todo tu potencial",
-      sub: "Los traders que validan su estrategia ANTES del challenge evitan perder sus cuotas de inscripción.",
-      expired: "Tu prueba gratuita ha terminado",
-      expiring: daysLeft <= 2 ? `Solo ${daysLeft} día${daysLeft>1?"s":""} de prueba` : `${daysLeft} días de prueba restantes`,
-      lossTitle: "Lo que arriesgas sin preparación",
-      loss1: "150 a 600 € en cuotas de challenge perdidas en cada fallo",
-      loss2: "Semanas de trading real desperdiciadas en una estrategia no viable",
-      loss3: "Pagar una y otra vez",
-      valueTitle: "Lo que Premium te aporta",
-      v1: "Simulador avanzado completo (drawdown, clustering, Kelly, lote auto)",
-      v2: "Análisis Monte Carlo: tu probabilidad real de pasar",
-      v3: "Página Funded: payouts, scaling, equity mes a mes",
-      v4: "Mis Trades: importa tu backtest, veredicto de éxito",
-      v5: "Diario de trading + capturas MT4/MT5 ilimitadas",
-      v6: "Guarda todas tus configuraciones",
-      year: "Anual", month: "Mensual",
-      yearPrice: "79,99 €", monthPrice: "9,99 €",
-      yearPer: "/año", monthPer: "/mes",
-      yearSave: "AHORRA 33%", yearMonthly: "6,67 €/mes",
-      bestValue: "MEJOR PRECIO",
-      cta: "Continuar",
-      ctaTrial: daysLeft > 0 ? "Continuar mi prueba" : "Suscribirse ahora",
+      badge: expired ? "Prueba terminada" : daysLeft + " días de prueba restantes",
+      title1: "Desbloquea tu", title2: "pleno potencial",
+      sub: "Los traders que validan su estrategia ANTES del challenge evitan perder sus cuotas.",
+      riskTitle: "LO QUE ARRIESGAS\nSIN PREPARACIÓN",
+      r1: "150 a 600€ en cuotas de challenge en cada fallo",
+      r2: "Semanas de trading real desperdiciadas en una estrategia no viable",
+      r3: "Pagar una y otra vez",
+      proTitle: "LO QUE PREMIUM\nTE APORTA",
+      p1: "Simulador avanzado completo (drawdown, clustering, Kelly, lote auto)",
+      p2: "Monte Carlo: tu probabilidad real de pasar",
+      p3: "Página Funded: payouts, scaling, equity mes a mes",
+      p4: "Mis Trades: importa tu backtest, veredicto de éxito",
+      p5: "Diario de trading + capturas MT4/MT5 ilimitadas",
+      p6: "Guarda todas tus configuraciones",
+      toolBanner: "UNA HERRAMIENTA CREADA POR Y PARA TRADERS",
+      f1a: "Más datos.", f1b: "Mejores decisiones.",
+      f2: "Valida antes de arriesgar.", f3: "Evita errores costosos.", f4: "Maximiza tus opciones.",
+      popular: "POPULAR", bestValue: "MEJOR PRECIO",
+      monthLabel: "Mensual", monthPrice: "9,99 €", monthPer: "/mes",
+      yearLabel: "Anual", yearPrice: "79,99 €", yearPer: "/año",
+      yearSave: "AHORRA 33%", yearSub: "6,67 €/mes",
+      trust1: "Pago 100% seguro", trust2: "Cancela cuando quieras", trust3: "Satisfecho o reembolsado",
+      cta: expired ? "Suscribirse ahora" : "Continuar mi prueba",
+      stars: "Miles de traders prop firm",
       restore: "Restaurar compras",
-      terms: "Sin compromiso · Cancela cuando quieras",
-      socialProof: "Se han unido miles de traders de prop firm",
     },
   };
   const x = L[lang] || L.en;
-  const expired = daysLeft <= 0;
+
+  // SVGs inline réutilisables
+  const IconShieldAlert = () => (
+    <svg width="28" height="32" viewBox="0 0 28 32" fill="none">
+      <path d="M14 1L2 6v9c0 7.18 5.14 13.9 12 15.5C20.86 28.9 26 22.18 26 15V6L14 1z" fill="rgba(239,68,68,0.2)" stroke="#ef4444" strokeWidth="1.5"/>
+      <path d="M14 10v6M14 19.5v.5" stroke="#ef4444" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  );
+  const IconShieldCheck = () => (
+    <svg width="28" height="32" viewBox="0 0 28 32" fill="none">
+      <path d="M14 1L2 6v9c0 7.18 5.14 13.9 12 15.5C20.86 28.9 26 22.18 26 15V6L14 1z" fill="rgba(110,231,183,0.15)" stroke="#6ee7b7" strokeWidth="1.5"/>
+      <path d="M9 16l3.5 3.5L19 12" stroke="#6ee7b7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
 
   return (
-    <div style={{ minHeight:"100vh", background:"#06090f", maxWidth:480, margin:"0 auto", position:"relative", overflow:"hidden", fontFamily:"-apple-system, sans-serif", paddingBottom:"calc(28px + env(safe-area-inset-bottom))" }}>
-      {/* Halo premium */}
-      <div style={{ position:"absolute", top:-40, left:"50%", transform:"translateX(-50%)", width:360, height:360, borderRadius:"50%", background:"radial-gradient(circle, rgba(110,231,183,0.20) 0%, transparent 68%)", pointerEvents:"none", zIndex:0 }} />
+    <div style={{
+      height: "100dvh", minHeight: "100vh",
+      background: "#06090f",
+      maxWidth: 480, margin: "0 auto",
+      position: "relative", overflow: "hidden",
+      fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
+      display: "flex", flexDirection: "column",
+    }}>
+      {/* Halo ambiant */}
+      <div style={{ position:"absolute", top:-60, left:"50%", transform:"translateX(-50%)", width:380, height:260, borderRadius:"50%", background:"radial-gradient(ellipse, rgba(110,231,183,0.13) 0%, transparent 70%)", pointerEvents:"none", zIndex:0 }} />
 
-      <div style={{ position:"relative", zIndex:1, padding:"calc(16px + env(safe-area-inset-top)) 22px 0" }}>
-        {/* Close (si autorisé) */}
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14, minHeight:34 }}>
-          <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px", borderRadius:16, background: expired ? "rgba(239,68,68,0.12)" : "rgba(251,191,36,0.12)", border:"1px solid " + (expired ? "rgba(239,68,68,0.3)":"rgba(251,191,36,0.3)") }}>
-            <span style={{ fontSize:12, fontWeight:700, color: expired ? "#f87171" : "#fbbf24" }}>
-              {expired ? x.expired : x.expiring}
-            </span>
+      <div style={{
+        position: "relative", zIndex: 1,
+        padding: "calc(env(safe-area-inset-top,14px) + 10px) 18px 0",
+        flex: 1, display: "flex", flexDirection: "column",
+        gap: 0,
+      }}>
+
+        {/* ── HEADER : badge + fermeture ── */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 10 }}>
+          <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"5px 12px", borderRadius:20, background: expired?"rgba(239,68,68,0.12)":"rgba(251,191,36,0.12)", border:"1px solid "+(expired?"rgba(239,68,68,0.3)":"rgba(251,191,36,0.3)") }}>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <circle cx="6" cy="6" r="5" stroke={expired?"#f87171":"#fbbf24"} strokeWidth="1.2"/>
+              <path d="M6 3.5v3M6 8v.5" stroke={expired?"#f87171":"#fbbf24"} strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+            <span style={{ fontSize:11, fontWeight:700, color:expired?"#f87171":"#fbbf24" }}>{x.badge}</span>
           </div>
-          {canClose && !expired && (
-            <button onClick={onClose} style={{ width:34, height:34, borderRadius:17, background:"rgba(255,255,255,0.08)", border:"none", color:"rgba(255,255,255,0.6)", fontSize:16, cursor:"pointer" }}>✕</button>
+          {canClose && (
+            <button onClick={onClose} style={{ width:30, height:30, borderRadius:15, background:"rgba(255,255,255,0.10)", border:"1px solid rgba(255,255,255,0.12)", color:"rgba(255,255,255,0.7)", fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
           )}
         </div>
 
-        {/* Titre */}
-        <div style={{ fontSize:27, fontWeight:800, color:"#fff", lineHeight:1.12, letterSpacing:-0.5, marginBottom:10 }}>
-          {x.title}
+        {/* ── TITRE ── */}
+        <div style={{ fontSize:26, fontWeight:800, color:"#fff", lineHeight:1.15, letterSpacing:-0.5, marginBottom:5 }}>
+          {x.title1}{" "}<span style={{ color:"#6ee7b7" }}>{x.title2}</span>
         </div>
-        <div style={{ fontSize:14, color:"rgba(255,255,255,0.6)", lineHeight:1.5, marginBottom:22 }}>
-          {x.sub}
-        </div>
+        <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)", lineHeight:1.45, marginBottom:10 }}>{x.sub}</div>
 
-        {/* Bloc aversion à la perte */}
-        <div style={{ background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.18)", borderRadius:16, padding:"15px 16px", marginBottom:18 }}>
-          <div style={{ fontSize:11, fontWeight:700, color:"#f87171", textTransform:"uppercase", letterSpacing:1, marginBottom:10 }}>
-            {x.lossTitle}
+        {/* ── DEUX CARTES CÔTE À CÔTE ── */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10, flex:"0 0 auto" }}>
+
+          {/* Carte risques */}
+          <div style={{ background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.22)", borderRadius:14, padding:"10px 10px" }}>
+            <div style={{ marginBottom:7, display:"flex", justifyContent:"center" }}><IconShieldAlert /></div>
+            <div style={{ fontSize:9, fontWeight:800, color:"#ef4444", textTransform:"uppercase", letterSpacing:0.6, lineHeight:1.3, textAlign:"center", marginBottom:8, whiteSpace:"pre-line" }}>{x.riskTitle}</div>
+            {[x.r1, x.r2, x.r3].map((r, i) => (
+              <div key={i} style={{ display:"flex", gap:5, marginBottom:i<2?5:0, alignItems:"flex-start" }}>
+                <span style={{ color:"#ef4444", fontSize:10, fontWeight:700, flexShrink:0, marginTop:1 }}>×</span>
+                <span style={{ fontSize:10, color:"rgba(255,255,255,0.7)", lineHeight:1.4 }}>{r}</span>
+              </div>
+            ))}
           </div>
-          {[x.loss1, x.loss2, x.loss3].map((l, i) => (
-            <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:9, marginBottom: i<2?8:0 }}>
-              <span style={{ color:"#f87171", fontSize:13, lineHeight:1.4, flexShrink:0 }}>✕</span>
-              <span style={{ fontSize:13, color:"rgba(255,255,255,0.75)", lineHeight:1.45 }}>{l}</span>
-            </div>
-          ))}
-        </div>
 
-        {/* Bloc valeur */}
-        <div style={{ background:"rgba(110,231,183,0.05)", border:"1px solid rgba(110,231,183,0.18)", borderRadius:16, padding:"15px 16px", marginBottom:22 }}>
-          <div style={{ fontSize:11, fontWeight:700, color:"#6ee7b7", textTransform:"uppercase", letterSpacing:1, marginBottom:10 }}>
-            {x.valueTitle}
+          {/* Carte premium */}
+          <div style={{ background:"rgba(110,231,183,0.05)", border:"1px solid rgba(110,231,183,0.22)", borderRadius:14, padding:"10px 10px" }}>
+            <div style={{ marginBottom:7, display:"flex", justifyContent:"center" }}><IconShieldCheck /></div>
+            <div style={{ fontSize:9, fontWeight:800, color:"#6ee7b7", textTransform:"uppercase", letterSpacing:0.6, lineHeight:1.3, textAlign:"center", marginBottom:8, whiteSpace:"pre-line" }}>{x.proTitle}</div>
+            {[x.p1, x.p2, x.p3, x.p4, x.p5, x.p6].map((p, i) => (
+              <div key={i} style={{ display:"flex", gap:5, marginBottom:i<5?4:0, alignItems:"flex-start" }}>
+                <span style={{ color:"#6ee7b7", fontSize:10, fontWeight:700, flexShrink:0, marginTop:1 }}>✓</span>
+                <span style={{ fontSize:10, color:"rgba(255,255,255,0.8)", lineHeight:1.4 }}>{p}</span>
+              </div>
+            ))}
           </div>
-          {[x.v1, x.v2, x.v3, x.v4, x.v5, x.v6].map((v, i) => (
-            <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:9, marginBottom: i<5?9:0 }}>
-              <span style={{ color:"#6ee7b7", fontSize:13, lineHeight:1.4, flexShrink:0, fontWeight:700 }}>✓</span>
-              <span style={{ fontSize:13, color:"rgba(255,255,255,0.85)", lineHeight:1.45 }}>{v}</span>
-            </div>
-          ))}
         </div>
 
-        {/* Sélecteur de plan */}
-        <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:18 }}>
+        {/* ── BANDEAU SOCIAL PROOF ── */}
+        <div style={{ marginBottom:10 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+            <div style={{ flex:1, height:1, background:"rgba(110,231,183,0.15)" }} />
+            <div style={{ display:"flex", alignItems:"center", gap:5, fontSize:9, fontWeight:800, color:"rgba(255,255,255,0.5)", textTransform:"uppercase", letterSpacing:0.8 }}>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1l1.2 3.6H11L8.1 6.9l1.1 3.6L6 8.3l-3.2 2.2L3.9 6.9 1 4.6h3.8L6 1z" fill="#fbbf24"/></svg>
+              {x.toolBanner}
+            </div>
+            <div style={{ flex:1, height:1, background:"rgba(110,231,183,0.15)" }} />
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:6 }}>
+            {[
+              { icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="1" y="10" width="3" height="7" rx="1" fill="#6ee7b7"/><rect x="6" y="7" width="3" height="10" rx="1" fill="#6ee7b7"/><rect x="11" y="3" width="3" height="14" rx="1" fill="#6ee7b7"/><rect x="16" y="1" width="1" height="16" rx="0.5" fill="rgba(110,231,183,0.2)"/></svg>, a: x.f1a, b: x.f1b },
+              { icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="#6ee7b7" strokeWidth="1.3"/><circle cx="9" cy="9" r="4.5" stroke="#6ee7b7" strokeWidth="1.3"/><circle cx="9" cy="9" r="1.5" fill="#6ee7b7"/><path d="M14 4.5l1-1" stroke="#6ee7b7" strokeWidth="1.3" strokeLinecap="round"/></svg>, a: x.f2 },
+              { icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 1L2 5v5c0 4.42 3.08 8.54 7 9.5 3.92-.96 7-5.08 7-9.5V5L9 1z" stroke="#6ee7b7" strokeWidth="1.3"/><path d="M6 9l2 2 4-4" stroke="#6ee7b7" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>, a: x.f3 },
+              { icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 14l4-4 3 3 5-6 3 3" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>, a: x.f4 },
+            ].map((item, i) => (
+              <div key={i} style={{ textAlign:"center" }}>
+                <div style={{ display:"flex", justifyContent:"center", marginBottom:3 }}>{item.icon}</div>
+                <div style={{ fontSize:9, color:"rgba(255,255,255,0.6)", lineHeight:1.3 }}>
+                  {item.a}{item.b ? <><br/><span style={{ fontWeight:700, color:"rgba(255,255,255,0.85)" }}>{item.b}</span></> : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── PLANS : Annuel + Mensuel ── */}
+        <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:8 }}>
+
           {/* Annuel */}
           <div onClick={() => setPlan("year")} style={{
-            position:"relative", borderRadius:16, padding:"16px 18px", cursor:"pointer",
-            background: plan==="year" ? "rgba(110,231,183,0.10)" : "rgba(255,255,255,0.04)",
-            border: "2px solid " + (plan==="year" ? "#6ee7b7" : "rgba(255,255,255,0.10)"),
+            position:"relative", borderRadius:14, padding:"10px 14px", cursor:"pointer",
+            background: plan==="year" ? "rgba(110,231,183,0.08)" : "rgba(255,255,255,0.03)",
+            border:"1.5px solid "+(plan==="year" ? "#6ee7b7" : "rgba(255,255,255,0.10)"),
           }}>
-            <div style={{ position:"absolute", top:-10, right:16, background:"#6ee7b7", color:"#000", fontSize:9, fontWeight:800, padding:"3px 9px", borderRadius:8, letterSpacing:0.5 }}>
-              {x.bestValue}
-            </div>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div>
-                <div style={{ fontSize:15, fontWeight:700, color:"#fff" }}>{x.year}</div>
-                <div style={{ fontSize:11, color:"#6ee7b7", marginTop:2, fontWeight:600 }}>{x.yearSave} · {x.yearMonthly}</div>
+            <div style={{ position:"absolute", top:-9, right:12, background:"rgba(110,231,183,0.15)", color:"#6ee7b7", fontSize:8, fontWeight:800, padding:"2px 8px", borderRadius:6, border:"1px solid rgba(110,231,183,0.3)", letterSpacing:0.5 }}>{x.bestValue}</div>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <div style={{ width:36, height:36, borderRadius:10, background:"rgba(110,231,183,0.12)", border:"1px solid rgba(110,231,183,0.2)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2l2 4h5l-4 3 1.5 4.5L9 11l-4.5 2.5L6 9 2 6h5L9 2z" fill="#6ee7b7" opacity="0.9"/></svg>
               </div>
-              <div style={{ textAlign:"right" }}>
-                <div style={{ fontSize:20, fontWeight:800, color:"#fff" }}>{x.yearPrice}</div>
-                <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{x.yearPer}</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:14, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", gap:6 }}>
+                  {x.yearLabel}
+                  <span style={{ fontSize:8, fontWeight:800, background:"rgba(110,231,183,0.18)", color:"#6ee7b7", padding:"2px 6px", borderRadius:4 }}>{x.yearSave}</span>
+                </div>
+                <div style={{ fontSize:10, color:"rgba(255,255,255,0.45)", marginTop:1 }}>{x.yearSub}</div>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <div style={{ textAlign:"right" }}>
+                  <div style={{ fontSize:18, fontWeight:800, color:"#fff" }}>{x.yearPrice}</div>
+                  <div style={{ fontSize:9, color:"rgba(255,255,255,0.4)" }}>{x.yearPer}</div>
+                </div>
+                <div style={{ width:26, height:26, borderRadius:13, background: plan==="year"?"#6ee7b7":"rgba(255,255,255,0.08)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3.5 2l3.5 3-3.5 3" stroke={plan==="year"?"#000":"rgba(255,255,255,0.5)"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
               </div>
             </div>
           </div>
-          {/* Mensuel */}
+
+          {/* Mensuel — POPULAIRE */}
           <div onClick={() => setPlan("month")} style={{
-            borderRadius:16, padding:"16px 18px", cursor:"pointer",
-            background: plan==="month" ? "rgba(110,231,183,0.10)" : "rgba(255,255,255,0.04)",
-            border: "2px solid " + (plan==="month" ? "#6ee7b7" : "rgba(255,255,255,0.10)"),
+            position:"relative", borderRadius:14, padding:"10px 14px", cursor:"pointer",
+            background: plan==="month" ? "rgba(110,231,183,0.08)" : "rgba(255,255,255,0.03)",
+            border:"1.5px solid "+(plan==="month" ? "#6ee7b7" : "rgba(255,255,255,0.10)"),
           }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div style={{ fontSize:15, fontWeight:700, color:"#fff" }}>{x.month}</div>
-              <div style={{ textAlign:"right" }}>
-                <div style={{ fontSize:20, fontWeight:800, color:"#fff" }}>{x.monthPrice}</div>
-                <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{x.monthPer}</div>
+            <div style={{ position:"absolute", top:-9, right:12, background:"#6ee7b7", color:"#000", fontSize:8, fontWeight:800, padding:"2px 8px", borderRadius:6, letterSpacing:0.5 }}>{x.popular}</div>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <div style={{ width:36, height:36, borderRadius:10, background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="3" width="14" height="12" rx="2" stroke="rgba(255,255,255,0.6)" strokeWidth="1.3"/><path d="M2 7h14" stroke="rgba(255,255,255,0.6)" strokeWidth="1.3"/><circle cx="5.5" cy="11" r="1" fill="rgba(255,255,255,0.5)"/><circle cx="9" cy="11" r="1" fill="rgba(255,255,255,0.5)"/></svg>
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:14, fontWeight:700, color:"#fff" }}>{x.monthLabel}</div>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <div style={{ textAlign:"right" }}>
+                  <div style={{ fontSize:18, fontWeight:800, color:"#fff" }}>{x.monthPrice}</div>
+                  <div style={{ fontSize:9, color:"rgba(255,255,255,0.4)" }}>{x.monthPer}</div>
+                </div>
+                <div style={{ width:26, height:26, borderRadius:13, background: plan==="month"?"#6ee7b7":"rgba(255,255,255,0.08)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3.5 2l3.5 3-3.5 3" stroke={plan==="month"?"#000":"rgba(255,255,255,0.5)"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* CTA principal */}
-        <button onClick={() => onSubscribe(plan)} style={{
-          width:"100%", padding:"18px", borderRadius:16, border:"none",
-          background:"linear-gradient(135deg, #6ee7b7, #34d399)", color:"#000",
-          fontSize:17, fontWeight:800, cursor:"pointer", boxShadow:"0 6px 24px rgba(110,231,183,0.3)",
-          marginBottom:12,
-        }}>
-          {x.ctaTrial}
+        {/* ── TRUST BADGES ── */}
+        <div style={{ display:"flex", justifyContent:"center", gap:16, marginBottom:10 }}>
+          {[
+            { icon:<svg width="11" height="13" viewBox="0 0 11 13" fill="none"><rect x="1" y="5" width="9" height="7" rx="1.5" stroke="rgba(255,255,255,0.4)" strokeWidth="1.1"/><path d="M3 5V3.5a2.5 2.5 0 015 0V5" stroke="rgba(255,255,255,0.4)" strokeWidth="1.1" strokeLinecap="round"/><circle cx="5.5" cy="8.5" r="1" fill="rgba(255,255,255,0.4)"/></svg>, label:x.trust1 },
+            { icon:<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M11 6.5A4.5 4.5 0 112 4" stroke="rgba(255,255,255,0.4)" strokeWidth="1.1" strokeLinecap="round"/><path d="M2 1.5V4H4.5" stroke="rgba(255,255,255,0.4)" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/></svg>, label:x.trust2 },
+            { icon:<svg width="12" height="13" viewBox="0 0 12 13" fill="none"><path d="M6 1L1 3.5v4c0 3 2 5.5 5 6 3-.5 5-3 5-6v-4L6 1z" stroke="rgba(255,255,255,0.4)" strokeWidth="1.1"/><path d="M3.5 6.5l1.5 1.5 3-3" stroke="rgba(255,255,255,0.4)" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/></svg>, label:x.trust3 },
+          ].map((b, i) => (
+            <div key={i} style={{ display:"flex", alignItems:"center", gap:4 }}>
+              {b.icon}
+              <span style={{ fontSize:9, color:"rgba(255,255,255,0.45)", whiteSpace:"nowrap" }}>{b.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* ── CTA BUTTON ── */}
+        <button
+          onClick={() => onSubscribe(plan)}
+          style={{
+            width:"100%", padding:"16px", borderRadius:16, border:"none",
+            background:"linear-gradient(135deg, #6ee7b7, #34d399)",
+            color:"#000", fontSize:16, fontWeight:800, cursor:"pointer",
+            boxShadow:"0 6px 24px rgba(110,231,183,0.35)", marginBottom:8,
+            letterSpacing:-0.2,
+          }}>
+          {x.cta}
         </button>
 
-        {/* Preuve sociale */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginBottom:14 }}>
-          <span style={{ color:"#fbbf24", fontSize:13, letterSpacing:1 }}>★★★★★</span>
-          <span style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{x.socialProof}</span>
+        {/* ── STARS + RESTORE ── */}
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, paddingBottom:"calc(env(safe-area-inset-bottom,12px) + 8px)" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+            <span style={{ color:"#fbbf24", fontSize:12, letterSpacing:1.5 }}>★★★★★</span>
+            <span style={{ fontSize:10, color:"rgba(255,255,255,0.45)" }}>{x.stars}</span>
+          </div>
+          <button onClick={() => onSubscribe("restore")} style={{ background:"none", border:"none", color:"rgba(255,255,255,0.3)", fontSize:10, cursor:"pointer", padding:"2px 0" }}>{x.restore}</button>
         </div>
 
-        {/* Restore + terms */}
-        <div style={{ textAlign:"center" }}>
-          <button onClick={() => onSubscribe("restore")} style={{ background:"none", border:"none", color:"rgba(255,255,255,0.5)", fontSize:13, fontWeight:600, cursor:"pointer", marginBottom:8 }}>
-            {x.restore}
-          </button>
-          <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)" }}>{x.terms}</div>
-        </div>
       </div>
     </div>
   );
@@ -6538,11 +6633,20 @@ function PaywallScreen({ t, lang, daysLeft, onSubscribe, onClose, canClose = tru
 export default function App() {
   const app0 = loadApp();
   const [lang, setLangState] = useState(app0.profile?.lang ?? null);
+
   const [onboarded, setOnboarded] = useState(app0.onboarded ?? false);
   const [user, setUser] = useState(app0.user ?? null);
   // ── Premium / trial ──
   const [premium, setPremium] = useState(() => loadPremium());
   const [showPaywall, setShowPaywall] = useState(false);
+  // Paywall d'onboarding : affiché une seule fois après le ProfileSetup
+  const [onboardingPaywallDone, setOnboardingPaywallDone] = useState(() => {
+    return localStorage.getItem("eapropfirm_ob_paywall") === "1";
+  });
+  const dismissOnboardingPaywall = () => {
+    setOnboardingPaywallDone(true);
+    try { localStorage.setItem("eapropfirm_ob_paywall", "1"); } catch(e) {}
+  };
   // Recalcule l'accès premium (abonné ou trial actif)
   const premiumAccess = premium.subscribed || (() => {
     if (!premium.trialStart) return true; // trial pas encore démarré = accès le temps du setup
@@ -6667,6 +6771,25 @@ export default function App() {
     return <ProfileSetupScreen t={t} lang={lang} setLang={setLang} onDone={(p) => { setProfile(p); setSetupDone(true); }} />;
   }
 
+  // ── Paywall d'onboarding — affiché une seule fois après le ProfileSetup ──
+  // L'utilisateur peut continuer son essai en appuyant sur "Continuer mon essai"
+  if (!onboardingPaywallDone) {
+    return (
+      <PaywallScreen
+        t={t} lang={lang} daysLeft={daysLeft}
+        onSubscribe={(plan) => {
+          if (plan !== "restore") {
+            const p = savePremium({ subscribed: true, plan, subscribedAt: Date.now() });
+            setPremium(p);
+          }
+          dismissOnboardingPaywall();
+        }}
+        onClose={dismissOnboardingPaywall}
+        canClose={true}
+      />
+    );
+  }
+
   // Handler d'abonnement — pour l'instant simule l'achat, plus tard RevenueCat
   const handleSubscribe = (plan) => {
     if (plan === "restore") {
@@ -6702,6 +6825,9 @@ export default function App() {
   const logout = () => {
     fbSignOut().catch(() => {});
     setUser(null); saveApp({ user: null });
+    // Reset paywall onboarding pour le prochain login
+    setOnboardingPaywallDone(false);
+    try { localStorage.removeItem("eapropfirm_ob_paywall"); } catch(e) {}
   };
 
   return (
