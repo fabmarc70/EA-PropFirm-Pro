@@ -923,6 +923,13 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const clustering = clusteringPct / 100;
   const fee = challengeFee(capital);
   const w = winrate / 100;
+  // Calcul des jours de trading effectifs par mois selon récurrence EA
+  // Doit être défini AVANT monthlyTarget qui en dépend
+  const baseWeekDays = includeWeekend ? 7 : 5;
+  const activeDaysInBase = activeDays.filter(d => includeWeekend ? d >= 1 : d <= 5).length;
+  const activeDayRatio = baseWeekDays > 0 ? activeDaysInBase / baseWeekDays : 1;
+  const tdMonthRecurrence = Math.max(1, Math.round((includeWeekend ? 30 : 21) * activeDayRatio) - newsSkipDays);
+
   const monthlyTarget = dailyTarget * tdMonthRecurrence;
 
   // ══════════════════════════════════════════════════════════════
@@ -1016,14 +1023,6 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const effectiveSplitRate = newsImpact
     ? splitRate * (1 - newsRatio + newsRatio * 0.4)  // 85% normal + 15% × 40%
     : splitRate;
-
-  // Calcul des jours de trading effectifs par mois selon récurrence EA
-  // Semaines Lundi-Vendredi = 5j, donc ratio par rapport aux 5 jours ouvrés
-  const baseWeekDays = includeWeekend ? 7 : 5;
-  const activeDaysInBase = activeDays.filter(d => includeWeekend ? d >= 1 : d <= 5).length;
-  const activeDayRatio = baseWeekDays > 0 ? activeDaysInBase / baseWeekDays : 1;
-  // TD_MONTH_RECURRENCE = jours de base × ratio jours actifs - jours annonces évités
-  const tdMonthRecurrence = Math.max(1, Math.round((includeWeekend ? 30 : 21) * activeDayRatio) - newsSkipDays);
 
   const p = {
     tradesPerDay,
