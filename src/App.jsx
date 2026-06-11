@@ -2297,6 +2297,9 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
 }
 
 function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTargetPct, model, finalRR, tradesPerDay, firm, effectiveRiskAmount }) {
+  // ── Journal de trading (partagé avec l'accueil via useJournal) ──
+  const { journalMonth: jMonth, setJournalMonth: setJMonth, saveJournalEntry: saveJEntry, monthData: jMonthData } = useJournal();
+  const [showJournal, setShowJournal] = useState(false);
   const loadTrades = () => {
     try { const r = localStorage.getItem("eapropfirm_trades"); return r ? JSON.parse(r) : { trades: [], filename: null, initBalance: null, balanceReconstructed: false }; } catch (e) { return { trades: [], filename: null, initBalance: null, balanceReconstructed: false }; }
   };
@@ -3214,8 +3217,126 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
         </>
       )}
 
+      {/* ══════════════════════════════════════════════════════
+          JOURNAL DE TRADING — saisie manuelle + captures MT4/MT5
+          Données partagées avec le journal de la page d'accueil
+      ══════════════════════════════════════════════════════ */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 0 12px" }}>
+        <div style={{ flex: 1, height: 1, background: "rgba(110,231,183,0.15)" }} />
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", letterSpacing: 1.5 }}>
+          📓 Journal de trading
+        </div>
+        <div style={{ flex: 1, height: 1, background: "rgba(110,231,183,0.15)" }} />
+      </div>
+
+      {/* Toggle affichage journal */}
+      <div className="card" style={{ border: "1px solid rgba(110,231,183,0.12)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF", marginBottom: 2 }}>Mon journal réel</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.4 }}>
+              Saisis tes journées de trading et ajoute tes captures MT4/MT5. Synchronisé avec l'accueil.
+            </div>
+          </div>
+          <div onClick={() => setShowJournal(v => !v)} style={{
+            width: 38, height: 22, borderRadius: 11, background: showJournal ? "#6ee7b7" : "rgba(255,255,255,0.1)",
+            border: "1px solid " + (showJournal ? "#6ee7b7" : "rgba(255,255,255,0.1)"),
+            position: "relative", cursor: "pointer", transition: "all .2s", flexShrink: 0, marginLeft: 10,
+          }}>
+            <div style={{ position: "absolute", top: 2, left: showJournal ? 18 : 2, width: 16, height: 16, borderRadius: 8, background: "#fff", transition: "all .2s" }} />
+          </div>
+        </div>
+
+        {showJournal && (
+          <div style={{ marginTop: 12 }}>
+            {/* Sélecteur de mois */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <input
+                type="month"
+                value={jMonth}
+                onChange={e => setJMonth(e.target.value)}
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(110,231,183,0.2)", borderRadius: 10, padding: "8px 12px", color: "#FFFFFF", fontSize: 13, fontWeight: 600, outline: "none", colorScheme: "dark" }}
+              />
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+                {Object.keys(jMonthData).length} jour(s) saisi(s)
+              </span>
+            </div>
+            <CalendrierPnL
+              dailyLog={[]}
+              journalMode={true}
+              journalData={jMonthData}
+              onJournalSave={saveJEntry}
+              journalMonthLabel={"Clique un jour pour saisir tes trades · " + jMonth}
+            />
+          </div>
+        )}
+      </div>
+
     </div>
   );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// HOOK JOURNAL DE TRADING — partagé Dashboard + Mes Trades
+// Données dans localStorage "eapropfirm_journal", clé par mois YYYY-MM
+// Entrée jour : { wins, losses, pnl, images?: [base64...] }
+// ══════════════════════════════════════════════════════════════════
+function useJournal() {
+  const [journalMonth, setJournalMonth] = useState(() => {
+    const now = new Date();
+    return now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+  });
+  const [journal, setJournal] = useState(() => {
+    try { const r = localStorage.getItem("eapropfirm_journal"); return r ? JSON.parse(r) : {}; }
+    catch (e) { return {}; }
+  });
+  const saveJournalEntry = (day, entry) => {
+    setJournal(prev => {
+      const next = { ...prev };
+      if (!next[journalMonth]) next[journalMonth] = {};
+      else next[journalMonth] = { ...next[journalMonth] };
+      if (entry === null) {
+        delete next[journalMonth][String(day)];
+      } else {
+        next[journalMonth][String(day)] = entry;
+      }
+      try {
+        localStorage.setItem("eapropfirm_journal", JSON.stringify(next));
+      } catch (e) {
+        // Quota localStorage dépassé (souvent à cause des images)
+        alert("Stockage plein. Supprime quelques images du journal pour libérer de l'espace.");
+        return prev;
+      }
+      return next;
+    });
+  };
+  return { journal, journalMonth, setJournalMonth, saveJournalEntry, monthData: journal[journalMonth] || {} };
+}
+
+// Compresse une image (capture MT4/MT5) en JPEG base64 — max 900px, qualité 0.72
+function compressImage(file, maxDim = 900, quality = 0.72) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const ratio = Math.min(maxDim / width, maxDim / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null }) {
@@ -3224,6 +3345,9 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
   const [formWins, setFormWins] = useState("");
   const [formLosses, setFormLosses] = useState("");
   const [formGain, setFormGain] = useState("");
+  const [formImages, setFormImages] = useState([]); // captures MT4/MT5 (base64)
+  const [viewerImg, setViewerImg] = useState(null); // visionneuse plein écran
+  const [imgLoading, setImgLoading] = useState(false);
 
   if (!dailyLog || dailyLog.length === 0) {
     // En mode journal, on affiche quand même un calendrier vide à remplir
@@ -3381,6 +3505,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 setFormWins(existing ? String(existing.wins) : "");
                 setFormLosses(existing ? String(existing.losses) : "");
                 setFormGain(existing ? String(existing.pnl) : "");
+                setFormImages(existing && existing.images ? existing.images : []);
               }}
               style={{
                 background: emptyJournalCell ? "rgba(255,255,255,0.03)" : c.bg,
@@ -3413,10 +3538,13 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                       ? "$" + (cell.data.pnl / 1000).toFixed(1) + "k"
                       : "$" + Math.abs(cell.data.pnl).toFixed(0)}
                   </div>
-                  <div style={{ display: "flex", justifyContent: "center", gap: 2 }}>
+                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 3 }}>
                     <span style={{ fontSize: 8, color: c.fg, opacity: 0.75 }}>
                       {cell.data.wins}W {cell.data.losses}L
                     </span>
+                    {journalMode && cell.journalEntry && cell.journalEntry.images && cell.journalEntry.images.length > 0 && (
+                      <span style={{ fontSize: 7 }}>📷</span>
+                    )}
                   </div>
                 </>
               )}
@@ -3471,6 +3599,58 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "10px 12px", color: "#FFFFFF", fontSize: 15, fontWeight: 600, outline: "none", boxSizing: "border-box" }} />
             </div>
 
+            {/* Upload captures MT4/MT5 */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", display: "block", marginBottom: 6 }}>
+                Captures d'écran MT4/MT5 ({formImages.length}/3)
+              </label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {formImages.map((img, idx) => (
+                  <div key={idx} style={{ position: "relative", width: 64, height: 64 }}>
+                    <img
+                      src={img}
+                      alt={"capture " + (idx+1)}
+                      onClick={() => setViewerImg(img)}
+                      style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8, border: "1px solid rgba(110,231,183,0.25)", cursor: "pointer" }}
+                    />
+                    <button
+                      onClick={() => setFormImages(prev => prev.filter((_, i) => i !== idx))}
+                      style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: 9, background: "#ef4444", color: "#fff", border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                {formImages.length < 3 && (
+                  <label style={{
+                    width: 64, height: 64, borderRadius: 8, border: "1px dashed rgba(255,255,255,0.25)",
+                    display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                    background: "rgba(255,255,255,0.03)", flexDirection: "column", gap: 2,
+                  }}>
+                    <span style={{ fontSize: 18, color: "rgba(255,255,255,0.4)", lineHeight: 1 }}>{imgLoading ? "…" : "+"}</span>
+                    <span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>{imgLoading ? "" : "photo"}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: "none" }}
+                      onChange={async (e) => {
+                        const file = e.target.files && e.target.files[0];
+                        e.target.value = "";
+                        if (!file) return;
+                        setImgLoading(true);
+                        try {
+                          const compressed = await compressImage(file);
+                          setFormImages(prev => prev.length < 3 ? [...prev, compressed] : prev);
+                        } catch (err) {
+                          alert("Impossible de lire cette image.");
+                        }
+                        setImgLoading(false);
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+
             {/* Boutons */}
             <div style={{ display: "flex", gap: 8 }}>
               {journalData[String(editingDay)] && (
@@ -3490,7 +3670,9 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                   const wins = parseInt(formWins) || 0;
                   const losses = parseInt(formLosses) || 0;
                   const pnl = parseFloat(formGain) || 0;
-                  if (onJournalSave) onJournalSave(editingDay, { wins, losses, pnl });
+                  const entry = { wins, losses, pnl };
+                  if (formImages.length > 0) entry.images = formImages;
+                  if (onJournalSave) onJournalSave(editingDay, entry);
                   setEditingDay(null);
                 }}
                 style={{ flex: 1, padding: "11px 14px", borderRadius: 10, background: "#6ee7b7", color: "#000", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer" }}>
@@ -3498,6 +3680,24 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── VISIONNEUSE IMAGE PLEIN ÉCRAN ── */}
+      {viewerImg && (
+        <div
+          onClick={() => setViewerImg(null)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 1100, padding: 16, cursor: "pointer",
+          }}>
+          <img src={viewerImg} alt="capture" style={{ maxWidth: "100%", maxHeight: "90vh", borderRadius: 12, objectFit: "contain" }} />
+          <button
+            onClick={() => setViewerImg(null)}
+            style={{ position: "absolute", top: 18, right: 18, width: 36, height: 36, borderRadius: 18, background: "rgba(255,255,255,0.12)", color: "#fff", border: "none", fontSize: 16, fontWeight: 700, cursor: "pointer" }}>
+            ✕
+          </button>
         </div>
       )}
 
@@ -4761,32 +4961,9 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig }) 
   });
   const [renamingId, setRenamingId] = useState(null);
   const [renameVal, setRenameVal] = useState("");
-  // ── Journal de trading ──
+  // ── Journal de trading (hook partagé avec Mes Trades) ──
   const [journalMode, setJournalMode] = useState(false);
-  const [journalMonth, setJournalMonth] = useState(() => {
-    const now = new Date();
-    return now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
-  });
-  const [journal, setJournal] = useState(() => {
-    try { const r = localStorage.getItem("eapropfirm_journal"); return r ? JSON.parse(r) : {}; }
-    catch (e) { return {}; }
-  });
-  // Sauvegarde une entrée du journal pour le mois courant
-  const saveJournalEntry = (day, entry) => {
-    setJournal(prev => {
-      const next = { ...prev };
-      if (!next[journalMonth]) next[journalMonth] = {};
-      else next[journalMonth] = { ...next[journalMonth] };
-      if (entry === null) {
-        delete next[journalMonth][String(day)];
-      } else {
-        next[journalMonth][String(day)] = entry;
-      }
-      try { localStorage.setItem("eapropfirm_journal", JSON.stringify(next)); } catch (e) {}
-      return next;
-    });
-  };
-  const journalMonthData = journal[journalMonth] || {};
+  const { journalMonth, setJournalMonth, saveJournalEntry, monthData: journalMonthData } = useJournal();
 
   // ── Notifications cloche ──
   const [notifPref, setNotifPref] = useState(() => loadNotifPref());
