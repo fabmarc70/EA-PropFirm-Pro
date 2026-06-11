@@ -678,45 +678,85 @@ function simulateFunded(capital, months, model, p, split) {
 
 
 // ══════════════════════════════════════════════════════════════════
-// INFO TIP — petit bouton ⓘ avec tooltip au tap
+// INFO TIP — bouton ⓘ avec tooltip intelligent
+// Position calculée depuis getBoundingClientRect → jamais coupé
+// Style uniforme dans toute l'app : 13px, non-gras, fond #0f1a2e
 // ══════════════════════════════════════════════════════════════════
 function InfoTip({ text }) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ x: 0, y: 0, arrowX: 0 });
+  const btnRef = { current: null };
+
+  const handleClick = (e) => {
+    e.stopPropagation();
+    if (!open) {
+      const btn = e.currentTarget;
+      const rect = btn.getBoundingClientRect();
+      const TIP_W = 240;
+      const MARGIN = 12;
+      const vw = window.innerWidth || 375;
+      // Centre idéal sur le bouton
+      let x = rect.left + rect.width / 2 - TIP_W / 2;
+      // Clamp pour rester dans l'écran
+      const xClamped = Math.max(MARGIN, Math.min(x, vw - TIP_W - MARGIN));
+      // Position de la flèche relative à la bulle
+      const arrowX = Math.max(12, Math.min(rect.left + rect.width / 2 - xClamped, TIP_W - 12));
+      setPos({ x: xClamped, y: rect.bottom + 8, arrowX });
+    }
+    setOpen(v => !v);
+  };
+
   return (
-    <span style={{ position: "relative", display: "inline-flex", alignItems: "center", marginLeft: 6 }}>
+    <span style={{ display: "inline-flex", alignItems: "center", marginLeft: 5, flexShrink: 0 }}>
       <button
-        onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
+        onClick={handleClick}
         style={{
           width: 16, height: 16, borderRadius: "50%",
-          background: open ? "rgba(110,231,183,0.25)" : "rgba(255,255,255,0.12)",
-          border: "1px solid " + (open ? "#6ee7b7" : "rgba(255,255,255,0.25)"),
-          color: open ? "#6ee7b7" : "rgba(255,255,255,0.55)",
-          fontSize: 10, fontWeight: 700, lineHeight: "14px",
-          cursor: "pointer", padding: 0, display: "inline-flex",
-          alignItems: "center", justifyContent: "center",
+          background: open ? "rgba(110,231,183,0.22)" : "rgba(255,255,255,0.10)",
+          border: "1px solid " + (open ? "#6ee7b7" : "rgba(255,255,255,0.22)"),
+          color: open ? "#6ee7b7" : "rgba(255,255,255,0.45)",
+          fontSize: 9, fontWeight: 700, lineHeight: 1,
+          cursor: "pointer", padding: 0,
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
           flexShrink: 0, transition: "all .15s",
         }}
       >i</button>
+
       {open && (
         <>
-          {/* Overlay transparent pour fermer au clic */}
+          {/* Overlay fermeture */}
           <div
-            onClick={() => setOpen(false)}
+            onClick={(e) => { e.stopPropagation(); setOpen(false); }}
             style={{ position: "fixed", inset: 0, zIndex: 998 }}
           />
-          {/* Tooltip */}
+          {/* Bulle — position fixed, jamais coupée */}
           <div style={{
-            position: "absolute", top: 22, left: "50%", transform: "translateX(-50%)",
-            background: "#0f1a2e", border: "1px solid rgba(110,231,183,0.3)",
-            borderRadius: 10, padding: "10px 12px",
-            fontSize: 12, color: "rgba(255,255,255,0.85)", lineHeight: 1.55,
-            width: 230, zIndex: 999,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+            position: "fixed",
+            left: pos.x,
+            top: pos.y,
+            width: 240,
+            zIndex: 999,
+            background: "#0f1a2e",
+            border: "1px solid rgba(110,231,183,0.28)",
+            borderRadius: 12,
+            padding: "11px 13px",
+            // Style uniforme dans toute l'app
+            fontSize: 13,
+            fontWeight: 400,
+            color: "rgba(255,255,255,0.82)",
+            lineHeight: 1.55,
+            boxShadow: "0 8px 28px rgba(0,0,0,0.55)",
           }}>
-            <div style={{ position: "absolute", top: -5, left: "50%",
-              width: 8, height: 8, background: "#0f1a2e",
-              border: "1px solid rgba(110,231,183,0.3)", borderBottom: "none", borderRight: "none",
-              transform: "translateX(-50%) rotate(45deg)",
+            {/* Flèche positionnée dynamiquement */}
+            <div style={{
+              position: "absolute",
+              top: -5,
+              left: pos.arrowX - 4,
+              width: 8, height: 8,
+              background: "#0f1a2e",
+              border: "1px solid rgba(110,231,183,0.28)",
+              borderBottom: "none", borderRight: "none",
+              transform: "rotate(45deg)",
             }} />
             {text}
           </div>
@@ -912,7 +952,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       const t = setTimeout(() => setSaveStatus(""), 1500);
       return () => clearTimeout(t);
     } catch (e) { /* localStorage indisponible (artefact) - ignore */ }
-  }, [firmKey, modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, split, fundedMonths, instrument, lotSize, slPips, useFixedLot, includeWeekend]);
+  }, [firmKey, modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, split, fundedMonths, instrument, lotSize, slPips, useFixedLot, includeWeekend, activeDays.join(","), newsSkipDays]);
 
   const firm = PROP_FIRMS[firmKey] || PROP_FIRMS.fundednext;
   const firmModels = firm.models;
@@ -924,11 +964,14 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const fee = challengeFee(capital);
   const w = winrate / 100;
   // Calcul des jours de trading effectifs par mois selon récurrence EA
-  // Doit être défini AVANT monthlyTarget qui en dépend
+  // newsSkipDays = jours évités PAR SEMAINE (pas par mois)
+  // ex: 1 = évite 1 jour/semaine → ~4 jours/mois en moins
   const baseWeekDays = includeWeekend ? 7 : 5;
   const activeDaysInBase = activeDays.filter(d => includeWeekend ? d >= 1 : d <= 5).length;
-  const activeDayRatio = baseWeekDays > 0 ? activeDaysInBase / baseWeekDays : 1;
-  const tdMonthRecurrence = Math.max(1, Math.round((includeWeekend ? 30 : 21) * activeDayRatio) - newsSkipDays);
+  // Nombre de jours actifs effectifs par semaine (après soustraction news)
+  const effectiveActiveDaysPerWeek = Math.max(0, activeDaysInBase - newsSkipDays);
+  const activeDayRatio = baseWeekDays > 0 ? effectiveActiveDaysPerWeek / baseWeekDays : 1;
+  const tdMonthRecurrence = Math.max(1, Math.round((includeWeekend ? 30 : 21) * activeDayRatio));
 
   const monthlyTarget = dailyTarget * tdMonthRecurrence;
 
@@ -1137,7 +1180,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         } : null,
       });
     } catch (e) {}
-  }, [firmKey, modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, splitRate, fundedMonths, seed, useFixedLot, lotSize, slPips, instrument, newsImpact, includeWeekend]);
+  // activeDays (array) : on utilise join pour que React détecte les changements
+  }, [firmKey, modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, splitRate, fundedMonths, seed, useFixedLot, lotSize, slPips, instrument, newsImpact, includeWeekend, activeDays.join(","), newsSkipDays]);
 
   const netResult = () => {
     if (!sim) return null;
@@ -1811,9 +1855,9 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: 600 }}>
-                Jours d'annonces évités/mois
+                Jours d'annonces évités/semaine
               </div>
-              <InfoTip text={"Nombre de jours/mois où ton EA ne trade pas à cause des grosses annonces : NFP (1/mois), FOMC (~0.7/mois), CPI (1/mois), PPI (1/mois), etc. 0 = pas de filtre news."} />
+              <InfoTip text={"Nombre de jours/semaine où ton EA ne trade pas à cause des grosses annonces. Ex : NFP tous les 1ers vendredis → 1j/semaine ce vendredi-là. FOMC ~1 fois/mois. 0 = pas de filtre."} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               {/* Stepper */}
@@ -1828,7 +1872,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                 </div>
                 <button
                   onClick={() => setAndSaveNewsSkip(newsSkipDays + 1)}
-                  style={{ width: 40, height: "100%", background: newsSkipDays < 10 ? "rgba(251,191,36,0.10)" : "rgba(255,255,255,0.03)", border: "none", color: newsSkipDays < 10 ? "#fbbf24" : "rgba(255,255,255,0.15)", fontSize: 20, cursor: newsSkipDays < 10 ? "pointer" : "default", flexShrink: 0 }}>
+                  style={{ width: 40, height: "100%", background: newsSkipDays < activeDaysInBase ? "rgba(251,191,36,0.10)" : "rgba(255,255,255,0.03)", border: "none", color: newsSkipDays < activeDaysInBase ? "#fbbf24" : "rgba(255,255,255,0.15)", fontSize: 20, cursor: newsSkipDays < activeDaysInBase ? "pointer" : "default", flexShrink: 0 }}>
                   +
                 </button>
               </div>
@@ -1839,7 +1883,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             </div>
             {newsSkipDays > 0 && (
               <div style={{ marginTop: 7, fontSize: 10, color: "rgba(251,191,36,0.7)", lineHeight: 1.4 }}>
-                Ton EA évite {newsSkipDays} jour{newsSkipDays > 1 ? "s" : ""}/mois → simulation sur {tdMonthRecurrence} jour{tdMonthRecurrence > 1 ? "s" : ""}/mois réels.
+                Ton EA évite {newsSkipDays}j/semaine (~{Math.round(newsSkipDays * 4.33)}j/mois) → simulation sur {tdMonthRecurrence}j/mois.
               </div>
             )}
           </div>
