@@ -790,7 +790,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const [newsImpact, setNewsImpact] = useState(saved.newsImpact ?? false);
   // Weekend inclus : par défaut désactivé pour prop firm (forex 24/5), libre pour classique
   const [includeWeekend, setIncludeWeekend] = useState(saved.includeWeekend ?? false);
-  // payoutMonths = Set des mois COCHÉS (payout activé). Vide par défaut = tout décoché.
+  // payoutMonths = Set des mois DÉCOCHÉS (payout désactivé). Vide par défaut = TOUT COCHÉ.
   const [payoutMonths, setPayoutMonths] = useState(() => new Set());
   const togglePayoutMonth = (month) => setPayoutMonths(prev => {
     const next = new Set(prev);
@@ -798,18 +798,16 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     return next;
   });
   // Recalcule l'equity ET le payout ligne par ligne selon les coches.
-  // Logique : mois coché = payout sorti, equity repart de la base.
+  // Logique : mois coché (défaut) = payout sorti, equity repart de la base.
   //           mois décoché = profit reste dans l'equity du mois suivant.
   const computeEffectivePayouts = (data) => {
     if (!data) return {};
     const result = {};
-    // On repart de l'equity de base du premier mois
-    let runningEquity = data.length > 0 ? data[0].equity - (data[0].payout > 0 && payoutMonths.has(data[0].month) ? 0 : 0) : 0;
-    // Accumuler le profit non versé
     let accumulated = 0;
 
     data.forEach((r, i) => {
-      const isChecked = payoutMonths.has(r.month);
+      // isChecked = VRAI si le mois N'EST PAS dans payoutMonths (= coché par défaut)
+      const isChecked = !payoutMonths.has(r.month);
       // L'equity réelle de ce mois = equity simulée + ce qui s'est accumulé des mois précédents
       const baseEquity = r.equity; // equity originale de la simulation
       const effectiveEquity = +(baseEquity + accumulated).toFixed(2);
