@@ -97,6 +97,56 @@ const I18N = {
     yes: "Oui",
     no: "Non",
     cancel: "Annuler",
+    // ── Simulateur : config ──
+    sim_objective: "Objectif",
+    sim_risk_per_trade: "Risque par trade",
+    sim_how_much_risk: "Combien risques-tu par trade ?",
+    sim_weekend_included: "Weekend inclus",
+    sim_recurrence: "Récurrence EA",
+    sim_days_traded: "jours tradés",
+    sim_days_avoided: "évités",
+    sim_per_week: "semaine",
+    sim_days: "Jours",
+    sim_months: "Mois",
+    sim_statistics: "Statistiques",
+    sim_monthly_detail: "Détail Mensuel",
+    sim_view_funded: "Voir mon compte Funded",
+    sim_launch: "Lance une simulation",
+    sim_days_ea_trades: "Jours où ton EA trade",
+    sim_news_avoided_week: "Jours d'annonces évités/semaine",
+    sim_recurrence_estimate: "jour tradé/mois estimé",
+    // ── Calendrier / Journal ──
+    cal_title: "Calendrier PnL",
+    cal_journal_title: "Journal de trading",
+    cal_journal_mode: "Mode journal",
+    cal_day: "Jour",
+    cal_results_day: "Saisis tes résultats de la journée",
+    cal_wins: "Trades gagnants",
+    cal_losses: "Trades perdants",
+    cal_gain_loss: "Gain / Perte",
+    cal_screenshots: "Captures MT4/MT5",
+    cal_save: "Enregistrer",
+    cal_delete: "Effacer",
+    cal_results: "Résultats",
+    cal_month: "Mois",
+    cal_pnl_month: "P&L mois",
+    cal_best: "Meilleur",
+    cal_worst: "Pire",
+    cal_big_gain: "Gros gain",
+    cal_small_gain: "Petit gain",
+    cal_big_loss: "Grosse perte",
+    cal_small_loss: "Petite perte",
+    cal_days_entered: "jour(s) saisi(s)",
+    cal_click_day: "Clique un jour pour saisir tes trades",
+    // ── Dashboard ──
+    dash_overview_equity: "Aperçu Équité Funded",
+    dash_launch_funded: "Lance une simulation pour voir la courbe Funded",
+    dash_sim_legend: "Simulation",
+    dash_journal_legend: "Journal réel",
+    dash_continue: "Continuer",
+    // ── Commun ──
+    common_continue: "Continuer",
+    common_config: "Configuration",
   },
   es: {
     ob1_title: "Simula tu reto",
@@ -178,6 +228,56 @@ const I18N = {
     yes: "Si",
     no: "No",
     cancel: "Cancelar",
+    // ── Simulateur : config ──
+    sim_objective: "Objetivo",
+    sim_risk_per_trade: "Riesgo por trade",
+    sim_how_much_risk: "¿Cuánto arriesgas por trade?",
+    sim_weekend_included: "Fin de semana incluido",
+    sim_recurrence: "Recurrencia EA",
+    sim_days_traded: "días operados",
+    sim_days_avoided: "evitados",
+    sim_per_week: "semana",
+    sim_days: "Días",
+    sim_months: "Meses",
+    sim_statistics: "Estadísticas",
+    sim_monthly_detail: "Detalle Mensual",
+    sim_view_funded: "Ver mi cuenta Funded",
+    sim_launch: "Lanza una simulación",
+    sim_days_ea_trades: "Días en que tu EA opera",
+    sim_news_avoided_week: "Días de noticias evitados/semana",
+    sim_recurrence_estimate: "día operado/mes estimado",
+    // ── Calendrier / Journal ──
+    cal_title: "Calendario PnL",
+    cal_journal_title: "Diario de trading",
+    cal_journal_mode: "Modo diario",
+    cal_day: "Día",
+    cal_results_day: "Introduce tus resultados del día",
+    cal_wins: "Trades ganadores",
+    cal_losses: "Trades perdedores",
+    cal_gain_loss: "Ganancia / Pérdida",
+    cal_screenshots: "Capturas MT4/MT5",
+    cal_save: "Guardar",
+    cal_delete: "Borrar",
+    cal_results: "Resultados",
+    cal_month: "Mes",
+    cal_pnl_month: "P&L mes",
+    cal_best: "Mejor",
+    cal_worst: "Peor",
+    cal_big_gain: "Gran ganancia",
+    cal_small_gain: "Pequeña ganancia",
+    cal_big_loss: "Gran pérdida",
+    cal_small_loss: "Pequeña pérdida",
+    cal_days_entered: "día(s) introducido(s)",
+    cal_click_day: "Haz clic en un día para introducir tus trades",
+    // ── Dashboard ──
+    dash_overview_equity: "Resumen Equity Funded",
+    dash_launch_funded: "Lanza una simulación para ver la curva Funded",
+    dash_sim_legend: "Simulación",
+    dash_journal_legend: "Diario real",
+    dash_continue: "Continuar",
+    // ── Común ──
+    common_continue: "Continuar",
+    common_config: "Configuración",
   },
   en: {
     ob1_title: "Simulate your challenge",
@@ -259,6 +359,56 @@ const I18N = {
     yes: "Yes",
     no: "No",
     cancel: "Cancel",
+    // ── Simulator: config ──
+    sim_objective: "Target",
+    sim_risk_per_trade: "Risk per trade",
+    sim_how_much_risk: "How much do you risk per trade?",
+    sim_weekend_included: "Weekend included",
+    sim_recurrence: "EA Recurrence",
+    sim_days_traded: "days traded",
+    sim_days_avoided: "avoided",
+    sim_per_week: "week",
+    sim_days: "Days",
+    sim_months: "Months",
+    sim_statistics: "Statistics",
+    sim_monthly_detail: "Monthly Detail",
+    sim_view_funded: "View my Funded account",
+    sim_launch: "Run a simulation",
+    sim_days_ea_trades: "Days your EA trades",
+    sim_news_avoided_week: "News days avoided/week",
+    sim_recurrence_estimate: "day traded/month estimated",
+    // ── Calendar / Journal ──
+    cal_title: "PnL Calendar",
+    cal_journal_title: "Trading journal",
+    cal_journal_mode: "Journal mode",
+    cal_day: "Day",
+    cal_results_day: "Enter your daily results",
+    cal_wins: "Winning trades",
+    cal_losses: "Losing trades",
+    cal_gain_loss: "Gain / Loss",
+    cal_screenshots: "MT4/MT5 screenshots",
+    cal_save: "Save",
+    cal_delete: "Delete",
+    cal_results: "Results",
+    cal_month: "Month",
+    cal_pnl_month: "P&L month",
+    cal_best: "Best",
+    cal_worst: "Worst",
+    cal_big_gain: "Big gain",
+    cal_small_gain: "Small gain",
+    cal_big_loss: "Big loss",
+    cal_small_loss: "Small loss",
+    cal_days_entered: "day(s) entered",
+    cal_click_day: "Tap a day to enter your trades",
+    // ── Dashboard ──
+    dash_overview_equity: "Funded Equity Overview",
+    dash_launch_funded: "Run a simulation to see the Funded curve",
+    dash_sim_legend: "Simulation",
+    dash_journal_legend: "Real journal",
+    dash_continue: "Continue",
+    // ── Common ──
+    common_continue: "Continue",
+    common_config: "Configuration",
   },
 };
 
@@ -1778,7 +1928,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: includeWeekend ? "#6ee7b7" : "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1, display: "flex", alignItems: "center" }}>
-                Weekend inclus
+                {t("sim_weekend_included")}
                 <InfoTip text={usageType === "classic"
                   ? "Trading classique : active le weekend pour trader 7j/7 (crypto, indices 24/7). Désactivé = lundi à vendredi uniquement."
                   : "La plupart des prop firms ferment le forex le weekend (marché fermé). Active uniquement si tu trades du crypto le weekend (FTMO, FundingPips l'autorisent). Désactivé = lundi à vendredi (21 jours/mois)."} />
@@ -1811,7 +1961,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1, display: "flex", alignItems: "center", gap: 5 }}>
-                Récurrence EA
+                {t("sim_recurrence")}
                 <InfoTip text={"Configure les jours où ton EA trade réellement et les journées d'annonces qu'il évite. Impacte directement le nombre de jours tradés/mois dans la simulation."} />
               </div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>
@@ -1824,7 +1974,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           {/* Jours de trading actifs */}
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 7, fontWeight: 600 }}>
-              Jours où ton EA trade
+              {t("sim_days_ea_trades")}
             </div>
             <div style={{ display: "flex", gap: 6 }}>
               {[
@@ -1868,7 +2018,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: 600 }}>
-                Jours d'annonces évités/semaine
+                {t("sim_news_avoided_week")}
               </div>
               <InfoTip text={"Nombre de jours/semaine où ton EA ne trade pas à cause des grosses annonces. Ex : NFP tous les 1ers vendredis → 1j/semaine ce vendredi-là. FOMC ~1 fois/mois. 0 = pas de filtre."} />
             </div>
@@ -2194,7 +2344,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               border: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               boxShadow: "0 4px 20px rgba(110,231,183,0.25)",
             }}>
-              Voir mon compte Funded{!premiumAccess && " 🔒"}
+              {t("sim_view_funded")}{!premiumAccess && " 🔒"}
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <path d="M7 4l5 5-5 5" stroke="#000000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -2305,7 +2455,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             </div>
 
             {/* CALENDRIER PnL — jours skippés répartis aléatoirement selon la récurrence EA */}
-            <CalendrierPnL dailyLog={sim.funded.dailyLog} newsSkipDays={newsSkipDays} activeDays={activeDays} />
+            <CalendrierPnL t={t} lang={lang} dailyLog={sim.funded.dailyLog} newsSkipDays={newsSkipDays} activeDays={activeDays} />
 
             <div className="card">
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: "#fbbf24" }}>Detail Mensuel</div>
@@ -2432,7 +2582,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
       {/* TAB MES TRADES */}
       {tab === "trades" && (
-        <MesTradesTab sim={sim} capital={capital} fundedMonths={fundedMonths} winrate={winrate} riskPct={riskPct} dailyTargetPct={dailyTargetPct} model={model} finalRR={finalRR} tradesPerDay={tradesPerDay} firm={firm} effectiveRiskAmount={effectiveRiskAmount} />
+        <MesTradesTab t={t} lang={lang} sim={sim} capital={capital} fundedMonths={fundedMonths} winrate={winrate} riskPct={riskPct} dailyTargetPct={dailyTargetPct} model={model} finalRR={finalRR} tradesPerDay={tradesPerDay} firm={firm} effectiveRiskAmount={effectiveRiskAmount} />
       )}
 
       <div style={{ textAlign: "center", fontSize: 10, color: "rgba(255,255,255,0.08)", marginTop: 12, paddingBottom: 8 }}>
@@ -2516,7 +2666,7 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
   );
 }
 
-function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTargetPct, model, finalRR, tradesPerDay, firm, effectiveRiskAmount }) {
+function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTargetPct, model, finalRR, tradesPerDay, firm, effectiveRiskAmount, t = (k) => k, lang = "fr" }) {
   // ── Journal de trading (partagé avec l'accueil via useJournal) ──
   const { journalMonth: jMonth, setJournalMonth: setJMonth, saveJournalEntry: saveJEntry, monthData: jMonthData } = useJournal();
   const [showJournal, setShowJournal] = useState(false);
@@ -3400,14 +3550,14 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
 
           {/* ── CALENDRIER PnL — AU-DESSUS du tableau mensuel (100% trades importés) ── */}
           {dailyLogReel.length > 0 && (
-            <CalendrierPnL dailyLog={dailyLogReel} />
+            <CalendrierPnL t={t} lang={lang} dailyLog={dailyLogReel} />
           )}
 
           {/* ── TABLEAU MENSUEL — 100% calculé depuis trades importés ── */}
           {monthlyReel.length > 0 && (
             <div className="card" style={{ border: "1px solid rgba(110,231,183,0.12)" }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 12, textTransform: "uppercase", letterSpacing: 1 }}>
-                Détail Mensuel — Backtest réel
+                {t("sim_monthly_detail")} — Backtest réel
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "30px 1fr 52px 52px 42px 42px", gap: 4, marginBottom: 6, paddingBottom: 6, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                 {["Mois", "Equity", "Profit%", "P&L $", "DD max", "W/L"].map(h => (
@@ -3444,7 +3594,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
       <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 0 12px" }}>
         <div style={{ flex: 1, height: 1, background: "rgba(110,231,183,0.15)" }} />
         <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", letterSpacing: 1.5 }}>
-          📓 Journal de trading
+          📓 {t("cal_journal_title")}
         </div>
         <div style={{ flex: 1, height: 1, background: "rgba(110,231,183,0.15)" }} />
       </div>
@@ -3478,15 +3628,15 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                 style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(110,231,183,0.2)", borderRadius: 10, padding: "8px 12px", color: "#FFFFFF", fontSize: 13, fontWeight: 600, outline: "none", colorScheme: "dark" }}
               />
               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-                {Object.keys(jMonthData).length} jour(s) saisi(s)
+                {Object.keys(jMonthData).length} {t("cal_days_entered")}
               </span>
             </div>
-            <CalendrierPnL
+            <CalendrierPnL t={t} lang={lang}
               dailyLog={[]}
               journalMode={true}
               journalData={jMonthData}
               onJournalSave={saveJEntry}
-              journalMonthLabel={"Clique un jour pour saisir tes trades · " + jMonth}
+              journalMonthLabel={t("cal_click_day") + " · " + jMonth}
             />
           </div>
         )}
@@ -3559,7 +3709,7 @@ function compressImage(file, maxDim = 900, quality = 0.72) {
   });
 }
 
-function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, newsSkipDays = 0, activeDays = [1,2,3,4,5] }) {
+function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, newsSkipDays = 0, activeDays = [1,2,3,4,5], t = (k) => k, lang = "fr" }) {
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [editingDay, setEditingDay] = useState(null); // jour en cours d'édition (mode journal)
   const [formWins, setFormWins] = useState(0);
@@ -3705,7 +3855,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
           </div>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginTop: 1 }}>
             {journalMode
-              ? (journalMonthLabel || "Clique un jour pour saisir tes trades")
+              ? (journalMonthLabel || t("cal_click_day"))
               : "Mois " + selectedMonth + " - simulation jour par jour"}
           </div>
         </div>
@@ -3729,10 +3879,10 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
       {/* Stats resume */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 14 }}>
         {[
-          { label: "P&L mois", val: (monthPnl >= 0 ? "+$" : "-$") + Math.abs(monthPnl).toFixed(0), color: monthPnl >= 0 ? "#4ade80" : "#f87171" },
+          { label: t("cal_pnl_month"), val: (monthPnl >= 0 ? "+$" : "-$") + Math.abs(monthPnl).toFixed(0), color: monthPnl >= 0 ? "#4ade80" : "#f87171" },
           { label: "Jours +/-", val: winDays + "j / " + lossDays + "j", color: "#FFFFFF" },
-          { label: "Meilleur", val: (bestDay >= 0 ? "+$" : "-$") + Math.abs(bestDay).toFixed(0), color: bestDay >= 0 ? "#4ade80" : "#f87171" },
-          { label: "Pire", val: (worstDay >= 0 ? "+$" : "-$") + Math.abs(worstDay).toFixed(0), color: worstDay >= 0 ? "#4ade80" : "#f87171" },
+          { label: t("cal_best"), val: (bestDay >= 0 ? "+$" : "-$") + Math.abs(bestDay).toFixed(0), color: bestDay >= 0 ? "#4ade80" : "#f87171" },
+          { label: t("cal_worst"), val: (worstDay >= 0 ? "+$" : "-$") + Math.abs(worstDay).toFixed(0), color: worstDay >= 0 ? "#4ade80" : "#f87171" },
         ].map(s => (
           <div key={s.label} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "7px 6px", textAlign: "center" }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginBottom: 3 }}>{s.label}</div>
@@ -3862,8 +4012,8 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
               <div style={{ width: 32, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.12)", margin: "0 auto 12px" }} />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", letterSpacing: -0.3 }}>Jour {editingDay}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", marginTop: 1 }}>Résultats de la journée</div>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", letterSpacing: -0.3 }}>{t("cal_day")} {editingDay}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", marginTop: 1 }}>{t("cal_results_day")}</div>
                 </div>
                 {journalData[String(editingDay)] && (
                   <button
@@ -3882,7 +4032,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
                 {/* Gagnants */}
                 <div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 5 }}>Gagnants</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 5 }}>{t("cal_wins")}</div>
                   <div style={{ display: "flex", alignItems: "center", height: 46, borderRadius: 12, overflow: "hidden", border: "1.5px solid rgba(110,231,183,0.22)", background: "rgba(110,231,183,0.04)" }}>
                     <button onClick={() => setFormWins(v => Math.max(0, v - 1))}
                       style={{ width: 40, height: "100%", background: "transparent", border: "none", borderRight: "1px solid rgba(110,231,183,0.12)", color: formWins > 0 ? "#6ee7b7" : "rgba(255,255,255,0.12)", fontSize: 20, cursor: "pointer", flexShrink: 0 }}>−</button>
@@ -3894,7 +4044,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
 
                 {/* Perdants */}
                 <div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 5 }}>Perdants</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 5 }}>{t("cal_losses")}</div>
                   <div style={{ display: "flex", alignItems: "center", height: 46, borderRadius: 12, overflow: "hidden", border: "1.5px solid rgba(239,68,68,0.22)", background: "rgba(239,68,68,0.04)" }}>
                     <button onClick={() => setFormLosses(v => Math.max(0, v - 1))}
                       style={{ width: 40, height: "100%", background: "transparent", border: "none", borderRight: "1px solid rgba(239,68,68,0.12)", color: formLosses > 0 ? "#f87171" : "rgba(255,255,255,0.12)", fontSize: 20, cursor: "pointer", flexShrink: 0 }}>−</button>
@@ -3908,7 +4058,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
               {/* Gain / Perte — compact */}
               <div style={{ marginBottom: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7 }}>Gain / Perte ($)</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7 }}>{t("cal_gain_loss")} ($)</div>
                   {formGainAbs !== "" && formGainAbs !== "0" && (
                     <div style={{ fontSize: 12, fontWeight: 800, color: formGainSign > 0 ? "#6ee7b7" : "#f87171" }}>
                       {formGainSign > 0 ? "+" : "−"}{formGainAbs} $
@@ -3950,7 +4100,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
               {/* Captures MT4/MT5 — compact */}
               <div>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 7 }}>
-                  Captures MT4/MT5 ({formImages.length}/3)
+                  {t("cal_screenshots")} ({formImages.length}/3)
                 </div>
                 {imgDateWarn && (
                   <div style={{ marginBottom: 7, padding: "8px 10px", borderRadius: 9, background: "rgba(251,191,36,0.07)", border: "1px solid rgba(251,191,36,0.2)", fontSize: 10, color: "#fbbf24", lineHeight: 1.4 }}>
@@ -4060,10 +4210,10 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
       {/* Legende */}
       <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
         {[
-          { bg: "#6ee7b7", label: "Gros gain" },
-          { bg: "#052e16", label: "Petit gain", fg: "#4ade80" },
-          { bg: "#dc2626", label: "Grosse perte" },
-          { bg: "rgba(239,68,68,0.08)", label: "Petite perte", fg: "#f87171" },
+          { bg: "#6ee7b7", label: t("cal_big_gain") },
+          { bg: "#052e16", label: t("cal_small_gain"), fg: "#4ade80" },
+          { bg: "#dc2626", label: t("cal_big_loss") },
+          { bg: "rgba(239,68,68,0.08)", label: t("cal_small_loss"), fg: "#f87171" },
         ].map(l => (
           <span key={l.label} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: l.fg || "rgba(255,255,255,0.55)" }}>
             <span style={{ display: "inline-block", width: 10, height: 10, background: l.bg, border: "1px solid " + (l.fg || "#fff") + "30", borderRadius: 3 }} />
@@ -5615,11 +5765,11 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         {/* Toggle mode journal */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, padding: "0 2px" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}>
-            {journalMode ? "📓 Journal de trading" : "📊 Calendrier PnL"}
+            {journalMode ? ("📓 " + t("cal_journal_title")) : ("📊 " + t("cal_title"))}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 11, color: journalMode ? "#6ee7b7" : "rgba(255,255,255,0.4)", fontWeight: 600 }}>
-              Mode journal
+              {t("cal_journal_mode")}
               {!premiumAccess && <span style={{ marginLeft: 5, fontSize: 10 }}>🔒</span>}
             </span>
             <div onClick={() => {
@@ -5649,7 +5799,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
               style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(110,231,183,0.2)", borderRadius: 10, padding: "8px 12px", color: "#FFFFFF", fontSize: 13, fontWeight: 600, outline: "none", colorScheme: "dark" }}
             />
             <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-              {Object.keys(journalMonthData).length} jour(s) saisi(s)
+              {Object.keys(journalMonthData).length} {t("cal_days_entered")}
             </span>
           </div>
         )}
@@ -5657,17 +5807,17 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         {/* Le calendrier : mode journal OU mode simulation */}
         {journalMode ? (
           <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,overflow:"hidden"}}>
-            <CalendrierPnL
+            <CalendrierPnL t={t} lang={lang}
               dailyLog={[]}
               journalMode={true}
               journalData={journalMonthData}
               onJournalSave={saveJournalEntry}
-              journalMonthLabel={"Clique un jour pour saisir tes trades · " + journalMonth}
+              journalMonthLabel={t("cal_click_day") + " · " + journalMonth}
             />
           </div>
         ) : ls.funded ? (
           <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,overflow:"hidden"}}>
-            <CalendrierPnL dailyLog={ls.funded.dailyLog} />
+            <CalendrierPnL t={t} lang={lang} dailyLog={ls.funded.dailyLog} />
           </div>
         ) : (
           <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
@@ -5680,16 +5830,16 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         <div style={{marginBottom:"14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16}}>
           {/* Titre + légende */}
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1}}>Aperçu Équité Funded</div>
+            <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1}}>{t("dash_overview_equity")}</div>
             {journalEquityCurve && journalEquityCurve.length > 0 && (
               <div style={{display:"flex",gap:10,alignItems:"center"}}>
                 <div style={{display:"flex",alignItems:"center",gap:4}}>
                   <div style={{width:12,height:2,background:"#6ee7b7",borderRadius:1}}/>
-                  <span style={{fontSize:9,color:"rgba(255,255,255,0.4)"}}>Simulation</span>
+                  <span style={{fontSize:9,color:"rgba(255,255,255,0.4)"}}>{t("dash_sim_legend")}</span>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:4}}>
                   <div style={{width:12,height:2,background:"#fbbf24",borderRadius:1}}/>
-                  <span style={{fontSize:9,color:"rgba(255,255,255,0.4)"}}>Journal réel</span>
+                  <span style={{fontSize:9,color:"rgba(255,255,255,0.4)"}}>{t("dash_journal_legend")}</span>
                 </div>
               </div>
             )}
@@ -5737,7 +5887,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         </div>
       ) : (
         <div style={{marginBottom:"14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
-          Lance une simulation pour voir la courbe Funded
+          {t("dash_launch_funded")}
         </div>
       )}
 
