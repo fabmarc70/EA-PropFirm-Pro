@@ -5389,21 +5389,6 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
   });
   const { journal: journalAll, journalMonth, setJournalMonth, saveJournalEntry, monthData: journalMonthData } = useJournal();
 
-  // ── Courbe equity journal : cumul mensuel depuis le capital de référence ──
-  // Aligne les mois du journal sur les mois de la simulation (M1, M2...)
-  const journalEquityCurve = (() => {
-    if (!journalAll || Object.keys(journalAll).length === 0) return null;
-    // Trier les mois du journal chronologiquement (clés YYYY-MM)
-    const sortedMonths = Object.keys(journalAll).sort();
-    if (sortedMonths.length === 0) return null;
-    let equity = cap; // départ = capital de simulation pour comparaison directe
-    return sortedMonths.map((monthKey, idx) => {
-      const days = journalAll[monthKey] || {};
-      const monthPnl = Object.values(days).reduce((sum, d) => sum + (d.pnl || 0), 0);
-      equity += monthPnl;
-      return { journalMonthIdx: idx + 1, journalEquity: Math.round(equity) };
-    });
-  })();
 
   // ── Notifications cloche ──
   const [notifPref, setNotifPref] = useState(() => loadNotifPref());
@@ -5448,6 +5433,21 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
   const fmtMoney=(v,decimals=0)=>"$"+Math.abs(Number(v)).toLocaleString("en-US",{maximumFractionDigits:decimals});
   const ls = lastSim || {};
   const cap = ls.capital || profile.capital || 25000;
+
+  // ── Courbe equity journal : cumul mensuel depuis le capital de référence ──
+  // DOIT être après cap — utilise cap comme point de départ
+  const journalEquityCurve = (() => {
+    if (!journalAll || Object.keys(journalAll).length === 0) return null;
+    const sortedMonths = Object.keys(journalAll).sort();
+    if (sortedMonths.length === 0) return null;
+    let equity = cap; // départ = même capital que la simulation
+    return sortedMonths.map((monthKey, idx) => {
+      const days = journalAll[monthKey] || {};
+      const monthPnl = Object.values(days).reduce((sum, d) => sum + (d.pnl || 0), 0);
+      equity += monthPnl;
+      return { journalMonthIdx: idx + 1, journalEquity: Math.round(equity) };
+    });
+  })();
   const progression = ls.progression || 0;
   const phase1Target = ls.phase1Target || (fm?.phases?.[0]?.target*100) || 8;
   const phase1Pct = ls.phase1Pct || "0.0";
