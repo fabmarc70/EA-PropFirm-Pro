@@ -5387,7 +5387,23 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
     try { return localStorage.getItem("eapropfirm_journalmode") === "1"; }
     catch (e) { return false; }
   });
-  const { journalMonth, setJournalMonth, saveJournalEntry, monthData: journalMonthData } = useJournal();
+  const { journal: journalAll, journalMonth, setJournalMonth, saveJournalEntry, monthData: journalMonthData } = useJournal();
+
+  // ── Courbe equity journal : cumul mensuel depuis le capital de référence ──
+  // Aligne les mois du journal sur les mois de la simulation (M1, M2...)
+  const journalEquityCurve = (() => {
+    if (!journalAll || Object.keys(journalAll).length === 0) return null;
+    // Trier les mois du journal chronologiquement (clés YYYY-MM)
+    const sortedMonths = Object.keys(journalAll).sort();
+    if (sortedMonths.length === 0) return null;
+    let equity = cap; // départ = capital de simulation pour comparaison directe
+    return sortedMonths.map((monthKey, idx) => {
+      const days = journalAll[monthKey] || {};
+      const monthPnl = Object.values(days).reduce((sum, d) => sum + (d.pnl || 0), 0);
+      equity += monthPnl;
+      return { journalMonthIdx: idx + 1, journalEquity: Math.round(equity) };
+    });
+  })();
 
   // ── Notifications cloche ──
   const [notifPref, setNotifPref] = useState(() => loadNotifPref());
@@ -5671,12 +5687,33 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           </div>
         )}
       </div>
-      {/* ── APERÇU PERFORMANCE (= graphique Funded) ── */}
+      {/* ── APERÇU PERFORMANCE : simulation funded + courbe journal réel ── */}
       {ls.funded ? (
         <div style={{marginBottom:"14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16}}>
-          <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1,marginBottom:14}}>Aperçu Équité Funded</div>
+          {/* Titre + légende */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1}}>Aperçu Équité Funded</div>
+            {journalEquityCurve && journalEquityCurve.length > 0 && (
+              <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                <div style={{display:"flex",alignItems:"center",gap:4}}>
+                  <div style={{width:12,height:2,background:"#6ee7b7",borderRadius:1}}/>
+                  <span style={{fontSize:9,color:"rgba(255,255,255,0.4)"}}>Simulation</span>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:4}}>
+                  <div style={{width:12,height:2,background:"#fbbf24",borderRadius:1}}/>
+                  <span style={{fontSize:9,color:"rgba(255,255,255,0.4)"}}>Journal réel</span>
+                </div>
+              </div>
+            )}
+          </div>
           <ResponsiveContainer width="100%" height={200}>
-            <ComposedChart data={ls.funded.data}>
+            <ComposedChart data={ls.funded.data.map((row, i) => ({
+              ...row,
+              // Merger le journal : aligner par index de mois (M1=mois 1 du journal, etc.)
+              journalEquity: journalEquityCurve && journalEquityCurve[i]
+                ? journalEquityCurve[i].journalEquity
+                : undefined,
+            }))}>
               <defs>
                 <linearGradient id="perf-funded" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.25} />
@@ -5686,10 +5723,27 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "M" + v} />
               <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v / 1000).toFixed(0) + "k"} domain={["auto", "auto"]} />
-              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, fontSize: 11 }} />
+              <Tooltip
+                formatter={(v, name) => [fmt(v), name === "journalEquity" ? "Journal réel" : name === "equity" ? "Simulation" : name]}
+                contentStyle={{ background: "rgba(10,12,22,0.97)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, fontSize: 11 }}
+              />
               <ReferenceLine y={cap} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 2" />
-              <Area type="monotone" dataKey="equity" stroke="#6ee7b7" strokeWidth={2} fill="url(#perf-funded)" dot={false} name="Equity" />
-              <Line type="monotone" dataKey="cumul" stroke="rgba(110,231,183,0.6)" strokeWidth={1.5} dot={false} name="Payout Cumule" strokeDasharray="5 3" />
+              {/* Courbe simulation (verte) */}
+              <Area type="monotone" dataKey="equity" stroke="#6ee7b7" strokeWidth={2} fill="url(#perf-funded)" dot={false} name="Simulation" />
+              <Line type="monotone" dataKey="cumul" stroke="rgba(110,231,183,0.6)" strokeWidth={1.5} dot={false} name="Payout Cumulé" strokeDasharray="5 3" />
+              {/* Courbe journal réel (amber) — affichée seulement si données */}
+              {journalEquityCurve && journalEquityCurve.length > 0 && (
+                <Line
+                  type="monotone"
+                  dataKey="journalEquity"
+                  stroke="#fbbf24"
+                  strokeWidth={2.5}
+                  dot={{ r: 3, fill: "#fbbf24", strokeWidth: 0 }}
+                  activeDot={{ r: 5, fill: "#fbbf24" }}
+                  name="journalEquity"
+                  connectNulls={false}
+                />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
