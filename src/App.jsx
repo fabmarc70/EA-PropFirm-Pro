@@ -4805,19 +4805,7 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
           </span>
         </button>
 
-        {/* Note confidentialité */}
-        <div style={{ display:"flex", alignItems:"flex-start", gap:14, marginTop:20 }}>
-          <div style={{ flexShrink:0, width:42, height:42, borderRadius:21, background:"rgba(110,231,183,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <svg width="20" height="22" viewBox="0 0 20 22" fill="none">
-              <rect x="1" y="9" width="18" height="12" rx="3" stroke="#6ee7b7" strokeWidth="1.5"/>
-              <path d="M5 9V6a5 5 0 0110 0v3" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round"/>
-              <circle cx="10" cy="15" r="1.5" fill="#6ee7b7"/>
-            </svg>
-          </div>
-          <div style={{ fontSize:13, color:"rgba(255,255,255,0.38)", lineHeight:1.6, paddingTop:3 }}>
-            {t("login_privacy")}
-          </div>
-        </div>
+
       </div>
 
       {/* Badge essai gratuit 7 jours */}
