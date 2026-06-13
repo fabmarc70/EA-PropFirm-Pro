@@ -2371,7 +2371,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       `}</style>
 
       {/* Toggle Challenge / Funded — sticky header bar (cliquable, accessible) */}
-      {(tab === "challenge" || tab === "funded") && (
+      {(tab === "challenge" || tab === "funded" || tab === "montecarlo") && (
         <div style={{
           position: "sticky", top: 0, zIndex: 20,
           background: "rgba(6,9,15,0.98)",
@@ -2395,8 +2395,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                 }
               }} style={{
                 flex: 1, padding: "12px 14px", borderRadius: 9, cursor: "pointer", fontSize: 14, fontWeight: 600,
-                background: tab === tg.id ? "#6ee7b7" : "transparent",
-                color: tab === tg.id ? "#000000" : "rgba(255,255,255,0.65)",
+                background: (tab === tg.id || (tg.id === "funded" && tab === "montecarlo")) ? "#6ee7b7" : "transparent",
+                color: (tab === tg.id || (tg.id === "funded" && tab === "montecarlo")) ? "#000000" : "rgba(255,255,255,0.65)",
                 border: "none", transition: "all .2s", userSelect: "none",
               }}>{tg.label}</button>
             ))}
