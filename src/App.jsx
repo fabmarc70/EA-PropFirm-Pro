@@ -6584,7 +6584,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
     if (!journalAll || Object.keys(journalAll).length === 0) return null;
     const sortedMonths = Object.keys(journalAll).sort();
     if (sortedMonths.length === 0) return null;
-    let equity = cap; // départ = même capital que la simulation
+    let equity = cap;
     return sortedMonths.map((monthKey, idx) => {
       const days = journalAll[monthKey] || {};
       const monthPnl = Object.values(days).reduce((sum, d) => sum + (d.pnl || 0), 0);
@@ -6592,6 +6592,55 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
       return { journalMonthIdx: idx + 1, journalEquity: Math.round(equity) };
     });
   })();
+
+  // ── COURBE MENSUELLE (mois courant, jour par jour) ──
+  const now = new Date();
+  const currentMonthKey = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+  const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+
+  // Source simulation : dailyLog du funded, filtré sur le mois courant (M1 par défaut si 1 mois)
+  // On prend les jours du premier mois de la simulation funded
+  const simDailyLog = ls.funded?.dailyLog || [];
+  const simMonth1Days = simDailyLog.filter(d => d.month === 1); // M1
+
+  // Source journal : mois courant uniquement
+  const journalCurrentMonth = journalAll?.[currentMonthKey] || {};
+  const journalCurrentDays = Object.entries(journalCurrentMonth)
+    .map(([day, data]) => ({ day: parseInt(day), pnl: data?.pnl || 0, wins: data?.wins || 0, losses: data?.losses || 0 }))
+    .sort((a, b) => a.day - b.day);
+  const hasJournalCurrentMonth = journalCurrentDays.length > 0;
+
+  // Construire les données du graphique mensuel (J1 → J31)
+  const monthlyChartData = (() => {
+    const result = [];
+    let simEquity = cap;
+    let journalEquity = cap;
+
+    for (let day = 1; day <= daysInCurrentMonth; day++) {
+      // Simulation : trouver le jour correspondant (dayOfMonth)
+      const simDay = simMonth1Days.find(d => d.dayOfMonth === day);
+      if (simDay) simEquity = simDay.equity;
+
+      // Journal : trouver le jour courant
+      const journalDay = journalCurrentDays.find(d => d.day === day);
+      if (journalDay) journalEquity += journalDay.pnl;
+
+      const isToday = day === now.getDate();
+      result.push({
+        day,
+        simEquity: simMonth1Days.length > 0 ? simEquity : null,
+        journalEquity: hasJournalCurrentMonth ? (journalDay || journalCurrentDays.find(d=>d.day <= day) ? journalEquity : null) : null,
+        isToday,
+      });
+    }
+    return result;
+  })();
+
+  // Déterminer la source principale (journal si données présentes, sinon simulation)
+  const monthlyHasJournal = hasJournalCurrentMonth;
+  const monthlyHasSim = simMonth1Days.length > 0;
+  // Source principale = journal si données réelles, sinon simulation
+  const monthlyPrimaryIsJournal = monthlyHasJournal;
   const progression = ls.progression || 0;
   const phase1Target = ls.phase1Target || (fm?.phases?.[0]?.target*100) || 8;
   const phase1Pct = ls.phase1Pct || "0.0";
@@ -6831,71 +6880,76 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           </div>
         )}
       </div>
-      {/* ── APERÇU PERFORMANCE : simulation funded + courbe journal réel ── */}
-      {ls.funded ? (
-        <div style={{marginBottom:"14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16}}>
-          {/* Titre + légende */}
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1}}>{t("dash_overview_equity")}</div>
-            {journalEquityCurve && journalEquityCurve.length > 0 && (
-              <div style={{display:"flex",gap:10,alignItems:"center"}}>
-                <div style={{display:"flex",alignItems:"center",gap:4}}>
-                  <div style={{width:12,height:2,background:"#6ee7b7",borderRadius:1}}/>
-                  <span style={{fontSize:9,color:"rgba(255,255,255,0.4)"}}>{t("dash_sim_legend")}</span>
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:4}}>
-                  <div style={{width:12,height:2,background:"#fbbf24",borderRadius:1}}/>
-                  <span style={{fontSize:9,color:"rgba(255,255,255,0.4)"}}>{t("dash_journal_legend")}</span>
-                </div>
+      {/* ── APERÇU ÉQUITÉ — Mois courant, jour par jour ── */}
+      <div style={{marginBottom:"14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16}}>
+        {/* Titre + légende */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1}}>Équité — {currentMonthKey}</div>
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.3)",marginTop:2}}>Jour par jour · mois courant</div>
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            {monthlyHasJournal && (
+              <div style={{display:"flex",alignItems:"center",gap:4}}>
+                <div style={{width:14,height:2,background:"#6ee7b7",borderRadius:1}}/>
+                <span style={{fontSize:9,color:"rgba(255,255,255,0.4)"}}>Journal</span>
+              </div>
+            )}
+            {monthlyHasSim && (
+              <div style={{display:"flex",alignItems:"center",gap:4}}>
+                <svg width="14" height="2" viewBox="0 0 14 2"><line x1="0" y1="1" x2="14" y2="1" stroke={monthlyPrimaryIsJournal?"#fbbf24":"#6ee7b7"} strokeWidth="2" strokeDasharray={monthlyPrimaryIsJournal?"4 2":"none"}/></svg>
+                <span style={{fontSize:9,color:"rgba(255,255,255,0.4)"}}>Simulation</span>
               </div>
             )}
           </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <ComposedChart data={ls.funded.data.map((row, i) => ({
-              ...row,
-              // Merger le journal : aligner par index de mois (M1=mois 1 du journal, etc.)
-              journalEquity: journalEquityCurve && journalEquityCurve[i]
-                ? journalEquityCurve[i].journalEquity
-                : undefined,
-            }))}>
+        </div>
+
+        {(monthlyHasJournal || monthlyHasSim) ? (
+          <ResponsiveContainer width="100%" height={180}>
+            <ComposedChart data={monthlyChartData} margin={{top:4,right:4,left:0,bottom:0}}>
               <defs>
-                <linearGradient id="perf-funded" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.25} />
-                  <stop offset="100%" stopColor="#6ee7b7" stopOpacity={0} />
+                <linearGradient id="grad-journal-monthly" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.2}/>
+                  <stop offset="100%" stopColor="#6ee7b7" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="grad-sim-monthly" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.15}/>
+                  <stop offset="100%" stopColor="#fbbf24" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "M" + v} />
-              <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v / 1000).toFixed(0) + "k"} domain={["auto", "auto"]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false}/>
+              <XAxis dataKey="day" tick={{fontSize:10,fill:"rgba(255,255,255,0.3)"}} tickFormatter={v=>"J"+v} interval={4}/>
+              <YAxis tick={{fontSize:10,fill:"rgba(255,255,255,0.3)"}} tickFormatter={v=>"$"+(v/1000).toFixed(0)+"k"} domain={["auto","auto"]} width={40}/>
               <Tooltip
-                formatter={(v, name) => [fmt(v), name === "journalEquity" ? "Journal réel" : name === "equity" ? "Simulation" : name]}
-                contentStyle={{ background: "rgba(10,12,22,0.97)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, fontSize: 11 }}
+                labelFormatter={v=>"Jour "+v}
+                formatter={(v,name)=>[fmt(v),name==="journalEquity"?"Journal réel":name==="simEquity"?"Simulation":name]}
+                contentStyle={{background:"rgba(10,12,22,0.97)",border:"1px solid rgba(110,231,183,0.15)",borderRadius:12,fontSize:11}}
               />
-              <ReferenceLine y={cap} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 2" />
-              {/* Courbe simulation (verte) */}
-              <Area type="monotone" dataKey="equity" stroke="#6ee7b7" strokeWidth={2} fill="url(#perf-funded)" dot={false} name="Simulation" />
-              <Line type="monotone" dataKey="cumul" stroke="rgba(110,231,183,0.6)" strokeWidth={1.5} dot={false} name="Payout Cumulé" strokeDasharray="5 3" />
-              {/* Courbe journal réel (amber) — affichée seulement si données */}
-              {journalEquityCurve && journalEquityCurve.length > 0 && (
+              <ReferenceLine y={cap} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 2"/>
+              {/* Courbe principale : journal (vert) si dispo, sinon simulation (vert) */}
+              {monthlyHasJournal && (
+                <Area type="monotone" dataKey="journalEquity" stroke="#6ee7b7" strokeWidth={2.5} fill="url(#grad-journal-monthly)" dot={false} name="journalEquity" connectNulls={true}/>
+              )}
+              {/* Courbe secondaire : simulation */}
+              {monthlyHasSim && (
                 <Line
-                  type="monotone"
-                  dataKey="journalEquity"
-                  stroke="#fbbf24"
-                  strokeWidth={2.5}
-                  dot={{ r: 3, fill: "#fbbf24", strokeWidth: 0 }}
-                  activeDot={{ r: 5, fill: "#fbbf24" }}
-                  name="journalEquity"
-                  connectNulls={false}
+                  type="monotone" dataKey="simEquity"
+                  stroke={monthlyPrimaryIsJournal ? "#fbbf24" : "#6ee7b7"}
+                  strokeWidth={monthlyPrimaryIsJournal ? 1.5 : 2.5}
+                  strokeDasharray={monthlyPrimaryIsJournal ? "5 3" : "none"}
+                  dot={false} name="simEquity" connectNulls={true}
                 />
               )}
             </ComposedChart>
           </ResponsiveContainer>
-        </div>
-      ) : (
-        <div style={{marginBottom:"14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
-          {t("dash_launch_funded")}
-        </div>
-      )}
+        ) : (
+          <div style={{height:140,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.2)"}}>
+            <div style={{fontSize:28,marginBottom:8}}>📈</div>
+            <div style={{fontSize:12}}>Lance une simulation ou saisis des trades</div>
+            <div style={{fontSize:10,marginTop:4,color:"rgba(255,255,255,0.15)"}}>pour voir la courbe du mois courant</div>
+          </div>
+        )}
+      </div>
 
       {/* ── 2 COLONNES : STATS + CONFIGS ── */}
       <div style={{marginBottom:"14px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
