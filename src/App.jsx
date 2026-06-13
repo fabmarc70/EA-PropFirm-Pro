@@ -147,6 +147,34 @@ const I18N = {
     // ── Commun ──
     common_continue: "Continuer",
     common_config: "Configuration",
+    coach_title: "IA Coach",
+    coach_subtitle: "Ton analyste stratégie personnel",
+    coach_prob_label: "Probabilité de réussite",
+    coach_diagnosis: "Diagnostic",
+    coach_main_issue: "Ton point faible principal",
+    coach_action_plan: "Plan d'action",
+    coach_no_data: "Lance une simulation ou importe ton backtest pour obtenir ton analyse personnalisée.",
+    coach_source_sim: "Basé sur ta simulation",
+    coach_source_real: "Basé sur tes trades réels",
+    coach_metric_pf: "Profit Factor",
+    coach_metric_exp: "Espérance/trade",
+    coach_lever_risk: "Réduis ton risque par trade",
+    coach_lever_rr: "Améliore ton ratio risque/récompense",
+    coach_lever_wr: "Améliore ton winrate",
+    coach_lever_from: "de",
+    coach_lever_to: "à",
+    coach_verdict_excellent: "Stratégie très solide",
+    coach_verdict_good: "Bonne base, optimisable",
+    coach_verdict_risky: "Stratégie risquée",
+    coach_verdict_critical: "Stratégie non viable en l'état",
+    coach_issue_dd_day: "Ton drawdown journalier te rapproche dangereusement de la limite. Une seule mauvaise série peut te disqualifier.",
+    coach_issue_dd_total: "Ton drawdown total consomme trop de ta marge. Tu manques de coussin pour encaisser une série de pertes.",
+    coach_issue_pf: "Ton profit factor est trop faible : tu gagnes à peine plus que tu ne perds. La marge d'erreur est minime.",
+    coach_issue_sample: "Trop peu de trades pour valider statistiquement ta stratégie. Les résultats peuvent être dus au hasard.",
+    coach_issue_risk: "Ton risque par trade est trop élevé. Quelques pertes consécutives suffisent à briser ton compte.",
+    coach_issue_edge: "Ton edge est insuffisant : winrate et ratio R/R trop bas pour être durablement rentable.",
+    coach_issue_none: "Aucune faiblesse majeure détectée. Ta stratégie est bien équilibrée.",
+    coach_cta_apply: "Appliquer dans le simulateur",
     sim_clustering_losses: "Clustering des pertes",
     sim_calc_stats: "Statistiques calculées",
     sim_lot_suggested: "Lot suggéré pour ce risque",
@@ -293,6 +321,34 @@ const I18N = {
     // ── Común ──
     common_continue: "Continuar",
     common_config: "Configuración",
+    coach_title: "IA Coach",
+    coach_subtitle: "Tu analista de estrategia personal",
+    coach_prob_label: "Probabilidad de éxito",
+    coach_diagnosis: "Diagnóstico",
+    coach_main_issue: "Tu principal punto débil",
+    coach_action_plan: "Plan de acción",
+    coach_no_data: "Lanza una simulación o importa tu backtest para obtener tu análisis personalizado.",
+    coach_source_sim: "Basado en tu simulación",
+    coach_source_real: "Basado en tus trades reales",
+    coach_metric_pf: "Profit Factor",
+    coach_metric_exp: "Esperanza/trade",
+    coach_lever_risk: "Reduce tu riesgo por trade",
+    coach_lever_rr: "Mejora tu ratio riesgo/recompensa",
+    coach_lever_wr: "Mejora tu winrate",
+    coach_lever_from: "de",
+    coach_lever_to: "a",
+    coach_verdict_excellent: "Estrategia muy sólida",
+    coach_verdict_good: "Buena base, optimizable",
+    coach_verdict_risky: "Estrategia arriesgada",
+    coach_verdict_critical: "Estrategia no viable así",
+    coach_issue_dd_day: "Tu drawdown diario te acerca peligrosamente al límite. Una sola mala racha puede descalificarte.",
+    coach_issue_dd_total: "Tu drawdown total consume demasiado margen. Te falta colchón para aguantar una serie de pérdidas.",
+    coach_issue_pf: "Tu profit factor es muy bajo: ganas apenas más de lo que pierdes. El margen de error es mínimo.",
+    coach_issue_sample: "Muy pocos trades para validar estadísticamente tu estrategia. Los resultados pueden ser por azar.",
+    coach_issue_risk: "Tu riesgo por trade es demasiado alto. Unas pocas pérdidas seguidas bastan para romper tu cuenta.",
+    coach_issue_edge: "Tu edge es insuficiente: winrate y ratio R/R demasiado bajos para ser rentable a largo plazo.",
+    coach_issue_none: "No se detectó ninguna debilidad importante. Tu estrategia está bien equilibrada.",
+    coach_cta_apply: "Aplicar en el simulador",
     sim_clustering_losses: "Clustering de pérdidas",
     sim_calc_stats: "Estadísticas calculadas",
     sim_lot_suggested: "Lote sugerido para este riesgo",
@@ -439,6 +495,34 @@ const I18N = {
     // ── Common ──
     common_continue: "Continue",
     common_config: "Configuration",
+    coach_title: "AI Coach",
+    coach_subtitle: "Your personal strategy analyst",
+    coach_prob_label: "Success probability",
+    coach_diagnosis: "Diagnosis",
+    coach_main_issue: "Your main weakness",
+    coach_action_plan: "Action plan",
+    coach_no_data: "Run a simulation or import your backtest to get your personalized analysis.",
+    coach_source_sim: "Based on your simulation",
+    coach_source_real: "Based on your real trades",
+    coach_metric_pf: "Profit Factor",
+    coach_metric_exp: "Expectancy/trade",
+    coach_lever_risk: "Reduce your risk per trade",
+    coach_lever_rr: "Improve your risk/reward ratio",
+    coach_lever_wr: "Improve your winrate",
+    coach_lever_from: "from",
+    coach_lever_to: "to",
+    coach_verdict_excellent: "Very solid strategy",
+    coach_verdict_good: "Good base, can be optimized",
+    coach_verdict_risky: "Risky strategy",
+    coach_verdict_critical: "Strategy not viable as is",
+    coach_issue_dd_day: "Your daily drawdown brings you dangerously close to the limit. A single bad streak can disqualify you.",
+    coach_issue_dd_total: "Your total drawdown eats too much of your margin. You lack cushion to absorb a losing streak.",
+    coach_issue_pf: "Your profit factor is too low: you barely win more than you lose. The margin for error is minimal.",
+    coach_issue_sample: "Too few trades to statistically validate your strategy. Results may be down to luck.",
+    coach_issue_risk: "Your risk per trade is too high. A few consecutive losses are enough to break your account.",
+    coach_issue_edge: "Your edge is insufficient: winrate and R/R ratio too low to be sustainably profitable.",
+    coach_issue_none: "No major weakness detected. Your strategy is well balanced.",
+    coach_cta_apply: "Apply in simulator",
     sim_clustering_losses: "Loss clustering",
     sim_calc_stats: "Calculated statistics",
     sim_lot_suggested: "Suggested lot for this risk",
@@ -627,6 +711,163 @@ const SIM_DAYS = 90;
 const fmt = (v) => "$" + Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 });
 const fmt2 = (v) => "$" + Number(v).toLocaleString("en-US", { maximumFractionDigits: 2 });
 const fmtPn = (v) => (v >= 0 ? "+" : "") + (v * 100).toFixed(2) + "%";
+
+// ══════════════════════════════════════════════════════════════════
+// IA COACH — Moteur d'analyse de la stratégie
+// Analyse les données de simulation + journal réel et produit :
+//   - une probabilité de réussite globale (0-100%)
+//   - un diagnostic du problème principal
+//   - un plan d'action chiffré (leviers What-If)
+// Logique 100% locale basée sur les formules de simulation existantes.
+// ══════════════════════════════════════════════════════════════════
+
+// Estime la probabilité de réussite d'un challenge selon les métriques clés.
+// Modèle heuristique calibré sur la réalité prop firm.
+function coachEstimateProbability({ winrate, rr, ddUsedPct, ddLimitPct, profitFactor, totalTrades, riskPct }) {
+  // Expectancy par trade (en R)
+  const wr = Math.max(0, Math.min(1, winrate / 100));
+  const expectancyR = wr * rr - (1 - wr);
+
+  // 1. Base : expectancy positive = bon départ
+  let prob = 50 + expectancyR * 45; // expectancy 0 → 50%, +0.5R → 72%
+
+  // 2. Marge de drawdown : ratio DD utilisé / limite
+  //    Plus on est proche de la limite, plus c'est risqué
+  const ddRatio = ddLimitPct > 0 ? ddUsedPct / ddLimitPct : 0;
+  if (ddRatio > 0.9) prob -= 30;       // très proche du blow-up
+  else if (ddRatio > 0.75) prob -= 18;
+  else if (ddRatio > 0.6) prob -= 10;
+  else if (ddRatio > 0.4) prob -= 3;
+  else prob += 5;                       // belle marge
+
+  // 3. Profit factor
+  if (profitFactor >= 1.5) prob += 8;
+  else if (profitFactor >= 1.2) prob += 3;
+  else if (profitFactor < 1.0) prob -= 25;
+  else if (profitFactor < 1.1) prob -= 10;
+
+  // 4. Échantillon statistique (peu de trades = incertitude)
+  if (totalTrades < 20) prob -= 15;
+  else if (totalTrades < 50) prob -= 5;
+  else if (totalTrades >= 100) prob += 3;
+
+  // 5. Risque par trade excessif
+  if (riskPct > 2) prob -= 12;
+  else if (riskPct > 1.5) prob -= 5;
+
+  return Math.max(2, Math.min(96, Math.round(prob)));
+}
+
+// Analyse complète : retourne diagnostic + leviers d'action
+function coachAnalyze(data, firmName) {
+  if (!data) return null;
+
+  const winrate = data.winrate || 0;
+  const rr = data.rr || 1;
+  const ddDayUsed = parseFloat(data.ddDayPct || 0);
+  const ddTotUsed = parseFloat(data.ddTotPct || 0);
+  const ddDayLimit = data.dailyDDLimit || 5;
+  const ddTotLimit = data.totalDDLimit || 10;
+  const riskPct = data.riskPctValue || data.riskPct || 1;
+  const totalTrades = data.totalTrades || 0;
+  const wins = data.wins || 0;
+  const losses = data.losses || 0;
+
+  // Profit factor approximatif depuis WR et RR
+  const wr = winrate / 100;
+  const profitFactor = (1 - wr) > 0 ? (wr * rr) / (1 - wr) : 99;
+
+  // Probabilité actuelle (on prend le pire des deux DD ratios)
+  const ddDayRatio = ddDayLimit > 0 ? ddDayUsed / ddDayLimit : 0;
+  const ddTotRatio = ddTotLimit > 0 ? ddTotUsed / ddTotLimit : 0;
+  const worstDDused = ddDayRatio > ddTotRatio ? ddDayUsed : ddTotUsed;
+  const worstDDlimit = ddDayRatio > ddTotRatio ? ddDayLimit : ddTotLimit;
+
+  const baseProb = coachEstimateProbability({
+    winrate, rr, ddUsedPct: worstDDused, ddLimitPct: worstDDlimit,
+    profitFactor, totalTrades, riskPct,
+  });
+
+  // ── Identifier le problème PRINCIPAL ──
+  const issues = [];
+  if (ddDayRatio > 0.7) issues.push({ key: "dd_day", severity: ddDayRatio, label: "drawdown journalier" });
+  if (ddTotRatio > 0.7) issues.push({ key: "dd_total", severity: ddTotRatio, label: "drawdown total" });
+  if (profitFactor < 1.1) issues.push({ key: "pf", severity: 1.5 - profitFactor, label: "profit factor faible" });
+  if (totalTrades < 30) issues.push({ key: "sample", severity: (30 - totalTrades) / 30, label: "échantillon insuffisant" });
+  if (riskPct > 1.5) issues.push({ key: "risk", severity: riskPct / 3, label: "risque par trade élevé" });
+  if (winrate < 40 && rr < 1.5) issues.push({ key: "edge", severity: 1, label: "edge insuffisant" });
+
+  issues.sort((a, b) => b.severity - a.severity);
+  const mainIssue = issues[0] || null;
+
+  // ── Leviers What-If : recalcule la proba si on change UN paramètre ──
+  const levers = [];
+
+  // Levier 1 : réduire le risque
+  if (riskPct > 0.5) {
+    const newRisk = Math.max(0.25, riskPct - 0.25);
+    // Réduire le risque réduit proportionnellement le DD utilisé
+    const ratio = newRisk / riskPct;
+    const newProb = coachEstimateProbability({
+      winrate, rr, ddUsedPct: worstDDused * ratio, ddLimitPct: worstDDlimit,
+      profitFactor, totalTrades, riskPct: newRisk,
+    });
+    if (newProb > baseProb) {
+      levers.push({
+        key: "risk", action: "reduce_risk",
+        from: riskPct.toFixed(2) + "%", to: newRisk.toFixed(2) + "%",
+        gain: newProb - baseProb, newProb,
+      });
+    }
+  }
+
+  // Levier 2 : améliorer le RR
+  const newRR = rr + 0.5;
+  const newWrForPF = winrate / 100;
+  const newPF = (1 - newWrForPF) > 0 ? (newWrForPF * newRR) / (1 - newWrForPF) : 99;
+  const newProbRR = coachEstimateProbability({
+    winrate, rr: newRR, ddUsedPct: worstDDused, ddLimitPct: worstDDlimit,
+    profitFactor: newPF, totalTrades, riskPct,
+  });
+  if (newProbRR > baseProb) {
+    levers.push({
+      key: "rr", action: "improve_rr",
+      from: "1:" + rr.toFixed(1), to: "1:" + newRR.toFixed(1),
+      gain: newProbRR - baseProb, newProb: newProbRR,
+    });
+  }
+
+  // Levier 3 : augmenter le winrate (+5%)
+  if (winrate < 70) {
+    const newWR = winrate + 5;
+    const newWrR = newWR / 100;
+    const newPF3 = (1 - newWrR) > 0 ? (newWrR * rr) / (1 - newWrR) : 99;
+    const newProbWR = coachEstimateProbability({
+      winrate: newWR, rr, ddUsedPct: worstDDused, ddLimitPct: worstDDlimit,
+      profitFactor: newPF3, totalTrades, riskPct,
+    });
+    if (newProbWR > baseProb) {
+      levers.push({
+        key: "wr", action: "improve_wr",
+        from: winrate.toFixed(0) + "%", to: newWR.toFixed(0) + "%",
+        gain: newProbWR - baseProb, newProb: newProbWR,
+      });
+    }
+  }
+
+  levers.sort((a, b) => b.gain - a.gain);
+
+  return {
+    probability: baseProb,
+    profitFactor: +profitFactor.toFixed(2),
+    expectancyR: +(wr * rr - (1 - wr)).toFixed(3),
+    mainIssue,
+    issues,
+    levers: levers.slice(0, 3),
+    metrics: { winrate, rr, ddDayUsed, ddTotUsed, ddDayLimit, ddTotLimit, riskPct, totalTrades, wins, losses },
+    firmName: firmName || "ton challenge",
+  };
+}
 
 function makeTradeStream(winrate, clustering, maxConsecLosses) {
   const w = winrate / 100;
@@ -5556,6 +5797,141 @@ function checkDailyReminder() {
 // ══════════════════════════════════════════════════════════════════
 // DASHBOARD (page d'accueil)
 // ══════════════════════════════════════════════════════════════════
+function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, requirePremium = () => {} }) {
+  const fm = lastSim || {};
+  const firmName = fm.firmKey ? fm.firmKey.toUpperCase() : "ton challenge";
+
+  // Source des données : simulation en priorité (contient le plus d'infos)
+  const hasData = lastSim && (lastSim.winrate || lastSim.totalTrades);
+  const analysis = hasData ? coachAnalyze({
+    winrate: lastSim.winrate,
+    rr: lastSim.rr,
+    ddDayPct: lastSim.ddDayPct,
+    ddTotPct: lastSim.ddTotPct,
+    dailyDDLimit: lastSim.dailyDDLimit,
+    totalDDLimit: lastSim.totalDDLimit,
+    riskPct: lastSim.riskPctValue || 1,
+    totalTrades: lastSim.totalTrades,
+    wins: lastSim.wins,
+    losses: lastSim.losses,
+  }, firmName) : null;
+
+  // Couleur + verdict selon la probabilité
+  const verdictColor = (p) => p >= 75 ? "#4ade80" : p >= 55 ? "#6ee7b7" : p >= 35 ? "#fbbf24" : "#f87171";
+  const verdictLabel = (p) => p >= 75 ? t("coach_verdict_excellent") : p >= 55 ? t("coach_verdict_good") : p >= 35 ? t("coach_verdict_risky") : t("coach_verdict_critical");
+
+  const issueText = (key) => {
+    const map = {
+      dd_day: t("coach_issue_dd_day"), dd_total: t("coach_issue_dd_total"),
+      pf: t("coach_issue_pf"), sample: t("coach_issue_sample"),
+      risk: t("coach_issue_risk"), edge: t("coach_issue_edge"),
+    };
+    return map[key] || t("coach_issue_none");
+  };
+  const leverLabel = (action) => {
+    const map = { reduce_risk: t("coach_lever_risk"), improve_rr: t("coach_lever_rr"), improve_wr: t("coach_lever_wr") };
+    return map[action] || action;
+  };
+
+  return (
+    <div style={{ padding: "16px 16px 90px", maxWidth: 480, margin: "0 auto" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
+        <div style={{ width: 46, height: 46, borderRadius: 14, background: "linear-gradient(135deg, rgba(110,231,183,0.2), rgba(52,211,153,0.08))", border: "1px solid rgba(110,231,183,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2a5 5 0 015 5c0 1.5-.6 2.8-1.6 3.8.8.6 1.6 1.6 1.6 3.2 0 .8-.2 1.5-.6 2.1M12 2a5 5 0 00-5 5c0 1.5.6 2.8 1.6 3.8-.8.6-1.6 1.6-1.6 3.2 0 2.2 2 4 5 4s5-1.8 5-4" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round"/>
+            <circle cx="9" cy="7" r="1" fill="#6ee7b7"/><circle cx="15" cy="7" r="1" fill="#6ee7b7"/>
+          </svg>
+        </div>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: -0.3 }}>{t("coach_title")}</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>{t("coach_subtitle")}</div>
+        </div>
+      </div>
+
+      {!premiumAccess ? (
+        <div onClick={requirePremium} style={{ position: "relative", borderRadius: 20, overflow: "hidden", cursor: "pointer", minHeight: 300, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <LockOverlay onUnlock={requirePremium} label={t("coach_title") + " — Premium"} />
+        </div>
+      ) : !analysis ? (
+        <div style={{ textAlign: "center", padding: "50px 20px", background: "rgba(255,255,255,0.03)", borderRadius: 20, border: "1px solid rgba(110,231,183,0.1)" }}>
+          <div style={{ fontSize: 40, marginBottom: 14 }}>🤖</div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.5, marginBottom: 20 }}>{t("coach_no_data")}</div>
+          <button onClick={() => goto("simulator")} style={{ padding: "13px 26px", borderRadius: 100, background: "#6ee7b7", color: "#000", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer" }}>
+            {t("sim_launch")}
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* ── JAUGE PROBABILITÉ ── */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid " + verdictColor(analysis.probability) + "33", borderRadius: 20, padding: "22px 18px", marginBottom: 14, textAlign: "center" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>
+              {t("coach_prob_label")} · {firmName}
+            </div>
+            {/* Cercle de probabilité */}
+            <div style={{ position: "relative", width: 140, height: 140, margin: "0 auto 12px" }}>
+              <svg width="140" height="140" viewBox="0 0 140 140" style={{ transform: "rotate(-90deg)" }}>
+                <circle cx="70" cy="70" r="62" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
+                <circle cx="70" cy="70" r="62" fill="none" stroke={verdictColor(analysis.probability)} strokeWidth="10" strokeLinecap="round"
+                  strokeDasharray={2 * Math.PI * 62}
+                  strokeDashoffset={2 * Math.PI * 62 * (1 - analysis.probability / 100)} />
+              </svg>
+              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ fontSize: 38, fontWeight: 800, color: verdictColor(analysis.probability), lineHeight: 1 }}>{analysis.probability}<span style={{ fontSize: 18 }}>%</span></div>
+              </div>
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: verdictColor(analysis.probability) }}>{verdictLabel(analysis.probability)}</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>{t("coach_source_sim")}</div>
+          </div>
+
+          {/* ── MÉTRIQUES CLÉS ── */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+            <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 14, padding: "12px 14px" }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>{t("coach_metric_pf")}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: analysis.profitFactor >= 1.2 ? "#4ade80" : "#fbbf24" }}>{analysis.profitFactor}</div>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 14, padding: "12px 14px" }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>{t("coach_metric_exp")}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: analysis.expectancyR > 0 ? "#4ade80" : "#f87171" }}>{analysis.expectancyR > 0 ? "+" : ""}{analysis.expectancyR}R</div>
+            </div>
+          </div>
+
+          {/* ── DIAGNOSTIC ── */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: "16px", marginBottom: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#fbbf24", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>{t("coach_main_issue")}</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>
+              {analysis.mainIssue ? issueText(analysis.mainIssue.key) : t("coach_issue_none")}
+            </div>
+          </div>
+
+          {/* ── PLAN D'ACTION (leviers) ── */}
+          {analysis.levers.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>{t("coach_action_plan")}</div>
+              {analysis.levers.map((lever, i) => (
+                <div key={i} style={{ background: "rgba(110,231,183,0.05)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 14, padding: "13px 15px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(110,231,183,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 15, fontWeight: 800, color: "#6ee7b7" }}>+{lever.gain}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 2 }}>{leverLabel(lever.action)}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+                      {t("coach_lever_from")} <span style={{ color: "#f87171", fontWeight: 600 }}>{lever.from}</span> {t("coach_lever_to")} <span style={{ color: "#4ade80", fontWeight: 600 }}>{lever.to}</span> → <span style={{ color: "#6ee7b7", fontWeight: 700 }}>{lever.newProb}%</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* CTA */}
+          <button onClick={() => goto("simulator")} style={{ width: "100%", padding: "15px", borderRadius: 14, background: "linear-gradient(135deg, #6ee7b7, #34d399)", color: "#000", fontSize: 14, fontWeight: 800, border: "none", cursor: "pointer" }}>
+            {t("coach_cta_apply")}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, premiumAccess = true, daysLeft = 0, requirePremium = () => {} }) {
   const firm = PROP_FIRMS[profile.firmKey] || PROP_FIRMS.fundednext;
   const fm = firm.models[lastSim?.modelKey] || firm.models["2step"] || Object.values(firm.models)[0];
@@ -6377,14 +6753,13 @@ function NavBar({ t, active, goto }) {
         <rect x="2" y="2" width="18" height="18" rx="4" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
         <path d="M6 16L9 11l3 3 2-4 2 6" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>},
-    { k:"montecarlo", label:t("nav_montecarlo"),
+    { k:"coach", label:t("coach_title"),
       icon:(on)=><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <rect x="2" y="2" width="18" height="18" rx="4" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
-        <circle cx="7.5" cy="7.5" r="1.5" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
-        <circle cx="14.5" cy="7.5" r="1.5" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
-        <circle cx="7.5" cy="14.5" r="1.5" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
-        <circle cx="14.5" cy="14.5" r="1.5" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
-        <circle cx="11" cy="11" r="1.5" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
+        <path d="M11 2a4.5 4.5 0 014.5 4.5c0 1.4-.6 2.6-1.5 3.5.7.5 1.5 1.4 1.5 2.9 0 2-1.8 3.6-4.5 3.6S6.5 14.9 6.5 12.9c0-1.5.8-2.4 1.5-2.9C7.1 9.1 6.5 7.9 6.5 6.5A4.5 4.5 0 0111 2z"
+          fill={on?"rgba(110,231,183,0.15)":"none"} stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.5" strokeLinejoin="round"/>
+        <circle cx="9" cy="6.5" r="0.9" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
+        <circle cx="13" cy="6.5" r="0.9" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
+        <path d="M9 19v1M13 19v1" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.5" strokeLinecap="round"/>
       </svg>},
     { k:"trades", label:t("nav_trades"),
       icon:(on)=><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
@@ -7015,8 +7390,8 @@ export default function App() {
     ? (simTab === "trades" ? "trades" : simTab === "montecarlo" ? "montecarlo" : "simulator")
     : screen;
   const navGoto = (k) => {
-    // Monte Carlo et Mes Trades sont premium → paywall si pas d'accès
-    if ((k === "trades" || k === "montecarlo") && !premiumAccess) {
+    // Coach, Monte Carlo et Mes Trades sont premium → paywall si pas d'accès
+    if ((k === "trades" || k === "montecarlo" || k === "coach") && !premiumAccess) {
       setShowPaywall(true);
       return;
     }
@@ -7161,6 +7536,9 @@ export default function App() {
         )}
         {screen === "simulator" && (
           <SimulatorScreen key={simKey} t={t} lang={lang} tab={simTab} setTab={setSimTab} onSimResult={handleSimResult} displayMode={profile.displayMode || "advanced"} usageType={profile.usageType || "propfirm"} premiumAccess={premiumAccess} requirePremium={() => setShowPaywall(true)} />
+        )}
+        {screen === "coach" && (
+          <CoachScreen t={t} lang={lang} lastSim={lastSim} profile={profile} goto={navGoto} premiumAccess={premiumAccess} requirePremium={() => setShowPaywall(true)} />
         )}
         {screen === "profile" && (
           <ProfileScreen t={t} lang={lang} setLang={setLang} user={user} profile={profile} setProfile={setProfile} onLogout={logout} onReset={reset} premium={premium} daysLeft={daysLeft} onUpgrade={() => setShowPaywall(true)} />
