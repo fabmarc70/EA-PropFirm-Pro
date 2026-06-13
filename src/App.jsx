@@ -895,6 +895,7 @@ function backtestAnalyze(stored) {
   if (!stored || !stored.trades || !stored.trades.length) return null;
   const trades=stored.trades, initBal=stored.initBalance||(trades[0]?.balance-trades[0]?.profit)||0;
   if(!initBal) return null;
+
   const wins=trades.filter(t=>t.profit>0), losses=trades.filter(t=>t.profit<=0);
   const totalTrades=trades.length, wr=wins.length/totalTrades*100;
   const avgW=wins.length?wins.reduce((s,t)=>s+t.profit,0)/wins.length:0;
@@ -902,18 +903,54 @@ function backtestAnalyze(stored) {
   const rr=avgL>0?avgW/avgL:0;
   const grossW=wins.reduce((s,t)=>s+t.profit,0), grossL=Math.abs(losses.reduce((s,t)=>s+t.profit,0));
   const pf=grossL>0?grossW/grossL:99;
-  let peak=initBal,maxDD=0;
-  trades.forEach(t=>{if(t.balance>peak)peak=t.balance;const dd=(peak-t.balance)/peak*100;if(dd>maxDD)maxDD=dd;});
+
+  // ── VALIDATION DD : même logique que MesTrades ──
+  // Si balanceReconstructed=true → pas de colonne balance → DD non fiable
+  const balanceReconstructed = stored.balanceReconstructed === true;
+  let rawMaxDD = 0;
+  let peak = initBal;
+  trades.forEach(t => {
+    if (t.balance > peak) peak = t.balance;
+    const dd = (peak - t.balance) / peak * 100;
+    if (dd > rawMaxDD) rawMaxDD = dd;
+  });
+
+  // DD non fiable si : balance reconstruite OU DD=0 malgré des pertes
+  const ddZeroButLosses = rawMaxDD < 0.01 && losses.length > 0;
+  const ddUnreliable = balanceReconstructed || ddZeroButLosses;
+  const ddKnown = !ddUnreliable;
+
+  // Si DD manuel fourni (depuis MesTrades), l'utiliser
+  const manualDD = stored.manualDD != null ? stored.manualDD : null;
+  const maxDD = manualDD != null ? manualDD : (ddUnreliable ? null : rawMaxDD);
+
   const finalBal=trades[trades.length-1].balance, profit=(finalBal-initBal)/initBal*100;
 
+  // ── SCORE ROBUSTESSE ──
   let robustness=50;
   if(pf>=2.5) robustness+=20; else if(pf>=1.5) robustness+=12; else if(pf<1.1) robustness-=25;
   if(totalTrades>=100) robustness+=15; else if(totalTrades>=50) robustness+=8; else if(totalTrades<30) robustness-=20;
-  if(maxDD<=5) robustness+=10; else if(maxDD<=10) robustness+=5; else if(maxDD>20) robustness-=15;
+  if(!ddKnown && manualDD==null) robustness-=25; // Forte pénalité si DD absent
+  else if(maxDD!=null && maxDD<=5) robustness+=10; else if(maxDD!=null && maxDD<=10) robustness+=5; else if(maxDD!=null && maxDD>20) robustness-=15;
   if(pf>4&&totalTrades<50) robustness-=20;
   robustness=Math.max(5,Math.min(95,Math.round(robustness)));
 
-  return { robustness, totalTrades, wr:+wr.toFixed(1), rr:+rr.toFixed(2), pf:+pf.toFixed(2), maxDD:+maxDD.toFixed(2), profit:+profit.toFixed(2), avgW:+avgW.toFixed(2), avgL:+avgL.toFixed(2), filename:stored.filename };
+  // ── CONFIANCE AUDIT ──
+  let auditConfidence = 100;
+  if(!ddKnown && manualDD==null) auditConfidence = 30;
+  else if(manualDD!=null) auditConfidence = 65; // DD manuel = partiel
+  if(totalTrades<50) auditConfidence = Math.min(auditConfidence, 60);
+  const auditStatus = (!ddKnown && manualDD==null) ? 'INCOMPLET' : manualDD!=null ? 'Partiel (DD manuel)' : 'Complet';
+
+  return {
+    robustness, totalTrades, wr:+wr.toFixed(1), rr:+rr.toFixed(2),
+    pf:+pf.toFixed(2), maxDD: maxDD!=null ? +maxDD.toFixed(2) : null,
+    profit:+profit.toFixed(2), avgW:+avgW.toFixed(2), avgL:+avgL.toFixed(2),
+    filename:stored.filename,
+    ddKnown, ddUnreliable, balanceReconstructed, manualDD,
+    ddZeroButLosses, auditConfidence, auditStatus,
+    ddMissingReason: ddUnreliable ? (balanceReconstructed ? 'Balances reconstruites — colonne Balance absente du CSV' : `DD 0% malgré ${losses.length} trades perdants — balances intermédiaires manquantes`) : null
+  };
 }
 
 async function callGeminiCoach(data, lang, mode) {
@@ -1158,7 +1195,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
               {[{l:'PF',v:a.profitFactor,g:a.profitFactor>=1.5},{l:'Esp.',v:(a.expectancyR>0?'+':'')+a.expectancyR+'R',g:a.expectancyR>0},{l:'DD',v:Math.max(a.metrics.ddDayUsed,a.metrics.ddTotUsed).toFixed(1)+'%',g:true}].map((m,i)=>(
                 <div key={i} style={{flex:1,background:'rgba(255,255,255,0.06)',borderRadius:10,padding:'7px 6px',textAlign:'center'}}>
                   <div style={{fontSize:8,color:'rgba(255,255,255,0.4)'}}>{m.l}</div>
-                  <div style={{fontSize:13,fontWeight:800,color:m.g?'#4ade80':'#fbbf24'}}>{m.v}</div>
+                  <div style={{fontSize:13,fontWeight:800,color:m.warn?'#ef4444':m.g?'#4ade80':'#fbbf24'}}>{m.v}</div>
                 </div>
               ))}
             </div>
@@ -1252,7 +1289,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
               {[{l:'WR jours',v:j.dayWR.toFixed(0)+'%',g:j.dayWR>=55},{l:'WR trades',v:j.tradeWR.toFixed(0)+'%',g:j.tradeWR>=50},{l:'Moy./jour',v:(j.avgDailyPnl>0?'+':'')+j.avgDailyPnl+'$',g:j.avgDailyPnl>0}].map((m,i)=>(
                 <div key={i} style={{flex:1,background:'rgba(255,255,255,0.06)',borderRadius:10,padding:'7px 6px',textAlign:'center'}}>
                   <div style={{fontSize:8,color:'rgba(255,255,255,0.4)'}}>{m.l}</div>
-                  <div style={{fontSize:12,fontWeight:800,color:m.g?'#4ade80':'#fbbf24'}}>{m.v}</div>
+                  <div style={{fontSize:12,fontWeight:800,color:m.warn?'#ef4444':m.g?'#4ade80':'#fbbf24'}}>{m.v}</div>
                 </div>
               ))}
             </div>
@@ -1310,11 +1347,14 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         </div>
       </div>
     );
-    const rColor=scoreColor(b.robustness);
-    const rLabel=b.robustness>=75?'Robuste':b.robustness>=55?'Acceptable':b.robustness>=35?'Fragile':'Non fiable';
+    const rColor = (!b.ddKnown && b.manualDD==null) ? '#fbbf24' : scoreColor(b.robustness);
+    const rLabel = (!b.ddKnown && b.manualDD==null) ? 'Audit incomplet' : b.robustness>=75?'Robuste':b.robustness>=55?'Acceptable':b.robustness>=35?'Fragile':'Non fiable';
     const overfit=b.pf>4&&b.totalTrades<60;
-    const localText=b.robustness>=70?`Avec ${b.totalTrades} trades et un Profit Factor de ${b.pf}, ce backtest présente les caractéristiques d'une stratégie ${b.robustness>=75?'statistiquement robuste':'acceptable'}. Le drawdown de ${b.maxDD}% reste ${b.maxDD<10?'dans des limites raisonnables':'à surveiller'}. ${overfit?'Attention au risque de sur-optimisation avec ce PF élevé sur peu de trades.':''}`:
-      `Ce backtest de ${b.totalTrades} trades montre ${b.robustness>=50?'une robustesse limitée':'des fragilités importantes'}. Avec un PF de ${b.pf} et un DD max de ${b.maxDD}%, ${b.totalTrades<50?'l\'échantillon insuffisant ne permet pas de conclusions fiables.':'des optimisations s\'imposent avant un challenge.'} ${overfit?'Le risque de sur-optimisation est significatif.':''}`;
+    const localText = (!b.ddKnown && b.manualDD==null)
+      ? `AUDIT INCOMPLET — Le DD de ce backtest est inconnu (${b.ddMissingReason||'données insuffisantes'}). Avec ${b.totalTrades} trades et un PF de ${b.pf}, les autres métriques sont solides, MAIS le respect des limites de risque prop firm ne peut pas être validé sans drawdown réel. Importez un CSV avec la colonne Balance, ou saisissez manuellement le DD max dans Mes Trades.`
+      : b.robustness>=70
+        ? `Avec ${b.totalTrades} trades et un Profit Factor de ${b.pf}, ce backtest présente les caractéristiques d'une stratégie ${b.robustness>=75?'statistiquement robuste':'acceptable'}. Le drawdown de ${b.maxDD}% ${b.manualDD!=null?'(saisi manuellement)':'réel'} reste ${b.maxDD<10?'dans des limites raisonnables':'à surveiller'}. ${overfit?'Attention au risque de sur-optimisation.':''}`
+        : `Ce backtest de ${b.totalTrades} trades montre des fragilités. PF ${b.pf}, DD ${b.maxDD!=null?b.maxDD+'%':'inconnu'}. ${b.totalTrades<50?'Échantillon insuffisant.':''} ${overfit?'Risque de sur-optimisation.':''}`;
     return (
       <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
         <ReportHeader title="Résultats Backtest" subtitle={`${b.filename||'Backtest'} · ${b.totalTrades} trades`} onBack={()=>setMode(null)}/>
@@ -1327,7 +1367,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
             <div style={{fontSize:22,fontWeight:900,color:rColor,marginBottom:2}}>{rLabel}</div>
             <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{b.totalTrades} trades · Profit {b.profit>0?'+':''}{b.profit}%</div>
             <div style={{display:'flex',gap:8,marginTop:10}}>
-              {[{l:'PF',v:b.pf,g:b.pf>=1.5},{l:'WR',v:b.wr.toFixed(0)+'%',g:b.wr>=50},{l:'DD',v:b.maxDD.toFixed(1)+'%',g:b.maxDD<10}].map((m,i)=>(
+              {[{l:'PF',v:b.pf,g:b.pf>=1.5},{l:'WR',v:b.wr.toFixed(0)+'%',g:b.wr>=50},{l:'DD',v:b.maxDD!=null?b.maxDD.toFixed(1)+'%':'N/A',g:b.maxDD!=null&&b.maxDD<10,warn:b.maxDD==null}].map((m,i)=>(
                 <div key={i} style={{flex:1,background:'rgba(255,255,255,0.06)',borderRadius:10,padding:'7px 6px',textAlign:'center'}}>
                   <div style={{fontSize:8,color:'rgba(255,255,255,0.4)'}}>{m.l}</div>
                   <div style={{fontSize:13,fontWeight:800,color:m.g?'#4ade80':'#fbbf24'}}>{m.v}</div>
@@ -1336,6 +1376,21 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
             </div>
           </div>
         </div>
+
+        {/* Alerte DD absent — calquée sur Mes Trades */}
+        {(!b.ddKnown && b.manualDD==null) && (
+          <div style={{background:'rgba(251,191,36,0.08)',border:'2px solid rgba(251,191,36,0.4)',borderRadius:16,padding:16,marginBottom:12}}>
+            <div style={{fontSize:13,fontWeight:900,color:'#fbbf24',marginBottom:8}}>⚠️ DONNÉES DD MANQUANTES</div>
+            <div style={{fontSize:12,color:'rgba(255,255,255,0.75)',lineHeight:1.6,marginBottom:12}}>
+              {b.ddMissingReason||'Drawdown non calculable'}. Les métriques WR, RR et PF sont fiables, mais <strong style={{color:'#fbbf24'}}>le verdict prop firm est invalide</strong> sans DD réel.
+            </div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.5)',lineHeight:1.5}}>
+              💡 Pour débloquer le verdict complet :<br/>
+              • Importez un CSV avec colonne Balance (trade par trade)<br/>
+              • Ou saisissez le DD max manuellement dans <strong style={{color:'#6ee7b7'}}>Mes Trades</strong>
+            </div>
+          </div>
+        )}
 
         {/* KPIs statistiques */}
         <div style={{background:'rgba(167,139,250,0.04)',border:'1px solid rgba(167,139,250,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
@@ -1361,11 +1416,11 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
           {[
             {cond:b.totalTrades>=100,good:'Échantillon statistiquement significatif ('+b.totalTrades+' trades)',bad:'Échantillon insuffisant ('+b.totalTrades+' trades) — min. 100 pour un backtest fiable'},
             {cond:b.pf>=1.5&&!overfit,good:'Profit Factor robuste ('+b.pf+') validé sur suffisamment de trades',bad:overfit?'Risque de sur-optimisation : PF '+b.pf+' sur '+b.totalTrades+' trades seulement':'Profit Factor faible ('+b.pf+') — stratégie peu rentable'},
-            {cond:b.maxDD<10,good:'Drawdown maîtrisé ('+b.maxDD+'%) — en dessous du seuil critique',bad:'Drawdown élevé ('+b.maxDD+'%) — à corriger avant un challenge'},
+            {cond:b.ddKnown&&b.maxDD!=null&&b.maxDD<10, neutral:!b.ddKnown&&b.manualDD==null, good:'Drawdown maîtrisé ('+b.maxDD+'%) — en dessous du seuil critique', bad:b.ddKnown?'Drawdown élevé ('+b.maxDD+'%) — à corriger avant un challenge':'DD absent — verdict impossible sans colonne Balance dans le CSV'},
           ].map((item,i)=>(
             <div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:i<2?9:0}}>
-              <span style={{color:item.cond?'#6ee7b7':'#f87171',fontSize:13,flexShrink:0,marginTop:1}}>{item.cond?'✓':'✕'}</span>
-              <div style={{fontSize:12,color:item.cond?'rgba(255,255,255,0.8)':'rgba(255,255,255,0.65)',lineHeight:1.4}}>{item.cond?item.good:item.bad}</div>
+              <span style={{color:item.neutral?'#fbbf24':item.cond?'#6ee7b7':'#f87171',fontSize:13,flexShrink:0,marginTop:1}}>{item.neutral?'?':item.cond?'✓':'✕'}</span>
+              <div style={{fontSize:12,color:item.neutral?'#fbbf24':item.cond?'rgba(255,255,255,0.8)':'rgba(255,255,255,0.65)',lineHeight:1.4}}>{item.neutral?item.bad:item.cond?item.good:item.bad}</div>
             </div>
           ))}
         </div>
