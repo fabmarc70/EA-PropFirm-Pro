@@ -6610,37 +6610,40 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
     .sort((a, b) => a.day - b.day);
   const hasJournalCurrentMonth = journalCurrentDays.length > 0;
 
-  // Construire les données du graphique mensuel (J1 → J31)
+  // Construire les données du graphique mensuel (J1 → jour actuel seulement)
+  const todayDay = now.getDate();
   const monthlyChartData = (() => {
     const result = [];
     let simEquity = cap;
     let journalEquity = cap;
 
-    for (let day = 1; day <= daysInCurrentMonth; day++) {
+    // S'arrêter au jour actuel, pas au dernier jour du mois
+    for (let day = 1; day <= todayDay; day++) {
       // Simulation : trouver le jour correspondant (dayOfMonth)
       const simDay = simMonth1Days.find(d => d.dayOfMonth === day);
       if (simDay) simEquity = simDay.equity;
 
-      // Journal : trouver le jour courant
+      // Journal : cumuler le PnL jusqu'à ce jour
       const journalDay = journalCurrentDays.find(d => d.day === day);
       if (journalDay) journalEquity += journalDay.pnl;
 
-      const isToday = day === now.getDate();
       result.push({
         day,
         simEquity: simMonth1Days.length > 0 ? simEquity : null,
-        journalEquity: hasJournalCurrentMonth ? (journalDay || journalCurrentDays.find(d=>d.day <= day) ? journalEquity : null) : null,
-        isToday,
+        // Journal seulement pour les jours où il y a eu des saisies
+        journalEquity: hasJournalCurrentMonth ? journalEquity : null,
+        hasJournalEntry: !!journalDay,
       });
     }
     return result;
   })();
 
-  // Déterminer la source principale (journal si données présentes, sinon simulation)
+  // Déterminer la source principale selon journalMode (switch du calendrier)
   const monthlyHasJournal = hasJournalCurrentMonth;
   const monthlyHasSim = simMonth1Days.length > 0;
-  // Source principale = journal si données réelles, sinon simulation
-  const monthlyPrimaryIsJournal = monthlyHasJournal;
+  // Si journalMode actif → journal principal (vert), sim secondaire (amber pointillé)
+  // Si journalMode inactif → sim principal (vert), journal secondaire (amber pointillé)
+  const monthlyPrimaryIsJournal = journalMode && monthlyHasJournal;
   const progression = ls.progression || 0;
   const phase1Target = ls.phase1Target || (fm?.phases?.[0]?.target*100) || 8;
   const phase1Pct = ls.phase1Pct || "0.0";
@@ -6886,19 +6889,28 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div>
             <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1}}>Équité — {currentMonthKey}</div>
-            <div style={{fontSize:9,color:"rgba(255,255,255,0.3)",marginTop:2}}>Jour par jour · mois courant</div>
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.3)",marginTop:2}}>
+              {monthlyPrimaryIsJournal ? "📓 Journal actif" : "📊 Simulation active"} · J1 → J{todayDay}
+            </div>
           </div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            {/* Légende dynamique : suit journalMode */}
             {monthlyHasJournal && (
               <div style={{display:"flex",alignItems:"center",gap:4}}>
-                <div style={{width:14,height:2,background:"#6ee7b7",borderRadius:1}}/>
-                <span style={{fontSize:9,color:"rgba(255,255,255,0.4)"}}>Journal</span>
+                {monthlyPrimaryIsJournal
+                  ? <div style={{width:14,height:2,background:"#6ee7b7",borderRadius:1}}/>
+                  : <svg width="14" height="3" viewBox="0 0 14 3"><line x1="0" y1="1.5" x2="14" y2="1.5" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 2"/></svg>
+                }
+                <span style={{fontSize:9,color:monthlyPrimaryIsJournal?"#6ee7b7":"rgba(255,255,255,0.4)",fontWeight:monthlyPrimaryIsJournal?700:400}}>Journal</span>
               </div>
             )}
             {monthlyHasSim && (
               <div style={{display:"flex",alignItems:"center",gap:4}}>
-                <svg width="14" height="2" viewBox="0 0 14 2"><line x1="0" y1="1" x2="14" y2="1" stroke={monthlyPrimaryIsJournal?"#fbbf24":"#6ee7b7"} strokeWidth="2" strokeDasharray={monthlyPrimaryIsJournal?"4 2":"none"}/></svg>
-                <span style={{fontSize:9,color:"rgba(255,255,255,0.4)"}}>Simulation</span>
+                {!monthlyPrimaryIsJournal
+                  ? <div style={{width:14,height:2,background:"#6ee7b7",borderRadius:1}}/>
+                  : <svg width="14" height="3" viewBox="0 0 14 3"><line x1="0" y1="1.5" x2="14" y2="1.5" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 2"/></svg>
+                }
+                <span style={{fontSize:9,color:!monthlyPrimaryIsJournal?"#6ee7b7":"rgba(255,255,255,0.4)",fontWeight:!monthlyPrimaryIsJournal?700:400}}>Simulation</span>
               </div>
             )}
           </div>
@@ -6926,19 +6938,19 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
                 contentStyle={{background:"rgba(10,12,22,0.97)",border:"1px solid rgba(110,231,183,0.15)",borderRadius:12,fontSize:11}}
               />
               <ReferenceLine y={cap} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 2"/>
-              {/* Courbe principale : journal (vert) si dispo, sinon simulation (vert) */}
-              {monthlyHasJournal && (
+              {/* ── Cas 1 : journalMode actif → Journal principal (vert Area) + Sim secondaire (amber pointillé) ── */}
+              {monthlyPrimaryIsJournal && monthlyHasJournal && (
                 <Area type="monotone" dataKey="journalEquity" stroke="#6ee7b7" strokeWidth={2.5} fill="url(#grad-journal-monthly)" dot={false} name="journalEquity" connectNulls={true}/>
               )}
-              {/* Courbe secondaire : simulation */}
-              {monthlyHasSim && (
-                <Line
-                  type="monotone" dataKey="simEquity"
-                  stroke={monthlyPrimaryIsJournal ? "#fbbf24" : "#6ee7b7"}
-                  strokeWidth={monthlyPrimaryIsJournal ? 1.5 : 2.5}
-                  strokeDasharray={monthlyPrimaryIsJournal ? "5 3" : "none"}
-                  dot={false} name="simEquity" connectNulls={true}
-                />
+              {monthlyPrimaryIsJournal && monthlyHasSim && (
+                <Line type="monotone" dataKey="simEquity" stroke="#fbbf24" strokeWidth={1.5} strokeDasharray="5 3" dot={false} name="simEquity" connectNulls={true}/>
+              )}
+              {/* ── Cas 2 : journalMode inactif → Sim principale (vert Area) + Journal secondaire (amber pointillé) ── */}
+              {!monthlyPrimaryIsJournal && monthlyHasSim && (
+                <Area type="monotone" dataKey="simEquity" stroke="#6ee7b7" strokeWidth={2.5} fill="url(#grad-sim-monthly)" dot={false} name="simEquity" connectNulls={true}/>
+              )}
+              {!monthlyPrimaryIsJournal && monthlyHasJournal && (
+                <Line type="monotone" dataKey="journalEquity" stroke="#fbbf24" strokeWidth={1.5} strokeDasharray="5 3" dot={false} name="journalEquity" connectNulls={true}/>
               )}
             </ComposedChart>
           </ResponsiveContainer>
