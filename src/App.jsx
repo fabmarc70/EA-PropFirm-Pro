@@ -762,16 +762,14 @@ function coachAnalyze(data, firmName) {
   const worstDDLim = ddDayRatio > ddTotRatio ? ddDayLimit : ddTotLimit;
   const ddIsValid = !(isNaN(worstDD) || worstDD === null || worstDD === undefined);
   const probability = !ddIsValid ? 0 : coachEstimateProbability({ winrate, rr, ddUsedPct: worstDD, ddLimitPct: worstDDLim, profitFactor, totalTrades, riskPct });
+  const auditConfidence = !ddIsValid ? 30 : totalTrades >= 100 ? 95 : totalTrades >= 50 ? 75 : 60;
+  const auditStatus = !ddIsValid ? 'INCOMPLET' : 'Complet';
 
   const buildForces = () => {
     const f = [];
-    // Vérifier que le DD a été calculé, sinon marquer comme incomplet
-    const ddIsValid = !(isNaN(worstDD) || worstDD === null || worstDD === undefined);
-    const ddRatio = ddIsValid && worstDDLim > 0 ? worstDD / worstDDLim : 0;
-    
-    if (!ddIsValid) {
-      f.push({ icon:'⚠️', title:'DD non validé', detail:'Données de drawdown insuffisantes', s:0 });
-    }
+    const ddIsValidF = !(isNaN(worstDD) || worstDD === null || worstDD === undefined);
+    const ddRatio = ddIsValidF && worstDDLim > 0 ? worstDD / worstDDLim : 0;
+    if (!ddIsValidF) { f.push({ icon:'⚠️', title:'DD inconnu', detail:'Drawdown non calculé — audit incomplet', s:0 }); }
     if (profitFactor >= 2.5) f.push({ icon:'💎', title:'Profit Factor exceptionnel', detail:`PF ${profitFactor.toFixed(2)} — stratégie très performante`, s:100 });
     else if (profitFactor >= 1.8) f.push({ icon:'✅', title:'Profit Factor excellent', detail:`PF ${profitFactor.toFixed(2)} — gains supérieurs aux pertes`, s:88 });
     else if (profitFactor >= 1.4) f.push({ icon:'✅', title:'Profit Factor solide', detail:`PF ${profitFactor.toFixed(2)} — stratégie structurellement rentable`, s:72 });
@@ -789,7 +787,9 @@ function coachAnalyze(data, firmName) {
 
   const buildRisks = () => {
     const r = [];
-    const ddRatio = worstDDLim > 0 ? worstDD / worstDDLim : 0;
+    const ddIsValidR = !(isNaN(worstDD) || worstDD === null || worstDD === undefined);
+    const ddRatio = ddIsValidR && worstDDLim > 0 ? worstDD / worstDDLim : 0;
+    if (!ddIsValidR) { r.push({ icon:'🚨', title:'DD ABSENT', detail:'Impossible de valider les limites de risque prop firm — verdict NON VALIDABLE', s:100 }); }
     if (totalTrades < 20) r.push({ icon:'🚨', title:'Échantillon critique', detail:`${totalTrades} trades — min. 50 recommandés`, s:100 });
     else if (totalTrades < 50) r.push({ icon:'⚠️', title:'Échantillon insuffisant', detail:`${totalTrades} trades — risque de biais`, s:80 });
     if (ddRatio >= 0.9) r.push({ icon:'🚨', title:'Drawdown critique', detail:`${worstDD.toFixed(1)}% / ${worstDDLim}% — élimination imminente`, s:100 });
@@ -835,7 +835,7 @@ function coachAnalyze(data, firmName) {
     return levers.sort((a,b)=>b.gain-a.gain).slice(0,3);
   };
 
-  return { probability, profitFactor:+profitFactor.toFixed(2), expectancyR, forces:buildForces(), risks:buildRisks(), levers:buildLevers(), projection:buildProjection(), metrics:{winrate,rr,ddDayUsed,ddTotUsed,ddDayLimit,ddTotLimit,riskPct,totalTrades,capital,phase1Target}, firmName:firmName||'ton challenge' };
+  return { probability, profitFactor:+profitFactor.toFixed(2), expectancyR, forces:buildForces(), risks:buildRisks(), levers:buildLevers(), projection:buildProjection(), metrics:{winrate,rr,ddDayUsed,ddTotUsed,ddDayLimit,ddTotLimit,riskPct,totalTrades,capital,phase1Target}, firmName:firmName||'ton challenge', ddKnown:ddIsValid, auditConfidence, auditStatus };
 }
 
 // Moteur analyse journal (mode 2)
