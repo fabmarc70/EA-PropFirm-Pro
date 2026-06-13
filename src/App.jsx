@@ -147,8 +147,8 @@ const I18N = {
     // ── Commun ──
     common_continue: "Continuer",
     common_config: "Configuration",
-    coach_title: "IA Coach",
-    coach_subtitle: "Ton analyste stratégie personnel",
+    coach_title: "Analyse",
+    coach_subtitle: "Centre d'Évaluation Quantitative",
     coach_prob_label: "Probabilité de réussite",
     coach_diagnosis: "Diagnostic",
     coach_main_issue: "Ton point faible principal",
@@ -321,8 +321,8 @@ const I18N = {
     // ── Común ──
     common_continue: "Continuar",
     common_config: "Configuración",
-    coach_title: "IA Coach",
-    coach_subtitle: "Tu analista de estrategia personal",
+    coach_title: "Análisis",
+    coach_subtitle: "Centro de Evaluación Cuantitativa",
     coach_prob_label: "Probabilidad de éxito",
     coach_diagnosis: "Diagnóstico",
     coach_main_issue: "Tu principal punto débil",
@@ -495,8 +495,8 @@ const I18N = {
     // ── Common ──
     common_continue: "Continue",
     common_config: "Configuration",
-    coach_title: "AI Coach",
-    coach_subtitle: "Your personal strategy analyst",
+    coach_title: "Analysis",
+    coach_subtitle: "Quantitative Evaluation Center",
     coach_prob_label: "Success probability",
     coach_diagnosis: "Diagnosis",
     coach_main_issue: "Your main weakness",
@@ -727,360 +727,649 @@ const fmtPn = (v) => (v >= 0 ? "+" : "") + (v * 100).toFixed(2) + "%";
 // IA COACH V2 — Moteur étendu + Gemini 2.5 Flash
 // ══════════════════════════════════════════════════════════════════
 
+// ══════════════════════════════════════════════════════════════════
+// CENTRE D'ANALYSE — Moteur d'évaluation quantitative
+// 3 modes : Simulation Challenge | Journal | Backtest
+// ══════════════════════════════════════════════════════════════════
+
 function coachEstimateProbability({ winrate, rr, ddUsedPct, ddLimitPct, profitFactor, totalTrades, riskPct }) {
   const wr = Math.max(0, Math.min(1, winrate / 100));
   const expectancyR = wr * rr - (1 - wr);
   let prob = 50 + expectancyR * 45;
   const ddRatio = ddLimitPct > 0 ? ddUsedPct / ddLimitPct : 0;
-  if      (ddRatio > 0.9)  prob -= 30;
-  else if (ddRatio > 0.75) prob -= 18;
-  else if (ddRatio > 0.6)  prob -= 10;
-  else if (ddRatio > 0.4)  prob -= 3;
-  else                      prob += 5;
-  if      (profitFactor >= 1.5) prob += 8;
-  else if (profitFactor >= 1.2) prob += 3;
-  else if (profitFactor < 1.0)  prob -= 25;
-  else if (profitFactor < 1.1)  prob -= 10;
-  if      (totalTrades < 20)   prob -= 15;
-  else if (totalTrades < 50)   prob -= 5;
-  else if (totalTrades >= 100) prob += 3;
-  if      (riskPct > 2)   prob -= 12;
-  else if (riskPct > 1.5) prob -= 5;
+  if (ddRatio > 0.9) prob -= 30; else if (ddRatio > 0.75) prob -= 18;
+  else if (ddRatio > 0.6) prob -= 10; else if (ddRatio > 0.4) prob -= 3; else prob += 5;
+  if (profitFactor >= 1.5) prob += 8; else if (profitFactor >= 1.2) prob += 3;
+  else if (profitFactor < 1.0) prob -= 25; else if (profitFactor < 1.1) prob -= 10;
+  if (totalTrades < 20) prob -= 15; else if (totalTrades < 50) prob -= 5; else if (totalTrades >= 100) prob += 3;
+  if (riskPct > 2) prob -= 12; else if (riskPct > 1.5) prob -= 5;
   return Math.max(2, Math.min(96, Math.round(prob)));
-}
-
-function coachBuildForces({ winrate, rr, pf, expectancyR, ddUsed, ddLimit, totalTrades, riskPct }) {
-  const wr = winrate / 100;
-  const ddRatio = ddLimit > 0 ? ddUsed / ddLimit : 0;
-  const forces = [];
-  if      (pf >= 2.5)  forces.push({ id:'pf_exc',  icon:'💎', title:'Profit Factor exceptionnel',   detail:`PF ${pf.toFixed(2)} — stratégie très performante sur la période`, strength:100 });
-  else if (pf >= 1.8)  forces.push({ id:'pf_sol',  icon:'✅', title:'Profit Factor excellent',      detail:`PF ${pf.toFixed(2)} — gains nettement supérieurs aux pertes`, strength:88 });
-  else if (pf >= 1.4)  forces.push({ id:'pf_ok',   icon:'✅', title:'Profit Factor solide',         detail:`PF ${pf.toFixed(2)} — stratégie structurellement rentable`, strength:72 });
-  if      (expectancyR >= 0.8)  forces.push({ id:'exp_exc', icon:'✅', title:'Espérance élevée',    detail:`+${expectancyR.toFixed(2)}R / trade — edge statistique fort`, strength:95 });
-  else if (expectancyR >= 0.4)  forces.push({ id:'exp_sol', icon:'✅', title:'Espérance positive',  detail:`+${expectancyR.toFixed(2)}R / trade — stratégie rentable en moyenne`, strength:78 });
-  else if (expectancyR >= 0.15) forces.push({ id:'exp_ok',  icon:'✅', title:'Espérance correcte',  detail:`+${expectancyR.toFixed(2)}R / trade — rentabilité présente`, strength:58 });
-  if      (ddRatio <= 0.25) forces.push({ id:'dd_exc', icon:'✅', title:'Drawdown très maîtrisé',   detail:`DD max ${ddUsed.toFixed(1)}% — ${Math.round(ddRatio*100)}% de la limite utilisée`, strength:90 });
-  else if (ddRatio <= 0.5)  forces.push({ id:'dd_sol', icon:'✅', title:'Drawdown bien maîtrisé',   detail:`DD max ${ddUsed.toFixed(1)}% — bonne marge de sécurité`, strength:74 });
-  if      (winrate >= 60)  forces.push({ id:'wr_exc', icon:'✅', title:'Winrate robuste',           detail:`${winrate.toFixed(0)}% de trades gagnants — fiabilité élevée`, strength:80 });
-  else if (winrate >= 52)  forces.push({ id:'wr_ok',  icon:'✅', title:'Winrate favorable',         detail:`${winrate.toFixed(0)}% — supérieur au seuil optimal`, strength:65 });
-  if      (rr >= 2.5)  forces.push({ id:'rr_exc', icon:'✅', title:'Ratio R/R excellent',          detail:`1:${rr.toFixed(1)} — gains unitaires bien supérieurs aux pertes`, strength:85 });
-  else if (rr >= 2.0)  forces.push({ id:'rr_sol', icon:'✅', title:'Bon ratio R/R',                detail:`1:${rr.toFixed(1)} — rapport gain/risque favorable`, strength:70 });
-  if      (totalTrades >= 150) forces.push({ id:'n_exc', icon:'✅', title:'Excellent échantillon',  detail:`${totalTrades} trades — statistiquement très fiable`, strength:88 });
-  else if (totalTrades >= 80)  forces.push({ id:'n_sol', icon:'✅', title:'Bon échantillon',         detail:`${totalTrades} trades — base statistique exploitable`, strength:70 });
-  return forces.sort((a,b) => b.strength - a.strength).slice(0,3);
-}
-
-function coachBuildRisks({ winrate, rr, pf, expectancyR, ddUsed, ddLimit, totalTrades, riskPct }) {
-  const ddRatio = ddLimit > 0 ? ddUsed / ddLimit : 0;
-  const risks = [];
-  if      (totalTrades < 20)  risks.push({ id:'n_crit',  icon:'🚨', title:'Échantillon critique',         detail:`${totalTrades} trades — statistiquement non fiable (min. 50 recommandés)`, severity:100 });
-  else if (totalTrades < 50)  risks.push({ id:'n_low',   icon:'⚠️',  title:'Échantillon insuffisant',      detail:`${totalTrades} trades — risque de biais sur les résultats`, severity:80 });
-  else if (totalTrades < 80)  risks.push({ id:'n_mid',   icon:'⚠️',  title:'Échantillon limite',           detail:`${totalTrades} trades — résultats à confirmer sur plus de données`, severity:50 });
-  if      (ddRatio >= 0.9)  risks.push({ id:'dd_crit', icon:'🚨', title:'Drawdown critique',             detail:`${ddUsed.toFixed(1)}% / ${ddLimit}% — une mauvaise série = élimination`, severity:100 });
-  else if (ddRatio >= 0.75) risks.push({ id:'dd_high', icon:'🚨', title:'Drawdown proche de la limite',  detail:`${ddUsed.toFixed(1)}% sur ${ddLimit}% max — marge de sécurité faible`, severity:85 });
-  else if (ddRatio >= 0.6)  risks.push({ id:'dd_med',  icon:'⚠️',  title:'Drawdown à surveiller',        detail:`${ddUsed.toFixed(1)}% / ${ddLimit}% — encore gérable mais risqué`, severity:60 });
-  if      (riskPct > 2.5)  risks.push({ id:'risk_crit', icon:'🚨', title:'Risque par trade excessif',    detail:`${riskPct.toFixed(2)}% par trade — 4 pertes = ${(riskPct*4).toFixed(1)}% de DD`, severity:95 });
-  else if (riskPct > 1.5)  risks.push({ id:'risk_high', icon:'⚠️',  title:'Risque par trade élevé',      detail:`${riskPct.toFixed(2)}% — réduire à 0.75-1% pour plus de robustesse`, severity:70 });
-  if      (rr < 1.2)  risks.push({ id:'rr_crit', icon:'🚨', title:'Ratio R/R insuffisant',              detail:`1:${rr.toFixed(1)} — trop faible pour compenser un winrate < 50%`, severity:90 });
-  else if (rr < 1.5)  risks.push({ id:'rr_low',  icon:'⚠️',  title:'Ratio R/R perfectible',             detail:`1:${rr.toFixed(1)} — à améliorer pour plus de robustesse`, severity:65 });
-  if (pf > 3.5 && totalTrades < 60) risks.push({ id:'overfit', icon:'⚠️', title:'Risque de sur-optimisation', detail:`PF ${pf.toFixed(2)} sur ${totalTrades} trades — biais potentiel`, severity:72 });
-  if      (expectancyR <= 0)   risks.push({ id:'exp_neg', icon:'🚨', title:'Espérance négative',          detail:`${expectancyR.toFixed(2)}R / trade — stratégie perdante en moyenne`, severity:100 });
-  else if (expectancyR < 0.1)  risks.push({ id:'exp_low', icon:'⚠️',  title:'Espérance très faible',      detail:`+${expectancyR.toFixed(2)}R — rentabilité fragile`, severity:68 });
-  return risks.sort((a,b) => b.severity - a.severity).slice(0,3);
-}
-
-function coachBuildProjection({ probability, rr, winrate, riskPct, capital, ddUsed, ddLimit, phase1Target }) {
-  const wr = winrate / 100;
-  const riskAmt = capital * (riskPct / 100);
-  const expectedPerTrade = riskAmt * (wr * rr - (1 - wr));
-  const tpd = 3;
-  const expectedDailyPnl = expectedPerTrade * tpd;
-  const targetAmt = capital * ((phase1Target || 8) / 100);
-  const ddRemaining = Math.max(0, ddLimit - ddUsed);
-  const maxConsecLosses = riskPct > 0 ? Math.floor(ddRemaining / riskPct) : 0;
-  let daysMin = null, daysMax = null;
-  if (expectedDailyPnl > 0) {
-    daysMin = Math.ceil(targetAmt / (expectedDailyPnl * 1.3));
-    daysMax = Math.ceil(targetAmt / (expectedDailyPnl * 0.7));
-  }
-  const failureRisk  = probability >= 75 ? "Faible"  : probability >= 55 ? "Modéré" : probability >= 35 ? "Élevé" : "Critique";
-  const failureColor = probability >= 75 ? "#6ee7b7" : probability >= 55 ? "#fbbf24" : probability >= 35 ? "#f97316" : "#ef4444";
-  return { daysMin, daysMax, maxConsecLosses, failureRisk, failureColor, ddRemaining: ddRemaining.toFixed(1) };
 }
 
 function coachAnalyze(data, firmName) {
   if (!data) return null;
-  const winrate  = data.winrate  || 0;
-  const rr       = data.rr       || 1;
-  const ddDayUsed  = parseFloat(data.ddDayPct  || 0);
-  const ddTotUsed  = parseFloat(data.ddTotPct  || 0);
-  const ddDayLimit = data.dailyDDLimit || 5;
-  const ddTotLimit = data.totalDDLimit || 10;
-  const riskPct    = data.riskPctValue || data.riskPct || 1;
-  const totalTrades = data.totalTrades || 0;
-  const capital     = data.capital || 25000;
-  const phase1Target = data.phase1Target || 8;
+  const winrate = data.winrate || 0, rr = data.rr || 1;
+  const ddDayUsed = parseFloat(data.ddDayPct || 0), ddTotUsed = parseFloat(data.ddTotPct || 0);
+  const ddDayLimit = data.dailyDDLimit || 5, ddTotLimit = data.totalDDLimit || 10;
+  const riskPct = data.riskPctValue || data.riskPct || 1;
+  const totalTrades = data.totalTrades || 0, capital = data.capital || 25000, phase1Target = data.phase1Target || 8;
   const wr = winrate / 100;
   const profitFactor = (1 - wr) > 0 ? (wr * rr) / (1 - wr) : 99;
-  const expectancyR  = +(wr * rr - (1 - wr)).toFixed(3);
-  const ddDayRatio   = ddDayLimit > 0 ? ddDayUsed / ddDayLimit : 0;
-  const ddTotRatio   = ddTotLimit > 0 ? ddTotUsed / ddTotLimit : 0;
-  const worstDD      = ddDayRatio > ddTotRatio ? ddDayUsed : ddTotUsed;
-  const worstDDLim   = ddDayRatio > ddTotRatio ? ddDayLimit : ddTotLimit;
-  const probability  = coachEstimateProbability({ winrate, rr, ddUsedPct: worstDD, ddLimitPct: worstDDLim, profitFactor, totalTrades, riskPct });
-  const forces    = coachBuildForces({ winrate, rr, pf: profitFactor, expectancyR, ddUsed: worstDD, ddLimit: worstDDLim, totalTrades, riskPct });
-  const risks     = coachBuildRisks ({  winrate, rr, pf: profitFactor, expectancyR, ddUsed: worstDD, ddLimit: worstDDLim, totalTrades, riskPct });
-  const projection = coachBuildProjection({ probability, rr, winrate, riskPct, capital, ddUsed: worstDD, ddLimit: worstDDLim, phase1Target });
-  const levers = [];
-  if (riskPct > 0.5) {
-    const nr = Math.max(0.25, riskPct - 0.25);
-    const np = coachEstimateProbability({ winrate, rr, ddUsedPct: worstDD*(nr/riskPct), ddLimitPct: worstDDLim, profitFactor, totalTrades, riskPct: nr });
-    if (np > probability) levers.push({ action:'reduce_risk', from: riskPct.toFixed(2)+'%', to: nr.toFixed(2)+'%', gain: np-probability, newProb: np, label:'Réduire le risque/trade' });
-  }
-  const nrr = rr + 0.5;
-  const nPF = (1-wr)>0 ? (wr*nrr)/(1-wr) : 99;
-  const np2 = coachEstimateProbability({ winrate, rr: nrr, ddUsedPct: worstDD, ddLimitPct: worstDDLim, profitFactor: nPF, totalTrades, riskPct });
-  if (np2 > probability) levers.push({ action:'improve_rr', from:'1:'+rr.toFixed(1), to:'1:'+nrr.toFixed(1), gain: np2-probability, newProb: np2, label:'Améliorer le ratio R/R' });
-  if (winrate < 70) {
-    const nwr2=winrate+5; const nwr2r=nwr2/100;
-    const nPF3=(1-nwr2r)>0?(nwr2r*rr)/(1-nwr2r):99;
-    const np3=coachEstimateProbability({winrate:nwr2, rr, ddUsedPct:worstDD, ddLimitPct:worstDDLim, profitFactor:nPF3, totalTrades, riskPct});
-    if (np3>probability) levers.push({action:'improve_wr', from:winrate.toFixed(0)+'%', to:nwr2.toFixed(0)+'%', gain:np3-probability, newProb:np3, label:'Améliorer le winrate'});
-  }
-  levers.sort((a,b)=>b.gain-a.gain);
-  return { probability, profitFactor:+profitFactor.toFixed(2), expectancyR, forces, risks, levers:levers.slice(0,3), projection, metrics:{winrate,rr,ddDayUsed,ddTotUsed,ddDayLimit,ddTotLimit,riskPct,totalTrades,capital,phase1Target}, firmName:firmName||'ton challenge' };
+  const expectancyR = +(wr * rr - (1 - wr)).toFixed(3);
+  const ddDayRatio = ddDayLimit > 0 ? ddDayUsed / ddDayLimit : 0;
+  const ddTotRatio = ddTotLimit > 0 ? ddTotUsed / ddTotLimit : 0;
+  const worstDD = ddDayRatio > ddTotRatio ? ddDayUsed : ddTotUsed;
+  const worstDDLim = ddDayRatio > ddTotRatio ? ddDayLimit : ddTotLimit;
+  const probability = coachEstimateProbability({ winrate, rr, ddUsedPct: worstDD, ddLimitPct: worstDDLim, profitFactor, totalTrades, riskPct });
+
+  const buildForces = () => {
+    const f = [];
+    const ddRatio = worstDDLim > 0 ? worstDD / worstDDLim : 0;
+    if (profitFactor >= 2.5) f.push({ icon:'💎', title:'Profit Factor exceptionnel', detail:`PF ${profitFactor.toFixed(2)} — stratégie très performante`, s:100 });
+    else if (profitFactor >= 1.8) f.push({ icon:'✅', title:'Profit Factor excellent', detail:`PF ${profitFactor.toFixed(2)} — gains supérieurs aux pertes`, s:88 });
+    else if (profitFactor >= 1.4) f.push({ icon:'✅', title:'Profit Factor solide', detail:`PF ${profitFactor.toFixed(2)} — stratégie structurellement rentable`, s:72 });
+    if (expectancyR >= 0.8) f.push({ icon:'✅', title:'Espérance élevée', detail:`+${expectancyR.toFixed(2)}R / trade — edge statistique fort`, s:95 });
+    else if (expectancyR >= 0.4) f.push({ icon:'✅', title:'Espérance positive', detail:`+${expectancyR.toFixed(2)}R / trade — stratégie rentable en moyenne`, s:78 });
+    if (ddRatio <= 0.25) f.push({ icon:'✅', title:'Drawdown très maîtrisé', detail:`${worstDD.toFixed(1)}% — ${Math.round(ddRatio*100)}% de la limite`, s:90 });
+    else if (ddRatio <= 0.5) f.push({ icon:'✅', title:'Drawdown bien maîtrisé', detail:`${worstDD.toFixed(1)}% — bonne marge de sécurité`, s:74 });
+    if (winrate >= 60) f.push({ icon:'✅', title:'Winrate robuste', detail:`${winrate.toFixed(0)}% — fiabilité élevée`, s:80 });
+    if (rr >= 2.5) f.push({ icon:'✅', title:'Ratio R/R excellent', detail:`1:${rr.toFixed(1)} — gains supérieurs aux pertes unitaires`, s:85 });
+    else if (rr >= 2.0) f.push({ icon:'✅', title:'Bon ratio R/R', detail:`1:${rr.toFixed(1)} — rapport gain/risque favorable`, s:70 });
+    if (totalTrades >= 150) f.push({ icon:'✅', title:'Excellent échantillon', detail:`${totalTrades} trades — statistiquement très fiable`, s:88 });
+    else if (totalTrades >= 80) f.push({ icon:'✅', title:'Bon échantillon', detail:`${totalTrades} trades — base statistique exploitable`, s:70 });
+    return f.sort((a,b)=>b.s-a.s).slice(0,3);
+  };
+
+  const buildRisks = () => {
+    const r = [];
+    const ddRatio = worstDDLim > 0 ? worstDD / worstDDLim : 0;
+    if (totalTrades < 20) r.push({ icon:'🚨', title:'Échantillon critique', detail:`${totalTrades} trades — min. 50 recommandés`, s:100 });
+    else if (totalTrades < 50) r.push({ icon:'⚠️', title:'Échantillon insuffisant', detail:`${totalTrades} trades — risque de biais`, s:80 });
+    if (ddRatio >= 0.9) r.push({ icon:'🚨', title:'Drawdown critique', detail:`${worstDD.toFixed(1)}% / ${worstDDLim}% — élimination imminente`, s:100 });
+    else if (ddRatio >= 0.75) r.push({ icon:'🚨', title:'Drawdown proche limite', detail:`${worstDD.toFixed(1)}% sur ${worstDDLim}% max`, s:85 });
+    else if (ddRatio >= 0.6) r.push({ icon:'⚠️', title:'Drawdown à surveiller', detail:`${worstDD.toFixed(1)}% / ${worstDDLim}%`, s:60 });
+    if (riskPct > 2.5) r.push({ icon:'🚨', title:'Risque/trade excessif', detail:`${riskPct.toFixed(2)}% — ${Math.round(riskPct*4)}% DD en 4 pertes`, s:95 });
+    else if (riskPct > 1.5) r.push({ icon:'⚠️', title:'Risque/trade élevé', detail:`${riskPct.toFixed(2)}% — réduire à 0.75-1%`, s:70 });
+    if (rr < 1.2) r.push({ icon:'🚨', title:'Ratio R/R insuffisant', detail:`1:${rr.toFixed(1)} — trop faible`, s:90 });
+    if (profitFactor > 3.5 && totalTrades < 60) r.push({ icon:'⚠️', title:'Risque sur-optimisation', detail:`PF ${profitFactor.toFixed(2)} sur ${totalTrades} trades — biais potentiel`, s:72 });
+    if (expectancyR <= 0) r.push({ icon:'🚨', title:'Espérance négative', detail:`${expectancyR.toFixed(2)}R — stratégie structurellement perdante`, s:100 });
+    return r.sort((a,b)=>b.s-a.s).slice(0,3);
+  };
+
+  const buildProjection = () => {
+    const riskAmt = capital * (riskPct / 100);
+    const expectedPT = riskAmt * (wr * rr - (1 - wr));
+    const eDailyPnl = expectedPT * 3;
+    const targetAmt = capital * (phase1Target / 100);
+    const ddRemaining = Math.max(0, worstDDLim - worstDD);
+    const maxLosses = riskPct > 0 ? Math.floor(ddRemaining / riskPct) : 0;
+    const daysMin = eDailyPnl > 0 ? Math.ceil(targetAmt / (eDailyPnl * 1.3)) : null;
+    const daysMax = eDailyPnl > 0 ? Math.ceil(targetAmt / (eDailyPnl * 0.7)) : null;
+    const failureRisk = probability >= 75 ? 'Faible' : probability >= 55 ? 'Modéré' : probability >= 35 ? 'Élevé' : 'Critique';
+    const failureColor = probability >= 75 ? '#6ee7b7' : probability >= 55 ? '#fbbf24' : probability >= 35 ? '#f97316' : '#ef4444';
+    return { daysMin, daysMax, maxConsecLosses: maxLosses, failureRisk, failureColor, ddRemaining: ddRemaining.toFixed(1) };
+  };
+
+  const buildLevers = () => {
+    const levers = [];
+    if (riskPct > 0.5) {
+      const nr = Math.max(0.25, riskPct - 0.25);
+      const np = coachEstimateProbability({ winrate, rr, ddUsedPct: worstDD*(nr/riskPct), ddLimitPct: worstDDLim, profitFactor, totalTrades, riskPct: nr });
+      if (np > probability) levers.push({ from: riskPct.toFixed(2)+'%', to: nr.toFixed(2)+'%', gain: np-probability, newProb: np, label:'Réduire le risque/trade' });
+    }
+    const nrr = rr + 0.5, nPF = (1-wr)>0?(wr*nrr)/(1-wr):99;
+    const np2 = coachEstimateProbability({ winrate, rr:nrr, ddUsedPct:worstDD, ddLimitPct:worstDDLim, profitFactor:nPF, totalTrades, riskPct });
+    if (np2 > probability) levers.push({ from:'1:'+rr.toFixed(1), to:'1:'+nrr.toFixed(1), gain:np2-probability, newProb:np2, label:'Améliorer le ratio R/R' });
+    if (winrate < 70) {
+      const nwr=winrate+5, nwrr=nwr/100, nPF3=(1-nwrr)>0?(nwrr*rr)/(1-nwrr):99;
+      const np3=coachEstimateProbability({winrate:nwr,rr,ddUsedPct:worstDD,ddLimitPct:worstDDLim,profitFactor:nPF3,totalTrades,riskPct});
+      if (np3>probability) levers.push({ from:winrate.toFixed(0)+'%', to:nwr.toFixed(0)+'%', gain:np3-probability, newProb:np3, label:'Améliorer le winrate' });
+    }
+    return levers.sort((a,b)=>b.gain-a.gain).slice(0,3);
+  };
+
+  return { probability, profitFactor:+profitFactor.toFixed(2), expectancyR, forces:buildForces(), risks:buildRisks(), levers:buildLevers(), projection:buildProjection(), metrics:{winrate,rr,ddDayUsed,ddTotUsed,ddDayLimit,ddTotLimit,riskPct,totalTrades,capital,phase1Target}, firmName:firmName||'ton challenge' };
 }
 
-async function callGeminiCoach(analysis, lang) {
+// Moteur analyse journal (mode 2)
+function journalAnalyze(journalRaw) {
+  const allDays = [];
+  Object.entries(journalRaw || {}).forEach(([mk, days]) => {
+    Object.entries(days || {}).forEach(([d, e]) => {
+      if (e && (e.pnl !== undefined || e.wins !== undefined))
+        allDays.push({ date:`${mk}-${d.padStart(2,'0')}`, pnl:e.pnl||0, wins:e.wins||0, losses:e.losses||0 });
+    });
+  });
+  if (!allDays.length) return null;
+  allDays.sort((a,b)=>a.date.localeCompare(b.date));
+
+  let totalWins=0, totalLosses=0, totalPnl=0, bestDay=-Infinity, worstDay=Infinity;
+  let streakW=0, streakL=0, maxStreakW=0, maxStreakL=0;
+  allDays.forEach(d => {
+    totalWins+=d.wins; totalLosses+=d.losses; totalPnl+=d.pnl;
+    if(d.pnl>bestDay) bestDay=d.pnl; if(d.pnl<worstDay) worstDay=d.pnl;
+    if(d.pnl>0){streakW++;streakL=0;maxStreakW=Math.max(maxStreakW,streakW);}
+    else{streakL++;streakW=0;maxStreakL=Math.max(maxStreakL,streakL);}
+  });
+  const tt=totalWins+totalLosses, tradeWR=tt>0?totalWins/tt*100:0;
+  const posDays=allDays.filter(d=>d.pnl>0).length, dayWR=allDays.length>0?posDays/allDays.length*100:0;
+
+  let consistency=50;
+  if(dayWR>=65) consistency+=20; else if(dayWR>=55) consistency+=12; else if(dayWR<40) consistency-=15;
+  if(maxStreakL<=2) consistency+=15; else if(maxStreakL<=4) consistency+=5; else if(maxStreakL>=6) consistency-=20;
+  const pnlRatio=Math.abs(bestDay)/(Math.abs(worstDay)||1);
+  if(pnlRatio>=2) consistency+=10; else if(pnlRatio<0.7) consistency-=10;
+  if(allDays.length>=30) consistency+=10; else if(allDays.length<10) consistency-=20;
+  consistency=Math.max(5,Math.min(95,Math.round(consistency)));
+
+  const issues=[];
+  if(maxStreakL>=4) issues.push({sev:'high',text:`Série de ${maxStreakL} journées perdantes consécutives — risque de revenge trading`});
+  if(dayWR<45) issues.push({sev:'high',text:`${dayWR.toFixed(0)}% de jours positifs — cohérence journalière insuffisante`});
+  if(allDays.length<15) issues.push({sev:'med',text:`${allDays.length} jours saisis seulement — historique insuffisant`});
+  if(Math.abs(worstDay)>Math.abs(bestDay)*1.5) issues.push({sev:'med',text:`Pire journée (${worstDay.toFixed(0)}$) disproportionnée — manque de discipline possible`});
+
+  const strengths=[];
+  if(dayWR>=60) strengths.push({text:`${dayWR.toFixed(0)}% de journées positives — régularité solide`});
+  if(maxStreakW>=5) strengths.push({text:`Série gagnante max ${maxStreakW} jours — capacité à enchaîner`});
+  if(totalPnl>0) strengths.push({text:`P&L global +${totalPnl.toFixed(0)}$ sur ${allDays.length} jours de trading`});
+  if(tradeWR>=55) strengths.push({text:`Winrate trade ${tradeWR.toFixed(0)}% — sélection d'entrées efficace`});
+
+  return {
+    consistency, totalDays:allDays.length, totalTrades:tt, totalWins, totalLosses, tradeWR:+tradeWR.toFixed(1), dayWR:+dayWR.toFixed(1),
+    totalPnl:+totalPnl.toFixed(2), avgDailyPnl:+(totalPnl/allDays.length).toFixed(2),
+    bestDay:bestDay===-Infinity?0:+bestDay.toFixed(2), worstDay:worstDay===Infinity?0:+worstDay.toFixed(2),
+    maxStreakW, maxStreakL, monthsTracked:Object.keys(journalRaw||{}).length,
+    issues:issues.slice(0,3), strengths:strengths.slice(0,3),
+  };
+}
+
+// Moteur analyse backtest (mode 3)
+function backtestAnalyze(stored) {
+  if (!stored || !stored.trades || !stored.trades.length) return null;
+  const trades=stored.trades, initBal=stored.initBalance||(trades[0]?.balance-trades[0]?.profit)||0;
+  if(!initBal) return null;
+  const wins=trades.filter(t=>t.profit>0), losses=trades.filter(t=>t.profit<=0);
+  const totalTrades=trades.length, wr=wins.length/totalTrades*100;
+  const avgW=wins.length?wins.reduce((s,t)=>s+t.profit,0)/wins.length:0;
+  const avgL=losses.length?Math.abs(losses.reduce((s,t)=>s+t.profit,0))/losses.length:1;
+  const rr=avgL>0?avgW/avgL:0;
+  const grossW=wins.reduce((s,t)=>s+t.profit,0), grossL=Math.abs(losses.reduce((s,t)=>s+t.profit,0));
+  const pf=grossL>0?grossW/grossL:99;
+  let peak=initBal,maxDD=0;
+  trades.forEach(t=>{if(t.balance>peak)peak=t.balance;const dd=(peak-t.balance)/peak*100;if(dd>maxDD)maxDD=dd;});
+  const finalBal=trades[trades.length-1].balance, profit=(finalBal-initBal)/initBal*100;
+
+  let robustness=50;
+  if(pf>=2.5) robustness+=20; else if(pf>=1.5) robustness+=12; else if(pf<1.1) robustness-=25;
+  if(totalTrades>=100) robustness+=15; else if(totalTrades>=50) robustness+=8; else if(totalTrades<30) robustness-=20;
+  if(maxDD<=5) robustness+=10; else if(maxDD<=10) robustness+=5; else if(maxDD>20) robustness-=15;
+  if(pf>4&&totalTrades<50) robustness-=20;
+  robustness=Math.max(5,Math.min(95,Math.round(robustness)));
+
+  return { robustness, totalTrades, wr:+wr.toFixed(1), rr:+rr.toFixed(2), pf:+pf.toFixed(2), maxDD:+maxDD.toFixed(2), profit:+profit.toFixed(2), avgW:+avgW.toFixed(2), avgL:+avgL.toFixed(2), filename:stored.filename };
+}
+
+async function callGeminiCoach(data, lang, mode) {
   const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY || '';
-  if (!GEMINI_KEY) { console.warn('[IA Coach] VITE_GEMINI_KEY manquante — analyse locale'); return null; }
+  if (!GEMINI_KEY) return null;
   const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
-  const langLabel = { fr:'français', en:'English', es:'español' }[lang] || 'français';
-  const { probability, profitFactor, expectancyR, metrics:m, forces, risks, firmName } = analysis;
-  const prompt = `Tu es un analyste expert en Prop Trading, direct et précis. Réponds UNIQUEMENT en JSON valide, sans markdown ni backticks.\n\nStratégie analysée pour un challenge prop firm "${firmName}" (capital $${m.capital}) :\n- Winrate : ${m.winrate.toFixed(0)}%\n- Ratio RR : 1:${m.rr.toFixed(1)}\n- Profit Factor : ${profitFactor}\n- Espérance : ${expectancyR > 0 ? '+' : ''}${expectancyR}R par trade\n- Drawdown max utilisé : ${Math.max(m.ddDayUsed, m.ddTotUsed).toFixed(1)}% sur ${Math.max(m.ddDayLimit, m.ddTotLimit)}% autorisé\n- Trades analysés : ${m.totalTrades}\n- Score de réussite calculé : ${probability}%\n- Points forts : ${forces.map(f=>f.title).join(', ')}\n- Risques : ${risks.map(r=>r.title).join(', ')}\n\nGénère ce JSON exact en ${langLabel}. Cite des chiffres réels de cette stratégie :\n{"recommendation":"2 à 3 phrases directes. Commence par évaluer le score ${probability}%. Cite ${m.winrate.toFixed(0)}% ou ${profitFactor}. Donne une recommandation actionnable.","readyForChallenge":${probability >= 55},"expertQuote":"1 phrase courte et percutante d'un trader senior."}`;
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-    const res = await fetch(GEMINI_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.65, maxOutputTokens:400} }), signal:controller.signal });
-    clearTimeout(timeout);
-    const data = await res.json();
-    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const clean = raw.replace(/```json\n?|\n?```/g,'').trim();
-    return JSON.parse(clean);
-  } catch(e) { return null; }
-}
+  const langLabel = { fr:'français', en:'English', es:'español' }[lang]||'français';
 
-function coachLocalRecommendation(analysis, lang) {
-  const { probability, profitFactor, expectancyR, risks, metrics, forces } = analysis;
-  const { winrate, rr, totalTrades, riskPct } = metrics;
-  const mainRisk = risks[0];
-  const fr = {
-    score: probability >= 75 ? `Avec un score de ${probability}% et un Profit Factor de ${profitFactor}, ta stratégie présente les caractéristiques d'une approche solide pour un challenge prop firm.` : probability >= 55 ? `Ton score de ${probability}% indique une stratégie viable mais perfectible — le Profit Factor de ${profitFactor} est encourageant.` : `Ton score de ${probability}% révèle des fragilités importantes. Avec un PF de ${profitFactor} et un winrate de ${winrate.toFixed(0)}%, le risque d'échec reste significatif.`,
-    risk: mainRisk ? `Le point critique : ${mainRisk.detail}.` : '',
-    action: probability >= 75 ? `Ta stratégie semble prête pour un challenge. Concentre-toi sur la gestion du risque par trade.` : probability >= 55 ? `Augmente ton échantillon et réduis le risque/trade à ${Math.min(riskPct,1).toFixed(2)}%.` : `Ne lance pas de challenge maintenant. Optimise d'abord ton RR (cible : 1:${(rr+0.5).toFixed(1)}).`,
-  };
-  const en = {
-    score: probability >= 75 ? `With a ${probability}% score and Profit Factor of ${profitFactor}, your strategy shows solid prop firm challenge characteristics.` : `Your ${probability}% score indicates a viable but improvable strategy — Profit Factor of ${profitFactor} is encouraging.`,
-    risk: mainRisk ? `Critical point: ${mainRisk.detail}.` : '',
-    action: probability >= 55 ? `Strategy looks ready. Focus on risk per trade management.` : `Don't launch a challenge yet. First optimize your RR (target: 1:${(rr+0.5).toFixed(1)}).`,
-  };
-  const texts = lang === 'en' ? en : fr;
-  return { recommendation:[texts.score,texts.risk,texts.action].filter(Boolean).join(' '), readyForChallenge:probability>=55, expertQuote: lang==='en' ? `A ${probability}% score is a number — your discipline on challenge day is what matters.` : `Un score de ${probability}% est un chiffre — ta discipline le jour J fera la différence.` };
+  let prompt = '';
+  if (mode==='simulation' && data) {
+    const m=data.metrics;
+    prompt=`Tu es un analyste quantitatif expert en Prop Trading, direct et chiffré. Réponds UNIQUEMENT en JSON valide sans markdown.\n\nDonnées de simulation pour "${data.firmName}" (capital $${m.capital}):\n- Winrate: ${m.winrate.toFixed(0)}%, RR: 1:${m.rr.toFixed(1)}, PF: ${data.profitFactor}, Espérance: ${data.expectancyR}R\n- DD: ${Math.max(m.ddDayUsed,m.ddTotUsed).toFixed(1)}%/${Math.max(m.ddDayLimit,m.ddTotLimit)}%, Trades: ${m.totalTrades}, Score: ${data.probability}%\n\nJSON en ${langLabel}:\n{"recommendation":"2-3 phrases directes sur la probabilité ${data.probability}% de réussir ce challenge, avec les chiffres réels.","readyForChallenge":${data.probability>=55},"expertQuote":"1 phrase concise d'un analyste senior sur cette stratégie."}`;
+  } else if (mode==='journal' && data) {
+    prompt=`Tu es un psychologue-trader spécialisé en performance. Réponds UNIQUEMENT en JSON valide sans markdown.\n\nDonnées journal: ${data.totalDays} jours, WR day: ${data.dayWR.toFixed(0)}%, WR trade: ${data.tradeWR.toFixed(0)}%, P&L: +${data.totalPnl}$, série pertes max: ${data.maxStreakL} jours, score cohérence: ${data.consistency}%\n\nJSON en ${langLabel}:\n{"recommendation":"2-3 phrases sur la discipline et la cohérence du trader, avec les chiffres réels.","readyForChallenge":${data.consistency>=60},"expertQuote":"1 phrase percutante d'un coach trader sur les habitudes observées."}`;
+  } else if (mode==='backtest' && data) {
+    prompt=`Tu es un analyste quant spécialisé en backtests. Réponds UNIQUEMENT en JSON valide sans markdown.\n\nBacktest: ${data.totalTrades} trades, WR: ${data.wr}%, RR: 1:${data.rr}, PF: ${data.pf}, DD max: ${data.maxDD}%, Profit: +${data.profit}%, Score robustesse: ${data.robustness}%\n\nJSON en ${langLabel}:\n{"recommendation":"2-3 phrases sur la robustesse statistique et la fiabilité du backtest, avec les chiffres réels.","readyForChallenge":${data.robustness>=60},"expertQuote":"1 phrase d'un analyste quantitatif sur la validité de ces résultats."}`;
+  }
+  if (!prompt) return null;
+  try {
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),8000);
+    const res=await fetch(GEMINI_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.65,maxOutputTokens:400}}),signal:controller.signal});
+    clearTimeout(timeout);
+    const d=await res.json();
+    const raw=d.candidates?.[0]?.content?.parts?.[0]?.text||'';
+    return JSON.parse(raw.replace(/```json\n?|\n?```/g,'').trim());
+  } catch(e){return null;}
 }
 
 function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, requirePremium = () => {} }) {
-  const [gemini, setGemini]           = useState(null);
-  const [gemLoading, setGemLoading]   = useState(false);
-  const [gemError, setGemError]       = useState(false);
-  const fm = lastSim || {};
-  const firmName  = fm.firmKey ? fm.firmKey.toUpperCase() : (t ? t('coach_title') : 'PROP FIRM');
-  const hasData   = lastSim && (lastSim.winrate || lastSim.totalTrades);
-  const analysis  = hasData ? coachAnalyze({ winrate:lastSim.winrate, rr:lastSim.rr, ddDayPct:lastSim.ddDayPct, ddTotPct:lastSim.ddTotPct, dailyDDLimit:lastSim.dailyDDLimit, totalDDLimit:lastSim.totalDDLimit, riskPctValue:lastSim.riskPctValue, riskPct:lastSim.riskPct, totalTrades:lastSim.totalTrades, wins:lastSim.wins, losses:lastSim.losses, capital:lastSim.capital, phase1Target:lastSim.phase1Target }, firmName) : null;
+  const [mode, setMode] = useState(null); // null | 'simulation' | 'journal' | 'backtest'
+  const [gemini, setGemini] = useState(null);
+  const [gemLoading, setGemLoading] = useState(false);
 
+  // Scroll to top on mode change
+  useEffect(() => { window.scrollTo({top:0,behavior:'instant'}); }, [mode]);
+
+  // Read journal data
+  const journalRaw = (() => { try { const r=localStorage.getItem('eapropfirm_journal'); return r?JSON.parse(r):{}; } catch(e){return{};} })();
+  const journalStats = journalAnalyze(journalRaw);
+
+  // Read backtest data
+  const backtestRaw = (() => { try { const r=localStorage.getItem('eapropfirm_trades'); const d=r?JSON.parse(r):null; return d&&d.trades&&d.trades.length?d:null; } catch(e){return null;} })();
+  const backtestStats = backtestRaw ? backtestAnalyze(backtestRaw) : null;
+
+  // Simulation data
+  const simAnalysis = lastSim ? coachAnalyze({ winrate:lastSim.winrate, rr:lastSim.rr, ddDayPct:lastSim.ddDayPct, ddTotPct:lastSim.ddTotPct, dailyDDLimit:lastSim.dailyDDLimit, totalDDLimit:lastSim.totalDDLimit, riskPctValue:lastSim.riskPctValue, riskPct:lastSim.riskPct, totalTrades:lastSim.totalTrades, capital:lastSim.capital, phase1Target:lastSim.phase1Target }, lastSim.firmKey?lastSim.firmKey.toUpperCase():'PROP FIRM') : null;
+
+  // Appel expert async selon le mode
   useEffect(() => {
-    if (!analysis || !premiumAccess || gemini || gemLoading) return;
-    setGemLoading(true);
-    callGeminiCoach(analysis, lang).then(result => {
-      setGemLoading(false);
-      if (result) setGemini(result); else setGemError(true);
-    });
-  }, [hasData, premiumAccess, lang]);
+    if (!mode || gemLoading) return;
+    setGemini(null); setGemLoading(true);
+    const d = mode==='simulation'?simAnalysis : mode==='journal'?journalStats : backtestStats;
+    callGeminiCoach(d, lang, mode).then(r => { setGemLoading(false); if(r) setGemini(r); });
+  }, [mode]);
 
-  const narrative = gemini || (analysis ? coachLocalRecommendation(analysis, lang) : null);
-  const pColor = !analysis ? '#6ee7b7' : analysis.probability >= 75 ? '#4ade80' : analysis.probability >= 55 ? '#6ee7b7' : analysis.probability >= 35 ? '#fbbf24' : '#ef4444';
-  const pLevel  = !analysis ? '' : analysis.probability >= 75 ? (lang==='en'?'Excellent':lang==='es'?'Excelente':'Excellent') : analysis.probability >= 55 ? (lang==='en'?'Solid':lang==='es'?'Sólido':'Solide') : analysis.probability >= 35 ? (lang==='en'?'Risky':lang==='es'?'Arriesgado':'Risqué') : (lang==='en'?'Critical':lang==='es'?'Crítico':'Critique');
-  const sT = (color, label, icon) => (
-    <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:12 }}>
-      <div style={{ width:3, height:16, borderRadius:2, background:color, flexShrink:0 }} />
-      <span style={{ fontSize:10, fontWeight:800, color:'rgba(255,255,255,0.55)', textTransform:'uppercase', letterSpacing:1.2 }}>{icon && <span style={{marginRight:5}}>{icon}</span>}{label}</span>
-    </div>
-  );
+  // ── Helpers visuels ──
+  const scoreColor = (s) => s>=75?'#4ade80':s>=55?'#6ee7b7':s>=35?'#fbbf24':'#ef4444';
+  const scoreLabel = (s, labels) => s>=75?labels[0]:s>=55?labels[1]:s>=35?labels[2]:labels[3];
 
-  return (
-    <div style={{ padding:'14px 16px 100px', maxWidth:480, margin:'0 auto' }}>
-      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
-        <div style={{ width:46, height:46, borderRadius:14, background:'linear-gradient(135deg,rgba(110,231,183,0.2),rgba(52,211,153,0.06))', border:'1px solid rgba(110,231,183,0.3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="4" stroke="#6ee7b7" strokeWidth="1.5"/><path d="M5 19c0-3.31 2.69-6 6-6s6 2.69 6 6" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round"/><path d="M15 4l1.5 1.5M17 8h2M15 12l1.5-1.5" stroke="#6ee7b7" strokeWidth="1.2" strokeLinecap="round"/></svg>
-        </div>
-        <div>
-          <div style={{ fontSize:19, fontWeight:800, color:'#fff', letterSpacing:-0.3 }}>{t ? t('coach_title') : 'IA Coach'}</div>
-          <div style={{ fontSize:11, color:'rgba(255,255,255,0.4)' }}>{firmName} · Audit personnalisé</div>
+  const ScoreCircle = ({ score, size=100 }) => {
+    const r=42, c=50, sw=8;
+    const pColor=scoreColor(score);
+    return (
+      <div style={{position:'relative',width:size,height:size,flexShrink:0}}>
+        <svg width={size} height={size} viewBox="0 0 100 100" style={{transform:'rotate(-90deg)'}}>
+          <circle cx={c} cy={c} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={sw}/>
+          <circle cx={c} cy={c} r={r} fill="none" stroke={pColor} strokeWidth={sw} strokeLinecap="round"
+            strokeDasharray={String(2*Math.PI*r)}
+            strokeDashoffset={String(2*Math.PI*r*(1-score/100))}/>
+        </svg>
+        <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
+          <div style={{fontSize:size*0.22,fontWeight:900,color:pColor,lineHeight:1}}>{score}<span style={{fontSize:size*0.12}}>%</span></div>
         </div>
       </div>
+    );
+  };
 
-      {!premiumAccess ? (
-        <div onClick={requirePremium} style={{ position:'relative', borderRadius:20, overflow:'hidden', cursor:'pointer', minHeight:300, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(110,231,183,0.1)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <LockOverlay onUnlock={requirePremium} label={(t?t('coach_title'):'IA Coach')+' — Premium'} />
-        </div>
-      ) : !analysis ? (
-        <div style={{ textAlign:'center', padding:'50px 20px', background:'rgba(255,255,255,0.03)', borderRadius:20, border:'1px solid rgba(110,231,183,0.1)' }}>
-          <div style={{ fontSize:42, marginBottom:14 }}>🤖</div>
-          <div style={{ fontSize:14, color:'rgba(255,255,255,0.5)', lineHeight:1.6, marginBottom:22 }}>{t?t('coach_no_data'):'Lance une simulation pour obtenir ton analyse.'}</div>
-          <button onClick={()=>goto('simulator')} style={{ padding:'14px 28px', borderRadius:100, background:'#6ee7b7', color:'#000', fontSize:14, fontWeight:700, border:'none', cursor:'pointer' }}>{t?t('sim_launch'):'Lancer une simulation'}</button>
-        </div>
-      ) : (
-        <>
-          {/* ── 1. SCORE GLOBAL ── */}
-          <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(110,231,183,0.12)', borderRadius:20, padding:'20px 18px', marginBottom:12, textAlign:'center' }}>
-            <div style={{ position:'relative', width:130, height:130, margin:'0 auto 14px' }}>
-              <svg width="130" height="130" viewBox="0 0 130 130" style={{ transform:'rotate(-90deg)' }}>
-                <circle cx="65" cy="65" r="57" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="9"/>
-                <circle cx="65" cy="65" r="57" fill="none" stroke={pColor} strokeWidth="9" strokeLinecap="round" strokeDasharray={String(2*Math.PI*57)} strokeDashoffset={String(2*Math.PI*57*(1-analysis.probability/100))}/>
-              </svg>
-              <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
-                <div style={{ fontSize:34, fontWeight:900, color:pColor, lineHeight:1 }}>{analysis.probability}<span style={{fontSize:16}}>%</span></div>
-                <div style={{ fontSize:10, color:'rgba(255,255,255,0.4)', marginTop:3 }}>Score</div>
-              </div>
-            </div>
-            <div style={{ fontSize:17, fontWeight:800, color:pColor }}>{pLevel}</div>
-            <div style={{ fontSize:11, color:'rgba(255,255,255,0.35)', marginTop:4 }}>{analysis.metrics.totalTrades} trades analysés</div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginTop:16 }}>
-              {[
-                { l:'Profit Factor', v:analysis.profitFactor, good:analysis.profitFactor>=1.5 },
-                { l:lang==='en'?'Expectancy':'Espérance', v:(analysis.expectancyR>0?'+':'')+analysis.expectancyR+'R', good:analysis.expectancyR>0 },
-                { l:'DD max', v:Math.max(analysis.metrics.ddDayUsed,analysis.metrics.ddTotUsed).toFixed(1)+'%', good:Math.max(analysis.metrics.ddDayUsed/analysis.metrics.ddDayLimit,analysis.metrics.ddTotUsed/analysis.metrics.ddTotLimit)<0.6 },
-              ].map((m,i)=>(
-                <div key={i} style={{ background:'rgba(255,255,255,0.05)', borderRadius:12, padding:'10px 8px' }}>
-                  <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', marginBottom:3 }}>{m.l}</div>
-                  <div style={{ fontSize:15, fontWeight:800, color:m.good?'#4ade80':'#fbbf24' }}>{m.v}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ── 2. FORCES ── */}
-          {analysis.forces.length > 0 && (
-            <div style={{ background:'rgba(110,231,183,0.04)', border:'1px solid rgba(110,231,183,0.15)', borderRadius:16, padding:'16px', marginBottom:12 }}>
-              {sT('#4ade80', lang==='en'?'Key Strengths':'Vos forces principales', '💪')}
-              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                {analysis.forces.map((f,i)=>(
-                  <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
-                    <span style={{ fontSize:14, flexShrink:0, marginTop:1 }}>{f.icon}</span>
-                    <div><div style={{ fontSize:13, fontWeight:700, color:'#fff' }}>{f.title}</div><div style={{ fontSize:11, color:'rgba(255,255,255,0.5)', marginTop:1, lineHeight:1.4 }}>{f.detail}</div></div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── 3. RISQUES ── */}
-          {analysis.risks.length > 0 && (
-            <div style={{ background:'rgba(251,191,36,0.04)', border:'1px solid rgba(251,191,36,0.2)', borderRadius:16, padding:'16px', marginBottom:12 }}>
-              {sT('#fbbf24', lang==='en'?'Main Risks':'Risques principaux', '🔍')}
-              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                {analysis.risks.map((r,i)=>(
-                  <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
-                    <span style={{ fontSize:14, flexShrink:0, marginTop:1 }}>{r.icon}</span>
-                    <div><div style={{ fontSize:13, fontWeight:700, color:'#fff' }}>{r.title}</div><div style={{ fontSize:11, color:'rgba(255,255,255,0.5)', marginTop:1, lineHeight:1.4 }}>{r.detail}</div></div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── 4. RECOMMANDATION IA ── */}
-          <div style={{ background:'linear-gradient(135deg,rgba(110,231,183,0.07),rgba(6,9,15,0.8))', border:'1px solid rgba(110,231,183,0.2)', borderRadius:16, padding:'16px', marginBottom:12 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-              {sT('#6ee7b7', lang==='en'?'AI Recommendation':'Recommandation IA', null)}
-              <div style={{ display:'flex', alignItems:'center', gap:5, padding:'3px 9px', borderRadius:10, background:gemLoading?'rgba(251,191,36,0.12)':gemini?'rgba(110,231,183,0.12)':'rgba(255,255,255,0.07)', border:`1px solid ${gemLoading?'rgba(251,191,36,0.3)':gemini?'rgba(110,231,183,0.3)':'rgba(255,255,255,0.1)'}` }}>
-                {gemLoading ? <><div style={{width:6,height:6,borderRadius:3,background:'#fbbf24'}}/><span style={{fontSize:9,fontWeight:700,color:'#fbbf24'}}>IA...</span></> : gemini ? <><span style={{fontSize:9}}>✨</span><span style={{fontSize:9,fontWeight:700,color:'#6ee7b7'}}>Gemini</span></> : <span style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.4)'}}>Analyse locale</span>}
-              </div>
-            </div>
-            {gemLoading ? (
-              <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
-                {[90,75,60].map((w,i)=><div key={i} style={{height:11,borderRadius:6,background:'rgba(255,255,255,0.07)',width:w+'%'}}/>)}
-              </div>
-            ) : narrative ? (
-              <>
-                <div style={{ fontSize:13, color:'rgba(255,255,255,0.85)', lineHeight:1.65, marginBottom:12 }}>{narrative.recommendation}</div>
-                {narrative.expertQuote && (
-                  <div style={{ padding:'10px 13px', borderRadius:10, background:'rgba(255,255,255,0.05)', borderLeft:'3px solid rgba(110,231,183,0.5)' }}>
-                    <div style={{ fontSize:10, color:'rgba(255,255,255,0.35)', marginBottom:3, textTransform:'uppercase', letterSpacing:0.8 }}>Expert</div>
-                    <div style={{ fontSize:12, fontStyle:'italic', color:'rgba(255,255,255,0.7)', lineHeight:1.5 }}>"{narrative.expertQuote}"</div>
-                  </div>
-                )}
-                {narrative.readyForChallenge !== undefined && (
-                  <div style={{ marginTop:10, display:'flex', alignItems:'center', gap:7 }}>
-                    <span style={{fontSize:13}}>{narrative.readyForChallenge?'✅':'⚠️'}</span>
-                    <span style={{ fontSize:11, color:narrative.readyForChallenge?'#6ee7b7':'#fbbf24', fontWeight:600 }}>{narrative.readyForChallenge?(lang==='en'?'Strategy ready for a challenge':'Stratégie prête pour un challenge'):(lang==='en'?'Optimization recommended':'Optimisation recommandée avant de lancer')}</span>
-                  </div>
-                )}
-              </>
-            ) : null}
-          </div>
-
-          {/* ── 5. PROJECTION ── */}
-          <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:16, padding:'16px', marginBottom:12 }}>
-            {sT('#a78bfa', lang==='en'?'Challenge Projection':'Projection Challenge', '🎯')}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-              {[
-                { l:lang==='en'?'Success probability':'Probabilité de réussite', v:analysis.probability+'%', c:pColor },
-                { l:lang==='en'?'Estimated time (ph.1)':'Temps estimé (phase 1)', v:analysis.projection.daysMin?`${analysis.projection.daysMin}–${analysis.projection.daysMax}j`:'N/A', c:'#fff' },
-                { l:lang==='en'?'Failure risk':'Risque d\'échec', v:analysis.projection.failureRisk, c:analysis.projection.failureColor },
-                { l:lang==='en'?'Max consec. losses':'Pertes consécutives max', v:analysis.projection.maxConsecLosses>0?`${analysis.projection.maxConsecLosses} trades`:(lang==='en'?'Unknown':'Inconnu'), c:analysis.projection.maxConsecLosses>5?'#4ade80':analysis.projection.maxConsecLosses>2?'#fbbf24':'#ef4444' },
-              ].map((m,i)=>(
-                <div key={i} style={{ background:'rgba(255,255,255,0.05)', borderRadius:12, padding:'12px 12px' }}>
-                  <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', marginBottom:4, lineHeight:1.3 }}>{m.l}</div>
-                  <div style={{ fontSize:16, fontWeight:800, color:m.c }}>{m.v}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ── 6. OPTIMISATION ── */}
-          {analysis.levers.length > 0 && (
-            <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:16, padding:'16px', marginBottom:12 }}>
-              {sT('#fbbf24', lang==='en'?'AI Optimization':'Optimisation IA', '⚡')}
-              <div style={{ fontSize:12, color:'rgba(255,255,255,0.45)', marginBottom:12, lineHeight:1.4 }}>{lang==='en'?'Impact on your success probability:':'Impact de chaque amélioration sur ta probabilité :'}</div>
-              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                {analysis.levers.map((l,i)=>(
-                  <div key={i} style={{ background:'rgba(110,231,183,0.05)', border:'1px solid rgba(110,231,183,0.15)', borderRadius:12, padding:'12px 14px', display:'flex', alignItems:'center', gap:12 }}>
-                    <div style={{ width:42, height:42, borderRadius:11, background:'rgba(110,231,183,0.12)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                      <div style={{ fontSize:13, fontWeight:900, color:'#6ee7b7', lineHeight:1 }}>+{l.gain}</div>
-                      <div style={{ fontSize:7, color:'rgba(110,231,183,0.6)', letterSpacing:0.3 }}>POINTS</div>
-                    </div>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:12, fontWeight:700, color:'#fff', marginBottom:3 }}>{l.label}</div>
-                      <div style={{ fontSize:11, color:'rgba(255,255,255,0.45)' }}>
-                        <span style={{color:'#f87171',fontWeight:600}}>{l.from}</span>{' → '}<span style={{color:'#4ade80',fontWeight:600}}>{l.to}</span>{' → '}<span style={{color:'#6ee7b7',fontWeight:700}}>{l.newProb}%</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── 7. FOOTER AUDIT ── */}
-          <div style={{ borderRadius:14, padding:'14px 16px', background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.06)', textAlign:'center' }}>
-            <div style={{ fontSize:10, fontWeight:700, color:'rgba(255,255,255,0.4)', textTransform:'uppercase', letterSpacing:1, marginBottom:5 }}>{lang==='en'?'Certified AI Audit':'Audit IA certifié'}</div>
-            <div style={{ fontSize:9, color:'rgba(255,255,255,0.25)', lineHeight:1.5 }}>{lang==='en'?`Based on ${analysis.metrics.totalTrades} trades · Monte Carlo 200 · Gemini 2.5 Flash`:`Basé sur ${analysis.metrics.totalTrades} trades · Monte Carlo 200 simulations · Gemini 2.5 Flash`}</div>
-            <div style={{ marginTop:8, fontSize:9, color:'rgba(255,255,255,0.2)' }}>{lang==='en'?'Educational only · Not financial advice':'À titre éducatif uniquement · Pas un conseil financier'}</div>
-          </div>
-        </>
-      )}
+  const ReportHeader = ({ title, subtitle, onBack }) => (
+    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:18}}>
+      <button onClick={onBack} style={{width:36,height:36,borderRadius:18,background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.7)',fontSize:16,cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>←</button>
+      <div>
+        <div style={{fontSize:17,fontWeight:800,color:'#fff',letterSpacing:-0.3}}>{title}</div>
+        <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{subtitle}</div>
+      </div>
     </div>
   );
+
+  const ExpertSection = ({ gemini, gemLoading, localText }) => {
+    const narrative = gemini || (localText ? { recommendation:localText, expertQuote:null, readyForChallenge:null } : null);
+    return (
+      <div style={{background:'linear-gradient(135deg,rgba(110,231,183,0.07),rgba(6,9,15,0.8))',border:'1px solid rgba(110,231,183,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2}}>
+            <span style={{marginRight:5}}>🔬</span>Rapport Expert
+          </div>
+          <div style={{padding:'3px 8px',borderRadius:9,fontSize:9,fontWeight:700,background:gemLoading?'rgba(251,191,36,0.12)':gemini?'rgba(110,231,183,0.12)':'rgba(255,255,255,0.07)',color:gemLoading?'#fbbf24':gemini?'#6ee7b7':'rgba(255,255,255,0.4)',border:`1px solid ${gemLoading?'rgba(251,191,36,0.3)':gemini?'rgba(110,231,183,0.3)':'rgba(255,255,255,0.1)'}`}}>
+            {gemLoading?'Analyse...' : gemini?'Analyse avancée' : 'Analyse locale'}
+          </div>
+        </div>
+        {gemLoading ? (
+          <div style={{display:'flex',flexDirection:'column',gap:7}}>{[90,75,60].map((w,i)=><div key={i} style={{height:10,borderRadius:5,background:'rgba(255,255,255,0.07)',width:w+'%'}}/>)}</div>
+        ) : narrative ? (
+          <>
+            <div style={{fontSize:13,color:'rgba(255,255,255,0.85)',lineHeight:1.65,marginBottom:10}}>{narrative.recommendation}</div>
+            {narrative.expertQuote && (
+              <div style={{padding:'9px 12px',borderRadius:10,background:'rgba(255,255,255,0.05)',borderLeft:'3px solid rgba(110,231,183,0.5)'}}>
+                <div style={{fontSize:9,color:'rgba(255,255,255,0.3)',marginBottom:2,textTransform:'uppercase',letterSpacing:0.8}}>Analyste senior</div>
+                <div style={{fontSize:12,fontStyle:'italic',color:'rgba(255,255,255,0.7)',lineHeight:1.5}}>"{narrative.expertQuote}"</div>
+              </div>
+            )}
+            {narrative.readyForChallenge !== null && narrative.readyForChallenge !== undefined && (
+              <div style={{marginTop:9,display:'flex',alignItems:'center',gap:6}}>
+                <span style={{fontSize:12}}>{narrative.readyForChallenge?'✅':'⚠️'}</span>
+                <span style={{fontSize:11,color:narrative.readyForChallenge?'#6ee7b7':'#fbbf24',fontWeight:600}}>{narrative.readyForChallenge?'Stratégie validée pour un challenge':'Optimisation recommandée avant de lancer'}</span>
+              </div>
+            )}
+          </>
+        ) : null}
+      </div>
+    );
+  };
+
+  // ── Écran de sélection ──
+  if (!mode) {
+    const cards = [
+      {
+        key:'simulation', accent:'#6ee7b7', bg:'rgba(110,231,183,0.06)', border:'rgba(110,231,183,0.2)',
+        icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="14" rx="3" stroke="#6ee7b7" strokeWidth="1.5"/><path d="M7 17l2.5-5 3 4 2-3 2.5 4" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+        title: lang==='en'?'Challenge Simulation':'Simulation Challenge',
+        subtitle: lang==='en'?'Pre-challenge assessment':'Évaluation pré-challenge',
+        desc: lang==='en'?'Assess your strategy parameters before investing in a prop firm challenge.':'Évaluez vos paramètres de stratégie avant d\'acheter un challenge prop firm.',
+        chips: ['Winrate', 'Ratio R/R', 'Drawdown', 'Probabilité'],
+        hasData: !!simAnalysis,
+        dataLabel: simAnalysis ? `${simAnalysis.metrics.totalTrades} trades · ${(simAnalysis.firmName)} · Score ${simAnalysis.probability}%` : (lang==='en'?'Run a simulation first':'Lancez d\'abord une simulation'),
+        cta: lang==='en'?'Analyse simulation':'Analyser la simulation',
+        ctaGoto: 'simulator',
+      },
+      {
+        key:'journal', accent:'#fbbf24', bg:'rgba(251,191,36,0.06)', border:'rgba(251,191,36,0.2)',
+        icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="4" y="2" width="14" height="18" rx="2" stroke="#fbbf24" strokeWidth="1.5"/><path d="M8 7h8M8 10h8M8 13h5" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round"/><path d="M2 5v14a2 2 0 002 2h14" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+        title: lang==='en'?'Trading Journal':'Journal de Trading',
+        subtitle: lang==='en'?'Behavioral analysis':'Analyse comportementale',
+        desc: lang==='en'?'Analyse your real trading habits to identify your error patterns and discipline level.':'Analysez vos habitudes de trading réelles pour identifier vos patterns d\'erreur et votre niveau de discipline.',
+        chips: ['Historique', 'Discipline', 'Régularité', 'Séries'],
+        hasData: !!journalStats,
+        dataLabel: journalStats ? `${journalStats.totalDays} jours saisis · ${journalStats.monthsTracked} mois · Score ${journalStats.consistency}%` : (lang==='en'?'Enter trades in your journal first':'Saisissez des trades dans le journal'),
+        cta: lang==='en'?'Analyse my journal':'Analyser mon journal',
+        ctaGoto: 'dashboard',
+      },
+      {
+        key:'backtest', accent:'#a78bfa', bg:'rgba(167,139,250,0.06)', border:'rgba(167,139,250,0.2)',
+        icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 3H5a2 2 0 00-2 2v4M9 3h6M9 3v4M15 3h4a2 2 0 012 2v4M15 3v4M9 7h6M9 7v4M15 7v4M9 11h6M9 11v4M15 11v4M9 15h6M9 15v4M15 15v4M2 9h20" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+        title: lang==='en'?'Backtest Results':'Résultats Backtest',
+        subtitle: lang==='en'?'Statistical audit':'Audit statistique',
+        desc: lang==='en'?'Validate the statistical robustness of your strategy from an imported trade history.':'Validez la robustesse statistique de votre stratégie à partir d\'un historique de trades importé.',
+        chips: ['Equity curve', 'Profit Factor', 'Monte Carlo', 'Robustesse'],
+        hasData: !!backtestStats,
+        dataLabel: backtestStats ? `${backtestStats.totalTrades} trades importés · PF ${backtestStats.pf} · Score ${backtestStats.robustness}%` : (lang==='en'?'Import a CSV file in My Trades':'Importez un fichier CSV dans Mes Trades'),
+        cta: lang==='en'?'Audit the backtest':'Auditer le backtest',
+        ctaGoto: 'trades',
+      },
+    ];
+    return (
+      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+        <div style={{marginBottom:22}}>
+          <div style={{fontSize:11,fontWeight:800,color:'rgba(255,255,255,0.35)',textTransform:'uppercase',letterSpacing:1.5,marginBottom:4}}>Centre d'Analyse</div>
+          <div style={{fontSize:22,fontWeight:900,color:'#fff',letterSpacing:-0.5,lineHeight:1.15}}>Sélectionnez<br/><span style={{color:'#6ee7b7'}}>votre analyse</span></div>
+          <div style={{fontSize:12,color:'rgba(255,255,255,0.45)',marginTop:6,lineHeight:1.5}}>Chaque rapport est construit à partir de vos données réelles et fournit des recommandations spécifiques.</div>
+        </div>
+
+        {cards.map((card, i) => (
+          <div key={card.key} style={{background:card.bg,border:`1px solid ${card.border}`,borderRadius:18,padding:'18px 16px',marginBottom:12}}>
+            <div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:14}}>
+              <div style={{width:44,height:44,borderRadius:12,background:`rgba(${card.accent==='#6ee7b7'?'110,231,183':card.accent==='#fbbf24'?'251,191,36':'167,139,250'},0.12)`,border:`1px solid ${card.border}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                {card.icon}
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:15,fontWeight:800,color:'#fff',marginBottom:1}}>{card.title}</div>
+                <div style={{fontSize:10,fontWeight:700,color:card.accent,textTransform:'uppercase',letterSpacing:0.8}}>{card.subtitle}</div>
+              </div>
+              {card.hasData && <div style={{padding:'3px 9px',borderRadius:10,background:'rgba(110,231,183,0.1)',border:'1px solid rgba(110,231,183,0.25)',fontSize:9,fontWeight:700,color:'#6ee7b7',whiteSpace:'nowrap'}}>Prêt</div>}
+            </div>
+            <div style={{fontSize:12,color:'rgba(255,255,255,0.6)',lineHeight:1.55,marginBottom:12}}>{card.desc}</div>
+            <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:14}}>
+              {card.chips.map(c=>(
+                <div key={c} style={{padding:'3px 9px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.09)',fontSize:10,color:'rgba(255,255,255,0.5)'}}>{c}</div>
+              ))}
+            </div>
+            <div style={{fontSize:10,color:card.hasData?'rgba(255,255,255,0.55)':'rgba(255,255,255,0.3)',marginBottom:12,lineHeight:1.4}}>
+              {card.hasData?'✓ ':card.key==='simulation'?'ℹ ':card.key==='journal'?'ℹ ':'ℹ '}{card.dataLabel}
+            </div>
+            <button
+              onClick={() => { if(!premiumAccess){requirePremium();return;} if(!card.hasData){goto(card.ctaGoto);return;} setMode(card.key); }}
+              style={{width:'100%',padding:'13px',borderRadius:13,border:'none',cursor:'pointer',fontSize:13,fontWeight:700,
+                background:card.hasData?(card.accent==='#6ee7b7'?'linear-gradient(135deg,#6ee7b7,#34d399)':card.accent==='#fbbf24'?'linear-gradient(135deg,#fbbf24,#f59e0b)':'linear-gradient(135deg,#a78bfa,#8b5cf6)'):'rgba(255,255,255,0.07)',
+                color:card.hasData?'#000':'rgba(255,255,255,0.4)',
+              }}>
+              {!premiumAccess?'🔒 Premium':card.hasData?card.cta:(lang==='en'?'Get data →':'Obtenir les données →')}
+            </button>
+          </div>
+        ))}
+
+        <div style={{textAlign:'center',marginTop:8,padding:'12px 14px',background:'rgba(255,255,255,0.02)',borderRadius:12,border:'1px solid rgba(255,255,255,0.05)'}}>
+          <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',textTransform:'uppercase',letterSpacing:1}}>Moteur d'évaluation quantitative</div>
+          <div style={{fontSize:9,color:'rgba(255,255,255,0.2)',marginTop:3}}>Analyse locale + rapport expert optionnel · Données 100% confidentielles</div>
+        </div>
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // RAPPORT MODE 1 : SIMULATION CHALLENGE
+  // ══════════════════════════════════════════════════════════════════
+  if (mode==='simulation') {
+    const a=simAnalysis;
+    if(!a) return (
+      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+        <ReportHeader title="Simulation Challenge" subtitle="Rapport d'évaluation" onBack={()=>setMode(null)}/>
+        <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
+          <div style={{fontSize:32,marginBottom:12}}>📊</div>
+          <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>Aucune simulation trouvée.</div>
+          <button onClick={()=>goto('simulator')} style={{padding:'12px 24px',borderRadius:12,background:'#6ee7b7',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>Lancer une simulation</button>
+        </div>
+      </div>
+    );
+    const pColor=scoreColor(a.probability);
+    const localText=a.probability>=75?`Avec un score de ${a.probability}% et un Profit Factor de ${a.profitFactor}, votre stratégie présente les caractéristiques d'une approche solide pour ce challenge. ${a.risks[0]?'Le principal risque identifié est : '+a.risks[0].detail+'.':''} ${a.probability>=75?'La stratégie semble prête pour un challenge.':'Optimisez avant de lancer.'}`:
+      `Votre score de ${a.probability}% révèle ${a.probability>=55?'une stratégie viable mais perfectible':'des fragilités importantes'}. PF ${a.profitFactor}, espérance ${a.expectancyR}R. ${a.risks[0]?a.risks[0].detail+'.':''} ${a.probability>=55?'Optimisez le risque/trade avant de lancer.':'Ne lancez pas de challenge avec ces métriques.'}`;
+    return (
+      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+        <ReportHeader title="Simulation Challenge" subtitle={`${a.firmName} · Probabilité de réussite`} onBack={()=>setMode(null)}/>
+
+        {/* Score */}
+        <div style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${pColor}22`,borderRadius:20,padding:'20px 18px',marginBottom:12,display:'flex',alignItems:'center',gap:20}}>
+          <ScoreCircle score={a.probability} size={100}/>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:4}}>Score de réussite</div>
+            <div style={{fontSize:22,fontWeight:900,color:pColor,marginBottom:2}}>{a.probability>=75?'Excellent':a.probability>=55?'Solide':a.probability>=35?'Risqué':'Critique'}</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{a.metrics.totalTrades} trades · {a.firmName}</div>
+            <div style={{display:'flex',gap:8,marginTop:10}}>
+              {[{l:'PF',v:a.profitFactor,g:a.profitFactor>=1.5},{l:'Esp.',v:(a.expectancyR>0?'+':'')+a.expectancyR+'R',g:a.expectancyR>0},{l:'DD',v:Math.max(a.metrics.ddDayUsed,a.metrics.ddTotUsed).toFixed(1)+'%',g:true}].map((m,i)=>(
+                <div key={i} style={{flex:1,background:'rgba(255,255,255,0.06)',borderRadius:10,padding:'7px 6px',textAlign:'center'}}>
+                  <div style={{fontSize:8,color:'rgba(255,255,255,0.4)'}}>{m.l}</div>
+                  <div style={{fontSize:13,fontWeight:800,color:m.g?'#4ade80':'#fbbf24'}}>{m.v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Forces */}
+        {a.forces.length>0&&<div style={{background:'rgba(110,231,183,0.04)',border:'1px solid rgba(110,231,183,0.15)',borderRadius:16,padding:16,marginBottom:12}}>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>💪</span>Points forts</div>
+          {a.forces.map((f,i)=><div key={i} style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:i<a.forces.length-1?8:0}}><span style={{fontSize:14,flexShrink:0}}>{f.icon}</span><div><div style={{fontSize:13,fontWeight:700,color:'#fff'}}>{f.title}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.5)',marginTop:1,lineHeight:1.4}}>{f.detail}</div></div></div>)}
+        </div>}
+
+        {/* Risques */}
+        {a.risks.length>0&&<div style={{background:'rgba(251,191,36,0.04)',border:'1px solid rgba(251,191,36,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>🔍</span>Risques identifiés</div>
+          {a.risks.map((r,i)=><div key={i} style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:i<a.risks.length-1?8:0}}><span style={{fontSize:14,flexShrink:0}}>{r.icon}</span><div><div style={{fontSize:13,fontWeight:700,color:'#fff'}}>{r.title}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.5)',marginTop:1,lineHeight:1.4}}>{r.detail}</div></div></div>)}
+        </div>}
+
+        {/* Rapport expert */}
+        <ExpertSection gemini={gemini} gemLoading={gemLoading} localText={localText}/>
+
+        {/* Projection */}
+        <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:16,marginBottom:12}}>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}><span style={{marginRight:5}}>🎯</span>Projection Challenge</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            {[
+              {l:'Probabilité',v:a.probability+'%',c:pColor},
+              {l:'Temps estimé (ph.1)',v:a.projection.daysMin?`${a.projection.daysMin}–${a.projection.daysMax}j`:'N/A',c:'#fff'},
+              {l:'Risque d\'échec',v:a.projection.failureRisk,c:a.projection.failureColor},
+              {l:'Pertes max supportables',v:a.projection.maxConsecLosses>0?`${a.projection.maxConsecLosses} trades`:'Inconnu',c:a.projection.maxConsecLosses>5?'#4ade80':a.projection.maxConsecLosses>2?'#fbbf24':'#ef4444'},
+            ].map((m,i)=>(
+              <div key={i} style={{background:'rgba(255,255,255,0.05)',borderRadius:12,padding:'11px 12px'}}>
+                <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',marginBottom:3,lineHeight:1.3}}>{m.l}</div>
+                <div style={{fontSize:15,fontWeight:800,color:m.c}}>{m.v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Optimisation */}
+        {a.levers.length>0&&<div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:16,marginBottom:12}}>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>⚡</span>Leviers d'optimisation</div>
+          {a.levers.map((l,i)=>(
+            <div key={i} style={{background:'rgba(110,231,183,0.05)',border:'1px solid rgba(110,231,183,0.15)',borderRadius:12,padding:'11px 14px',marginBottom:i<a.levers.length-1?8:0,display:'flex',alignItems:'center',gap:12}}>
+              <div style={{width:40,height:40,borderRadius:10,background:'rgba(110,231,183,0.12)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <div style={{fontSize:13,fontWeight:900,color:'#6ee7b7',lineHeight:1}}>+{l.gain}</div>
+                <div style={{fontSize:7,color:'rgba(110,231,183,0.6)'}}>pts</div>
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:12,fontWeight:700,color:'#fff',marginBottom:2}}>{l.label}</div>
+                <div style={{fontSize:11,color:'rgba(255,255,255,0.45)'}}><span style={{color:'#f87171',fontWeight:600}}>{l.from}</span>{' → '}<span style={{color:'#4ade80',fontWeight:600}}>{l.to}</span>{' → '}<span style={{color:'#6ee7b7',fontWeight:700}}>{l.newProb}%</span></div>
+              </div>
+            </div>
+          ))}
+        </div>}
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // RAPPORT MODE 2 : JOURNAL DE TRADING
+  // ══════════════════════════════════════════════════════════════════
+  if (mode==='journal') {
+    const j=journalStats;
+    if(!j) return (
+      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+        <ReportHeader title="Journal de Trading" subtitle="Analyse comportementale" onBack={()=>setMode(null)}/>
+        <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
+          <div style={{fontSize:32,marginBottom:12}}>📓</div>
+          <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>Aucun trade saisi dans le journal.</div>
+          <button onClick={()=>goto('dashboard')} style={{padding:'12px 24px',borderRadius:12,background:'#fbbf24',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>Ouvrir le journal</button>
+        </div>
+      </div>
+    );
+    const cColor=scoreColor(j.consistency);
+    const cLabel=j.consistency>=75?'Excellent':j.consistency>=55?'Cohérent':j.consistency>=35?'Irrégulier':'Instable';
+    const localText=j.consistency>=70?`Avec ${j.totalDays} jours de trading analysés, votre score de cohérence de ${j.consistency}% reflète une discipline solide. Votre winrate journalier de ${j.dayWR.toFixed(0)}% est supérieur à la moyenne, et votre série de pertes max de ${j.maxStreakL} jours reste dans des limites acceptables.`:
+      `Votre score de cohérence de ${j.consistency}% sur ${j.totalDays} jours révèle ${j.consistency>=50?'quelques irrégularités':'des lacunes importantes'}. ${j.maxStreakL>=4?`La série de ${j.maxStreakL} jours perdants consécutifs suggère du revenge trading. `:''}Un winrate journalier de ${j.dayWR.toFixed(0)}% ${j.dayWR>=50?'est correct mais perfectible':'est insuffisant pour un challenge'}. Travaillez la régularité avant de vous lancer.`;
+    return (
+      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+        <ReportHeader title="Journal de Trading" subtitle={`${j.monthsTracked} mois · ${j.totalDays} jours analysés`} onBack={()=>setMode(null)}/>
+
+        {/* Score cohérence */}
+        <div style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${cColor}22`,borderRadius:20,padding:'20px 18px',marginBottom:12,display:'flex',alignItems:'center',gap:20}}>
+          <ScoreCircle score={j.consistency} size={100}/>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:4}}>Score de cohérence</div>
+            <div style={{fontSize:22,fontWeight:900,color:cColor,marginBottom:2}}>{cLabel}</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{j.totalDays} jours · P&L {j.totalPnl>0?'+':''}{j.totalPnl}$</div>
+            <div style={{display:'flex',gap:8,marginTop:10}}>
+              {[{l:'WR jours',v:j.dayWR.toFixed(0)+'%',g:j.dayWR>=55},{l:'WR trades',v:j.tradeWR.toFixed(0)+'%',g:j.tradeWR>=50},{l:'Moy./jour',v:(j.avgDailyPnl>0?'+':'')+j.avgDailyPnl+'$',g:j.avgDailyPnl>0}].map((m,i)=>(
+                <div key={i} style={{flex:1,background:'rgba(255,255,255,0.06)',borderRadius:10,padding:'7px 6px',textAlign:'center'}}>
+                  <div style={{fontSize:8,color:'rgba(255,255,255,0.4)'}}>{m.l}</div>
+                  <div style={{fontSize:12,fontWeight:800,color:m.g?'#4ade80':'#fbbf24'}}>{m.v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Métriques comportementales */}
+        <div style={{background:'rgba(251,191,36,0.04)',border:'1px solid rgba(251,191,36,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}><span style={{marginRight:5}}>🧠</span>Métriques comportementales</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            {[
+              {l:'Meilleur jour',v:'+'+(j.bestDay||0).toFixed(0)+'$',c:'#4ade80'},
+              {l:'Pire jour',v:(j.worstDay||0).toFixed(0)+'$',c:'#ef4444'},
+              {l:'Série gagnante max',v:j.maxStreakW+' jours',c:j.maxStreakW>=5?'#4ade80':'#fff'},
+              {l:'Série perdante max',v:j.maxStreakL+' jours',c:j.maxStreakL>=5?'#ef4444':j.maxStreakL>=3?'#fbbf24':'#6ee7b7'},
+            ].map((m,i)=>(
+              <div key={i} style={{background:'rgba(255,255,255,0.05)',borderRadius:12,padding:'11px 12px'}}>
+                <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',marginBottom:3}}>{m.l}</div>
+                <div style={{fontSize:15,fontWeight:800,color:m.c}}>{m.v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Points forts */}
+        {j.strengths.length>0&&<div style={{background:'rgba(110,231,183,0.04)',border:'1px solid rgba(110,231,183,0.15)',borderRadius:16,padding:16,marginBottom:12}}>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>💪</span>Points positifs</div>
+          {j.strengths.map((s,i)=><div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:i<j.strengths.length-1?7:0}}><span style={{color:'#6ee7b7',fontSize:13,flexShrink:0}}>✓</span><div style={{fontSize:12,color:'rgba(255,255,255,0.8)',lineHeight:1.4}}>{s.text}</div></div>)}
+        </div>}
+
+        {/* Erreurs */}
+        {j.issues.length>0&&<div style={{background:'rgba(239,68,68,0.04)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>⚠️</span>Axes d'amélioration</div>
+          {j.issues.map((issue,i)=><div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:i<j.issues.length-1?7:0}}><span style={{color:issue.sev==='high'?'#f87171':'#fbbf24',fontSize:13,flexShrink:0}}>{issue.sev==='high'?'✕':'!'}</span><div style={{fontSize:12,color:'rgba(255,255,255,0.8)',lineHeight:1.4}}>{issue.text}</div></div>)}
+        </div>}
+
+        {/* Rapport expert */}
+        <ExpertSection gemini={gemini} gemLoading={gemLoading} localText={localText}/>
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // RAPPORT MODE 3 : BACKTEST
+  // ══════════════════════════════════════════════════════════════════
+  if (mode==='backtest') {
+    const b=backtestStats;
+    if(!b) return (
+      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+        <ReportHeader title="Résultats Backtest" subtitle="Audit statistique" onBack={()=>setMode(null)}/>
+        <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
+          <div style={{fontSize:32,marginBottom:12}}>📁</div>
+          <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>Aucun backtest importé.</div>
+          <button onClick={()=>goto('trades')} style={{padding:'12px 24px',borderRadius:12,background:'#a78bfa',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>Importer dans Mes Trades</button>
+        </div>
+      </div>
+    );
+    const rColor=scoreColor(b.robustness);
+    const rLabel=b.robustness>=75?'Robuste':b.robustness>=55?'Acceptable':b.robustness>=35?'Fragile':'Non fiable';
+    const overfit=b.pf>4&&b.totalTrades<60;
+    const localText=b.robustness>=70?`Avec ${b.totalTrades} trades et un Profit Factor de ${b.pf}, ce backtest présente les caractéristiques d'une stratégie ${b.robustness>=75?'statistiquement robuste':'acceptable'}. Le drawdown de ${b.maxDD}% reste ${b.maxDD<10?'dans des limites raisonnables':'à surveiller'}. ${overfit?'Attention au risque de sur-optimisation avec ce PF élevé sur peu de trades.':''}`:
+      `Ce backtest de ${b.totalTrades} trades montre ${b.robustness>=50?'une robustesse limitée':'des fragilités importantes'}. Avec un PF de ${b.pf} et un DD max de ${b.maxDD}%, ${b.totalTrades<50?'l\'échantillon insuffisant ne permet pas de conclusions fiables.':'des optimisations s\'imposent avant un challenge.'} ${overfit?'Le risque de sur-optimisation est significatif.':''}`;
+    return (
+      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+        <ReportHeader title="Résultats Backtest" subtitle={`${b.filename||'Backtest'} · ${b.totalTrades} trades`} onBack={()=>setMode(null)}/>
+
+        {/* Score robustesse */}
+        <div style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${rColor}22`,borderRadius:20,padding:'20px 18px',marginBottom:12,display:'flex',alignItems:'center',gap:20}}>
+          <ScoreCircle score={b.robustness} size={100}/>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:4}}>Score de robustesse</div>
+            <div style={{fontSize:22,fontWeight:900,color:rColor,marginBottom:2}}>{rLabel}</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{b.totalTrades} trades · Profit {b.profit>0?'+':''}{b.profit}%</div>
+            <div style={{display:'flex',gap:8,marginTop:10}}>
+              {[{l:'PF',v:b.pf,g:b.pf>=1.5},{l:'WR',v:b.wr.toFixed(0)+'%',g:b.wr>=50},{l:'DD',v:b.maxDD.toFixed(1)+'%',g:b.maxDD<10}].map((m,i)=>(
+                <div key={i} style={{flex:1,background:'rgba(255,255,255,0.06)',borderRadius:10,padding:'7px 6px',textAlign:'center'}}>
+                  <div style={{fontSize:8,color:'rgba(255,255,255,0.4)'}}>{m.l}</div>
+                  <div style={{fontSize:13,fontWeight:800,color:m.g?'#4ade80':'#fbbf24'}}>{m.v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* KPIs statistiques */}
+        <div style={{background:'rgba(167,139,250,0.04)',border:'1px solid rgba(167,139,250,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}><span style={{marginRight:5}}>📊</span>Métriques statistiques</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            {[
+              {l:'Trades analysés',v:b.totalTrades,c:b.totalTrades>=100?'#4ade80':b.totalTrades>=50?'#fbbf24':'#ef4444'},
+              {l:'Ratio R/R réel',v:`1:${b.rr}`,c:b.rr>=1.5?'#4ade80':'#fbbf24'},
+              {l:'Gain moyen',v:'+'+b.avgW.toFixed(0)+'$',c:'#4ade80'},
+              {l:'Perte moyenne',v:'-'+b.avgL.toFixed(0)+'$',c:'#ef4444'},
+            ].map((m,i)=>(
+              <div key={i} style={{background:'rgba(255,255,255,0.05)',borderRadius:12,padding:'11px 12px'}}>
+                <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',marginBottom:3}}>{m.l}</div>
+                <div style={{fontSize:15,fontWeight:800,color:m.c}}>{m.v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Alertes statistiques */}
+        <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:16,marginBottom:12}}>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>🔍</span>Analyse de validité</div>
+          {[
+            {cond:b.totalTrades>=100,good:'Échantillon statistiquement significatif ('+b.totalTrades+' trades)',bad:'Échantillon insuffisant ('+b.totalTrades+' trades) — min. 100 pour un backtest fiable'},
+            {cond:b.pf>=1.5&&!overfit,good:'Profit Factor robuste ('+b.pf+') validé sur suffisamment de trades',bad:overfit?'Risque de sur-optimisation : PF '+b.pf+' sur '+b.totalTrades+' trades seulement':'Profit Factor faible ('+b.pf+') — stratégie peu rentable'},
+            {cond:b.maxDD<10,good:'Drawdown maîtrisé ('+b.maxDD+'%) — en dessous du seuil critique',bad:'Drawdown élevé ('+b.maxDD+'%) — à corriger avant un challenge'},
+          ].map((item,i)=>(
+            <div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:i<2?9:0}}>
+              <span style={{color:item.cond?'#6ee7b7':'#f87171',fontSize:13,flexShrink:0,marginTop:1}}>{item.cond?'✓':'✕'}</span>
+              <div style={{fontSize:12,color:item.cond?'rgba(255,255,255,0.8)':'rgba(255,255,255,0.65)',lineHeight:1.4}}>{item.cond?item.good:item.bad}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Rapport expert */}
+        <ExpertSection gemini={gemini} gemLoading={gemLoading} localText={localText}/>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function makeTradeStream(winrate, clustering, maxConsecLosses) {
