@@ -3618,22 +3618,6 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
     try { localStorage.setItem("eapropfirm_trades", JSON.stringify({ trades, filename, initBalance, balanceReconstructed, manualDD })); } catch (e) {}
   }, [trades, filename, initBalance, balanceReconstructed, manualDD]);
 
-  // ── Appel Gemini silencieux quand verdict change ──
-  React.useEffect(() => {
-    if (!trades.length || !model) return;
-    const v = computeVerdictSync(trades, effectiveInitBalance, !balanceReconstructed, manualDD);
-    if (!v) return;
-    // Clé unique pour éviter les appels répétés sur le même verdict
-    const vKey = `${v.label}_${v.realWR}_${v.realPF}_${v.maxDD}_${trades.length}`;
-    if (geminiVerdictRef.current === vKey) return;
-    geminiVerdictRef.current = vKey;
-    setGeminiVerdict(null);
-    setGeminiVerdictLoading(true);
-    callGeminiVerdict(v, sim, lang).then(r => {
-      setGeminiVerdictLoading(false);
-      if (r) setGeminiVerdict(r);
-    });
-  }, [trades.length, balanceReconstructed, manualDD]);
 
   // ── CSV parser ────────────────────────────────────────────────
   const parseCSV = (text) => {
@@ -4027,6 +4011,22 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
       ddUnreliable, ddIsZeroButLosses, ddSource, hasManualDD,
     };
   };
+
+  // ── Appel Gemini silencieux APRÈS computeVerdictSync (ordre correct) ──
+  React.useEffect(() => {
+    if (!trades.length || !model) return;
+    const v = computeVerdictSync(trades, effectiveInitBalance, !balanceReconstructed, manualDD);
+    if (!v) return;
+    const vKey = `${v.label}_${v.realWR}_${v.realPF}_${v.maxDD}_${trades.length}`;
+    if (geminiVerdictRef.current === vKey) return;
+    geminiVerdictRef.current = vKey;
+    setGeminiVerdict(null);
+    setGeminiVerdictLoading(true);
+    callGeminiVerdict(v, sim, lang).then(r => {
+      setGeminiVerdictLoading(false);
+      if (r) setGeminiVerdict(r);
+    });
+  }, [trades.length, balanceReconstructed, manualDD]);
 
   // ── Alertes ───────────────────────────────────────────────────
   const computeAlertsSync = (trds, initBal) => {
