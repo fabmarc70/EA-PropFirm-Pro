@@ -147,6 +147,21 @@ const I18N = {
     // ── Commun ──
     common_continue: "Continuer",
     common_config: "Configuration",
+    sim_clustering_losses: "Clustering des pertes",
+    sim_calc_stats: "Statistiques calculées",
+    sim_lot_suggested: "Lot suggéré pour ce risque",
+    sim_beginner_active: "Mode débutant actif",
+    mt_coherence_sim: "Cohérence avec ta simulation",
+    mt_real: "Réel",
+    mt_simulation: "Simulation",
+    mt_my_journal: "Mon journal réel",
+    dash_selected: "Sélectionné",
+    dash_first_sim: "Lance ta première simulation",
+    dash_start_now: "Démarrer maintenant",
+    dash_stats: "Statistiques",
+    dash_configs: "Configs",
+    dash_no_config: "Aucune config sauvegardée",
+    dash_stay_focused: "Reste focus et discipliné",
   },
   es: {
     ob1_title: "Simula tu reto",
@@ -278,6 +293,21 @@ const I18N = {
     // ── Común ──
     common_continue: "Continuar",
     common_config: "Configuración",
+    sim_clustering_losses: "Clustering de pérdidas",
+    sim_calc_stats: "Estadísticas calculadas",
+    sim_lot_suggested: "Lote sugerido para este riesgo",
+    sim_beginner_active: "Modo principiante activo",
+    mt_coherence_sim: "Coherencia con tu simulación",
+    mt_real: "Real",
+    mt_simulation: "Simulación",
+    mt_my_journal: "Mi diario real",
+    dash_selected: "Seleccionado",
+    dash_first_sim: "Lanza tu primera simulación",
+    dash_start_now: "Empezar ahora",
+    dash_stats: "Estadísticas",
+    dash_configs: "Configs",
+    dash_no_config: "Ninguna config guardada",
+    dash_stay_focused: "Mantente enfocado y disciplinado",
   },
   en: {
     ob1_title: "Simulate your challenge",
@@ -409,6 +439,21 @@ const I18N = {
     // ── Common ──
     common_continue: "Continue",
     common_config: "Configuration",
+    sim_clustering_losses: "Loss clustering",
+    sim_calc_stats: "Calculated statistics",
+    sim_lot_suggested: "Suggested lot for this risk",
+    sim_beginner_active: "Beginner mode active",
+    mt_coherence_sim: "Consistency with your simulation",
+    mt_real: "Real",
+    mt_simulation: "Simulation",
+    mt_my_journal: "My real journal",
+    dash_selected: "Selected",
+    dash_first_sim: "Run your first simulation",
+    dash_start_now: "Start now",
+    dash_stats: "Statistics",
+    dash_configs: "Configs",
+    dash_no_config: "No saved config",
+    dash_stay_focused: "Stay focused and disciplined",
   },
 };
 
@@ -1752,7 +1797,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       {/* JAUGE CLUSTERING + MAX PERTES CONSECUTIVES — mode avancé uniquement */}
       {!isSimple && <div className="card" style={{ border: "1px solid rgba(110,231,183,0.10)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: clColor, textTransform: "uppercase", letterSpacing: 1, display: "flex", alignItems: "center" }}>Clustering des pertes<InfoTip text="Simule le réalisme psychologique : les pertes arrivent-elles en séries ? 0% = trades indépendants (théorique). 40-60% = réaliste. Plus c'est élevé, plus tu vivras de longues séries noires." /></span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: clColor, textTransform: "uppercase", letterSpacing: 1, display: "flex", alignItems: "center" }}>{t("sim_clustering_losses")}<InfoTip text="Simule le réalisme psychologique : les pertes arrivent-elles en séries ? 0% = trades indépendants (théorique). 40-60% = réaliste. Plus c'est élevé, plus tu vivras de longues séries noires." /></span>
           <span style={{ fontSize: 24, fontWeight: 700, color: clColor }}>{clusteringPct}%</span>
         </div>
         <input type="range" min={0} max={100} step={5} value={clusteringPct} onChange={e => setClusteringPct(parseInt(e.target.value))} />
@@ -1859,7 +1904,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         {!useFixedLot && suggestedLot > 0 && (
           <div style={{ background: "rgba(110,231,183,0.08)", border: "1px solid rgba(110,231,183,0.2)", borderRadius: 12, padding: "10px 12px", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)" }}>Lot suggéré pour ce risque</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)" }}>{t("sim_lot_suggested")}</div>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{instInfo.label} · SL {slPips} pips</div>
             </div>
             <div style={{ fontSize: 20, fontWeight: 700, color: "#6ee7b7" }}>{suggestedLot}</div>
@@ -1868,7 +1913,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
         {/* Métriques statistiques avancées — mode avancé uniquement */}
         {!isSimple && <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 10, marginBottom: 10 }}>
-          <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Statistiques calculées</div>
+          <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>{t("sim_calc_stats")}</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
             {[
               { l: "Espérance / trade", v: (expectedPerTrade >= 0 ? "+" : "") + fmt2(expectedPerTrade), c: expectedPerTrade >= 0 ? "#6ee7b7" : "#f87171" },
@@ -2058,7 +2103,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         <div style={{ background:"rgba(110,231,183,0.06)", border:"1px solid rgba(110,231,183,0.15)", borderRadius:14, padding:"12px 14px", marginBottom:12, display:"flex", alignItems:"center", gap:10 }}>
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 16V9" stroke="#6ee7b7" strokeWidth="1.8" strokeLinecap="round"/><path d="M9 9C9 5 5 4 4 5c0 3 3 4 5 4" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round"/><path d="M9 12c0-3 4-4 5-3 0 3-3 4-5 4" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round"/></svg>
           <div>
-            <div style={{ fontSize:12, fontWeight:700, color:"#6ee7b7" }}>Mode débutant actif</div>
+            <div style={{ fontSize:12, fontWeight:700, color:"#6ee7b7" }}>{t("sim_beginner_active")}</div>
             <div style={{ fontSize:11, color:"rgba(255,255,255,0.45)", marginTop:1 }}>
               Affichage simplifié. Modifiable dans Profil.
             </div>
@@ -2284,7 +2329,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                   <>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 10 }}>
                       <div className="kpi">
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Jours</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("sim_days")}</div>
                         <div style={{ fontSize: 14, fontWeight: 700, color }}>{data.tradingDays}</div>
                       </div>
                       <div className="kpi">
@@ -3406,7 +3451,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             {/* Score de cohérence */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}>Cohérence avec ta simulation</span>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}>{t("mt_coherence_sim")}</span>
                 <span style={{ fontSize: 13, fontWeight: 700, color: verdict.matchScore >= 70 ? "#6ee7b7" : verdict.matchScore >= 50 ? "#fbbf24" : "#ef4444" }}>{verdict.matchScore}%</span>
               </div>
               <div style={{ height: 8, background: "rgba(255,255,255,0.05)", borderRadius: 4, overflow: "hidden" }}>
@@ -3465,8 +3510,8 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Réel vs Simulation</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2, marginBottom: 6 }}>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", textAlign: "center", paddingBottom: 4 }}>Indicateur</div>
-              <div style={{ fontSize: 10, color: "#6ee7b7", textAlign: "center", fontWeight: 700 }}>Réel</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", textAlign: "center", fontWeight: 700 }}>Simulation</div>
+              <div style={{ fontSize: 10, color: "#6ee7b7", textAlign: "center", fontWeight: 700 }}>{t("mt_real")}</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", textAlign: "center", fontWeight: 700 }}>{t("mt_simulation")}</div>
             </div>
             {[
               { label: "Trades", real: stats.total, sim2: "-" },
@@ -3603,7 +3648,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
       <div className="card" style={{ border: "1px solid rgba(110,231,183,0.12)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF", marginBottom: 2 }}>Mon journal réel</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF", marginBottom: 2 }}>{t("mt_my_journal")}</div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.4 }}>
               Saisis tes journées de trading et ajoute tes captures MT4/MT5. Synchronisé avec l'accueil.
             </div>
@@ -5289,7 +5334,7 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                         <path d="M3 8l3 3 7-7" stroke="#6ee7b7" strokeWidth="2" strokeLinecap="round"/>
                       </svg>
-                      <span style={{ fontSize:12, color:"#6ee7b7", fontWeight:600 }}>Sélectionné</span>
+                      <span style={{ fontSize:12, color:"#6ee7b7", fontWeight:600 }}>{t("dash_selected")}</span>
                     </div>
                   )}
                 </button>
@@ -5714,9 +5759,9 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
       {!hasData && (
         <div style={{margin:"16px",background:"rgba(110,231,183,0.05)",border:"1px solid rgba(110,231,183,0.15)",borderRadius:16,padding:"28px 20px",textAlign:"center"}}>
           <div style={{fontSize:36,marginBottom:12}}>🚀</div>
-          <div style={{fontSize:16,fontWeight:700,marginBottom:6}}>Lance ta première simulation</div>
+          <div style={{fontSize:16,fontWeight:700,marginBottom:6}}>{t("dash_first_sim")}</div>
           <div style={{fontSize:13,color:"rgba(255,255,255,0.4)",marginBottom:18}}>Tes statistiques apparaîtront ici après la simulation.</div>
-          <button onClick={()=>goto("simulator")} style={{padding:"14px 28px",borderRadius:100,background:"#6ee7b7",color:"#000",fontSize:14,fontWeight:700,border:"none",cursor:"pointer"}}>Démarrer maintenant</button>
+          <button onClick={()=>goto("simulator")} style={{padding:"14px 28px",borderRadius:100,background:"#6ee7b7",color:"#000",fontSize:14,fontWeight:700,border:"none",cursor:"pointer"}}>{t("dash_start_now")}</button>
         </div>
       )}
 
@@ -5895,7 +5940,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
       <div style={{marginBottom:"14px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         {/* STATISTIQUES */}
         <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:14}}>
-          <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.4)",textTransform:"uppercase",letterSpacing: -0.2,marginBottom:12}}>Statistiques</div>
+          <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.4)",textTransform:"uppercase",letterSpacing: -0.2,marginBottom:12}}>{t("dash_stats")}</div>
           {/* Gauge winrate */}
           <div style={{position:"relative",width:80,height:80,margin:"0 auto 12px"}}>
             <svg width="80" height="80" viewBox="0 0 80 80">
@@ -5949,7 +5994,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:14,display:"flex",flexDirection:"column"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
             <div>
-              <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.4)",textTransform:"uppercase",letterSpacing:1}}>Configs</div>
+              <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.4)",textTransform:"uppercase",letterSpacing:1}}>{t("dash_configs")}</div>
               <div style={{fontSize:9,color:"rgba(255,255,255,0.25)",marginTop:1}}>{configs.length}/3 slots</div>
             </div>
             <button onClick={()=>goto("simulator")} style={{background:"none",border:"none",color:"#6ee7b7",fontSize:10,fontWeight:700,cursor:"pointer"}}>+ New</button>
@@ -5957,7 +6002,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           {configs.length===0 ? (
             <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center",gap:8}}>
               <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="4" y="8" width="20" height="16" rx="3" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5"/><path d="M9 8V6a5 5 0 0110 0v2" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" strokeLinecap="round"/></svg>
-              <div style={{fontSize:10,color:"rgba(255,255,255,0.3)"}}>Aucune config sauvegardée</div>
+              <div style={{fontSize:10,color:"rgba(255,255,255,0.3)"}}>{t("dash_no_config")}</div>
             </div>
           ) : (
             <div style={{flex:1,display:"flex",flexDirection:"column",gap:6}}>
@@ -6006,7 +6051,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
       <div style={{marginBottom:"16px",background:"rgba(110,231,183,0.05)",border:"1px solid rgba(110,231,183,0.12)",borderRadius:20,padding:"16px",display:"flex",alignItems:"center",gap:14}}>
         <div style={{width:46,height:46,borderRadius:12,background:"rgba(110,231,183,0.1)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#6ee7b7" strokeWidth="1.8"/><circle cx="11" cy="11" r="4" stroke="#6ee7b7" strokeWidth="1.5"/><circle cx="11" cy="11" r="1.5" fill="#6ee7b7"/></svg></div>
         <div style={{flex:1}}>
-          <div style={{fontSize:14,fontWeight:700,marginBottom:2}}>Reste focus et discipliné</div>
+          <div style={{fontSize:14,fontWeight:700,marginBottom:2}}>{t("dash_stay_focused")}</div>
           <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",lineHeight:1.4}}>Chaque jour est une étape de plus vers ta prochaine validation.</div>
         </div>
         <button onClick={()=>goto("simulator")} style={{padding:"12px 18px",borderRadius:16,background:"#6ee7b7",color:"#000",fontSize:12,fontWeight:700,border:"none",cursor:"pointer",flexShrink:0,lineHeight:1.3,textAlign:"center",whiteSpace:"nowrap"}}>
