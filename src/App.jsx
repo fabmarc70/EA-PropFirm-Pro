@@ -2370,10 +2370,6 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         .kpi { background: rgba(110,231,183,0.06); border: 1px solid rgba(110,231,183,0.10); border-radius: 10px; padding: 10px; }
       `}</style>
 
-      <div style={{ height: 14 }}>
-        {saveStatus && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", opacity: 1 }}>✓ {saveStatus}</span>}
-      </div>
-
       {/* Toggle Challenge / Funded — sticky header bar (cliquable, accessible) */}
       {(tab === "challenge" || tab === "funded") && (
         <div style={{
@@ -2387,6 +2383,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           marginBottom: 16,
           transition: "all 0.2s ease-out",
         }}>
+          {saveStatus && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 6, textAlign: "left" }}>✓ {saveStatus}</div>}
           <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, border: "1px solid rgba(255,255,255,0.08)" }}>
             {[{ id: "challenge", label: "Challenge" }, { id: "funded", label: "Funded" }].map(tg => (
               <button key={tg.id} onClick={() => {
