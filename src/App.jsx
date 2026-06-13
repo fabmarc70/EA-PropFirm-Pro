@@ -2374,21 +2374,48 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         {saveStatus && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", opacity: 1 }}>✓ {saveStatus}</span>}
       </div>
 
-      {/* Toggle Challenge / Funded — segmented control élégant */}
+      {/* Toggle Challenge / Funded — sticky bar */}
       {(tab === "challenge" || tab === "funded") && (
-        <div style={{ display: "flex", gap: 4, marginBottom: 16, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, border: "1px solid rgba(255,255,255,0.08)" }}>
-          {[{ id: "challenge", label: "Challenge" }, { id: "funded", label: "Funded" }].map(tg => (
-            <button key={tg.id} onClick={() => setTab(tg.id)} style={{
-              flex: 1, padding: "11px", borderRadius: 9, cursor: "pointer", fontSize: 14, fontWeight: 600,
-              background: tab === tg.id ? "#6ee7b7" : "transparent",
-              color: tab === tg.id ? "#000000" : "rgba(255,255,255,0.6)",
-              border: "none", transition: "all .2s",
-            }}>{tg.label}</button>
-          ))}
+        <div style={{
+          position: "sticky", top: 0, zIndex: 20,
+          background: "rgba(6,9,15,0.97)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          padding: "10px 0 10px",
+          marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16,
+          borderBottom: "1px solid rgba(110,231,183,0.08)",
+          marginBottom: 16,
+        }}>
+          <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, border: "1px solid rgba(255,255,255,0.08)" }}>
+            {[{ id: "challenge", label: "Challenge" }, { id: "funded", label: "Funded" }].map(tg => (
+              <button key={tg.id} onClick={() => {
+                setTab(tg.id);
+                // Si on clique Funded, scroll vers la section configs
+                if (tg.id === "funded") {
+                  setTimeout(() => {
+                    const el = document.getElementById("sim-configs-section");
+                    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                    else window.scrollTo({ top: 0, behavior: "instant" });
+                  }, 50);
+                } else {
+                  // Challenge → scroll en haut
+                  window.scrollTo({ top: 0, behavior: "instant" });
+                }
+              }} style={{
+                flex: 1, padding: "11px", borderRadius: 9, cursor: "pointer", fontSize: 14, fontWeight: 600,
+                background: tab === tg.id ? "#6ee7b7" : "transparent",
+                color: tab === tg.id ? "#000000" : "rgba(255,255,255,0.6)",
+                border: "none", transition: "all .2s",
+              }}>{tg.label}</button>
+            ))}
+          </div>
         </div>
       )}
 
       {/* ══ CARTES CONFIG — vue simulateur uniquement (Challenge/Funded) ══ */}
+      {/* Ancre invisible — point d'entrée Funded (section configs + save) */}
+      <div id="sim-configs-section" style={{ scrollMarginTop: 70 }} />
+
       {(tab === "challenge" || tab === "funded") && (<>
 
       {/* MODELE */}
