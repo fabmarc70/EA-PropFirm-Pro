@@ -897,6 +897,11 @@ function coachAnalyze(data, firmName) {
 async function callGeminiCoach(analysis, lang) {
   // ⚠️ Clé API client-side — acceptable pour MVP PWA
   const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY || '';
+  // Clé absente = pas d'appel (évite une requête inutile avec key=vide)
+  if (!GEMINI_KEY) {
+    console.warn('[IA Coach] VITE_GEMINI_KEY manquante — analyse locale utilisée');
+    return null;
+  }
   const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
   const langLabel = { fr: 'français', en: 'English', es: 'español' }[lang] || 'français';
   const { probability, profitFactor, expectancyR, metrics, forces, risks, firmName } = analysis;
