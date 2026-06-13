@@ -2971,11 +2971,14 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   const [balanceReconstructed, setBalanceReconstructed] = useState(saved0.balanceReconstructed || false);
   const [manualBalanceInput, setManualBalanceInput] = useState("");
   const [showBalanceInput, setShowBalanceInput] = useState(false);
+  // DD max saisi manuellement par l'utilisateur (quand non calculable depuis le fichier)
+  const [manualDD, setManualDD] = useState(saved0.manualDD ?? null);
+  const [manualDDInput, setManualDDInput] = useState("");
   const [alerts, setAlerts] = useState([]);
 
   useEffect(() => {
-    try { localStorage.setItem("eapropfirm_trades", JSON.stringify({ trades, filename, initBalance, balanceReconstructed })); } catch (e) {}
-  }, [trades, filename, initBalance, balanceReconstructed]);
+    try { localStorage.setItem("eapropfirm_trades", JSON.stringify({ trades, filename, initBalance, balanceReconstructed, manualDD })); } catch (e) {}
+  }, [trades, filename, initBalance, balanceReconstructed, manualDD]);
 
   // ── CSV parser ────────────────────────────────────────────────
   const parseCSV = (text) => {
@@ -3173,7 +3176,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   };
 
   // ── Verdict challenge (mini MC sur stats réelles) ─────────────
-  const computeVerdictSync = (trds, initBal, ddReliable = true) => {
+  const computeVerdictSync = (trds, initBal, ddReliable = true, manualDDOverride = null) => {
     if (!trds.length || !model) return;
     const wins = trds.filter(t => t.profit > 0);
     const losses = trds.filter(t => t.profit < 0);
@@ -3196,16 +3199,20 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
     const maxDDAbsolute = (initBal - minEquity) / initBal * 100; // % depuis capital initial
     // On retient la mesure pertinente selon le type de DD du modèle
     const isTrailing = model.ddType === "trailing";
-    const maxDD = isTrailing ? maxDDTrailing : Math.max(0, maxDDAbsolute);
+    const computedDD = isTrailing ? maxDDTrailing : Math.max(0, maxDDAbsolute);
     const ddLimitPct = model.totalDD * 100;
 
-    // ── Fiabilité du DD : impossible d'avoir 0% de DD avec des trades perdants ──
-    // Un DD réel de 0% alors qu'il y a des pertes = données incohérentes
-    // (fichier trié, balances agrégées, ou pas de balance intra-trade fiable)
+    // ── Fiabilité du DD ──
+    // Le DD calculé est non fiable si : balance reconstruite OU 0% malgré des pertes
     const hasLosses = losses.length > 0;
-    const ddIsZeroButLosses = maxDD < 0.01 && hasLosses;
-    // DD non exploitable si : balance reconstruite OU DD nul malgré des pertes
-    const ddUnreliable = !ddReliable || ddIsZeroButLosses;
+    const ddIsZeroButLosses = computedDD < 0.01 && hasLosses;
+    const computedDDUnreliable = !ddReliable || ddIsZeroButLosses;
+
+    // Si l'utilisateur a saisi un DD manuel, il PRIME et rend le DD fiable
+    const hasManualDD = manualDDOverride !== null && manualDDOverride >= 0;
+    const maxDD = hasManualDD ? manualDDOverride : computedDD;
+    const ddUnreliable = hasManualDD ? false : computedDDUnreliable;
+    const ddSource = hasManualDD ? "manuel" : "calculé";
 
     // ── Phases déjà franchies dans le backtest (lecture factuelle) ──
     const finalProfit = (trds[trds.length - 1].balance - initBal) / initBal * 100;
@@ -3215,11 +3222,6 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
 
     // ── Violation de règle DÉTECTÉE dans le backtest réel ──
     const ddViolated = maxDD >= ddLimitPct;
-    // Détection violation DD journalier réel (pire jour vs limite)
-    const dailyLimAmt = initBal * model.dailyDD;
-    // Reconstruire les pertes journalières par regroupement de date si dispo
-    let worstSingleLoss = 0;
-    trds.forEach(t => { if (-t.profit > worstSingleLoss) worstSingleLoss = -t.profit; });
 
     // Score de cohérence vs simulation
     const wrScore = Math.max(0, 1 - Math.abs(realWR * 100 - winrate) / Math.max(winrate, 1));
@@ -3367,7 +3369,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
       ddViolated, ddLimitPct, finalProfit: finalProfit.toFixed(2),
       phasesPassed, totalPhases, isTrailing,
       isLosing, isUnprofitable, reachedFirstTarget, firstPhaseTarget, tooFewTrades,
-      ddUnreliable, ddIsZeroButLosses,
+      ddUnreliable, ddIsZeroButLosses, ddSource, hasManualDD,
     };
   };
 
@@ -3509,7 +3511,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   const effectiveInitBalance = initBalance || (trades.length > 0 ? trades[0].balance - trades[0].profit : capital);
   // Le DD n'est fiable que si la balance vient du fichier (pas reconstruite depuis les profits)
   const verdict = trades.length > 0 && stats
-    ? computeVerdictSync(trades, effectiveInitBalance, !balanceReconstructed)
+    ? computeVerdictSync(trades, effectiveInitBalance, !balanceReconstructed, manualDD)
     : null;
 
   const alertColor = (l) => l === "danger" ? "#ef4444" : l === "warning" ? "#fbbf24" : l === "ok" ? "#6ee7b7" : "rgba(255,255,255,0.55)";
@@ -3690,6 +3692,60 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", lineHeight: 1.55 }}>
                   {verdict.verdictReason}
                 </div>
+              </div>
+            )}
+
+            {/* ── SAISIE MANUELLE DU DD (si non calculable) ── */}
+            {verdict.ddUnreliable && (
+              <div style={{ background: "rgba(110,231,183,0.05)", border: "1px solid rgba(110,231,183,0.2)", borderRadius: 10, padding: "12px 13px", marginBottom: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#6ee7b7", marginBottom: 4 }}>
+                  Tu connais ton drawdown max ?
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", lineHeight: 1.5, marginBottom: 10 }}>
+                  Saisis le DD max de ton backtest (visible dans ton rapport MT4/MT5 ou ta prop firm) pour débloquer le verdict complet.
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <div style={{ position: "relative", flex: 1 }}>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="Ex : 6.5"
+                      value={manualDDInput}
+                      onChange={e => setManualDDInput(e.target.value)}
+                      style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(110,231,183,0.25)", borderRadius: 10, color: "#fff", padding: "11px 32px 11px 12px", fontSize: 15, fontWeight: 700, outline: "none" }}
+                    />
+                    <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "rgba(255,255,255,0.4)", fontWeight: 700 }}>%</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const v = parseFloat(manualDDInput);
+                      if (!isNaN(v) && v >= 0 && v <= 100) { setManualDD(v); setManualDDInput(""); }
+                    }}
+                    disabled={!manualDDInput || isNaN(parseFloat(manualDDInput)) || parseFloat(manualDDInput) < 0 || parseFloat(manualDDInput) > 100}
+                    style={{
+                      padding: "11px 18px", borderRadius: 10, border: "none", flexShrink: 0,
+                      background: (manualDDInput && !isNaN(parseFloat(manualDDInput)) && parseFloat(manualDDInput) >= 0 && parseFloat(manualDDInput) <= 100) ? "#6ee7b7" : "rgba(255,255,255,0.1)",
+                      color: (manualDDInput && !isNaN(parseFloat(manualDDInput)) && parseFloat(manualDDInput) >= 0 && parseFloat(manualDDInput) <= 100) ? "#000" : "rgba(255,255,255,0.35)",
+                      fontSize: 13, fontWeight: 700, cursor: "pointer",
+                    }}>
+                    Valider
+                  </button>
+                </div>
+                <div style={{ marginTop: 8, fontSize: 10, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>
+                  Le DD saisi sera utilisé tel quel pour évaluer le respect de la limite {verdict.ddLimitPct}%.
+                </div>
+              </div>
+            )}
+
+            {/* Badge DD saisi manuellement */}
+            {verdict.hasManualDD && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(110,231,183,0.06)", border: "1px solid rgba(110,231,183,0.18)", borderRadius: 10, padding: "9px 12px", marginBottom: 14 }}>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+                  DD saisi manuellement : <span style={{ color: "#6ee7b7", fontWeight: 700 }}>{manualDD}%</span>
+                </div>
+                <button onClick={() => setManualDD(null)} style={{ fontSize: 11, color: "#f87171", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+                  Retirer
+                </button>
               </div>
             )}
 
