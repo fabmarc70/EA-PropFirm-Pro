@@ -3467,7 +3467,27 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
       } else {
         month = Math.ceil(d.dayIdx / 22); // ~22 jours de trading par mois
       }
-      return { globalDay: d.dayIdx, month, dayOfMonth: d.dayIdx, pnl: +pnl.toFixed(2), equity: +equity.toFixed(2), wins, losses, breached: false };
+      // Extraire le vrai jour du mois depuis la chaîne de date
+      // Formats supportés : YYYY-MM-DD, DD-MM-YYYY, DD/MM/YYYY, YYYY.MM.DD, DD.MM.YYYY
+      let realDayOfMonth = null;
+      if (d.date && (d.date.includes('-') || d.date.includes('/') || d.date.includes('.'))) {
+        const norm = d.date.replace(/[./]/g, '-').split(' ')[0]; // "2024-01-15" ou "15-01-2024"
+        const parts = norm.split('-');
+        if (parts.length >= 3) {
+          const p0 = parseInt(parts[0]);
+          const p2 = parseInt(parts[2]);
+          if (p0 > 31) {
+            // YYYY-MM-DD → jour = parts[2]
+            if (p2 >= 1 && p2 <= 31) realDayOfMonth = p2;
+          } else {
+            // DD-MM-YYYY → jour = parts[0]
+            if (p0 >= 1 && p0 <= 31) realDayOfMonth = p0;
+          }
+        }
+      }
+      const hasRealDate = realDayOfMonth !== null;
+      return { globalDay: d.dayIdx, month, dayOfMonth: hasRealDate ? realDayOfMonth : d.dayIdx,
+               hasRealDate, pnl: +pnl.toFixed(2), equity: +equity.toFixed(2), wins, losses, breached: false };
     });
   })();
 
@@ -3914,7 +3934,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
 
           {/* ── CALENDRIER PnL — AU-DESSUS du tableau mensuel (100% trades importés) ── */}
           {dailyLogReel.length > 0 && (
-            <CalendrierPnL t={t} lang={lang} dailyLog={dailyLogReel} />
+            <CalendrierPnL t={t} lang={lang} dailyLog={dailyLogReel} realMode={true} />
           )}
 
           {/* ── TABLEAU MENSUEL — 100% calculé depuis trades importés ── */}
@@ -4073,7 +4093,7 @@ function compressImage(file, maxDim = 900, quality = 0.72) {
   });
 }
 
-function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, newsSkipDays = 0, activeDays = [1,2,3,4,5], t = (k) => k, lang = "fr" }) {
+function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, newsSkipDays = 0, activeDays = [1,2,3,4,5], t = (k) => k, lang = "fr", realMode = false }) {
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [editingDay, setEditingDay] = useState(null); // jour en cours d'édition (mode journal)
   const [formWins, setFormWins] = useState(0);
@@ -4129,6 +4149,42 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
       }
       return grid;
     }
+    // ── Mode backtest RÉEL : les vrais jours du fichier, sans scatter ──
+    // Chaque trade est placé à sa vraie date calendaire (si disponible).
+    // Les cases vides = vrais jours sans trade dans le backtest.
+    // AUCUN algo aléatoire — on n'invente pas de jours non tradés.
+    if (realMode) {
+      const hasDates = monthDays.some(d => d.hasRealDate);
+      if (hasDates) {
+        // Placement par vraie date : chaque case = jour réel du mois
+        const dayMap = {};
+        monthDays.forEach(d => { dayMap[d.dayOfMonth] = d; });
+        for (let dayNum = 1; dayNum <= 28; dayNum++) {
+          const dow = (dayNum - 1) % 7;
+          const isWeekend = dow >= 5;
+          const data = dayMap[dayNum];
+          if (data) {
+            grid.push({ dayNum, trading: true, data });
+          } else {
+            grid.push({ dayNum, trading: false, data: null, isEmptyWeekday: !isWeekend });
+          }
+        }
+      } else {
+        // Pas de vraies dates : placement séquentiel pur, sans scatter ni case vide artificielle
+        let tradingIdx = 0;
+        for (let dayNum = 1; dayNum <= 28; dayNum++) {
+          const dow = (dayNum - 1) % 7;
+          const isWeekend = dow >= 5;
+          if (!isWeekend && tradingIdx < monthDays.length) {
+            grid.push({ dayNum, trading: true, data: monthDays[tradingIdx++] });
+          } else {
+            grid.push({ dayNum, trading: false, data: null, isEmptyWeekday: !isWeekend });
+          }
+        }
+      }
+      return grid;
+    }
+
     // ── Mode simulation : grille 28 jours avec répartition ALÉATOIRE des jours skippés ──
     // Les jours d'annonces (NFP, FOMC, CPI...) ne tombent pas toujours le même jour
     // → On utilise un PRNG seedé par le numéro de mois pour répartir les skips
