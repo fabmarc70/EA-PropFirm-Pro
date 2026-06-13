@@ -2374,38 +2374,35 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         {saveStatus && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", opacity: 1 }}>✓ {saveStatus}</span>}
       </div>
 
-      {/* Toggle Challenge / Funded — sticky bar */}
+      {/* Toggle Challenge / Funded — sticky header bar (cliquable, accessible) */}
       {(tab === "challenge" || tab === "funded") && (
         <div style={{
           position: "sticky", top: 0, zIndex: 20,
-          background: "rgba(6,9,15,0.97)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-          padding: "10px 0 10px",
+          background: "rgba(6,9,15,0.98)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
+          paddingTop: "calc(8px + env(safe-area-inset-top, 8px))", paddingBottom: "10px",
           marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16,
-          borderBottom: "1px solid rgba(110,231,183,0.08)",
-          marginBottom: 16,
+          borderBottom: "1px solid rgba(110,231,183,0.1)",
+          marginBottom: 14,
         }}>
           <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, border: "1px solid rgba(255,255,255,0.08)" }}>
             {[{ id: "challenge", label: "Challenge" }, { id: "funded", label: "Funded" }].map(tg => (
               <button key={tg.id} onClick={() => {
                 setTab(tg.id);
-                // Si on clique Funded, scroll vers la section configs
                 if (tg.id === "funded") {
                   setTimeout(() => {
-                    const el = document.getElementById("sim-configs-section");
+                    const el = document.getElementById("sim-funded-section");
                     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-                    else window.scrollTo({ top: 0, behavior: "instant" });
-                  }, 50);
+                  }, 100);
                 } else {
-                  // Challenge → scroll en haut
                   window.scrollTo({ top: 0, behavior: "instant" });
                 }
               }} style={{
-                flex: 1, padding: "11px", borderRadius: 9, cursor: "pointer", fontSize: 14, fontWeight: 600,
+                flex: 1, padding: "12px 14px", borderRadius: 9, cursor: "pointer", fontSize: 14, fontWeight: 600,
                 background: tab === tg.id ? "#6ee7b7" : "transparent",
-                color: tab === tg.id ? "#000000" : "rgba(255,255,255,0.6)",
-                border: "none", transition: "all .2s",
+                color: tab === tg.id ? "#000000" : "rgba(255,255,255,0.65)",
+                border: "none", transition: "all .2s", userSelect: "none",
               }}>{tg.label}</button>
             ))}
           </div>
@@ -2413,9 +2410,6 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       )}
 
       {/* ══ CARTES CONFIG — vue simulateur uniquement (Challenge/Funded) ══ */}
-      {/* Ancre invisible — point d'entrée Funded (section configs + save) */}
-      <div id="sim-configs-section" style={{ scrollMarginTop: 70 }} />
-
       {(tab === "challenge" || tab === "funded") && (<>
 
       {/* MODELE */}
@@ -3203,6 +3197,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         ) : (
           <>
             {/* Bouton retour Challenge — masqué en Monte Carlo */}
+            
+
             {tab === "funded" && (
               <button onClick={() => setTab("challenge")} style={{
                 display: "flex", alignItems: "center", gap: 6, marginBottom: 12,
@@ -3226,6 +3222,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                 <div style={{ flex: 1, height: 1, background: "rgba(110,231,183,0.15)" }} />
               </div>
             )}
+            <div id="sim-funded-section" style={{ scrollMarginTop: 80 }} />
             <div className="card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>Compte Funded - {fundedMonths} mois</div>
