@@ -3173,7 +3173,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   };
 
   // ── Verdict challenge (mini MC sur stats réelles) ─────────────
-  const computeVerdictSync = (trds, initBal) => {
+  const computeVerdictSync = (trds, initBal, ddReliable = true) => {
     if (!trds.length || !model) return;
     const wins = trds.filter(t => t.profit > 0);
     const losses = trds.filter(t => t.profit < 0);
@@ -3198,6 +3198,14 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
     const isTrailing = model.ddType === "trailing";
     const maxDD = isTrailing ? maxDDTrailing : Math.max(0, maxDDAbsolute);
     const ddLimitPct = model.totalDD * 100;
+
+    // ── Fiabilité du DD : impossible d'avoir 0% de DD avec des trades perdants ──
+    // Un DD réel de 0% alors qu'il y a des pertes = données incohérentes
+    // (fichier trié, balances agrégées, ou pas de balance intra-trade fiable)
+    const hasLosses = losses.length > 0;
+    const ddIsZeroButLosses = maxDD < 0.01 && hasLosses;
+    // DD non exploitable si : balance reconstruite OU DD nul malgré des pertes
+    const ddUnreliable = !ddReliable || ddIsZeroButLosses;
 
     // ── Phases déjà franchies dans le backtest (lecture factuelle) ──
     const finalProfit = (trds[trds.length - 1].balance - initBal) / initBal * 100;
@@ -3249,7 +3257,8 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
 
     // ── Facteurs clés (lecture factuelle, sans certitude absolue) ──
     const factors = [];
-    if (ddViolated) factors.push({ t: `DD réel ${maxDD.toFixed(1)}% DÉPASSE la limite ${ddLimitPct}% — échec sur ces données`, c: "#ef4444" });
+    if (ddUnreliable) factors.push({ t: `Drawdown non calculable — données de balance manquantes ou incohérentes`, c: "#fbbf24" });
+    else if (ddViolated) factors.push({ t: `DD réel ${maxDD.toFixed(1)}% DÉPASSE la limite ${ddLimitPct}% — échec sur ces données`, c: "#ef4444" });
     else if (maxDD > ddLimitPct * 0.7) factors.push({ t: `DD réel ${maxDD.toFixed(1)}% — proche de la limite ${ddLimitPct}%`, c: "#fbbf24" });
     else factors.push({ t: `DD réel ${maxDD.toFixed(1)}% — sous la limite ${ddLimitPct}%`, c: "#6ee7b7" });
     if (realWR < 0.4) factors.push({ t: `Winrate ${(realWR*100).toFixed(0)}% — bas`, c: "#fbbf24" });
@@ -3277,7 +3286,18 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
     let displayPct = passPct;
     let verdictReason = "";
 
-    if (ddViolated) {
+    if (ddUnreliable) {
+      // PRIORITÉ ABSOLUE : sans données de drawdown fiables, aucun verdict possible.
+      // On ne devine PAS un résultat favorable à partir d'une information manquante.
+      label = "DONNÉES DD MANQUANTES";
+      color = "#fbbf24";
+      bg = "linear-gradient(135deg, rgba(251,191,36,0.12), rgba(6,9,15,0.98))";
+      icon = "WARN";
+      displayPct = null; // pas de probabilité affichée
+      verdictReason = ddIsZeroButLosses
+        ? `Drawdown réel impossible à calculer : le fichier montre 0% de DD malgré ${losses.length} trades perdants. Les balances intermédiaires manquent ou sont agrégées. Importe un export avec la colonne Balance trade par trade pour un verdict fiable.`
+        : `Le fichier ne contient pas les balances trade par trade nécessaires au calcul du drawdown. Sans cette donnée, impossible de valider le respect des règles prop firm. Ajoute la colonne Balance/Equity à ton export.`;
+    } else if (ddViolated) {
       // FAIT 1 : violation DD observée → échec factuel
       label = "RÈGLE DD DÉPASSÉE";
       color = "#ef4444";
@@ -3337,8 +3357,8 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
       icon = "XRED";
       verdictReason = `Projection Monte Carlo défavorable (${passPct}%) malgré un backtest non perdant. Risque de violation DD avant d'atteindre la cible.`;
     }
-    // Plafond de prudence : jamais 100%
-    displayPct = Math.min(displayPct, 95);
+    // Plafond de prudence : jamais 100% (sauf si null = données manquantes)
+    if (displayPct !== null) displayPct = Math.min(displayPct, 95);
 
     return {
       passPct: displayPct, matchScore, label, color, bg, icon, factors, verdictReason,
@@ -3347,6 +3367,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
       ddViolated, ddLimitPct, finalProfit: finalProfit.toFixed(2),
       phasesPassed, totalPhases, isTrailing,
       isLosing, isUnprofitable, reachedFirstTarget, firstPhaseTarget, tooFewTrades,
+      ddUnreliable, ddIsZeroButLosses,
     };
   };
 
@@ -3486,9 +3507,10 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   })();
 
   const effectiveInitBalance = initBalance || (trades.length > 0 ? trades[0].balance - trades[0].profit : capital);
-  const verdict = trades.length > 0 && stats && !balanceReconstructed
-    ? computeVerdictSync(trades, effectiveInitBalance)
-    : (trades.length > 0 && stats && balanceReconstructed ? null : null);
+  // Le DD n'est fiable que si la balance vient du fichier (pas reconstruite depuis les profits)
+  const verdict = trades.length > 0 && stats
+    ? computeVerdictSync(trades, effectiveInitBalance, !balanceReconstructed)
+    : null;
 
   const alertColor = (l) => l === "danger" ? "#ef4444" : l === "warning" ? "#fbbf24" : l === "ok" ? "#6ee7b7" : "rgba(255,255,255,0.55)";
   const alertBg = (l) => l === "danger" ? "rgba(239,68,68,0.08)" : l === "warning" ? "rgba(251,191,36,0.08)" : l === "ok" ? "rgba(255,255,255,0.05)" : "#0c1a3d";
@@ -3653,8 +3675,8 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               {/* Cercle probabilité */}
               <div style={{ textAlign: "center", flexShrink: 0, marginLeft: 12 }}>
                 <div style={{ width: 68, height: 68, borderRadius: 34, background: verdict.color + "20", border: "3px solid " + verdict.color, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                  <div style={{ fontSize: 19, fontWeight: 700, color: verdict.color, lineHeight: 1 }}>~{verdict.passPct}%</div>
-                  <div style={{ fontSize: 7, color: "rgba(255,255,255,0.55)", marginTop: 1 }}>estimation</div>
+                  <div style={{ fontSize: verdict.passPct === null ? 26 : 19, fontWeight: 700, color: verdict.color, lineHeight: 1 }}>{verdict.passPct === null ? "?" : "~" + verdict.passPct + "%"}</div>
+                  <div style={{ fontSize: 7, color: "rgba(255,255,255,0.55)", marginTop: 1 }}>{verdict.passPct === null ? "incertain" : "estimation"}</div>
                 </div>
               </div>
             </div>
@@ -3682,10 +3704,10 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               </div>
               <div style={{ flex: 1, background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px" }}>
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>DD max observé ({verdict.isTrailing ? "trailing" : "absolu"})</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: verdict.ddViolated ? "#ef4444" : parseFloat(verdict.maxDD) > verdict.ddLimitPct * 0.7 ? "#fbbf24" : "#6ee7b7" }}>
-                  {verdict.maxDD}%
+                <div style={{ fontSize: 16, fontWeight: 700, color: verdict.ddUnreliable ? "#fbbf24" : verdict.ddViolated ? "#ef4444" : parseFloat(verdict.maxDD) > verdict.ddLimitPct * 0.7 ? "#fbbf24" : "#6ee7b7" }}>
+                  {verdict.ddUnreliable ? "N/A" : verdict.maxDD + "%"}
                 </div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>limite {verdict.ddLimitPct}%</div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{verdict.ddUnreliable ? "donnée manquante" : "limite " + verdict.ddLimitPct + "%"}</div>
               </div>
             </div>
 
