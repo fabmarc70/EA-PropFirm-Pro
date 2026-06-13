@@ -2384,18 +2384,16 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           paddingTop: "calc(8px + env(safe-area-inset-top, 8px))", paddingBottom: "10px",
           marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16,
           borderBottom: "1px solid rgba(110,231,183,0.1)",
-          marginBottom: 14,
+          marginBottom: 16,
+          transition: "all 0.2s ease-out",
         }}>
           <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, border: "1px solid rgba(255,255,255,0.08)" }}>
             {[{ id: "challenge", label: "Challenge" }, { id: "funded", label: "Funded" }].map(tg => (
               <button key={tg.id} onClick={() => {
-                setTab(tg.id);
                 if (tg.id === "funded") {
-                  setTimeout(() => {
-                    const el = document.getElementById("sim-funded-section");
-                    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }, 100);
+                  setTab("montecarlo");
                 } else {
+                  setTab(tg.id);
                   window.scrollTo({ top: 0, behavior: "instant" });
                 }
               }} style={{
@@ -3148,7 +3146,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           })}
           {/* Bouton accès direct au Funded — uniquement si challenge réussi */}
           {sim?.allPassed && sim?.funded ? (
-            <button onClick={() => { if (!premiumAccess) { requirePremium(); return; } setTab("funded"); }} style={{
+            <button onClick={() => { if (!premiumAccess) { requirePremium(); return; } setTab("montecarlo"); }} style={{
               width: "100%", padding: 15, marginTop: 4, borderRadius: 12, cursor: "pointer",
               background: "#6ee7b7", color: "#000000", fontSize: 15, fontWeight: 600,
               border: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
