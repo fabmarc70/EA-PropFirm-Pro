@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser } from "./firebase.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
@@ -3611,7 +3611,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   const [manualDDInput, setManualDDInput] = useState("");
   const [geminiVerdict, setGeminiVerdict] = useState(null);
   const [geminiVerdictLoading, setGeminiVerdictLoading] = useState(false);
-  const geminiVerdictRef = React.useRef(null); // évite les appels multiples
+  const geminiVerdictRef = useRef(null); // évite les appels multiples
   const [alerts, setAlerts] = useState([]);
 
   useEffect(() => {
@@ -4013,7 +4013,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   };
 
   // ── Appel Gemini silencieux APRÈS computeVerdictSync (ordre correct) ──
-  React.useEffect(() => {
+  useEffect(() => {
     if (!trades.length || !model) return;
     const v = computeVerdictSync(trades, effectiveInitBalance, !balanceReconstructed, manualDD);
     if (!v) return;
