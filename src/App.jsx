@@ -2370,17 +2370,16 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         .kpi { background: rgba(110,231,183,0.06); border: 1px solid rgba(110,231,183,0.10); border-radius: 10px; padding: 10px; }
       `}</style>
 
-      {/* Toggle Challenge / Funded — sticky header bar (cliquable, accessible) */}
+      {/* Toggle Challenge / Funded — fixed header bar (figé, immobile) */}
       {(tab === "challenge" || tab === "funded" || tab === "montecarlo") && (
         <div style={{
-          position: "sticky", top: 0, zIndex: 20,
+          position: "fixed", top: 0, left: 0, right: 0, zIndex: 20,
           background: "rgba(6,9,15,0.98)",
           backdropFilter: "blur(10px)",
           WebkitBackdropFilter: "blur(10px)",
-          paddingTop: "calc(8px + env(safe-area-inset-top, 8px))", paddingBottom: "10px",
-          marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16,
+          paddingTop: "env(safe-area-inset-top)", paddingBottom: "10px",
+          paddingLeft: 16, paddingRight: 16,
           borderBottom: "1px solid rgba(110,231,183,0.1)",
-          marginBottom: 16,
           transition: "all 0.2s ease-out",
         }}>
           {saveStatus && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 6, textAlign: "left" }}>✓ {saveStatus}</div>}
@@ -2403,6 +2402,9 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </div>
         </div>
       )}
+
+      {/* Spacer pour compenser le toggle fixed */}
+      <div style={{ height: "calc(env(safe-area-inset-top, 8px) + 54px)" }} />
 
       {/* ══ CARTES CONFIG — vue simulateur uniquement (Challenge/Funded) ══ */}
       {(tab === "challenge" || tab === "funded") && (<>
