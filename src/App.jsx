@@ -760,11 +760,18 @@ function coachAnalyze(data, firmName) {
   const ddTotRatio = ddTotLimit > 0 ? ddTotUsed / ddTotLimit : 0;
   const worstDD = ddDayRatio > ddTotRatio ? ddDayUsed : ddTotUsed;
   const worstDDLim = ddDayRatio > ddTotRatio ? ddDayLimit : ddTotLimit;
-  const probability = coachEstimateProbability({ winrate, rr, ddUsedPct: worstDD, ddLimitPct: worstDDLim, profitFactor, totalTrades, riskPct });
+  const ddIsValid = !(isNaN(worstDD) || worstDD === null || worstDD === undefined);
+  const probability = !ddIsValid ? 0 : coachEstimateProbability({ winrate, rr, ddUsedPct: worstDD, ddLimitPct: worstDDLim, profitFactor, totalTrades, riskPct });
 
   const buildForces = () => {
     const f = [];
-    const ddRatio = worstDDLim > 0 ? worstDD / worstDDLim : 0;
+    // Vérifier que le DD a été calculé, sinon marquer comme incomplet
+    const ddIsValid = !(isNaN(worstDD) || worstDD === null || worstDD === undefined);
+    const ddRatio = ddIsValid && worstDDLim > 0 ? worstDD / worstDDLim : 0;
+    
+    if (!ddIsValid) {
+      f.push({ icon:'⚠️', title:'DD non validé', detail:'Données de drawdown insuffisantes', s:0 });
+    }
     if (profitFactor >= 2.5) f.push({ icon:'💎', title:'Profit Factor exceptionnel', detail:`PF ${profitFactor.toFixed(2)} — stratégie très performante`, s:100 });
     else if (profitFactor >= 1.8) f.push({ icon:'✅', title:'Profit Factor excellent', detail:`PF ${profitFactor.toFixed(2)} — gains supérieurs aux pertes`, s:88 });
     else if (profitFactor >= 1.4) f.push({ icon:'✅', title:'Profit Factor solide', detail:`PF ${profitFactor.toFixed(2)} — stratégie structurellement rentable`, s:72 });
