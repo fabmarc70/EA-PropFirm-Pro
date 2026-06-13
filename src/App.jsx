@@ -7278,11 +7278,12 @@ function NavBar({ t, active, goto }) {
       </svg>},
     { k:"coach", label:t("coach_title"),
       icon:(on)=><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <path d="M11 2a4.5 4.5 0 014.5 4.5c0 1.4-.6 2.6-1.5 3.5.7.5 1.5 1.4 1.5 2.9 0 2-1.8 3.6-4.5 3.6S6.5 14.9 6.5 12.9c0-1.5.8-2.4 1.5-2.9C7.1 9.1 6.5 7.9 6.5 6.5A4.5 4.5 0 0111 2z"
-          fill={on?"rgba(110,231,183,0.15)":"none"} stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.5" strokeLinejoin="round"/>
-        <circle cx="9" cy="6.5" r="0.9" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
-        <circle cx="13" cy="6.5" r="0.9" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
-        <path d="M9 19v1M13 19v1" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.5" strokeLinecap="round"/>
+        <rect x="6" y="6" width="10" height="10" rx="1.5" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.5"/>
+        <circle cx="8" cy="8" r="0.8" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
+        <circle cx="14" cy="8" r="0.8" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
+        <circle cx="8" cy="14" r="0.8" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
+        <circle cx="14" cy="14" r="0.8" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
+        <path d="M8 2v2M14 2v2M8 18v2M14 18v2M2 8h2M2 14h2M18 8h2M18 14h2" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.4" strokeLinecap="round"/>
       </svg>},
     { k:"trades", label:t("nav_trades"),
       icon:(on)=><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
