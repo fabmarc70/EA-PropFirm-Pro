@@ -2352,7 +2352,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
 
   return (
-    <div style={{ fontFamily: "-apple-system, sans-serif", color: "#FFFFFF" }}>
+    <div style={{ fontFamily: "-apple-system, sans-serif", color: "#FFFFFF", marginTop: "-16px", marginLeft: "-16px", marginRight: "-16px", paddingLeft: "16px", paddingRight: "16px" }}>
       <style>{`
         * { box-sizing: border-box; }
         .card { background: rgba(255,255,255,0.03); border: 1px solid rgba(110,231,183,0.10); border-radius: 16px; padding: 16px; margin-bottom: 12px; }
