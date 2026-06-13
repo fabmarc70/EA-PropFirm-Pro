@@ -980,6 +980,55 @@ async function callGeminiCoach(data, lang, mode) {
   } catch(e){return null;}
 }
 
+// ── Filtre de cohérence Gemini pour MesTrades (garde-fou silencieux) ──
+async function callGeminiVerdict(verdict, sim, lang) {
+  const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY || '';
+  if (!GEMINI_KEY || !verdict) return null;
+  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
+  const langLabel = { fr:'français', en:'English', es:'español' }[lang] || 'français';
+
+  const prompt = `Tu es un analyste quantitatif expert en prop trading. Tu dois valider la cohérence d'un audit de backtest et fournir une analyse statistique indépendante.
+
+Données du backtest :
+- Verdict local : ${verdict.label}
+- Probabilité Monte Carlo : ${verdict.passPct !== null ? verdict.passPct + '%' : 'N/C (données DD manquantes)'}
+- Winrate réel : ${verdict.realWR}%
+- Ratio R/R réel : 1:${verdict.realRR}
+- Profit Factor : ${verdict.realPF}
+- DD max : ${verdict.ddUnreliable ? 'INCONNU' : verdict.maxDD + '%'}
+- Profit final backtest : ${verdict.finalProfit}%
+- Phases atteintes : ${verdict.phasesPassed}/${verdict.totalPhases}
+- Cohérence avec simulation : ${verdict.matchScore}%
+- Trades analysés : ${verdict.tooFewTrades ? 'INSUFFISANT' : 'suffisant'}
+- DD fiable : ${verdict.ddUnreliable ? 'NON' : 'OUI'}
+${sim ? `- Paramètres simulation : WR cible ${sim.winrate}%, RR cible 1:${sim.rr}, risque ${sim.riskPctValue || sim.riskPct}%` : ''}
+
+RÈGLES STRICTES :
+1. Ne jamais mentionner "IA", "intelligence artificielle", "Gemini", "algorithme" ou "modèle"
+2. Parler uniquement de chiffres, statistiques et faits observables
+3. Si le DD est inconnu, confirmer l'impossibilité de valider
+4. Identifier 1-2 incohérences ou points de vigilance non couverts par le verdict local
+5. Être concis, factuel, professionnel
+
+Réponds UNIQUEMENT en JSON valide sans markdown :
+{"validationSummary":"2-3 phrases de validation indépendante en ${langLabel}, avec les chiffres réels. Commence par confirmer ou nuancer le verdict.","watchpoints":["point de vigilance 1","point de vigilance 2"],"confidenceLevel":"ÉLEVÉ|MODÉRÉ|FAIBLE|INDÉTERMINÉ","confidenceReason":"1 phrase sur pourquoi ce niveau de confiance"}`;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(GEMINI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 500 } }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    const d = await res.json();
+    const raw = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const jsonClean = raw.split('```json').pop().split('```')[0].trim(); return JSON.parse(jsonClean || raw.trim());
+  } catch (e) { return null; }
+}
+
 function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, requirePremium = () => {} }) {
   const [mode, setMode] = useState(null); // null | 'simulation' | 'journal' | 'backtest'
   const [gemini, setGemini] = useState(null);
@@ -3560,11 +3609,31 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   // DD max saisi manuellement par l'utilisateur (quand non calculable depuis le fichier)
   const [manualDD, setManualDD] = useState(saved0.manualDD ?? null);
   const [manualDDInput, setManualDDInput] = useState("");
+  const [geminiVerdict, setGeminiVerdict] = useState(null);
+  const [geminiVerdictLoading, setGeminiVerdictLoading] = useState(false);
+  const geminiVerdictRef = React.useRef(null); // évite les appels multiples
   const [alerts, setAlerts] = useState([]);
 
   useEffect(() => {
     try { localStorage.setItem("eapropfirm_trades", JSON.stringify({ trades, filename, initBalance, balanceReconstructed, manualDD })); } catch (e) {}
   }, [trades, filename, initBalance, balanceReconstructed, manualDD]);
+
+  // ── Appel Gemini silencieux quand verdict change ──
+  React.useEffect(() => {
+    if (!trades.length || !model) return;
+    const v = computeVerdictSync(trades, effectiveInitBalance, !balanceReconstructed, manualDD);
+    if (!v) return;
+    // Clé unique pour éviter les appels répétés sur le même verdict
+    const vKey = `${v.label}_${v.realWR}_${v.realPF}_${v.maxDD}_${trades.length}`;
+    if (geminiVerdictRef.current === vKey) return;
+    geminiVerdictRef.current = vKey;
+    setGeminiVerdict(null);
+    setGeminiVerdictLoading(true);
+    callGeminiVerdict(v, sim, lang).then(r => {
+      setGeminiVerdictLoading(false);
+      if (r) setGeminiVerdict(r);
+    });
+  }, [trades.length, balanceReconstructed, manualDD]);
 
   // ── CSV parser ────────────────────────────────────────────────
   const parseCSV = (text) => {
@@ -4418,6 +4487,54 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             <div style={{ marginTop: 12, padding: "9px 11px", background: "rgba(255,255,255,0.03)", borderRadius: 12, fontSize: 9, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>
               Estimation statistique basée sur tes données de backtest et une projection Monte Carlo (200 simulations). Les performances passées ne garantissent pas les résultats futurs. Ceci n'est pas un conseil financier.
             </div>
+
+            {/* ── VALIDATION INDÉPENDANTE (filtre de cohérence silencieux) ── */}
+            {(geminiVerdictLoading || geminiVerdict) && (
+              <div style={{ marginTop: 10, padding: "13px 14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.12)", borderRadius: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>
+                    🔬 Validation indépendante
+                  </div>
+                  {geminiVerdict?.confidenceLevel && (
+                    <div style={{ padding: "2px 8px", borderRadius: 8, fontSize: 9, fontWeight: 700,
+                      background: geminiVerdict.confidenceLevel === 'ÉLEVÉ' ? 'rgba(110,231,183,0.12)' : geminiVerdict.confidenceLevel === 'MODÉRÉ' ? 'rgba(251,191,36,0.12)' : 'rgba(239,68,68,0.12)',
+                      color: geminiVerdict.confidenceLevel === 'ÉLEVÉ' ? '#6ee7b7' : geminiVerdict.confidenceLevel === 'MODÉRÉ' ? '#fbbf24' : '#ef4444',
+                    }}>
+                      Confiance {geminiVerdict.confidenceLevel}
+                    </div>
+                  )}
+                </div>
+
+                {geminiVerdictLoading && !geminiVerdict ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {[85, 70, 55].map((w, i) => (
+                      <div key={i} style={{ height: 9, borderRadius: 5, background: "rgba(255,255,255,0.06)", width: w + "%" }} />
+                    ))}
+                  </div>
+                ) : geminiVerdict ? (
+                  <>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", lineHeight: 1.65, marginBottom: 10 }}>
+                      {geminiVerdict.validationSummary}
+                    </div>
+                    {geminiVerdict.confidenceReason && (
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontStyle: "italic", marginBottom: 8 }}>
+                        {geminiVerdict.confidenceReason}
+                      </div>
+                    )}
+                    {geminiVerdict.watchpoints?.length > 0 && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 6 }}>
+                        {geminiVerdict.watchpoints.map((wp, i) => (
+                          <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+                            <span style={{ color: "#fbbf24", fontSize: 10, flexShrink: 0, marginTop: 1 }}>⚡</span>
+                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", lineHeight: 1.4 }}>{wp}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : null}
+              </div>
+            )}
           </div>
 
           {/* ── ALERTES ── */}
