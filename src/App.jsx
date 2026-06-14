@@ -87,6 +87,46 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    ps_which_firm: "Quelle Prop Firm ?",
+    ps_which_capital: "Quel capital ?",
+    ps_your_profile: "Ton profil trader",
+    ps_firm_desc: "Sélectionne la prop firm sur laquelle tu veux passer ton challenge.",
+    ps_capital_desc: "Choisis le capital du challenge que tu veux simuler.",
+    ps_profile_desc: "Dis-nous ton niveau pour adapter l'interface.",
+    ps_beginner: "Débutant",
+    ps_beginner_desc: "Je découvre les Prop Firms et les challenges",
+    ps_experienced: "Expérimenté",
+    ps_experienced_desc: "J'ai déjà tenté un ou plusieurs challenges",
+    ps_professional: "Professionnel",
+    ps_professional_desc: "Je trade activement et j'optimise mes performances",
+    ps_start: "Commencer",
+    ps_continue: "Continuer",
+    ps_back: "Retour",
+    ps_step_firm: "Prop Firm",
+    ps_step_capital: "Capital",
+    ps_step_profile: "Profil",
+    sim_dd_reached: "DD atteint cette simulation",
+    sim_zone_safe: "Zone safe",
+    sim_max_loss_day: "Perte max 1 jour",
+    sim_days_full_dd: "Jours full-perte DD total",
+    sim_dd_breachable: "DD journalier franchissable",
+    sim_margin_left: "Marge restante",
+    sim_reading: "Lecture :",
+    sim_account_active: "COMPTE ACTIF",
+    sim_net_result: "Resultat net :",
+    sim_dd_analysis: "ANALYSE DRAWDOWN - TA CONFIG",
+    sim_limit: "LIMITE",
+    sim_attention: "Attention",
+    sim_danger: "Danger",
+    sim_before_limit: "avant limite",
+    sim_remaining: "restants",
+    sim_max_loss_short: "perte max",
+    sim_winrate_global: "WINRATE GLOBAL",
+    sim_risk_trade: "Risque/trade",
+    sim_max_loss_per_day: "Perte max/jour",
+    sim_profit: "Profit",
+    sim_wr_trades: "WR trades",
+    sim_copied: "✓ Copié !",
     dash_hello: "Salut",
     dash_subtitle: "Prêt à simuler ton prochain challenge ?",
     dash_stats_appear: "Tes statistiques apparaîtront ici après la simulation.",
@@ -326,6 +366,46 @@ const I18N = {
     prof_account: "Cuenta",
     prof_prefs: "Preferencias",
     prof_lang: "Idioma",
+    ps_which_firm: "¿Qué Prop Firm?",
+    ps_which_capital: "¿Qué capital?",
+    ps_your_profile: "Tu perfil de trader",
+    ps_firm_desc: "Selecciona la prop firm donde quieres hacer tu desafío.",
+    ps_capital_desc: "Elige el capital del desafío que quieres simular.",
+    ps_profile_desc: "Dinos tu nivel para adaptar la interfaz.",
+    ps_beginner: "Principiante",
+    ps_beginner_desc: "Estoy descubriendo las Prop Firms y los desafíos",
+    ps_experienced: "Experimentado",
+    ps_experienced_desc: "Ya he intentado uno o varios desafíos",
+    ps_professional: "Profesional",
+    ps_professional_desc: "Opero activamente y optimizo mi rendimiento",
+    ps_start: "Empezar",
+    ps_continue: "Continuar",
+    ps_back: "Volver",
+    ps_step_firm: "Prop Firm",
+    ps_step_capital: "Capital",
+    ps_step_profile: "Perfil",
+    sim_dd_reached: "DD alcanzado esta simulación",
+    sim_zone_safe: "Zona segura",
+    sim_max_loss_day: "Pérdida máx 1 día",
+    sim_days_full_dd: "Días pérdida-total DD",
+    sim_dd_breachable: "DD diario alcanzable",
+    sim_margin_left: "Margen restante",
+    sim_reading: "Lectura:",
+    sim_account_active: "CUENTA ACTIVA",
+    sim_net_result: "Resultado neto:",
+    sim_dd_analysis: "ANÁLISIS DRAWDOWN - TU CONFIG",
+    sim_limit: "LÍMITE",
+    sim_attention: "Atención",
+    sim_danger: "Peligro",
+    sim_before_limit: "antes del límite",
+    sim_remaining: "restantes",
+    sim_max_loss_short: "pérdida máx",
+    sim_winrate_global: "WIN RATE GLOBAL",
+    sim_risk_trade: "Riesgo/operación",
+    sim_max_loss_per_day: "Pérdida máx/día",
+    sim_profit: "Beneficio",
+    sim_wr_trades: "WR operaciones",
+    sim_copied: "✓ ¡Copiado!",
     dash_hello: "Hola",
     dash_subtitle: "¿Listo para simular tu próximo desafío?",
     dash_stats_appear: "Tus estadísticas aparecerán aquí tras la simulación.",
@@ -564,6 +644,46 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    ps_which_firm: "Which Prop Firm?",
+    ps_which_capital: "Which capital?",
+    ps_your_profile: "Your trader profile",
+    ps_firm_desc: "Select the prop firm where you want to take your challenge.",
+    ps_capital_desc: "Choose the capital of the challenge you want to simulate.",
+    ps_profile_desc: "Tell us your level to adapt the interface.",
+    ps_beginner: "Beginner",
+    ps_beginner_desc: "I'm discovering Prop Firms and challenges",
+    ps_experienced: "Experienced",
+    ps_experienced_desc: "I've already attempted one or more challenges",
+    ps_professional: "Professional",
+    ps_professional_desc: "I trade actively and optimize my performance",
+    ps_start: "Start",
+    ps_continue: "Continue",
+    ps_back: "Back",
+    ps_step_firm: "Prop Firm",
+    ps_step_capital: "Capital",
+    ps_step_profile: "Profile",
+    sim_dd_reached: "DD reached this simulation",
+    sim_zone_safe: "Safe zone",
+    sim_max_loss_day: "Max loss 1 day",
+    sim_days_full_dd: "Days full-loss total DD",
+    sim_dd_breachable: "Daily DD breachable",
+    sim_margin_left: "Margin left",
+    sim_reading: "Reading:",
+    sim_account_active: "ACTIVE ACCOUNT",
+    sim_net_result: "Net result:",
+    sim_dd_analysis: "DRAWDOWN ANALYSIS - YOUR CONFIG",
+    sim_limit: "LIMIT",
+    sim_attention: "Warning",
+    sim_danger: "Danger",
+    sim_before_limit: "before limit",
+    sim_remaining: "remaining",
+    sim_max_loss_short: "max loss",
+    sim_winrate_global: "GLOBAL WIN RATE",
+    sim_risk_trade: "Risk/trade",
+    sim_max_loss_per_day: "Max loss/day",
+    sim_profit: "Profit",
+    sim_wr_trades: "WR trades",
+    sim_copied: "✓ Copied!",
     dash_hello: "Hello",
     dash_subtitle: "Ready to simulate your next challenge?",
     dash_stats_appear: "Your stats will appear here after the simulation.",
@@ -2753,7 +2873,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, color: gs.color }}>{gs.label}</div>
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>
-              {bilan ? "Resultat net : " + fmt2(bilan.net) : "Resultat challenge"}
+              {bilan ? t("sim_net_result") + " " + fmt2(bilan.net) : "Resultat challenge"}
             </div>
           </div>
           <div style={{ fontSize: 26 }}>{dot(gs.emoji)}</div>
@@ -2764,13 +2884,13 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       {!isSimple && dda && (
         <div className="card" >
           <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>
-            Analyse Drawdown - Ta config
+            {t("sim_dd_analysis")}
           </div>
 
           {/* Jauge DD */}
           <div style={{ marginBottom: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
-              <span style={{ color: "rgba(255,255,255,0.65)" }}>DD atteint cette simulation</span>
+              <span style={{ color: "rgba(255,255,255,0.65)" }}>{t("sim_dd_reached")}</span>
               <span style={{ fontWeight: 700, color: dda.simMaxDD < model.totalDD * 100 * 0.5 ? "#6ee7b7" : dda.simMaxDD < model.totalDD * 100 * 0.75 ? "#fbbf24" : "#ef4444" }}>
                 {dda.simMaxDD.toFixed(2)}% ({fmt2(dda.simMaxDDAmount)})
               </span>
@@ -2796,26 +2916,26 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
               <span>0%</span>
-              <span style={{ color: "rgba(255,255,255,0.55)" }}>Zone safe</span>
-              <span style={{ color: "#fbbf24" }}>Attention</span>
-              <span style={{ color: "#ef4444" }}>Danger</span>
+              <span style={{ color: "rgba(255,255,255,0.55)" }}>{t("sim_zone_safe")}</span>
+              <span style={{ color: "#fbbf24" }}>{t("sim_attention")}</span>
+              <span style={{ color: "#ef4444" }}>{t("sim_danger")}</span>
             </div>
           </div>
 
           {/* Stats */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <div className="kpi">
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Perte max 1 jour</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("sim_max_loss_day")}</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24" }}>{dda.maxDayLossPct.toFixed(2)}%</div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{fmt2(dda.maxDayLoss)}</div>
             </div>
             <div className="kpi">
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Jours full-perte DD total</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("sim_days_full_dd")}</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#ef4444" }}>{dda.daysToTotalDD}j</div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>avant limite {(model.totalDD*100)}%</div>
             </div>
             <div className="kpi">
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>DD journalier franchissable</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("sim_dd_breachable")}</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: dda.canBreachDaily ? "#ef4444" : "#6ee7b7" }}>
                 {dda.canBreachDaily ? "OUI - RISQUE" : "NON - SAFE"}
               </div>
@@ -2826,7 +2946,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               </div>
             </div>
             <div className="kpi">
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Marge restante</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("sim_margin_left")}</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: dda.distancePct > 5 ? "#6ee7b7" : "#ef4444" }}>
                 {dda.distancePct > 0 ? dda.distancePct.toFixed(2) + "%" : "DEPASSE"}
               </div>
@@ -3261,7 +3381,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
           <button onClick={copyReport}
             style={{ flex: 1, padding: 9, background: copied ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.07)", border: copied ? "1px solid #6ee7b7" : "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: copied ? "#6ee7b7" : "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-            {copied ? "✓ Copié !" : "Copier le rapport"}
+            {copied ? t("sim_copied") : "Copier le rapport"}
           </button>
           <button onClick={printReport}
             style={{ flex: 1, padding: 9, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, color: "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
@@ -6517,7 +6637,7 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
 
   const progress = Math.round((step / totalSteps) * 100);
 
-  const stepLabels = ["Prop Firm", "Capital", "Profil"];
+  const stepLabels = [t("ps_step_firm"), t("ps_step_capital"), t("ps_step_profile")];
 
   return (
     <div style={{ minHeight: "100dvh", background: "linear-gradient(160deg,#060a0f 0%,#0d1a12 100%)", display: "flex", flexDirection: "column", padding: "0 20px 32px", fontFamily: "-apple-system,sans-serif", color: "#fff" }}>
@@ -6537,14 +6657,14 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
 
         {/* Titre */}
         <div style={{ fontSize: 22, fontWeight: 900, color: "#fff", letterSpacing: -0.5, marginBottom: 4 }}>
-          {step === 0 && "Quelle Prop Firm ?"}
-          {step === 1 && "Quel capital ?"}
-          {step === 2 && "Ton profil trader"}
+          {step === 0 && t("ps_which_firm")}
+          {step === 1 && t("ps_which_capital")}
+          {step === 2 && t("ps_your_profile")}
         </div>
         <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>
-          {step === 0 && "Sélectionne la prop firm sur laquelle tu veux passer ton challenge."}
-          {step === 1 && "Choisis le capital du challenge que tu veux simuler."}
-          {step === 2 && "Dis-nous ton niveau pour adapter l'interface."}
+          {step === 0 && t("ps_firm_desc")}
+          {step === 1 && t("ps_capital_desc")}
+          {step === 2 && t("ps_profile_desc")}
         </div>
 
         {/* Progress steps */}
@@ -6623,9 +6743,9 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {[
-              { k: "beginner", icon: "🌱", title: "Débutant", desc: "Je découvre les Prop Firms et les challenges" },
-              { k: "experienced", icon: "📈", title: "Expérimenté", desc: "J'ai déjà tenté un ou plusieurs challenges" },
-              { k: "professional", icon: "🏆", title: "Professionnel", desc: "Je trade activement et j'optimise mes performances" },
+              { k: "beginner", icon: "🌱", title: t("ps_beginner"), desc: t("ps_beginner_desc") },
+              { k: "experienced", icon: "📈", title: t("ps_experienced"), desc: t("ps_experienced_desc") },
+              { k: "professional", icon: "🏆", title: t("ps_professional"), desc: t("ps_professional_desc") },
             ].map(opt => (
               <button key={opt.k} onClick={() => { setLevel(opt.k); setDisplayMode(opt.k === "beginner" ? "simple" : "advanced"); }} style={{
                 background: level === opt.k ? "rgba(110,231,183,0.08)" : "rgba(255,255,255,0.03)",
@@ -6649,7 +6769,7 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
       <div style={{ marginTop: 24 }}>
         {step > 0 && (
           <button onClick={() => setStep(s => s - 1)} style={{ display: "block", width: "100%", padding: "12px", marginBottom: 10, background: "transparent", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer" }}>
-            ← Retour
+            ← {t("ps_back")}
           </button>
         )}
         <button onClick={next} disabled={!canAdvance()} style={{
@@ -6659,7 +6779,7 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
           borderRadius: 16, border: "none", cursor: canAdvance() ? "pointer" : "default",
           fontSize: 15, fontWeight: 800, letterSpacing: -0.2,
         }}>
-          {step === 2 ? "🚀 Commencer" : "Continuer →"}
+          {step === 2 ? "🚀 " + t("ps_start") : t("ps_continue") + " →"}
         </button>
       </div>
 
