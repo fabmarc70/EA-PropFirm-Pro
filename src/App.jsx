@@ -1030,6 +1030,7 @@ Réponds UNIQUEMENT en JSON valide sans markdown :
 }
 
 function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, requirePremium = () => {} }) {
+  const isClassic = (profile?.usageType || "propfirm") === "classic";
   const [mode, setMode] = useState(null); // null | 'simulation' | 'journal' | 'backtest'
   const [gemini, setGemini] = useState(null);
   const [gemLoading, setGemLoading] = useState(false);
@@ -1129,10 +1130,10 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
       {
         key:'simulation', accent:'#6ee7b7', bg:'rgba(110,231,183,0.06)', border:'rgba(110,231,183,0.2)',
         icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="14" rx="3" stroke="#6ee7b7" strokeWidth="1.5"/><path d="M7 17l2.5-5 3 4 2-3 2.5 4" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-        title: lang==='en'?'Challenge Simulation':'Simulation Challenge',
-        subtitle: lang==='en'?'Pre-challenge assessment':'Évaluation pré-challenge',
-        desc: lang==='en'?'Assess your strategy parameters before investing in a prop firm challenge.':'Évaluez vos paramètres de stratégie avant d\'acheter un challenge prop firm.',
-        chips: ['Winrate', 'Ratio R/R', 'Drawdown', 'Probabilité'],
+        title: isClassic ? (lang==='en'?'Strategy Simulation':'Simulation Stratégie') : (lang==='en'?'Challenge Simulation':'Simulation Challenge'),
+        subtitle: isClassic ? (lang==='en'?'Performance projection':'Projection de performance') : (lang==='en'?'Pre-challenge assessment':'Évaluation pré-challenge'),
+        desc: isClassic ? (lang==='en'?'Project the growth of your trading account based on your strategy parameters.':'Projetez la croissance de votre compte de trading selon vos paramètres de stratégie.') : (lang==='en'?'Assess your strategy parameters before investing in a prop firm challenge.':'Évaluez vos paramètres de stratégie avant d\'acheter un challenge prop firm.'),
+        chips: isClassic ? ['Winrate', 'Ratio R/R', 'Croissance', 'Performance'] : ['Winrate', 'Ratio R/R', 'Drawdown', 'Probabilité'],
         hasData: !!simAnalysis,
         dataLabel: simAnalysis ? `${simAnalysis.metrics.totalTrades} trades · ${(simAnalysis.firmName)} · Score ${simAnalysis.probability}%` : (lang==='en'?'Run a simulation first':'Lancez d\'abord une simulation'),
         cta: lang==='en'?'Analyse simulation':'Analyser la simulation',
@@ -1817,6 +1818,7 @@ function InfoTip({ text }) {
 }
 
 function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab = () => {}, onSimResult = () => {}, displayMode = "advanced", usageType = "propfirm", premiumAccess = true, requirePremium = () => {} }) {
+  const isClassicSim = usageType === "classic";
   // Mode avancé = premium. Sans accès → forcé en mode simple (débutant).
   const isSimple = displayMode === "simple" || !premiumAccess;
   const loadSaved = () => {
@@ -2536,10 +2538,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             </button>
           ))}
         </div>
-        <div style={{ marginTop: 8, fontSize: 10, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
+        {!isClassicSim && <div style={{ marginTop: 8, fontSize: 10, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
           {model.phases.map(ph => ph.label + " " + (ph.target * 100) + "%").join(" / ")}
           {" - DD jour " + (model.dailyDD * 100) + "% - DD total " + (model.totalDD * 100) + "% (" + (model.ddType === "trailing" ? "trailing" : "fixe") + ")"}
-        </div>
+        </div>}
         <div style={{ marginTop: 4, fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
           Split {model.splitStart}% - {model.splitMax}% | Payout {model.payoutCycle}j | Min {model.phases[0].minDays}j/phase | Frais ~{fmt(fee)}
         </div>
@@ -2568,8 +2570,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
       )}
 
-      {/* CARTE DRAWDOWN ESTIME — mode avancé uniquement */}
-      {!isSimple && dda && (
+      {/* CARTE DRAWDOWN ESTIME — mode avancé uniquement, masqué en trading classique */}
+      {!isSimple && dda && !isClassicSim && (
         <div className="card" >
           <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>
             Analyse Drawdown - Ta config
@@ -3503,7 +3505,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
       {/* TAB MES TRADES */}
       {tab === "trades" && (
-        <MesTradesTab t={t} lang={lang} sim={sim} capital={capital} fundedMonths={fundedMonths} winrate={winrate} riskPct={riskPct} dailyTargetPct={dailyTargetPct} model={model} finalRR={finalRR} tradesPerDay={tradesPerDay} firm={firm} effectiveRiskAmount={effectiveRiskAmount} />
+        <MesTradesTab t={t} lang={lang} sim={sim} capital={capital} fundedMonths={fundedMonths} winrate={winrate} riskPct={riskPct} dailyTargetPct={dailyTargetPct} model={model} finalRR={finalRR} tradesPerDay={tradesPerDay} firm={firm} effectiveRiskAmount={effectiveRiskAmount} usageType={usageType} />
       )}
 
       <div style={{ textAlign: "center", fontSize: 10, color: "rgba(255,255,255,0.08)", marginTop: 12, paddingBottom: 8 }}>
@@ -3587,7 +3589,8 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
   );
 }
 
-function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTargetPct, model, finalRR, tradesPerDay, firm, effectiveRiskAmount, t = (k) => k, lang = "fr" }) {
+function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTargetPct, model, finalRR, tradesPerDay, firm, effectiveRiskAmount, usageType = "propfirm", t = (k) => k, lang = "fr" }) {
+  const isClassic = usageType === "classic";
   // ── Journal de trading (partagé avec l'accueil via useJournal) ──
   const { journalMonth: jMonth, setJournalMonth: setJMonth, saveJournalEntry: saveJEntry, monthData: jMonthData } = useJournal();
   const [showJournal, setShowJournal] = useState(false);
@@ -4343,7 +4346,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 4 }}>
-                  Analyse Backtest · {firm?.name || ""}
+                  {isClassic ? "Analyse de Performance" : `Analyse Backtest · ${firm?.name || ""}`}
                 </div>
                 <div style={{ fontSize: 19, fontWeight: 700, color: verdict.color, lineHeight: 1.1 }}>
                   <VerdictIcon icon={verdict.icon} /> {verdict.label}
@@ -4353,7 +4356,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               <div style={{ textAlign: "center", flexShrink: 0, marginLeft: 12 }}>
                 <div style={{ width: 68, height: 68, borderRadius: 34, background: verdict.color + "20", border: "3px solid " + verdict.color, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                   <div style={{ fontSize: verdict.passPct === null ? 26 : 19, fontWeight: 700, color: verdict.color, lineHeight: 1 }}>{verdict.passPct === null ? "?" : "~" + verdict.passPct + "%"}</div>
-                  <div style={{ fontSize: 7, color: "rgba(255,255,255,0.55)", marginTop: 1 }}>{verdict.passPct === null ? "incertain" : "estimation"}</div>
+                  <div style={{ fontSize: 7, color: "rgba(255,255,255,0.55)", marginTop: 1 }}>{verdict.passPct === null ? "incertain" : isClassic ? "performance" : "estimation"}</div>
                 </div>
               </div>
             </div>
@@ -4427,7 +4430,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             {/* Lecture factuelle du backtest */}
             <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
               <div style={{ flex: 1, background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px" }}>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>Phases atteintes (backtest)</div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>{isClassic ? "Profit réalisé" : "Phases atteintes (backtest)"}</div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: verdict.phasesPassed >= verdict.totalPhases ? "#6ee7b7" : "rgba(255,255,255,0.85)" }}>
                   {verdict.phasesPassed} / {verdict.totalPhases}
                 </div>
@@ -6635,6 +6638,7 @@ function checkDailyReminder() {
 // DASHBOARD (page d'accueil)
 // ══════════════════════════════════════════════════════════════════
 function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, premiumAccess = true, daysLeft = 0, requirePremium = () => {} }) {
+  const isClassic = (profile?.usageType || "propfirm") === "classic";
   const firm = PROP_FIRMS[profile.firmKey] || PROP_FIRMS.fundednext;
   const fm = firm.models[lastSim?.modelKey] || firm.models["2step"] || Object.values(firm.models)[0];
   const [perfPeriod, setPerfPeriod] = useState("7J");
