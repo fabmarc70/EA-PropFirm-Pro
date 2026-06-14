@@ -87,6 +87,23 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    dash_hello: "Salut",
+    dash_subtitle: "Prêt à simuler ton prochain challenge ?",
+    dash_stats_appear: "Tes statistiques apparaîtront ici après la simulation.",
+    dash_each_day: "Chaque jour est une étape de plus vers ta prochaine validation.",
+    dash_start_sim: "Démarrer une simulation",
+    an_quant_engine: "Moteur d'évaluation quantitative",
+    an_local_optional: "Analyse locale + rapport expert optionnel · Données 100% confidentielles",
+    an_score_success: "Score de réussite",
+    an_score_coherence: "Score de cohérence",
+    an_behavioral: "Métriques comportementales",
+    an_improve_axes: "Axes d'amélioration",
+    mt_real_vs_sim: "Réel vs Simulation",
+    mt_equity_real_sim: "Courbe Equity — Réel vs Simulation",
+    mt_wr_real: "WR réel",
+    mt_firm_selected: "Prop Firm sélectionnée",
+    login_terms: "En créant un compte, tu acceptes nos",
+    login_privacy: "Politique de confidentialité.",
     an_center: "Centre d'Analyse",
     an_select: "Sélectionnez",
     an_your_analysis: "votre analyse",
@@ -309,6 +326,23 @@ const I18N = {
     prof_account: "Cuenta",
     prof_prefs: "Preferencias",
     prof_lang: "Idioma",
+    dash_hello: "Hola",
+    dash_subtitle: "¿Listo para simular tu próximo desafío?",
+    dash_stats_appear: "Tus estadísticas aparecerán aquí tras la simulación.",
+    dash_each_day: "Cada día es un paso más hacia tu próxima validación.",
+    dash_start_sim: "Iniciar una simulación",
+    an_quant_engine: "Motor de evaluación cuantitativa",
+    an_local_optional: "Análisis local + informe experto opcional · Datos 100% confidenciales",
+    an_score_success: "Puntuación de éxito",
+    an_score_coherence: "Puntuación de coherencia",
+    an_behavioral: "Métricas de comportamiento",
+    an_improve_axes: "Áreas de mejora",
+    mt_real_vs_sim: "Real vs Simulación",
+    mt_equity_real_sim: "Curva de Equity — Real vs Simulación",
+    mt_wr_real: "WR real",
+    mt_firm_selected: "Prop Firm seleccionada",
+    login_terms: "Al crear una cuenta, aceptas nuestra",
+    login_privacy: "Política de privacidad.",
     an_center: "Centro de Análisis",
     an_select: "Seleccione",
     an_your_analysis: "su análisis",
@@ -530,6 +564,23 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    dash_hello: "Hello",
+    dash_subtitle: "Ready to simulate your next challenge?",
+    dash_stats_appear: "Your stats will appear here after the simulation.",
+    dash_each_day: "Every day is a step closer to your next validation.",
+    dash_start_sim: "Start a simulation",
+    an_quant_engine: "Quantitative evaluation engine",
+    an_local_optional: "Local analysis + optional expert report · 100% confidential data",
+    an_score_success: "Success score",
+    an_score_coherence: "Consistency score",
+    an_behavioral: "Behavioral metrics",
+    an_improve_axes: "Areas for improvement",
+    mt_real_vs_sim: "Real vs Simulation",
+    mt_equity_real_sim: "Equity Curve — Real vs Simulation",
+    mt_wr_real: "Real WR",
+    mt_firm_selected: "Selected Prop Firm",
+    login_terms: "By creating an account, you accept our",
+    login_privacy: "Privacy Policy.",
     an_center: "Analysis Center",
     an_select: "Select",
     an_your_analysis: "your analysis",
@@ -1345,8 +1396,8 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         ))}
 
         <div style={{textAlign:'center',marginTop:8,padding:'12px 14px',background:'rgba(255,255,255,0.02)',borderRadius:12,border:'1px solid rgba(255,255,255,0.05)'}}>
-          <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',textTransform:'uppercase',letterSpacing:1}}>Moteur d'évaluation quantitative</div>
-          <div style={{fontSize:9,color:'rgba(255,255,255,0.2)',marginTop:3}}>Analyse locale + rapport expert optionnel · Données 100% confidentielles</div>
+          <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',textTransform:'uppercase',letterSpacing:1}}>{t("an_quant_engine")}</div>
+          <div style={{fontSize:9,color:'rgba(255,255,255,0.2)',marginTop:3}}>{t("an_local_optional")}</div>
         </div>
       </div>
     );
@@ -1378,7 +1429,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         <div style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${pColor}22`,borderRadius:20,padding:'20px 18px',marginBottom:12,display:'flex',alignItems:'center',gap:20}}>
           <ScoreCircle score={a.probability} size={100}/>
           <div style={{flex:1}}>
-            <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:4}}>Score de réussite</div>
+            <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:4}}>{t("an_score_success")}</div>
             <div style={{fontSize:22,fontWeight:900,color:pColor,marginBottom:2}}>{a.probability>=75?'Excellent':a.probability>=55?'Solide':a.probability>=35?'Risqué':'Critique'}</div>
             <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{a.metrics.totalTrades} trades · {a.firmName}</div>
             <div style={{display:'flex',gap:8,marginTop:10}}>
@@ -1472,7 +1523,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         <div style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${cColor}22`,borderRadius:20,padding:'20px 18px',marginBottom:12,display:'flex',alignItems:'center',gap:20}}>
           <ScoreCircle score={j.consistency} size={100}/>
           <div style={{flex:1}}>
-            <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:4}}>Score de cohérence</div>
+            <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:4}}>{t("an_score_coherence")}</div>
             <div style={{fontSize:22,fontWeight:900,color:cColor,marginBottom:2}}>{cLabel}</div>
             <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{j.totalDays} jours · P&L {j.totalPnl>0?'+':''}{j.totalPnl}$</div>
             <div style={{display:'flex',gap:8,marginTop:10}}>
@@ -1488,7 +1539,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
         {/* Métriques comportementales */}
         <div style={{background:'rgba(251,191,36,0.04)',border:'1px solid rgba(251,191,36,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}><span style={{marginRight:5}}>🧠</span>Métriques comportementales</div>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}><span style={{marginRight:5}}>🧠</span>{t("an_behavioral")}</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
             {[
               {l:'Meilleur jour',v:'+'+(j.bestDay||0).toFixed(0)+'$',c:'#4ade80'},
@@ -1512,7 +1563,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
         {/* Erreurs */}
         {j.issues.length>0&&<div style={{background:'rgba(239,68,68,0.04)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>⚠️</span>Axes d'amélioration</div>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>⚠️</span>{t("an_improve_axes")}</div>
           {j.issues.map((issue,i)=><div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:i<j.issues.length-1?7:0}}><span style={{color:issue.sev==='high'?'#f87171':'#fbbf24',fontSize:13,flexShrink:0}}>{issue.sev==='high'?'✕':'!'}</span><div style={{fontSize:12,color:'rgba(255,255,255,0.8)',lineHeight:1.4}}>{issue.text}</div></div>)}
         </div>}
 
@@ -4599,7 +4650,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             {/* KPIs réels rapides */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 14 }}>
               {[
-                { l: "WR réel", v: verdict.realWR + "%", expected: winrate + "%", ok: parseFloat(verdict.realWR) >= winrate - 5 },
+                { l: t("mt_wr_real"), v: verdict.realWR + "%", expected: winrate + "%", ok: parseFloat(verdict.realWR) >= winrate - 5 },
                 { l: "RR réel", v: "1:" + verdict.realRR, expected: "1:" + (finalRR || "-").toString().slice(0,4), ok: parseFloat(verdict.realRR) >= (finalRR || 0) * 0.85 },
                 { l: "PF réel", v: verdict.realPF, expected: "≥ 1.5", ok: parseFloat(verdict.realPF) >= 1.5 },
                 { l: "DD max", v: verdict.maxDD + "%", expected: "< " + verdict.ddLimitPct + "%", ok: !verdict.ddViolated },
@@ -4688,7 +4739,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
 
           {/* ── STATS COMPARATIVES ── */}
           <div className="card">
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Réel vs Simulation</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>{t("mt_real_vs_sim")}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2, marginBottom: 6 }}>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", textAlign: "center", paddingBottom: 4 }}>Indicateur</div>
               <div style={{ fontSize: 10, color: "#6ee7b7", textAlign: "center", fontWeight: 700 }}>{t("mt_real")}</div>
@@ -4749,7 +4800,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
           {chartData.length > 0 && (
             <div className="card">
               <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 4, textTransform: "uppercase", letterSpacing: 1 }}>
-                Courbe Equity — Réel vs Simulation
+                {t("mt_equity_real_sim")}
               </div>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", marginBottom: 12 }}>
                 🟢 Réel (backtest importé){sim && sim.funded && sim.funded.data && sim.funded.data.length ? " · ⬜ Simulation" : ""}
@@ -6542,7 +6593,7 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
       {step === 1 && (
         <div style={{ flex: 1 }}>
           <div style={{ marginBottom: 16, padding: "12px 14px", background: "rgba(110,231,183,0.06)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12 }}>
-            <div style={{ fontSize: 11, color: "#6ee7b7", fontWeight: 700, marginBottom: 2 }}>Prop Firm sélectionnée</div>
+            <div style={{ fontSize: 11, color: "#6ee7b7", fontWeight: 700, marginBottom: 2 }}>{t("mt_firm_selected")}</div>
             <div style={{ fontSize: 14, color: "#fff", fontWeight: 700 }}>{firm.name}</div>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
@@ -6864,8 +6915,8 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
             </svg>
           </button>
           <div>
-            <div style={{fontSize:16,fontWeight:700}}>Hello <span style={{color:"#6ee7b7",fontWeight:700}}>trader</span></div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",marginTop:1}}>Prêt à simuler ton prochain challenge ?</div>
+            <div style={{fontSize:16,fontWeight:700}}>{t("dash_hello")} <span style={{color:"#6ee7b7",fontWeight:700}}>trader</span></div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",marginTop:1}}>{t("dash_subtitle")}</div>
           </div>
         </div>
         <div style={{position:"relative"}}>
@@ -6933,7 +6984,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         <div style={{margin:"16px",background:"rgba(110,231,183,0.05)",border:"1px solid rgba(110,231,183,0.15)",borderRadius:16,padding:"28px 20px",textAlign:"center"}}>
           <div style={{fontSize:36,marginBottom:12}}>🚀</div>
           <div style={{fontSize:16,fontWeight:700,marginBottom:6}}>{t("dash_first_sim")}</div>
-          <div style={{fontSize:13,color:"rgba(255,255,255,0.4)",marginBottom:18}}>Tes statistiques apparaîtront ici après la simulation.</div>
+          <div style={{fontSize:13,color:"rgba(255,255,255,0.4)",marginBottom:18}}>{t("dash_stats_appear")}</div>
           <button onClick={()=>goto("simulator")} style={{padding:"14px 28px",borderRadius:100,background:"#6ee7b7",color:"#000",fontSize:14,fontWeight:700,border:"none",cursor:"pointer"}}>{t("dash_start_now")}</button>
         </div>
       )}
@@ -7138,7 +7189,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
             </svg>
             <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
               <div style={{fontSize:14,fontWeight:700,color:"#6ee7b7"}}>{wr.toFixed(1)}%</div>
-              <div style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>WR réel</div>
+              <div style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>{t("mt_wr_real")}</div>
             </div>
           </div>
           {[
@@ -7239,7 +7290,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         <div style={{width:46,height:46,borderRadius:12,background:"rgba(110,231,183,0.1)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#6ee7b7" strokeWidth="1.8"/><circle cx="11" cy="11" r="4" stroke="#6ee7b7" strokeWidth="1.5"/><circle cx="11" cy="11" r="1.5" fill="#6ee7b7"/></svg></div>
         <div style={{flex:1}}>
           <div style={{fontSize:14,fontWeight:700,marginBottom:2}}>{t("dash_stay_focused")}</div>
-          <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",lineHeight:1.4}}>Chaque jour est une étape de plus vers ta prochaine validation.</div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",lineHeight:1.4}}>{t("dash_each_day")}</div>
         </div>
         <button onClick={()=>goto("simulator")} style={{padding:"12px 18px",borderRadius:16,background:"#6ee7b7",color:"#000",fontSize:12,fontWeight:700,border:"none",cursor:"pointer",flexShrink:0,lineHeight:1.3,textAlign:"center",whiteSpace:"nowrap"}}>
           Démarrer<br/>une simulation
