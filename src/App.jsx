@@ -87,6 +87,35 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    sim_pending: "En attente",
+    sim_balance: "Solde compte",
+    sim_scaling: "Scaling",
+    sim_final_split: "Split final",
+    sim_funded_account: "Compte Funded",
+    sim_funded_title: "Compte Funded",
+    sim_active: "ACTIF",
+    sim_closed: "FERME",
+    sim_payouts_cashed: "Payouts encaissés",
+    sim_winning_months: "Mois gagnants",
+    sim_exp_trade: "Espérance / trade",
+    sim_exp_day: "Espérance / jour",
+    sim_pf_theo: "Profit Factor théo.",
+    sim_dd_expected: "DD attendu (série)",
+    sim_trades_day: "Trades/jour",
+    sim_target_day: "Objectif/jour (%)",
+    sim_split: "Split (%)",
+    sim_funded_months: "Mois Funded",
+    sim_weekend_7d: "Trading 7j/7 — 30 jours/mois simulés (crypto, indices 24/7)",
+    sim_weekend_5d: "Lundi → Vendredi — 21 jours ouvrés/mois (forex 24/5)",
+    tip_clustering: "Simule le réalisme psychologique : les pertes arrivent-elles en séries ?",
+    tip_maxconsec: "Le pire enchaînement de pertes connu de ton EA ou ta stratégie.",
+    tip_weekend: "La plupart des prop firms ferment le forex le weekend (marché fermé).",
+    tip_tradingdays: "Configure les jours où ton EA trade réellement et les journées d'annonces.",
+    tip_newsdays: "Nombre de jours/semaine où ton EA ne trade pas à cause des grosses annonces.",
+    tip_tradesday: "Nombre de trades que tu passes par jour. 1 trade/jour = scalping tranquille. 5+ = actif.",
+    tip_targetday: "Gain quotidien visé en % du capital. Ex : 0.3% sur 10 000$ = objectif 30$/jour.",
+    tip_split: "% des profits que tu gardes sur le compte financé. Ex : 80% = pour 1000$ de profit, tu reçois 800$.",
+    tip_fundedmonths: "Durée simulée sur le compte financé après avoir réussi le challenge.",
     ps_which_firm: "Quelle Prop Firm ?",
     ps_which_capital: "Quel capital ?",
     ps_your_profile: "Ton profil trader",
@@ -366,6 +395,35 @@ const I18N = {
     prof_account: "Cuenta",
     prof_prefs: "Preferencias",
     prof_lang: "Idioma",
+    sim_pending: "Pendiente",
+    sim_balance: "Saldo cuenta",
+    sim_scaling: "Scaling",
+    sim_final_split: "Split final",
+    sim_funded_account: "Cuenta Financiada",
+    sim_funded_title: "Cuenta Financiada",
+    sim_active: "ACTIVA",
+    sim_closed: "CERRADA",
+    sim_payouts_cashed: "Payouts cobrados",
+    sim_winning_months: "Meses ganadores",
+    sim_exp_trade: "Esperanza / operación",
+    sim_exp_day: "Esperanza / día",
+    sim_pf_theo: "Factor benef. teó.",
+    sim_dd_expected: "DD esperado (racha)",
+    sim_trades_day: "Operaciones/día",
+    sim_target_day: "Objetivo/día (%)",
+    sim_split: "Split (%)",
+    sim_funded_months: "Meses Funded",
+    sim_weekend_7d: "Trading 7d/7 — 30 días/mes simulados (cripto, índices 24/7)",
+    sim_weekend_5d: "Lunes → Viernes — 21 días hábiles/mes (forex 24/5)",
+    tip_clustering: "Simula el realismo psicológico: ¿las pérdidas llegan en rachas?",
+    tip_maxconsec: "La peor racha de pérdidas conocida de tu EA o estrategia.",
+    tip_weekend: "La mayoría de prop firms cierran el forex los fines de semana.",
+    tip_tradingdays: "Configura los días que tu EA opera realmente y los días de noticias.",
+    tip_newsdays: "Número de días/semana que tu EA no opera por grandes noticias.",
+    tip_tradesday: "Número de operaciones por día. 1 op/día = scalping tranquilo. 5+ = activo.",
+    tip_targetday: "Ganancia diaria objetivo en % del capital. Ej: 0.3% sobre $10,000 = $30/día.",
+    tip_split: "% de beneficios que mantienes en la cuenta financiada. Ej: 80% = por $1000, recibes $800.",
+    tip_fundedmonths: "Duración simulada en la cuenta financiada tras pasar el desafío.",
     ps_which_firm: "¿Qué Prop Firm?",
     ps_which_capital: "¿Qué capital?",
     ps_your_profile: "Tu perfil de trader",
@@ -644,6 +702,35 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    sim_pending: "Pending",
+    sim_balance: "Account balance",
+    sim_scaling: "Scaling",
+    sim_final_split: "Final split",
+    sim_funded_account: "Funded Account",
+    sim_funded_title: "Funded Account",
+    sim_active: "ACTIVE",
+    sim_closed: "CLOSED",
+    sim_payouts_cashed: "Payouts cashed",
+    sim_winning_months: "Winning months",
+    sim_exp_trade: "Expectancy / trade",
+    sim_exp_day: "Expectancy / day",
+    sim_pf_theo: "Theo. Profit Factor",
+    sim_dd_expected: "Expected DD (streak)",
+    sim_trades_day: "Trades/day",
+    sim_target_day: "Target/day (%)",
+    sim_split: "Split (%)",
+    sim_funded_months: "Funded Months",
+    sim_weekend_7d: "Trading 7d/7 — 30 days/month simulated (crypto, indices 24/7)",
+    sim_weekend_5d: "Monday → Friday — 21 trading days/month (forex 24/5)",
+    tip_clustering: "Simulates psychological realism: do losses come in streaks?",
+    tip_maxconsec: "The worst losing streak known from your EA or strategy.",
+    tip_weekend: "Most prop firms close forex on weekends (market closed).",
+    tip_tradingdays: "Configure the days your EA actually trades and news days.",
+    tip_newsdays: "Number of days/week your EA doesn't trade due to major news.",
+    tip_tradesday: "Number of trades you take per day. 1 trade/day = quiet scalping. 5+ = active.",
+    tip_targetday: "Daily gain target in % of capital. E.g.: 0.3% on $10,000 = $30/day target.",
+    tip_split: "% of profits you keep on the funded account. E.g.: 80% = for $1000 profit, you get $800.",
+    tip_fundedmonths: "Simulated duration on the funded account after passing the challenge.",
     ps_which_firm: "Which Prop Firm?",
     ps_which_capital: "Which capital?",
     ps_your_profile: "Your trader profile",
@@ -3101,12 +3188,12 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>{t("sim_calc_stats")}</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
             {[
-              { l: "Espérance / trade", v: (expectedPerTrade >= 0 ? "+" : "") + fmt2(expectedPerTrade), c: expectedPerTrade >= 0 ? "#6ee7b7" : "#f87171" },
-              { l: "Espérance / jour", v: (expectedDailyPnL >= 0 ? "+" : "") + fmt2(expectedDailyPnL), c: expectedDailyPnL >= 0 ? "#6ee7b7" : "#f87171" },
-              { l: "Profit Factor théo.", v: theoreticalPF >= 99 ? "∞" : theoreticalPF, c: theoreticalPF >= 1.5 ? "#6ee7b7" : theoreticalPF >= 1 ? "#fbbf24" : "#ef4444" },
+              { l: t("sim_exp_trade"), v: (expectedPerTrade >= 0 ? "+" : "") + fmt2(expectedPerTrade), c: expectedPerTrade >= 0 ? "#6ee7b7" : "#f87171" },
+              { l: t("sim_exp_day"), v: (expectedDailyPnL >= 0 ? "+" : "") + fmt2(expectedDailyPnL), c: expectedDailyPnL >= 0 ? "#6ee7b7" : "#f87171" },
+              { l: t("sim_pf_theo"), v: theoreticalPF >= 99 ? "∞" : theoreticalPF, c: theoreticalPF >= 1.5 ? "#6ee7b7" : theoreticalPF >= 1 ? "#fbbf24" : "#ef4444" },
               { l: "Edge (R)", v: (expectancyR >= 0 ? "+" : "") + expectancyR + "R", c: expectancyR > 0 ? "#6ee7b7" : "#ef4444" },
               { l: "Kelly optimal", v: (kellyFraction * 100).toFixed(1) + "%", c: "rgba(255,255,255,0.85)" },
-              { l: "DD attendu (série)", v: expectedMaxDDPct.toFixed(1) + "%", c: expectedMaxDDPct > (model.totalDD * 100 * 0.7) ? "#ef4444" : expectedMaxDDPct > (model.totalDD * 100 * 0.4) ? "#fbbf24" : "#6ee7b7" },
+              { l: t("sim_dd_expected"), v: expectedMaxDDPct.toFixed(1) + "%", c: expectedMaxDDPct > (model.totalDD * 100 * 0.7) ? "#ef4444" : expectedMaxDDPct > (model.totalDD * 100 * 0.4) ? "#fbbf24" : "#6ee7b7" },
             ].map(s => (
               <div key={s.l} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 7, padding: "7px 9px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: 10, color: "rgba(255,255,255,0.55)" }}>{s.l}</span>
@@ -3163,8 +3250,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               </div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2, lineHeight: 1.4 }}>
                 {includeWeekend
-                  ? "Trading 7j/7 — 30 jours/mois simulés (crypto, indices 24/7)"
-                  : "Lundi → Vendredi — 21 jours ouvrés/mois (forex 24/5)"}
+                  ? t("sim_weekend_7d")
+                  : t("sim_weekend_5d")}
               </div>
             </div>
             <div onClick={() => setIncludeWeekend(v => !v)} style={{
@@ -3346,10 +3433,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </div>
 
           {[
-            { label: "Trades/jour", tip: "Nombre de trades que tu passes par jour. 1 trade/jour = scalping tranquille. 5+ = actif. Influe sur la fréquence des gains ET des pertes.", val: tradesPerDay, set: (v) => setTradesPerDay(Math.round(v)), min: 1, max: 15, step: 1 },
-            { label: "Objectif/jour (%)", tip: "Gain quotidien visé en % du capital. Ex : 0.3% sur 10 000$ = objectif 30$/jour. Les prop firms demandent souvent 8-10% sur 30 jours. Ne pas viser trop haut — le risque monte avec l'objectif.", val: dailyTargetPct, set: setDailyTargetPct, min: 0.05, max: 1.5, step: 0.05 },
-            { label: "Split (%)", tip: "% des profits que tu gardes sur le compte financé. Ex : 80% = pour 1000$ de profit, tu reçois 800$ et la firm garde 200$.", val: split, set: setSplit, min: 80, max: 95, step: 5 },
-            { label: "Mois Funded", tip: "Durée simulée sur le compte financé après avoir réussi le challenge. Ex : 12 mois = projection de tes gains sur 1 an en tant que trader financé.", val: fundedMonths, set: setFundedMonths, min: 1, max: 60, step: 1 },
+            { label: t("sim_trades_day"), tip: t("tip_tradesday"), val: tradesPerDay, set: (v) => setTradesPerDay(Math.round(v)), min: 1, max: 15, step: 1 },
+            { label: t("sim_target_day"), tip: t("tip_targetday"), val: dailyTargetPct, set: setDailyTargetPct, min: 0.05, max: 1.5, step: 0.05 },
+            { label: t("sim_split"), tip: t("tip_split"), val: split, set: setSplit, min: 80, max: 95, step: 5 },
+            { label: t("sim_funded_months"), tip: t("tip_fundedmonths"), val: fundedMonths, set: setFundedMonths, min: 1, max: 60, step: 1 },
           ].map((f) => (
             <div key={f.label}>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700, display: "flex", alignItems: "center" }}>{f.label}{f.tip && <InfoTip text={f.tip} />}</div>
@@ -3653,12 +3740,12 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
                 {[
-                  { label: "Payouts encaissés", val: fmt(sim.funded.cumulPayout), color: "#6ee7b7" },
-                  { label: "En attente", val: fmt2(sim.funded.pendingPayout), color: "rgba(255,255,255,0.55)" },
-                  { label: "Solde compte", val: fmt(sim.funded.finalEquity), color: "rgba(255,255,255,0.85)" },
-                  { label: "Mois gagnants", val: sim.funded.winMonths + "/" + (sim.funded.winMonths + sim.funded.lossMonths), color: sim.funded.winrateMonth >= 60 ? "#6ee7b7" : "#fbbf24" },
-                  { label: "Scaling", val: sim.funded.scalingCount + "x (+40%)", color: "rgba(255,255,255,0.55)" },
-                  { label: "Split final", val: sim.funded.finalSplit + "%", color: sim.funded.finalSplit >= 90 ? "#6ee7b7" : "#fbbf24" },
+                  { label: t("sim_payouts_cashed"), val: fmt(sim.funded.cumulPayout), color: "#6ee7b7" },
+                  { label: t("sim_pending"), val: fmt2(sim.funded.pendingPayout), color: "rgba(255,255,255,0.55)" },
+                  { label: t("sim_balance"), val: fmt(sim.funded.finalEquity), color: "rgba(255,255,255,0.85)" },
+                  { label: t("sim_winning_months"), val: sim.funded.winMonths + "/" + (sim.funded.winMonths + sim.funded.lossMonths), color: sim.funded.winrateMonth >= 60 ? "#6ee7b7" : "#fbbf24" },
+                  { label: t("sim_scaling"), val: sim.funded.scalingCount + "x (+40%)", color: "rgba(255,255,255,0.55)" },
+                  { label: t("sim_final_split"), val: sim.funded.finalSplit + "%", color: sim.funded.finalSplit >= 90 ? "#6ee7b7" : "#fbbf24" },
                 ].map((k) => (
                   <div key={k.label} className="kpi">
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{k.label}</div>
