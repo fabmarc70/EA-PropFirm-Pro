@@ -87,6 +87,21 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    sim_phase_passed: "PASSE",
+    sim_phase_running: "EN COURS",
+    sim_phase_failed: "ECHOUE",
+    sim_phase_inprogress: "EN COURS",
+    sim_exceeded: "DEPASSE",
+    sim_account_closed: "compte ferme",
+    sim_my_simulation: "TA SIMULATION EN COURS",
+    sim_copy_report: "Copier le rapport",
+    sim_dd_safe_pre: "Securise - le DD journalier",
+    sim_dd_safe_mid: "est inatteignable en 1 jour avec ta config",
+    sim_dd_safe_end: "max). Seule une accumulation sur",
+    sim_dd_safe_end2: "+ jours perdants peut te sortir.",
+    sim_dd_warn_pre: "Attention - avec",
+    sim_dd_warn_mid: "trades à",
+    sim_dd_warn_end: "tu peux déclencher le DD journalier en 1 seule journée. Réduis le risque/trade ou le nombre de trades.",
     sim_pending: "En attente",
     sim_balance: "Solde compte",
     sim_scaling: "Scaling",
@@ -395,6 +410,21 @@ const I18N = {
     prof_account: "Cuenta",
     prof_prefs: "Preferencias",
     prof_lang: "Idioma",
+    sim_phase_passed: "PASADO",
+    sim_phase_running: "EN CURSO",
+    sim_phase_failed: "FALLIDO",
+    sim_phase_inprogress: "EN CURSO",
+    sim_exceeded: "SUPERADO",
+    sim_account_closed: "cuenta cerrada",
+    sim_my_simulation: "TU SIMULACIÓN EN CURSO",
+    sim_copy_report: "Copiar informe",
+    sim_dd_safe_pre: "Seguro - el DD diario",
+    sim_dd_safe_mid: "es inalcanzable en 1 día con tu config",
+    sim_dd_safe_end: "máx). Solo una acumulación durante",
+    sim_dd_safe_end2: "+ días perdedores podría sacarte.",
+    sim_dd_warn_pre: "Atención - con",
+    sim_dd_warn_mid: "operaciones al",
+    sim_dd_warn_end: "puedes activar el DD diario en un solo día. Reduce el riesgo/operación o el número de operaciones.",
     sim_pending: "Pendiente",
     sim_balance: "Saldo cuenta",
     sim_scaling: "Scaling",
@@ -702,6 +732,21 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    sim_phase_passed: "PASSED",
+    sim_phase_running: "RUNNING",
+    sim_phase_failed: "FAILED",
+    sim_phase_inprogress: "RUNNING",
+    sim_exceeded: "EXCEEDED",
+    sim_account_closed: "account closed",
+    sim_my_simulation: "YOUR RUNNING SIMULATION",
+    sim_copy_report: "Copy report",
+    sim_dd_safe_pre: "Safe - the daily DD",
+    sim_dd_safe_mid: "is unreachable in 1 day with your config",
+    sim_dd_safe_end: "max). Only an accumulation over",
+    sim_dd_safe_end2: "+ losing days could break you out.",
+    sim_dd_warn_pre: "Warning - with",
+    sim_dd_warn_mid: "trades at",
+    sim_dd_warn_end: "you can trigger the daily DD in a single day. Reduce risk/trade or the number of trades.",
     sim_pending: "Pending",
     sim_balance: "Account balance",
     sim_scaling: "Scaling",
@@ -2692,7 +2737,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       if (ph && ph.status.startsWith("failed"))
         return { label: "ECHEC - " + model.phases[i].label, color: "#ef4444", bg: "rgba(239,68,68,0.08)", emoji: "ROUGE" };
       if (ph && ph.status === "running_ok")
-        return { label: "EN COURS - " + model.phases[i].label, color: "#fbbf24", bg: "rgba(251,191,36,0.08)", emoji: "ORANGE" };
+        return { label: t("sim_phase_inprogress") + " - " + model.phases[i].label, color: "#fbbf24", bg: "rgba(251,191,36,0.08)", emoji: "ORANGE" };
     }
     if (!sim.funded) return null;
     if (sim.funded.status.startsWith("failed"))
@@ -2703,9 +2748,9 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const dot = (e) => e === "VERT" ? "\u{1F7E2}" : e === "ORANGE" ? "\u{1F7E0}" : "\u{1F534}";
 
   const phaseIcon = (s) => {
-    if (s === "passed") return { icon: "\u2713", color: "#6ee7b7", bg: "rgba(255,255,255,0.05)", label: "PASSE" };
-    if (s === "running_ok") return { icon: "~", color: "#fbbf24", bg: "rgba(251,191,36,0.08)", label: "EN COURS" };
-    if (s && s.startsWith("failed")) return { icon: "\u2717", color: "#ef4444", bg: "rgba(239,68,68,0.08)", label: "ECHOUE" };
+    if (s === "passed") return { icon: "\u2713", color: "#6ee7b7", bg: "rgba(255,255,255,0.05)", label: t("sim_phase_passed") };
+    if (s === "running_ok") return { icon: "~", color: "#fbbf24", bg: "rgba(251,191,36,0.08)", label: t("sim_phase_running") };
+    if (s && s.startsWith("failed")) return { icon: "\u2717", color: "#ef4444", bg: "rgba(239,68,68,0.08)", label: t("sim_phase_failed") };
     return { icon: "-", color: "rgba(255,255,255,0.65)", bg: "rgba(255,255,255,0.05)", label: "N/A" };
   };
   const failReason = (s) => {
@@ -3035,17 +3080,17 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             <div className="kpi">
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("sim_margin_left")}</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: dda.distancePct > 5 ? "#6ee7b7" : "#ef4444" }}>
-                {dda.distancePct > 0 ? dda.distancePct.toFixed(2) + "%" : "DEPASSE"}
+                {dda.distancePct > 0 ? dda.distancePct.toFixed(2) + "%" : t("sim_exceeded")}
               </div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{dda.distancePct > 0 ? fmt2(dda.distanceAmt) + " restants" : "compte ferme"}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{dda.distancePct > 0 ? fmt2(dda.distanceAmt) + " " + t("sim_remaining") : t("sim_account_closed")}</div>
             </div>
           </div>
 
           <div style={{ marginTop: 10, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "8px 10px", fontSize: 11, lineHeight: 1.5 }}>
             <span style={{ color: "rgba(255,255,255,0.65)" }}>Lecture : </span>
             {dda.canBreachDaily
-              ? <span style={{ color: "#ef4444" }}>Attention - avec {tradesPerDay} trades a {riskPct}% tu peux declencher le DD journalier en 1 seule journee. Reduis le risque/trade ou le nombre de trades.</span>
-              : <span style={{ color: "#6ee7b7" }}>Securise - le DD journalier {(model.dailyDD*100)}% est inatteignable en 1 jour avec ta config ({dda.maxDayLossPct.toFixed(2)}% max). Seule une accumulation sur {dda.daysToTotalDD}+ jours perdants peut te sortir.</span>
+              ? <span style={{ color: "#ef4444" }}>{t("sim_dd_warn_pre")} {tradesPerDay} {t("sim_dd_warn_mid")} {riskPct}% {t("sim_dd_warn_end")}</span>
+              : <span style={{ color: "#6ee7b7" }}>{t("sim_dd_safe_pre")} {(model.dailyDD*100)}% {t("sim_dd_safe_mid")} ({dda.maxDayLossPct.toFixed(2)}% {t("sim_dd_safe_end")} {dda.daysToTotalDD}{t("sim_dd_safe_end2")}</span>
             }
           </div>
         </div>
@@ -3468,7 +3513,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
           <button onClick={copyReport}
             style={{ flex: 1, padding: 9, background: copied ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.07)", border: copied ? "1px solid #6ee7b7" : "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: copied ? "#6ee7b7" : "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-            {copied ? t("sim_copied") : "Copier le rapport"}
+            {copied ? t("sim_copied") : t("sim_copy_report")}
           </button>
           <button onClick={printReport}
             style={{ flex: 1, padding: 9, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, color: "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
@@ -7202,7 +7247,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
       <div style={{marginBottom:"14px",background:"linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))",border:"1px solid rgba(255,255,255,0.09)",borderRadius:20,padding:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
           <div>
-            <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.3)",textTransform:"uppercase",letterSpacing: -0.2,marginBottom:4}}>TA SIMULATION EN COURS</div>
+            <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.3)",textTransform:"uppercase",letterSpacing: -0.2,marginBottom:4}}>{t("sim_my_simulation")}</div>
             <div style={{fontSize:22,fontWeight:700,color:"#FFFFFF",fontFamily:"-apple-system, sans-serif",lineHeight:1}}>{firm.name}</div>
             <div style={{fontSize:12,color:"rgba(255,255,255,0.4)",marginTop:2}}>{fm?.name}</div>
           </div>
