@@ -87,6 +87,53 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    an_center: "Centre d'Analyse",
+    an_select: "Sélectionnez",
+    an_your_analysis: "votre analyse",
+    an_intro: "Chaque rapport est construit à partir de vos données réelles et fournit des recommandations spécifiques.",
+    an_ready: "Prêt",
+    an_sim_title: "Simulation Challenge",
+    an_sim_sub: "Évaluation pré-challenge",
+    an_sim_desc: "Évaluez vos paramètres de stratégie avant d'acheter un challenge prop firm.",
+    an_sim_cta: "Analyser la simulation",
+    an_journal_title: "Journal de Trading",
+    an_journal_sub: "Analyse comportementale",
+    an_journal_desc: "Analysez vos habitudes de trading réelles pour identifier vos patterns d'erreur et votre niveau de discipline.",
+    an_journal_cta: "Analyser mon journal",
+    an_bt_title: "Résultats Backtest",
+    an_bt_sub: "Audit statistique",
+    an_bt_desc: "Validez la robustesse statistique de votre stratégie à partir d'un historique de trades importé.",
+    an_bt_cta: "Auditer le backtest",
+    an_get_data: "Obtenir les données →",
+    an_forces: "Points forts",
+    an_risks: "Risques identifiés",
+    an_expert: "Rapport Expert",
+    an_advanced: "Analyse avancée",
+    an_local: "Analyse locale",
+    an_analyzing: "Analyse...",
+    an_trades_analyzed: "Trades analysés",
+    an_avg_gain: "Gain moyen",
+    an_avg_loss: "Perte moyenne",
+    an_real_rr: "Ratio R/R réel",
+    an_robustness: "Score de robustesse",
+    an_robust: "Robuste",
+    an_acceptable: "Acceptable",
+    an_fragile: "Fragile",
+    an_unreliable: "Non fiable",
+    an_incomplete: "Audit incomplet",
+    an_stat_metrics: "Métriques statistiques",
+    an_validity: "Analyse de validité",
+    an_dd_missing: "DONNÉES DD MANQUANTES",
+    mt_back_challenge: "Retour au Challenge",
+    mt_validate: "Valider",
+    mt_indep_validation: "Validation indépendante",
+    mt_confidence: "Confiance",
+    an_no_sim: "Aucune simulation trouvée.",
+    an_run_sim: "Lancer une simulation",
+    an_no_journal: "Aucun trade saisi dans le journal.",
+    an_open_journal: "Ouvrir le journal",
+    an_no_bt: "Aucun backtest importé.",
+    an_import_bt: "Importer dans Mes Trades",
     prof_firm: "Prop firm",
     prof_capital: "Capital",
     prof_logout: "Se deconnecter",
@@ -262,6 +309,53 @@ const I18N = {
     prof_account: "Cuenta",
     prof_prefs: "Preferencias",
     prof_lang: "Idioma",
+    an_center: "Centro de Análisis",
+    an_select: "Seleccione",
+    an_your_analysis: "su análisis",
+    an_intro: "Cada informe se construye a partir de sus datos reales y ofrece recomendaciones específicas.",
+    an_ready: "Listo",
+    an_sim_title: "Simulación de Desafío",
+    an_sim_sub: "Evaluación pre-desafío",
+    an_sim_desc: "Evalúe los parámetros de su estrategia antes de comprar un desafío de prop firm.",
+    an_sim_cta: "Analizar la simulación",
+    an_journal_title: "Diario de Trading",
+    an_journal_sub: "Análisis de comportamiento",
+    an_journal_desc: "Analice sus hábitos de trading reales para identificar sus patrones de error y nivel de disciplina.",
+    an_journal_cta: "Analizar mi diario",
+    an_bt_title: "Resultados Backtest",
+    an_bt_sub: "Auditoría estadística",
+    an_bt_desc: "Valide la robustez estadística de su estrategia a partir de un historial de operaciones importado.",
+    an_bt_cta: "Auditar el backtest",
+    an_get_data: "Obtener datos →",
+    an_forces: "Puntos fuertes",
+    an_risks: "Riesgos identificados",
+    an_expert: "Informe Experto",
+    an_advanced: "Análisis avanzado",
+    an_local: "Análisis local",
+    an_analyzing: "Analizando...",
+    an_trades_analyzed: "Operaciones analizadas",
+    an_avg_gain: "Ganancia media",
+    an_avg_loss: "Pérdida media",
+    an_real_rr: "Ratio R/R real",
+    an_robustness: "Puntuación de robustez",
+    an_robust: "Robusto",
+    an_acceptable: "Aceptable",
+    an_fragile: "Frágil",
+    an_unreliable: "No fiable",
+    an_incomplete: "Auditoría incompleta",
+    an_stat_metrics: "Métricas estadísticas",
+    an_validity: "Análisis de validez",
+    an_dd_missing: "DATOS DD FALTANTES",
+    mt_back_challenge: "Volver al Desafío",
+    mt_validate: "Validar",
+    mt_indep_validation: "Validación independiente",
+    mt_confidence: "Confianza",
+    an_no_sim: "No se encontró ninguna simulación.",
+    an_run_sim: "Lanzar una simulación",
+    an_no_journal: "No hay operaciones en el diario.",
+    an_open_journal: "Abrir el diario",
+    an_no_bt: "No hay backtest importado.",
+    an_import_bt: "Importar en Mis Operaciones",
     prof_firm: "Prop firm",
     prof_capital: "Capital",
     prof_logout: "Cerrar sesion",
@@ -436,6 +530,53 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    an_center: "Analysis Center",
+    an_select: "Select",
+    an_your_analysis: "your analysis",
+    an_intro: "Each report is built from your real data and provides specific recommendations.",
+    an_ready: "Ready",
+    an_sim_title: "Challenge Simulation",
+    an_sim_sub: "Pre-challenge assessment",
+    an_sim_desc: "Assess your strategy parameters before investing in a prop firm challenge.",
+    an_sim_cta: "Analyse simulation",
+    an_journal_title: "Trading Journal",
+    an_journal_sub: "Behavioral analysis",
+    an_journal_desc: "Analyse your real trading habits to identify your error patterns and discipline level.",
+    an_journal_cta: "Analyse my journal",
+    an_bt_title: "Backtest Results",
+    an_bt_sub: "Statistical audit",
+    an_bt_desc: "Validate the statistical robustness of your strategy from an imported trade history.",
+    an_bt_cta: "Audit the backtest",
+    an_get_data: "Get data →",
+    an_forces: "Strengths",
+    an_risks: "Identified risks",
+    an_expert: "Expert Report",
+    an_advanced: "Advanced analysis",
+    an_local: "Local analysis",
+    an_analyzing: "Analyzing...",
+    an_trades_analyzed: "Trades analyzed",
+    an_avg_gain: "Average gain",
+    an_avg_loss: "Average loss",
+    an_real_rr: "Real R/R ratio",
+    an_robustness: "Robustness score",
+    an_robust: "Robust",
+    an_acceptable: "Acceptable",
+    an_fragile: "Fragile",
+    an_unreliable: "Unreliable",
+    an_incomplete: "Incomplete audit",
+    an_stat_metrics: "Statistical metrics",
+    an_validity: "Validity analysis",
+    an_dd_missing: "MISSING DD DATA",
+    mt_back_challenge: "Back to Challenge",
+    mt_validate: "Validate",
+    mt_indep_validation: "Independent validation",
+    mt_confidence: "Confidence",
+    an_no_sim: "No simulation found.",
+    an_run_sim: "Run a simulation",
+    an_no_journal: "No trades entered in the journal.",
+    an_open_journal: "Open the journal",
+    an_no_bt: "No backtest imported.",
+    an_import_bt: "Import in My Trades",
     prof_firm: "Prop firm",
     prof_capital: "Capital",
     prof_logout: "Log out",
@@ -1097,7 +1238,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
             <span style={{marginRight:5}}>🔬</span>Rapport Expert
           </div>
           <div style={{padding:'3px 8px',borderRadius:9,fontSize:9,fontWeight:700,background:gemLoading?'rgba(251,191,36,0.12)':gemini?'rgba(110,231,183,0.12)':'rgba(255,255,255,0.07)',color:gemLoading?'#fbbf24':gemini?'#6ee7b7':'rgba(255,255,255,0.4)',border:`1px solid ${gemLoading?'rgba(251,191,36,0.3)':gemini?'rgba(110,231,183,0.3)':'rgba(255,255,255,0.1)'}`}}>
-            {gemLoading?'Analyse...' : gemini?'Analyse avancée' : 'Analyse locale'}
+            {gemLoading?t('an_analyzing') : gemini?t('an_advanced') : t('an_local')}
           </div>
         </div>
         {gemLoading ? (
@@ -1129,46 +1270,46 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
       {
         key:'simulation', accent:'#6ee7b7', bg:'rgba(110,231,183,0.06)', border:'rgba(110,231,183,0.2)',
         icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="14" rx="3" stroke="#6ee7b7" strokeWidth="1.5"/><path d="M7 17l2.5-5 3 4 2-3 2.5 4" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-        title: lang==='en'?'Challenge Simulation':'Simulation Challenge',
-        subtitle: lang==='en'?'Pre-challenge assessment':'Évaluation pré-challenge',
-        desc: lang==='en'?'Assess your strategy parameters before investing in a prop firm challenge.':'Évaluez vos paramètres de stratégie avant d\'acheter un challenge prop firm.',
+        title: t('an_sim_title'),
+        subtitle: t('an_sim_sub'),
+        desc: t('an_sim_desc'),
         chips: ['Winrate', 'Ratio R/R', 'Drawdown', 'Probabilité'],
         hasData: !!simAnalysis,
         dataLabel: simAnalysis ? `${simAnalysis.metrics.totalTrades} trades · ${(simAnalysis.firmName)} · Score ${simAnalysis.probability}%` : (lang==='en'?'Run a simulation first':'Lancez d\'abord une simulation'),
-        cta: lang==='en'?'Analyse simulation':'Analyser la simulation',
+        cta: t('an_sim_cta'),
         ctaGoto: 'simulator',
       },
       {
         key:'journal', accent:'#fbbf24', bg:'rgba(251,191,36,0.06)', border:'rgba(251,191,36,0.2)',
         icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="4" y="2" width="14" height="18" rx="2" stroke="#fbbf24" strokeWidth="1.5"/><path d="M8 7h8M8 10h8M8 13h5" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round"/><path d="M2 5v14a2 2 0 002 2h14" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round"/></svg>,
-        title: lang==='en'?'Trading Journal':'Journal de Trading',
-        subtitle: lang==='en'?'Behavioral analysis':'Analyse comportementale',
-        desc: lang==='en'?'Analyse your real trading habits to identify your error patterns and discipline level.':'Analysez vos habitudes de trading réelles pour identifier vos patterns d\'erreur et votre niveau de discipline.',
+        title: t('an_journal_title'),
+        subtitle: t('an_journal_sub'),
+        desc: t('an_journal_desc'),
         chips: ['Historique', 'Discipline', 'Régularité', 'Séries'],
         hasData: !!journalStats,
         dataLabel: journalStats ? `${journalStats.totalDays} jours saisis · ${journalStats.monthsTracked} mois · Score ${journalStats.consistency}%` : (lang==='en'?'Enter trades in your journal first':'Saisissez des trades dans le journal'),
-        cta: lang==='en'?'Analyse my journal':'Analyser mon journal',
+        cta: t('an_journal_cta'),
         ctaGoto: 'dashboard',
       },
       {
         key:'backtest', accent:'#e05252', bg:'rgba(224,82,82,0.06)', border:'rgba(224,82,82,0.2)',
         icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 3H5a2 2 0 00-2 2v4M9 3h6M9 3v4M15 3h4a2 2 0 012 2v4M15 3v4M9 7h6M9 7v4M15 7v4M9 11h6M9 11v4M15 11v4M9 15h6M9 15v4M15 15v4M2 9h20" stroke="#e05252" strokeWidth="1.5" strokeLinecap="round"/></svg>,
-        title: lang==='en'?'Backtest Results':'Résultats Backtest',
-        subtitle: lang==='en'?'Statistical audit':'Audit statistique',
-        desc: lang==='en'?'Validate the statistical robustness of your strategy from an imported trade history.':'Validez la robustesse statistique de votre stratégie à partir d\'un historique de trades importé.',
+        title: t('an_bt_title'),
+        subtitle: t('an_bt_sub'),
+        desc: t('an_bt_desc'),
         chips: ['Equity curve', 'Profit Factor', 'Monte Carlo', 'Robustesse'],
         hasData: !!backtestStats,
         dataLabel: backtestStats ? `${backtestStats.totalTrades} trades importés · PF ${backtestStats.pf} · Score ${backtestStats.robustness}%` : (lang==='en'?'Import a CSV file in My Trades':'Importez un fichier CSV dans Mes Trades'),
-        cta: lang==='en'?'Audit the backtest':'Auditer le backtest',
+        cta: t('an_bt_cta'),
         ctaGoto: 'trades',
       },
     ];
     return (
       <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
         <div style={{marginBottom:22}}>
-          <div style={{fontSize:11,fontWeight:800,color:'rgba(255,255,255,0.35)',textTransform:'uppercase',letterSpacing:1.5,marginBottom:4}}>Centre d'Analyse</div>
-          <div style={{fontSize:22,fontWeight:900,color:'#fff',letterSpacing:-0.5,lineHeight:1.15}}>Sélectionnez<br/><span style={{color:'#6ee7b7'}}>votre analyse</span></div>
-          <div style={{fontSize:12,color:'rgba(255,255,255,0.45)',marginTop:6,lineHeight:1.5}}>Chaque rapport est construit à partir de vos données réelles et fournit des recommandations spécifiques.</div>
+          <div style={{fontSize:11,fontWeight:800,color:'rgba(255,255,255,0.35)',textTransform:'uppercase',letterSpacing:1.5,marginBottom:4}}>{t('an_center')}</div>
+          <div style={{fontSize:22,fontWeight:900,color:'#fff',letterSpacing:-0.5,lineHeight:1.15}}>{t('an_select')}<br/><span style={{color:'#6ee7b7'}}>{t('an_your_analysis')}</span></div>
+          <div style={{fontSize:12,color:'rgba(255,255,255,0.45)',marginTop:6,lineHeight:1.5}}>{t('an_intro')}</div>
         </div>
 
         {cards.map((card, i) => (
@@ -1181,7 +1322,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
                 <div style={{fontSize:15,fontWeight:800,color:'#fff',marginBottom:1}}>{card.title}</div>
                 <div style={{fontSize:10,fontWeight:700,color:card.accent,textTransform:'uppercase',letterSpacing:0.8}}>{card.subtitle}</div>
               </div>
-              {card.hasData && <div style={{padding:'3px 9px',borderRadius:10,background:'rgba(110,231,183,0.1)',border:'1px solid rgba(110,231,183,0.25)',fontSize:9,fontWeight:700,color:'#6ee7b7',whiteSpace:'nowrap'}}>Prêt</div>}
+              {card.hasData && <div style={{padding:'3px 9px',borderRadius:10,background:'rgba(110,231,183,0.1)',border:'1px solid rgba(110,231,183,0.25)',fontSize:9,fontWeight:700,color:'#6ee7b7',whiteSpace:'nowrap'}}>{t('an_ready')}</div>}
             </div>
             <div style={{fontSize:12,color:'rgba(255,255,255,0.6)',lineHeight:1.55,marginBottom:12}}>{card.desc}</div>
             <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:14}}>
@@ -1198,7 +1339,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
                 background:card.hasData?(card.accent==='#6ee7b7'?'linear-gradient(135deg,#6ee7b7,#34d399)':card.accent==='#fbbf24'?'linear-gradient(135deg,#fbbf24,#f59e0b)':'linear-gradient(135deg,#e05252,#c93b3b)'):'rgba(255,255,255,0.07)',
                 color:card.hasData?'#000':'rgba(255,255,255,0.4)',
               }}>
-              {!premiumAccess?'🔒 Premium':card.hasData?card.cta:(lang==='en'?'Get data →':'Obtenir les données →')}
+              {!premiumAccess?'🔒 Premium':card.hasData?card.cta:t('an_get_data')}
             </button>
           </div>
         ))}
@@ -1221,8 +1362,8 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         <ReportHeader title="Simulation Challenge" subtitle="Rapport d'évaluation" onBack={()=>setMode(null)}/>
         <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
           <div style={{fontSize:32,marginBottom:12}}>📊</div>
-          <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>Aucune simulation trouvée.</div>
-          <button onClick={()=>goto('simulator')} style={{padding:'12px 24px',borderRadius:12,background:'#6ee7b7',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>Lancer une simulation</button>
+          <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>{t('an_no_sim')}</div>
+          <button onClick={()=>goto('simulator')} style={{padding:'12px 24px',borderRadius:12,background:'#6ee7b7',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>{t('an_run_sim')}</button>
         </div>
       </div>
     );
@@ -1253,13 +1394,13 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
         {/* Forces */}
         {a.forces.length>0&&<div style={{background:'rgba(110,231,183,0.04)',border:'1px solid rgba(110,231,183,0.15)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>💪</span>Points forts</div>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>💪</span>{t('an_forces')}</div>
           {a.forces.map((f,i)=><div key={i} style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:i<a.forces.length-1?8:0}}><span style={{fontSize:14,flexShrink:0}}>{f.icon}</span><div><div style={{fontSize:13,fontWeight:700,color:'#fff'}}>{f.title}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.5)',marginTop:1,lineHeight:1.4}}>{f.detail}</div></div></div>)}
         </div>}
 
         {/* Risques */}
         {a.risks.length>0&&<div style={{background:'rgba(251,191,36,0.04)',border:'1px solid rgba(251,191,36,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>🔍</span>Risques identifiés</div>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>🔍</span>{t('an_risks')}</div>
           {a.risks.map((r,i)=><div key={i} style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:i<a.risks.length-1?8:0}}><span style={{fontSize:14,flexShrink:0}}>{r.icon}</span><div><div style={{fontSize:13,fontWeight:700,color:'#fff'}}>{r.title}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.5)',marginTop:1,lineHeight:1.4}}>{r.detail}</div></div></div>)}
         </div>}
 
@@ -1314,8 +1455,8 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         <ReportHeader title="Journal de Trading" subtitle="Analyse comportementale" onBack={()=>setMode(null)}/>
         <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
           <div style={{fontSize:32,marginBottom:12}}>📓</div>
-          <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>Aucun trade saisi dans le journal.</div>
-          <button onClick={()=>goto('dashboard')} style={{padding:'12px 24px',borderRadius:12,background:'#fbbf24',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>Ouvrir le journal</button>
+          <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>{t('an_no_journal')}</div>
+          <button onClick={()=>goto('dashboard')} style={{padding:'12px 24px',borderRadius:12,background:'#fbbf24',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>{t('an_open_journal')}</button>
         </div>
       </div>
     );
@@ -1391,8 +1532,8 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         <ReportHeader title="Résultats Backtest" subtitle="Audit statistique" onBack={()=>setMode(null)}/>
         <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
           <div style={{fontSize:32,marginBottom:12}}>📁</div>
-          <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>Aucun backtest importé.</div>
-          <button onClick={()=>goto('trades')} style={{padding:'12px 24px',borderRadius:12,background:'#e05252',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>Importer dans Mes Trades</button>
+          <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>{t('an_no_bt')}</div>
+          <button onClick={()=>goto('trades')} style={{padding:'12px 24px',borderRadius:12,background:'#e05252',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>{t('an_import_bt')}</button>
         </div>
       </div>
     );
@@ -1443,13 +1584,13 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
         {/* KPIs statistiques */}
         <div style={{background:'rgba(224,82,82,0.04)',border:'1px solid rgba(224,82,82,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}><span style={{marginRight:5}}>📊</span>Métriques statistiques</div>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}><span style={{marginRight:5}}>📊</span>{t('an_stat_metrics')}</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
             {[
-              {l:'Trades analysés',v:b.totalTrades,c:b.totalTrades>=100?'#4ade80':b.totalTrades>=50?'#fbbf24':'#ef4444'},
-              {l:'Ratio R/R réel',v:`1:${b.rr}`,c:b.rr>=1.5?'#4ade80':'#fbbf24'},
-              {l:'Gain moyen',v:'+'+b.avgW.toFixed(0)+'$',c:'#4ade80'},
-              {l:'Perte moyenne',v:'-'+b.avgL.toFixed(0)+'$',c:'#ef4444'},
+              {l:t('an_trades_analyzed'),v:b.totalTrades,c:b.totalTrades>=100?'#4ade80':b.totalTrades>=50?'#fbbf24':'#ef4444'},
+              {l:t('an_real_rr'),v:`1:${b.rr}`,c:b.rr>=1.5?'#4ade80':'#fbbf24'},
+              {l:t('an_avg_gain'),v:'+'+b.avgW.toFixed(0)+'$',c:'#4ade80'},
+              {l:t('an_avg_loss'),v:'-'+b.avgL.toFixed(0)+'$',c:'#ef4444'},
             ].map((m,i)=>(
               <div key={i} style={{background:'rgba(255,255,255,0.05)',borderRadius:12,padding:'11px 12px'}}>
                 <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',marginBottom:3}}>{m.l}</div>
@@ -1461,7 +1602,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
         {/* Alertes statistiques */}
         <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>🔍</span>Analyse de validité</div>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>🔍</span>{t('an_validity')}</div>
           {[
             {cond:b.totalTrades>=100,good:'Échantillon statistiquement significatif ('+b.totalTrades+' trades)',bad:'Échantillon insuffisant ('+b.totalTrades+' trades) — min. 100 pour un backtest fiable'},
             {cond:b.pf>=1.5&&!overfit,good:'Profit Factor robuste ('+b.pf+') validé sur suffisamment de trades',bad:overfit?'Risque de sur-optimisation : PF '+b.pf+' sur '+b.totalTrades+' trades seulement':'Profit Factor faible ('+b.pf+') — stratégie peu rentable'},
@@ -3315,7 +3456,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <path d="M10 4L6 8l4 4" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                Retour au Challenge
+                {t('mt_back_challenge')}
               </button>
             )}
             {/* Titre section quand affiché dans Monte Carlo */}
@@ -4491,14 +4632,14 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               <div style={{ marginTop: 10, padding: "13px 14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.12)", borderRadius: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                   <div style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>
-                    🔬 Validation indépendante
+                    🔬 {t('mt_indep_validation')}
                   </div>
                   {geminiVerdict?.confidenceLevel && (
                     <div style={{ padding: "2px 8px", borderRadius: 8, fontSize: 9, fontWeight: 700,
                       background: geminiVerdict.confidenceLevel === 'ÉLEVÉ' ? 'rgba(110,231,183,0.12)' : geminiVerdict.confidenceLevel === 'MODÉRÉ' ? 'rgba(251,191,36,0.12)' : 'rgba(239,68,68,0.12)',
                       color: geminiVerdict.confidenceLevel === 'ÉLEVÉ' ? '#6ee7b7' : geminiVerdict.confidenceLevel === 'MODÉRÉ' ? '#fbbf24' : '#ef4444',
                     }}>
-                      Confiance {geminiVerdict.confidenceLevel}
+                      {t('mt_confidence')} {geminiVerdict.confidenceLevel}
                     </div>
                   )}
                 </div>
@@ -7320,9 +7461,9 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", marginBottom: 6 }}>{t("prof_lang")}</div>
           <div style={{ display: "flex", gap: 8 }}>
-            {[{ k: "fr", label: "Français" }, { k: "en", label: "English" }].map(o => (
+            {[{ k: "fr", label: "Français" }, { k: "en", label: "English" }, { k: "es", label: "Español" }].map(o => (
               <button key={o.k} onClick={() => changeLang(o.k)} style={{
-                flex: 1, padding: "10px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 700,
+                flex: 1, padding: "10px 6px", borderRadius: 10, cursor: "pointer", fontSize: 12, fontWeight: 700,
                 background: lang === o.k ? "#6ee7b7" : "rgba(255,255,255,0.07)", color: lang === o.k ? "#000000" : "rgba(255,255,255,0.50)",
                 border: "1px solid " + (lang === o.k ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
               }}>{o.label}</button>
