@@ -1030,7 +1030,6 @@ Réponds UNIQUEMENT en JSON valide sans markdown :
 }
 
 function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, requirePremium = () => {} }) {
-  const isClassic = (profile?.usageType || "propfirm") === "classic";
   const [mode, setMode] = useState(null); // null | 'simulation' | 'journal' | 'backtest'
   const [gemini, setGemini] = useState(null);
   const [gemLoading, setGemLoading] = useState(false);
@@ -1130,10 +1129,10 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
       {
         key:'simulation', accent:'#6ee7b7', bg:'rgba(110,231,183,0.06)', border:'rgba(110,231,183,0.2)',
         icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="14" rx="3" stroke="#6ee7b7" strokeWidth="1.5"/><path d="M7 17l2.5-5 3 4 2-3 2.5 4" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-        title: isClassic ? (lang==='en'?'Strategy Simulation':'Simulation Stratégie') : (lang==='en'?'Challenge Simulation':'Simulation Challenge'),
-        subtitle: isClassic ? (lang==='en'?'Performance projection':'Projection de performance') : (lang==='en'?'Pre-challenge assessment':'Évaluation pré-challenge'),
-        desc: isClassic ? (lang==='en'?'Project the growth of your trading account based on your strategy parameters.':'Projetez la croissance de votre compte de trading selon vos paramètres de stratégie.') : (lang==='en'?'Assess your strategy parameters before investing in a prop firm challenge.':'Évaluez vos paramètres de stratégie avant d\'acheter un challenge prop firm.'),
-        chips: isClassic ? ['Winrate', 'Ratio R/R', 'Croissance', 'Performance'] : ['Winrate', 'Ratio R/R', 'Drawdown', 'Probabilité'],
+        title: lang==='en'?'Challenge Simulation':'Simulation Challenge',
+        subtitle: lang==='en'?'Pre-challenge assessment':'Évaluation pré-challenge',
+        desc: lang==='en'?'Assess your strategy parameters before investing in a prop firm challenge.':'Évaluez vos paramètres de stratégie avant d\'acheter un challenge prop firm.',
+        chips: ['Winrate', 'Ratio R/R', 'Drawdown', 'Probabilité'],
         hasData: !!simAnalysis,
         dataLabel: simAnalysis ? `${simAnalysis.metrics.totalTrades} trades · ${(simAnalysis.firmName)} · Score ${simAnalysis.probability}%` : (lang==='en'?'Run a simulation first':'Lancez d\'abord une simulation'),
         cta: lang==='en'?'Analyse simulation':'Analyser la simulation',
@@ -1818,7 +1817,6 @@ function InfoTip({ text }) {
 }
 
 function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab = () => {}, onSimResult = () => {}, displayMode = "advanced", usageType = "propfirm", premiumAccess = true, requirePremium = () => {} }) {
-  const isClassicSim = usageType === "classic";
   // Mode avancé = premium. Sans accès → forcé en mode simple (débutant).
   const isSimple = displayMode === "simple" || !premiumAccess;
   const loadSaved = () => {
@@ -2538,10 +2536,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             </button>
           ))}
         </div>
-        {!isClassicSim && <div style={{ marginTop: 8, fontSize: 10, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
+        <div style={{ marginTop: 8, fontSize: 10, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
           {model.phases.map(ph => ph.label + " " + (ph.target * 100) + "%").join(" / ")}
           {" - DD jour " + (model.dailyDD * 100) + "% - DD total " + (model.totalDD * 100) + "% (" + (model.ddType === "trailing" ? "trailing" : "fixe") + ")"}
-        </div>}
+        </div>
         <div style={{ marginTop: 4, fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
           Split {model.splitStart}% - {model.splitMax}% | Payout {model.payoutCycle}j | Min {model.phases[0].minDays}j/phase | Frais ~{fmt(fee)}
         </div>
@@ -2570,8 +2568,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
       )}
 
-      {/* CARTE DRAWDOWN ESTIME — mode avancé uniquement, masqué en trading classique */}
-      {!isSimple && dda && !isClassicSim && (
+      {/* CARTE DRAWDOWN ESTIME — mode avancé uniquement */}
+      {!isSimple && dda && (
         <div className="card" >
           <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>
             Analyse Drawdown - Ta config
@@ -2849,9 +2847,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: includeWeekend ? "#6ee7b7" : "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1, display: "flex", alignItems: "center" }}>
                 {t("sim_weekend_included")}
-                <InfoTip text={usageType === "classic"
-                  ? "Trading classique : active le weekend pour trader 7j/7 (crypto, indices 24/7). Désactivé = lundi à vendredi uniquement."
-                  : "La plupart des prop firms ferment le forex le weekend (marché fermé). Active uniquement si tu trades du crypto le weekend (FTMO, FundingPips l'autorisent). Désactivé = lundi à vendredi (21 jours/mois)."} />
+                <InfoTip text={"La plupart des prop firms ferment le forex le weekend (marché fermé). Active uniquement si tu trades du crypto le weekend (FTMO, FundingPips l'autorisent). Désactivé = lundi à vendredi (21 jours/mois)."} />
               </div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2, lineHeight: 1.4 }}>
                 {includeWeekend
@@ -2867,7 +2863,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               <div style={{ position: "absolute", top: 2, left: includeWeekend ? 18 : 2, width: 14, height: 14, borderRadius: 7, background: "#fff", transition: "all .2s" }} />
             </div>
           </div>
-          {includeWeekend && usageType !== "classic" && (
+          {includeWeekend && (
             <div style={{ marginTop: 6, background: "rgba(110,231,183,0.06)", border: "1px solid rgba(110,231,183,0.18)", borderRadius: 12, padding: "7px 10px", fontSize: 10, color: "#6ee7b7", lineHeight: 1.5 }}>
               ⚠️ Vérifie les règles de ta prop firm : le forex est fermé le weekend. Le weekend ne s'applique qu'au crypto/indices 24/7 selon les firms.
             </div>
@@ -3505,7 +3501,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
       {/* TAB MES TRADES */}
       {tab === "trades" && (
-        <MesTradesTab t={t} lang={lang} sim={sim} capital={capital} fundedMonths={fundedMonths} winrate={winrate} riskPct={riskPct} dailyTargetPct={dailyTargetPct} model={model} finalRR={finalRR} tradesPerDay={tradesPerDay} firm={firm} effectiveRiskAmount={effectiveRiskAmount} usageType={usageType} />
+        <MesTradesTab t={t} lang={lang} sim={sim} capital={capital} fundedMonths={fundedMonths} winrate={winrate} riskPct={riskPct} dailyTargetPct={dailyTargetPct} model={model} finalRR={finalRR} tradesPerDay={tradesPerDay} firm={firm} effectiveRiskAmount={effectiveRiskAmount} />
       )}
 
       <div style={{ textAlign: "center", fontSize: 10, color: "rgba(255,255,255,0.08)", marginTop: 12, paddingBottom: 8 }}>
@@ -3589,8 +3585,7 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
   );
 }
 
-function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTargetPct, model, finalRR, tradesPerDay, firm, effectiveRiskAmount, usageType = "propfirm", t = (k) => k, lang = "fr" }) {
-  const isClassic = usageType === "classic";
+function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTargetPct, model, finalRR, tradesPerDay, firm, effectiveRiskAmount, t = (k) => k, lang = "fr" }) {
   // ── Journal de trading (partagé avec l'accueil via useJournal) ──
   const { journalMonth: jMonth, setJournalMonth: setJMonth, saveJournalEntry: saveJEntry, monthData: jMonthData } = useJournal();
   const [showJournal, setShowJournal] = useState(false);
@@ -4346,7 +4341,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 4 }}>
-                  {isClassic ? "Analyse de Performance" : `Analyse Backtest · ${firm?.name || ""}`}
+                  {`Analyse Backtest · ${firm?.name || ""}`}
                 </div>
                 <div style={{ fontSize: 19, fontWeight: 700, color: verdict.color, lineHeight: 1.1 }}>
                   <VerdictIcon icon={verdict.icon} /> {verdict.label}
@@ -4356,7 +4351,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               <div style={{ textAlign: "center", flexShrink: 0, marginLeft: 12 }}>
                 <div style={{ width: 68, height: 68, borderRadius: 34, background: verdict.color + "20", border: "3px solid " + verdict.color, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                   <div style={{ fontSize: verdict.passPct === null ? 26 : 19, fontWeight: 700, color: verdict.color, lineHeight: 1 }}>{verdict.passPct === null ? "?" : "~" + verdict.passPct + "%"}</div>
-                  <div style={{ fontSize: 7, color: "rgba(255,255,255,0.55)", marginTop: 1 }}>{verdict.passPct === null ? "incertain" : isClassic ? "performance" : "estimation"}</div>
+                  <div style={{ fontSize: 7, color: "rgba(255,255,255,0.55)", marginTop: 1 }}>{verdict.passPct === null ? "incertain" : "estimation"}</div>
                 </div>
               </div>
             </div>
@@ -4430,7 +4425,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             {/* Lecture factuelle du backtest */}
             <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
               <div style={{ flex: 1, background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px" }}>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>{isClassic ? "Profit réalisé" : "Phases atteintes (backtest)"}</div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>"Phases atteintes (backtest)"</div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: verdict.phasesPassed >= verdict.totalPhases ? "#6ee7b7" : "rgba(255,255,255,0.85)" }}>
                   {verdict.phasesPassed} / {verdict.totalPhases}
                 </div>
@@ -6291,15 +6286,14 @@ const FIRM_FEES = {
   fundingpips:{ 10000:49, 25000:99, 50000:164, 100000:299, 200000:529 },
 };
 
-// PROFIL SETUP — 4 étapes : usage → firm/capital → niveau → capital (prop)
+// PROFIL SETUP — 3 étapes Prop Firm : firm → capital → niveau
 // ══════════════════════════════════════════════════════════════════
 function ProfileSetupScreen({ t, lang, setLang, onDone }) {
-  const [step, setStep]           = useState(0); // 0=usage 1=firm 2=capital 3=niveau
-  const [usageType, setUsageType] = useState(null); // "propfirm" | "classic"
-  const [firmKey, setFirmKey]     = useState("fundednext");
-  const [capital, setCapital]     = useState(25000);
-  const [classicCapital, setClassicCapital] = useState(10000);
-  const [level, setLevel]         = useState(null); // "beginner"|"experienced"|"professional"
+  const [step, setStep]       = useState(0); // 0=firm 1=capital 2=niveau
+  const [firmKey, setFirmKey] = useState("fundednext");
+  const [capital, setCapital] = useState(25000);
+  const [level, setLevel]     = useState(null); // "beginner"|"experienced"|"professional"
+  const [displayMode, setDisplayMode] = useState("advanced");
 
   const firm = PROP_FIRMS[firmKey] || PROP_FIRMS.fundednext;
   const caps = FIRM_CAPITALS[firmKey] || FIRM_CAPITALS.fundednext;
@@ -6310,272 +6304,177 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
     setCapital((FIRM_CAPITALS[k] || FIRM_CAPITALS.fundednext)[0]);
   };
 
-  const totalSteps = usageType === "propfirm" ? 4 : 3;
-  const displayStep = step + 2; // commence à 2/3
+  const totalSteps = 3;
 
   const finish = () => {
-    const displayMode = level === "beginner" ? "simple" : "advanced";
-    const finalCapital = usageType === "propfirm" ? capital : classicCapital;
-    const finalFirm = usageType === "propfirm" ? firmKey : "fundednext";
-    syncSimConfig({ firmKey: finalFirm, modelKey: "2step", capital: finalCapital });
-    saveApp({
-      profile: { lang, firmKey: finalFirm, capital: finalCapital, usageType, level, displayMode },
-      setupDone: true
-    });
-    onDone({ lang, firmKey: finalFirm, capital: finalCapital, usageType, level, displayMode });
+    onDone({ lang, firmKey, capital, usageType: "propfirm", level, displayMode });
   };
 
-  const FIRMS_LIST = [
-    { k:"ftmo", label:"FTMO" },{ k:"fundednext", label:"FundedNext" },
-    { k:"e8", label:"E8 Markets" },{ k:"alpha", label:"Alpha Capital" },
-    { k:"the5ers", label:"The 5%ers" },{ k:"fundingpips", label:"FundingPips" },
-  ];
-
-  const LEVELS = [
-    { k:"beginner", label:"Débutant",
-      desc:"Je débute dans le trading ou les prop firms. Je veux l'essentiel, sans complexité." },
-    { k:"experienced", label:"Expérimenté",
-      desc:"Je connais les bases. Je veux voir les métriques importantes de mon setup." },
-    { k:"professional", label:"Professionnel",
-      desc:"Trader confirmé. Je veux accès à toutes les données, métriques avancées et statistiques." },
-  ];
-
-  const canContinue = () => {
-    if (step === 0) return usageType !== null;
-    if (step === 1) {
-      if (usageType === "propfirm") return true; // firm sélectionnée
-      return classicCapital >= 100;
-    }
-    if (step === 2) {
-      if (usageType === "propfirm") return true; // capital sélectionné
-      return level !== null;
-    }
-    if (step === 3) return level !== null;
+  const canAdvance = () => {
+    if (step === 0) return !!firmKey;
+    if (step === 1) return capital >= 1000;
+    if (step === 2) return level !== null;
     return false;
   };
 
-  const nextStep = () => {
-    if (step === 0) { setStep(1); return; }
-    if (step === 1 && usageType === "classic") { setStep(2); return; }
-    if (step === 1 && usageType === "propfirm") { setStep(2); return; }
-    if (step === 2 && usageType === "classic" && level !== null) { finish(); return; }
-    if (step === 2 && usageType === "propfirm") { setStep(3); return; }
-    if (step === 3) { finish(); return; }
+  const next = () => {
+    if (!canAdvance()) return;
+    if (step === 2) { finish(); return; }
+    setStep(s => s + 1);
   };
 
-  const progress = usageType === "propfirm"
-    ? [0,1,2,3].map(i => i <= step)
-    : [0,1,2].map(i => i <= step);
+  const progress = Math.round((step / totalSteps) * 100);
+
+  const stepLabels = ["Prop Firm", "Capital", "Profil"];
 
   return (
-    <div style={{ minHeight:"100vh", background:"#06090f", display:"flex", flexDirection:"column", maxWidth:480, margin:"0 auto", fontFamily:"-apple-system, sans-serif", paddingBottom:"calc(28px + env(safe-area-inset-bottom))" }}>
+    <div style={{ minHeight: "100dvh", background: "linear-gradient(160deg,#060a0f 0%,#0d1a12 100%)", display: "flex", flexDirection: "column", padding: "0 20px 32px", fontFamily: "-apple-system,sans-serif", color: "#fff" }}>
 
-      {/* Halo */}
-      <div style={{ position:"fixed", top:"10%", left:"50%", transform:"translateX(-50%)", width:300, height:300, borderRadius:"50%", background:"radial-gradient(circle, rgba(52,211,153,0.08) 0%, transparent 70%)", pointerEvents:"none", zIndex:0 }} />
-
-      <div style={{ flex:1, padding:"0 20px", paddingTop:"calc(40px + env(safe-area-inset-top))", overflowY:"auto", position:"relative", zIndex:1 }}>
-
-        {/* Progress bar */}
-        <div style={{ fontSize:13, fontWeight:700, color:"#6ee7b7", marginBottom:10 }}>
-          Étape {step + 2}/{progress.length + 1}
+      {/* Header */}
+      <div style={{ paddingTop: "max(env(safe-area-inset-top),24px)", marginBottom: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", letterSpacing: 1.5, textTransform: "uppercase" }}>
+            EA PropFirm Pro
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {["fr","en","es"].map(l => (
+              <button key={l} onClick={() => setLang(l)} style={{ padding: "4px 9px", borderRadius: 8, fontSize: 10, fontWeight: 700, border: "1px solid", borderColor: lang === l ? "#6ee7b7" : "rgba(255,255,255,0.1)", background: lang === l ? "rgba(110,231,183,0.12)" : "transparent", color: lang === l ? "#6ee7b7" : "rgba(255,255,255,0.4)", cursor: "pointer" }}>{l.toUpperCase()}</button>
+            ))}
+          </div>
         </div>
-        <div style={{ display:"flex", gap:6, marginBottom:28 }}>
-          {progress.map((done, i) => (
-            <div key={i} style={{ flex:1, height:4, borderRadius:2, background: done ? "#6ee7b7" : "rgba(255,255,255,0.12)", transition:"background .3s" }} />
+
+        {/* Titre */}
+        <div style={{ fontSize: 22, fontWeight: 900, color: "#fff", letterSpacing: -0.5, marginBottom: 4 }}>
+          {step === 0 && "Quelle Prop Firm ?"}
+          {step === 1 && "Quel capital ?"}
+          {step === 2 && "Ton profil trader"}
+        </div>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>
+          {step === 0 && "Sélectionne la prop firm sur laquelle tu veux passer ton challenge."}
+          {step === 1 && "Choisis le capital du challenge que tu veux simuler."}
+          {step === 2 && "Dis-nous ton niveau pour adapter l'interface."}
+        </div>
+
+        {/* Progress steps */}
+        <div style={{ display: "flex", gap: 6, marginTop: 18 }}>
+          {stepLabels.map((label, i) => (
+            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+              <div style={{ height: 3, borderRadius: 2, width: "100%", background: i <= step ? "#6ee7b7" : "rgba(255,255,255,0.1)", transition: "all .3s" }} />
+              <div style={{ fontSize: 9, color: i <= step ? "#6ee7b7" : "rgba(255,255,255,0.3)", fontWeight: 600 }}>{label}</div>
+            </div>
           ))}
         </div>
-
-        {/* ══ STEP 0 : USAGE ══ */}
-        {step === 0 && (
-          <>
-            <div style={{ fontSize:26, fontWeight:700, color:"#ffffff", marginBottom:6 }}>
-              Comment vas-tu utiliser ce simulateur ?
-            </div>
-            <div style={{ fontSize:14, color:"rgba(255,255,255,0.45)", marginBottom:28, lineHeight:1.5 }}>
-              Cela nous permet de personnaliser l'expérience pour toi.
-            </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-              {[
-                { k:"propfirm", label:"Challenge Prop Firm",
-                  desc:"Je veux passer un challenge FTMO, FundedNext, E8, etc. pour obtenir un capital financé." },
-                { k:"classic", label:"Trading Classique",
-                  desc:"Je trade avec mon propre capital et je veux simuler / optimiser ma gestion du risque." },
-              ].map(opt => (
-                <button key={opt.k} onClick={() => setUsageType(opt.k)} style={{
-                  width:"100%", padding:"20px", borderRadius:18, cursor:"pointer",
-                  background: usageType === opt.k ? "rgba(110,231,183,0.08)" : "rgba(255,255,255,0.04)",
-                  border: "1.5px solid " + (usageType === opt.k ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
-                  textAlign:"left", transition:"all .15s",
-                }}>
-                  <div style={{display:"flex",justifyContent:"center",marginBottom:8}}><TradingAvatar id={opt.k==="propfirm"?6:7} size={28} color={usageType===opt.k?"#6ee7b7":"rgba(255,255,255,0.5)"}/></div>
-                  <div style={{ fontSize:17, fontWeight:700, color:"#ffffff", marginBottom:4 }}>{opt.label}</div>
-                  <div style={{ fontSize:13, color:"rgba(255,255,255,0.45)", lineHeight:1.5 }}>{opt.desc}</div>
-                  {usageType === opt.k && (
-                    <div style={{ marginTop:8, display:"flex", alignItems:"center", gap:6 }}>
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M3 8l3 3 7-7" stroke="#6ee7b7" strokeWidth="2" strokeLinecap="round"/>
-                      </svg>
-                      <span style={{ fontSize:12, color:"#6ee7b7", fontWeight:600 }}>{t("dash_selected")}</span>
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* ══ STEP 1 : PROP FIRM ou CAPITAL CLASSIQUE ══ */}
-        {step === 1 && usageType === "propfirm" && (
-          <>
-            <div style={{ fontSize:26, fontWeight:700, color:"#ffffff", marginBottom:6 }}>Choisis ta prop firm</div>
-            <div style={{ fontSize:14, color:"rgba(255,255,255,0.45)", marginBottom:28, lineHeight:1.5 }}>
-              Le simulateur utilisera les règles officielles de cette firm.
-            </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-              {FIRMS_LIST.map(f => (
-                <button key={f.k} onClick={() => { selectFirm(f.k); nextStep(); }} style={{
-                  width:"100%", padding:"18px 20px", borderRadius:18,
-                  background:"rgba(255,255,255,0.04)", border:"1px solid rgba(110,231,183,0.10)",
-                  display:"flex", alignItems:"center", gap:16, cursor:"pointer", textAlign:"left", transition:"all .15s",
-                }}>
-                  <div style={{ flex:1, fontSize:17, fontWeight:700, color:"#ffffff" }}>{f.label}</div>
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path d="M7 5l5 5-5 5" stroke="#6ee7b7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
-        {step === 1 && usageType === "classic" && (
-          <>
-            <div style={{ fontSize:26, fontWeight:700, color:"#ffffff", marginBottom:6 }}>Quel est ton capital ?</div>
-            <div style={{ fontSize:14, color:"rgba(255,255,255,0.45)", marginBottom:28, lineHeight:1.5 }}>
-              Saisit le capital avec lequel tu trades habituellement.
-            </div>
-            <div style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(110,231,183,0.12)", borderRadius:18, padding:"24px 20px" }}>
-              <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginBottom:8 }}>Capital de trading ($)</div>
-              <input type="number" value={classicCapital} min={100} max={1000000} step={100}
-                onChange={e => setClassicCapital(Math.max(100, parseFloat(e.target.value) || 0))}
-                style={{ width:"100%", fontSize:28, fontWeight:700, color:"#6ee7b7", background:"transparent", border:"none", outline:"none", padding:"4px 0" }}
-              />
-              <input type="range" min={100} max={500000} step={100} value={classicCapital}
-                onChange={e => setClassicCapital(parseInt(e.target.value))}
-                style={{ width:"100%", accentColor:"#6ee7b7", marginTop:8 }}
-              />
-              <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"rgba(255,255,255,0.3)", marginTop:2 }}>
-                <span>$100</span><span>$500K</span>
-              </div>
-              <div style={{ marginTop:16, padding:"10px 14px", background:"rgba(110,231,183,0.06)", border:"1px solid rgba(110,231,183,0.15)", borderRadius:12, fontSize:13, color:"rgba(255,255,255,0.6)" }}>
-                Risque 1% / trade = <b style={{color:"#6ee7b7"}}>${(classicCapital * 0.01).toFixed(0)}</b> par position
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* ══ STEP 2 : CAPITAL PROP FIRM ══ */}
-        {step === 2 && usageType === "propfirm" && (
-          <>
-            <div style={{ fontSize:26, fontWeight:700, color:"#ffffff", marginBottom:6 }}>Choisis ton capital</div>
-            <div style={{ fontSize:14, color:"rgba(255,255,255,0.45)", marginBottom:22, lineHeight:1.5 }}>
-              Pour le challenge {firm.name}.
-            </div>
-            <div style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(110,231,183,0.10)", borderRadius:18, padding:"14px 20px", display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
-              <div style={{ flex:1, fontSize:16, fontWeight:700, color:"#ffffff" }}>{firm.name}</div>
-              <button onClick={() => setStep(1)} style={{ background:"none", border:"none", color:"#6ee7b7", fontSize:14, fontWeight:700, cursor:"pointer" }}>Changer</button>
-            </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
-              {caps.map(c => {
-                const sel = capital === c;
-                const fee = fees[c];
-                return (
-                  <button key={c} onClick={() => setCapital(c)} style={{
-                    width:"100%", padding:"18px 20px", borderRadius:18, cursor:"pointer",
-                    background: sel ? "rgba(110,231,183,0.06)" : "rgba(255,255,255,0.03)",
-                    border: "1.5px solid " + (sel ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
-                    display:"flex", alignItems:"center", gap:14, textAlign:"left", transition:"all .15s",
-                  }}>
-                    <div style={{ width:22, height:22, borderRadius:11, border:"2px solid " + (sel ? "#6ee7b7" : "rgba(255,255,255,0.25)"), display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: sel ? "rgba(110,231,183,0.1)" : "transparent" }}>
-                      {sel && <div style={{ width:9, height:9, borderRadius:5, background:"#6ee7b7" }} />}
-                    </div>
-                    <div style={{ flex:1, fontSize:18, fontWeight:700, color:"#ffffff" }}>
-                      ${c.toLocaleString("en-US")}
-                    </div>
-                    {fee && (
-                      <div style={{ padding:"5px 12px", borderRadius:20, fontSize:13, fontWeight:600, background: sel ? "rgba(110,231,183,0.15)" : "rgba(255,255,255,0.06)", color: sel ? "#6ee7b7" : "rgba(255,255,255,0.4)" }}>
-                        Frais : ${fee.toLocaleString("en-US")}
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
-
-        {/* ══ STEP 3 (propfirm) ou STEP 2 (classic) : NIVEAU ══ */}
-        {((step === 3 && usageType === "propfirm") || (step === 2 && usageType === "classic")) && (
-          <>
-            <div style={{ fontSize:26, fontWeight:700, color:"#ffffff", marginBottom:6 }}>
-              Quel est ton niveau en trading ?
-            </div>
-            <div style={{ fontSize:14, color:"rgba(255,255,255,0.45)", marginBottom:28, lineHeight:1.5 }}>
-              Cela définit l'affichage du simulateur : simplifié ou avancé.
-            </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-              {LEVELS.map(lv => (
-                <button key={lv.k} onClick={() => setLevel(lv.k)} style={{
-                  width:"100%", padding:"20px", borderRadius:18, cursor:"pointer",
-                  background: level === lv.k ? "rgba(110,231,183,0.08)" : "rgba(255,255,255,0.04)",
-                  border: "1.5px solid " + (level === lv.k ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
-                  textAlign:"left", transition:"all .15s",
-                }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:6 }}>
-                    <TradingAvatar id={lv.k==="beginner"?0:lv.k==="experienced"?1:9} size={22} color={level===lv.k?"#6ee7b7":"rgba(255,255,255,0.5)"}/>
-                    <span style={{ fontSize:17, fontWeight:700, color:"#ffffff" }}>{lv.label}</span>
-                    {level === lv.k && (
-                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ marginLeft:"auto" }}>
-                        <path d="M3 9l4 4 8-8" stroke="#6ee7b7" strokeWidth="2.2" strokeLinecap="round"/>
-                      </svg>
-                    )}
-                  </div>
-                  <div style={{ fontSize:13, color:"rgba(255,255,255,0.45)", lineHeight:1.5 }}>{lv.desc}</div>
-                  {level === lv.k && (
-                    <div style={{ marginTop:10, padding:"8px 12px", background:"rgba(110,231,183,0.06)", borderRadius:10, fontSize:12, color:"#6ee7b7" }}>
-                      {lv.k === "beginner" ? "Affichage simplifié — l'essentiel uniquement" :
-                       lv.k === "experienced" ? "Affichage standard — métriques clés" :
-                       "Affichage complet — toutes les données disponibles"}
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
       </div>
 
-      {/* Bouton Continuer / Terminer — masqué seulement si step 1 et propfirm (auto-avance au clic firm) */}
-      {!(step === 1 && usageType === "propfirm") && (
-        <div style={{ padding:"20px 20px 0", position:"relative", zIndex:1 }}>
-          <button
-            onClick={canContinue() ? nextStep : undefined}
-            style={{
-              width:"100%", padding:"20px", borderRadius:100,
-              background: canContinue() ? "#6ee7b7" : "rgba(255,255,255,0.08)",
-              color: canContinue() ? "#000000" : "rgba(255,255,255,0.25)",
-              fontSize:17, fontWeight:700, border:"none",
-              cursor: canContinue() ? "pointer" : "default",
-              boxShadow: canContinue() ? "0 4px 24px rgba(110,231,183,0.2)" : "none",
-              transition:"all .2s",
-            }}>
-            {((step === 3 && usageType === "propfirm") || (step === 2 && usageType === "classic")) ? "Commencer" : "Continuer"}
-          </button>
+      {/* ══ STEP 0 : CHOIX PROP FIRM ══ */}
+      {step === 0 && (
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {Object.keys(PROP_FIRMS).map(k => {
+              const f = PROP_FIRMS[k];
+              const isSelected = firmKey === k;
+              return (
+                <button key={k} onClick={() => selectFirm(k)} style={{
+                  background: isSelected ? "rgba(110,231,183,0.08)" : "rgba(255,255,255,0.03)",
+                  border: "1.5px solid " + (isSelected ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
+                  borderRadius: 16, padding: "14px 16px", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 14, textAlign: "left",
+                }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: isSelected ? "rgba(110,231,183,0.15)" : "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <TradingAvatar id={Object.keys(PROP_FIRMS).indexOf(k) + 1} size={22} color={isSelected ? "#6ee7b7" : "rgba(255,255,255,0.4)"} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: isSelected ? "#fff" : "rgba(255,255,255,0.7)", marginBottom: 2 }}>{f.name}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
+                      {Object.keys(f.models).map(mk => f.models[mk].name.replace(f.name + " ","").replace("Stellar ","")).join(" · ")}
+                    </div>
+                  </div>
+                  {isSelected && <div style={{ width: 20, height: 20, borderRadius: 10, background: "#6ee7b7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><span style={{ fontSize: 11, color: "#000", fontWeight: 900 }}>✓</span></div>}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
+
+      {/* ══ STEP 1 : CAPITAL ══ */}
+      {step === 1 && (
+        <div style={{ flex: 1 }}>
+          <div style={{ marginBottom: 16, padding: "12px 14px", background: "rgba(110,231,183,0.06)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12 }}>
+            <div style={{ fontSize: 11, color: "#6ee7b7", fontWeight: 700, marginBottom: 2 }}>Prop Firm sélectionnée</div>
+            <div style={{ fontSize: 14, color: "#fff", fontWeight: 700 }}>{firm.name}</div>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
+            {caps.map(c => (
+              <button key={c} onClick={() => setCapital(c)} style={{
+                flex: "1 1 calc(33% - 8px)", minWidth: 90, padding: "14px 8px", borderRadius: 14,
+                background: capital === c ? "rgba(110,231,183,0.12)" : "rgba(255,255,255,0.04)",
+                border: "1.5px solid " + (capital === c ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
+                color: capital === c ? "#6ee7b7" : "rgba(255,255,255,0.6)", cursor: "pointer",
+                fontSize: 13, fontWeight: 700,
+              }}>
+                {c >= 1000 ? "$" + (c / 1000) + "k" : "$" + c}
+              </button>
+            ))}
+          </div>
+          {/* Frais associés */}
+          {fees[capital] != null && (
+            <div style={{ padding: "10px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 12, fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+              Frais estimés pour ce challenge : <span style={{ color: "#fbbf24", fontWeight: 700 }}>${fees[capital]}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══ STEP 2 : NIVEAU ══ */}
+      {step === 2 && (
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {[
+              { k: "beginner", icon: "🌱", title: "Débutant", desc: "Je découvre les Prop Firms et les challenges" },
+              { k: "experienced", icon: "📈", title: "Expérimenté", desc: "J'ai déjà tenté un ou plusieurs challenges" },
+              { k: "professional", icon: "🏆", title: "Professionnel", desc: "Je trade activement et j'optimise mes performances" },
+            ].map(opt => (
+              <button key={opt.k} onClick={() => { setLevel(opt.k); setDisplayMode(opt.k === "beginner" ? "simple" : "advanced"); }} style={{
+                background: level === opt.k ? "rgba(110,231,183,0.08)" : "rgba(255,255,255,0.03)",
+                border: "1.5px solid " + (level === opt.k ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
+                borderRadius: 16, padding: "16px 16px", cursor: "pointer", textAlign: "left",
+                display: "flex", alignItems: "center", gap: 14,
+              }}>
+                <div style={{ fontSize: 28, flexShrink: 0 }}>{opt.icon}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: level === opt.k ? "#fff" : "rgba(255,255,255,0.7)", marginBottom: 3 }}>{opt.title}</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", lineHeight: 1.4 }}>{opt.desc}</div>
+                </div>
+                {level === opt.k && <div style={{ width: 20, height: 20, borderRadius: 10, background: "#6ee7b7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><span style={{ fontSize: 11, color: "#000", fontWeight: 900 }}>✓</span></div>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Bouton principal */}
+      <div style={{ marginTop: 24 }}>
+        {step > 0 && (
+          <button onClick={() => setStep(s => s - 1)} style={{ display: "block", width: "100%", padding: "12px", marginBottom: 10, background: "transparent", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer" }}>
+            ← Retour
+          </button>
+        )}
+        <button onClick={next} disabled={!canAdvance()} style={{
+          display: "block", width: "100%", padding: "16px",
+          background: canAdvance() ? "linear-gradient(135deg,#6ee7b7,#34d399)" : "rgba(255,255,255,0.07)",
+          color: canAdvance() ? "#000" : "rgba(255,255,255,0.3)",
+          borderRadius: 16, border: "none", cursor: canAdvance() ? "pointer" : "default",
+          fontSize: 15, fontWeight: 800, letterSpacing: -0.2,
+        }}>
+          {step === 2 ? "🚀 Commencer" : "Continuer →"}
+        </button>
+      </div>
+
     </div>
   );
 }
+
 // ══════════════════════════════════════════════════════════════════
 // NOTIFICATIONS LOCALES — rappel quotidien 21h
 // Contrainte iOS : notif locale fonctionne app ouverte/arrière-plan.
@@ -6638,7 +6537,6 @@ function checkDailyReminder() {
 // DASHBOARD (page d'accueil)
 // ══════════════════════════════════════════════════════════════════
 function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, premiumAccess = true, daysLeft = 0, requirePremium = () => {} }) {
-  const isClassic = (profile?.usageType || "propfirm") === "classic";
   const firm = PROP_FIRMS[profile.firmKey] || PROP_FIRMS.fundednext;
   const fm = firm.models[lastSim?.modelKey] || firm.models["2step"] || Object.values(firm.models)[0];
   const [perfPeriod, setPerfPeriod] = useState("7J");
