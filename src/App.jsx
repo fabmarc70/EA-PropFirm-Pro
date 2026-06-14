@@ -87,6 +87,9 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    mt_no_balance_dd: "Sans solde de départ réel, le drawdown ne peut pas être calculé — il est donc impossible de confirmer si le challenge est passé ou non.",
+    login_cgu: "Conditions d'utilisation",
+    login_and_our: " et notre ",
     sim_phase_passed: "PASSE",
     sim_phase_running: "EN COURS",
     sim_phase_failed: "ECHOUE",
@@ -410,6 +413,9 @@ const I18N = {
     prof_account: "Cuenta",
     prof_prefs: "Preferencias",
     prof_lang: "Idioma",
+    mt_no_balance_dd: "Sin un saldo inicial real, el drawdown no puede calcularse — por lo tanto es imposible confirmar si el desafío fue superado o no.",
+    login_cgu: "Términos de uso",
+    login_and_our: " y nuestra ",
     sim_phase_passed: "PASADO",
     sim_phase_running: "EN CURSO",
     sim_phase_failed: "FALLIDO",
@@ -732,6 +738,9 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    mt_no_balance_dd: "Without a real starting balance, the drawdown cannot be calculated — it is therefore impossible to confirm whether the challenge was passed or not.",
+    login_cgu: "Terms of Use",
+    login_and_our: " and our ",
     sim_phase_passed: "PASSED",
     sim_phase_running: "RUNNING",
     sim_phase_failed: "FAILED",
@@ -4708,7 +4717,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
           {/* Message si balance reconstruite */}
           {balanceReconstructed && !showBalanceInput && (
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, marginBottom: 10 }}>
-              Sans solde de départ réel, le <b>drawdown ne peut pas être calculé</b> — il est donc <b>impossible de confirmer si le challenge est passé ou non</b>.
+              {t("mt_no_balance_dd")}
             </div>
           )}
 
@@ -6535,11 +6544,11 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
 
             {/* CGU + Politique */}
       <div style={{ padding:"28px 24px 0", textAlign:"center", lineHeight:1.6 }}>
-        <div style={{ fontSize:13, color:"rgba(255,255,255,0.28)" }}>En créant un compte, tu acceptes nos</div>
+        <div style={{ fontSize:13, color:"rgba(255,255,255,0.28)" }}>{t("login_terms")}</div>
         <div style={{ fontSize:13 }}>
-          <span style={{ color:"#6ee7b7", cursor:"pointer" }}>Conditions d'utilisation</span>
-          <span style={{ color:"rgba(255,255,255,0.28)" }}> et notre </span>
-          <span style={{ color:"#6ee7b7", cursor:"pointer" }}>Politique de confidentialité.</span>
+          <span style={{ color:"#6ee7b7", cursor:"pointer" }}>{t("login_cgu")}</span>
+          <span style={{ color:"rgba(255,255,255,0.28)" }}>{t("login_and_our")}</span>
+          <span style={{ color:"#6ee7b7", cursor:"pointer" }}>{t("login_privacy")}</span>
         </div>
       </div>
 
