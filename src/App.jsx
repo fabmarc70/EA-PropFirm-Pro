@@ -609,7 +609,7 @@ const PROP_FIRMS = {
   },
   e8: {
     name: "E8 Markets",
-    color: "#a78bfa",
+    color: "#e05252",
     note: "Classic 2-Step - DD total 8% - Best Day Rule 40% (funded)",
     models: {
       "2step": {
@@ -1151,8 +1151,8 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         ctaGoto: 'dashboard',
       },
       {
-        key:'backtest', accent:'#a78bfa', bg:'rgba(167,139,250,0.06)', border:'rgba(167,139,250,0.2)',
-        icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 3H5a2 2 0 00-2 2v4M9 3h6M9 3v4M15 3h4a2 2 0 012 2v4M15 3v4M9 7h6M9 7v4M15 7v4M9 11h6M9 11v4M15 11v4M9 15h6M9 15v4M15 15v4M2 9h20" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+        key:'backtest', accent:'#e05252', bg:'rgba(224,82,82,0.06)', border:'rgba(224,82,82,0.2)',
+        icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 3H5a2 2 0 00-2 2v4M9 3h6M9 3v4M15 3h4a2 2 0 012 2v4M15 3v4M9 7h6M9 7v4M15 7v4M9 11h6M9 11v4M15 11v4M9 15h6M9 15v4M15 15v4M2 9h20" stroke="#e05252" strokeWidth="1.5" strokeLinecap="round"/></svg>,
         title: lang==='en'?'Backtest Results':'Résultats Backtest',
         subtitle: lang==='en'?'Statistical audit':'Audit statistique',
         desc: lang==='en'?'Validate the statistical robustness of your strategy from an imported trade history.':'Validez la robustesse statistique de votre stratégie à partir d\'un historique de trades importé.',
@@ -1174,7 +1174,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         {cards.map((card, i) => (
           <div key={card.key} style={{background:card.bg,border:`1px solid ${card.border}`,borderRadius:18,padding:'18px 16px',marginBottom:12}}>
             <div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:14}}>
-              <div style={{width:44,height:44,borderRadius:12,background:`rgba(${card.accent==='#6ee7b7'?'110,231,183':card.accent==='#fbbf24'?'251,191,36':'167,139,250'},0.12)`,border:`1px solid ${card.border}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <div style={{width:44,height:44,borderRadius:12,background:`rgba(${card.accent==='#6ee7b7'?'110,231,183':card.accent==='#fbbf24'?'251,191,36':'224,82,82'},0.12)`,border:`1px solid ${card.border}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                 {card.icon}
               </div>
               <div style={{flex:1}}>
@@ -1195,7 +1195,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
             <button
               onClick={() => { if(!premiumAccess){requirePremium();return;} if(!card.hasData){goto(card.ctaGoto);return;} setMode(card.key); }}
               style={{width:'100%',padding:'13px',borderRadius:13,border:'none',cursor:'pointer',fontSize:13,fontWeight:700,
-                background:card.hasData?(card.accent==='#6ee7b7'?'linear-gradient(135deg,#6ee7b7,#34d399)':card.accent==='#fbbf24'?'linear-gradient(135deg,#fbbf24,#f59e0b)':'linear-gradient(135deg,#a78bfa,#8b5cf6)'):'rgba(255,255,255,0.07)',
+                background:card.hasData?(card.accent==='#6ee7b7'?'linear-gradient(135deg,#6ee7b7,#34d399)':card.accent==='#fbbf24'?'linear-gradient(135deg,#fbbf24,#f59e0b)':'linear-gradient(135deg,#e05252,#c93b3b)'):'rgba(255,255,255,0.07)',
                 color:card.hasData?'#000':'rgba(255,255,255,0.4)',
               }}>
               {!premiumAccess?'🔒 Premium':card.hasData?card.cta:(lang==='en'?'Get data →':'Obtenir les données →')}
@@ -1392,7 +1392,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
           <div style={{fontSize:32,marginBottom:12}}>📁</div>
           <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>Aucun backtest importé.</div>
-          <button onClick={()=>goto('trades')} style={{padding:'12px 24px',borderRadius:12,background:'#a78bfa',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>Importer dans Mes Trades</button>
+          <button onClick={()=>goto('trades')} style={{padding:'12px 24px',borderRadius:12,background:'#e05252',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>Importer dans Mes Trades</button>
         </div>
       </div>
     );
@@ -1442,7 +1442,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         )}
 
         {/* KPIs statistiques */}
-        <div style={{background:'rgba(167,139,250,0.04)',border:'1px solid rgba(167,139,250,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
+        <div style={{background:'rgba(224,82,82,0.04)',border:'1px solid rgba(224,82,82,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
           <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}><span style={{marginRight:5}}>📊</span>Métriques statistiques</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
             {[
@@ -6147,7 +6147,7 @@ function FirmLogo({ firmKey, size = 44 }) {
             <stop offset="100%" stopColor="#0d1230"/>
           </linearGradient>
           <linearGradient id="fn-accent" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#8b5cf6"/>
+            <stop offset="0%" stopColor="#c93b3b"/>
             <stop offset="50%" stopColor="#6366f1"/>
             <stop offset="100%" stopColor="#3b82f6"/>
           </linearGradient>
