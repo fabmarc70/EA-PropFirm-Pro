@@ -87,6 +87,11 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    sim_funded_need_challenge: "Lance une simulation Challenge d'abord pour accéder au compte Funded.",
+    sim_go_challenge: "Aller au Challenge",
+    sim_challenge_not_validated: "Le challenge n'a pas été validé. Modifie tes paramètres et relance la simulation.",
+    sim_funded_not_generated: "Le compte Funded n'a pas pu être généré. Relance la simulation.",
+    sim_back_challenge2: "Retour au Challenge",
     an_projection_challenge: "Projection Challenge",
     mt_csv_instr: "MT4 : Historique → clic droit → CSV",
     mt_csv_instr2: "MT5 : Historique → Rapport → CSV",
@@ -519,6 +524,11 @@ const I18N = {
     prof_account: "Cuenta",
     prof_prefs: "Preferencias",
     prof_lang: "Idioma",
+    sim_funded_need_challenge: "Lanza primero una simulación Challenge para acceder a la cuenta Funded.",
+    sim_go_challenge: "Ir al Desafío",
+    sim_challenge_not_validated: "El desafío no fue validado. Ajusta tus parámetros y relanza la simulación.",
+    sim_funded_not_generated: "La cuenta Funded no pudo generarse. Relanza la simulación.",
+    sim_back_challenge2: "Volver al Desafío",
     an_projection_challenge: "Proyección del Desafío",
     mt_csv_instr: "MT4: Historial → clic derecho → CSV",
     mt_csv_instr2: "MT5: Historial → Informe → CSV",
@@ -950,6 +960,11 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    sim_funded_need_challenge: "Run a Challenge simulation first to access the Funded account.",
+    sim_go_challenge: "Go to Challenge",
+    sim_challenge_not_validated: "The challenge was not validated. Adjust your parameters and rerun the simulation.",
+    sim_funded_not_generated: "The Funded account could not be generated. Rerun the simulation.",
+    sim_back_challenge2: "Back to Challenge",
     an_projection_challenge: "Challenge Projection",
     mt_csv_instr: "MT4: History → right-click → CSV",
     mt_csv_instr2: "MT5: History → Report → CSV",
@@ -4146,10 +4161,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           tab === "montecarlo" ? null : (
           <div className="card" style={{ textAlign: "center", padding: 32 }}>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>
-              Lance une simulation Challenge d'abord pour accéder au compte Funded.
+              {t("sim_funded_need_challenge")}
             </div>
             <button onClick={() => setTab("challenge")} style={{ marginTop: 14, padding: "11px 20px", borderRadius: 10, background: "#6ee7b7", color: "#000", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer" }}>
-              Aller au Challenge
+              {t("sim_go_challenge")}
             </button>
           </div>
           )
@@ -4158,11 +4173,11 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           <div className="card" style={{ textAlign: "center", padding: 32 }}>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.6, marginBottom: 14 }}>
               {!sim.allPassed
-                ? "Le challenge n'a pas été validé. Modifie tes paramètres et relance la simulation."
-                : "Le compte Funded n'a pas pu être généré. Relance la simulation."}
+                ? t("sim_challenge_not_validated")
+                : t("sim_funded_not_generated")}
             </div>
             <button onClick={() => setTab("challenge")} style={{ padding: "11px 20px", borderRadius: 10, background: "rgba(255,255,255,0.07)", color: "#6ee7b7", fontSize: 13, fontWeight: 700, border: "1px solid rgba(110,231,183,0.25)", cursor: "pointer" }}>
-              Retour au Challenge
+              {t("sim_back_challenge2")}
             </button>
           </div>
           )
@@ -8896,7 +8911,15 @@ export default function App() {
     return unsub;
   }, []);
   const [setupDone, setSetupDone] = useState(app0.setupDone ?? false);
-  const [profile, setProfile] = useState(app0.profile ?? { lang: "fr", firmKey: "fundednext", capital: 25000 });
+  const [profile, setProfileRaw] = useState(app0.profile ?? { lang: "fr", firmKey: "fundednext", capital: 25000 });
+  // Wrapper : toute modif du profil est aussi persistée par utilisateur (séparation comptes)
+  const setProfile = (p) => {
+    setProfileRaw(p);
+    if (p && typeof p === "object") {
+      const uid = user?.uid || user?.email || "guest";
+      try { localStorage.setItem("eapropfirm_user_" + uid, JSON.stringify({ profile: p, setupDone: true })); } catch(e) {}
+    }
+  };
   const [screen, setScreen] = useState("dashboard");
   const [simTab, setSimTab] = useState("challenge");
   const [lastSim, setLastSim] = useState(app0.lastSim ?? null);
@@ -8988,14 +9011,36 @@ export default function App() {
   if (!user) {
     return <LoginScreen t={t} lang={lang} setLang={setLang} onAuth={(u) => {
       setUser(u);
-      saveApp({ user: u });
+      // ── Séparation des comptes : charger le profil/setup propre à cet utilisateur ──
+      const uid = u?.uid || u?.email || "guest";
+      let perUser = null;
+      try { perUser = JSON.parse(localStorage.getItem("eapropfirm_user_" + uid) || "null"); } catch(e) {}
+      if (perUser && perUser.profile) {
+        // Compte connu : restaurer son profil et son setup
+        setProfile(perUser.profile);
+        setSetupDone(perUser.setupDone ?? true);
+        saveApp({ user: u, profile: perUser.profile, setupDone: perUser.setupDone ?? true });
+      } else {
+        // Nouveau compte : pas de setup encore → ProfileSetup s'affichera
+        setSetupDone(false);
+        saveApp({ user: u, setupDone: false });
+      }
       const p = startTrialIfNeeded(); // démarre les 7 jours à la 1ère connexion
       setPremium(p);
       setShowSplash(true);
     }} />;
   }
   if (!setupDone) {
-    return <ProfileSetupScreen t={t} lang={lang} setLang={setLang} onDone={(p) => { setProfile(p); setSetupDone(true); }} />;
+    return <ProfileSetupScreen t={t} lang={lang} setLang={setLang} onDone={(p) => {
+      setProfile(p);
+      setSetupDone(true);
+      // Persister globalement ET par utilisateur (séparation des comptes)
+      saveApp({ profile: p, setupDone: true });
+      const uid = user?.uid || user?.email || "guest";
+      try { localStorage.setItem("eapropfirm_user_" + uid, JSON.stringify({ profile: p, setupDone: true })); } catch(e) {}
+      // Synchroniser la config du simulateur (firm + capital)
+      syncSimConfig({ firmKey: p.firmKey, capital: p.capital });
+    }} />;
   }
 
   // ── Paywall d'onboarding — affiché une seule fois après le ProfileSetup ──
