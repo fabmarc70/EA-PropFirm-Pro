@@ -87,6 +87,106 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    sim_winrate_global2: "Winrate global",
+    sim_loss_clustering: "Loss Clustering",
+    sim_clustering_help: "0% = trades indépendants (théorique). Plus c'est haut, plus les pertes arrivent en",
+    sim_black_series: "séries noires",
+    sim_recommended: "Recommandé : 35-50%.",
+    sim_max_consec: "Max pertes consécutives EA",
+    sim_lot_instrument: "Lot & Instrument",
+    sim_enable: "Activer",
+    sim_instrument: "Instrument",
+    sim_of_capital: "% du capital",
+    sim_how_much_risk: "Combien risquez-vous par trade ?",
+    sim_define_risk: "Définissez votre risque en % du capital. Tout le reste en découle automatiquement.",
+    sim_capital_label: "Capital ($)",
+    sim_risk_per_trade: "Risque par trade (%)",
+    sim_target_obj: "Objectif",
+    sim_expected: "espéré",
+    sim_new_sim: "Nouvelle simulation",
+    sim_copy_report2: "Copy report",
+    sim_print_pdf: "Imprimer / PDF",
+    sim_real_results: "Les résultats réels peuvent être inférieurs de 5 à 15 % à cause du spread, du slippage et des conditions de marché.",
+    sim_balance_net: "Bilan Financier Net",
+    sim_reward_challenge: "Reward challenge",
+    sim_payouts_paid: "Payouts funded versés",
+    sim_pending_unpaid: "En attente (non versé)",
+    sim_challenge_fees: "Frais d'achat challenge",
+    sim_net_result_label: "RESULTAT NET",
+    sim_rules: "REGLES",
+    sim_phase1_obj: "Phase 1 objectif",
+    sim_phase2_obj: "Phase 2 objectif",
+    sim_daily_dd2: "DD Journalier",
+    sim_total_dd2: "DD Total",
+    sim_time_limit: "Limite de temps",
+    sim_none: "Aucune",
+    sim_min_days_phase: "Min jours/phase",
+    sim_days_unit: "jours",
+    sim_first_payout: "1er payout",
+    sim_after: "après",
+    sim_split_funded: "Split Funded",
+    sim_ea_algo: "EA/Algo",
+    sim_authorized: "Autorisé",
+    sim_save_config: "Save this config",
+    sim_calendar_pnl: "Calendrier PnL",
+    sim_month_dayday: "Mois {n} - simulation jour par jour",
+    sim_pl_month: "P&L month",
+    sim_days_pm: "Jours +/-",
+    sim_best: "Best",
+    sim_worst: "Worst",
+    sim_detail_monthly: "Detail Mensuel",
+    sim_month_col: "Mois",
+    sim_status_col: "Statut",
+    sim_mc_analysis: "ANALYSE MONTE CARLO",
+    sim_mc_sims: "Monte Carlo - 200 simulations",
+    sim_mc_survive: "Survie funded",
+    sim_mc_profitable: "Profitable",
+    sim_mc_distribution: "Distribution resultat net",
+    sim_mc_dd_avg: "DD moyen sur runs passés :",
+    sim_mc_fees: "Frais challenge :",
+    sim_indicative: "Simulation indicative - Pas une garantie",
+    sim_rr_impossible: "RR impossible ou > 20 - winrate trop bas pour ce ratio",
+    sim_raise_wr: "Monte le winrate ou baisse l'objectif/jour.",
+    mt_import_history: "IMPORT HISTORIQUE",
+    mt_csv_text: "CSV / Texte",
+    mt_backtest_html: "Backtest HTML",
+    mt_csv_formats: "CSV, TXT, TSV, ou HTML",
+    mt_no_file: "Aucun fichier",
+    mt_trading_journal: "TRADING JOURNAL",
+    mt_my_real_journal: "My real journal",
+    mt_journal_desc: "Saisis tes journées de trading et ajoute tes captures MT4/MT5. Synchronisé avec l'accueil.",
+    an_lever_reduce_risk: "Réduire le risque/trade",
+    an_lever_improve_rr: "Améliorer le ratio R/R",
+    an_lever_improve_wr: "Améliorer le winrate",
+    an_probability: "Probabilité",
+    an_time_estimated: "Temps estimé (ph.1)",
+    an_max_losses: "Pertes max supportables",
+    an_levers: "Leviers d'optimisation",
+    an_positive_points: "Points positifs",
+    an_wr_days: "WR jours",
+    an_best_day: "Meilleur jour",
+    an_worst_day: "Pire jour",
+    an_win_streak: "Série gagnante max",
+    an_loss_streak: "Série perdante max",
+    an_run_or_enter: "Lance une simulation ou saisis des trades",
+    prof_choose_avatar: "Choisir un avatar",
+    prof_edit_avatar: "Modifier l'avatar",
+    prof_display_mode: "MODE D'AFFICHAGE",
+    prof_simple: "Simplifié",
+    prof_advanced: "Avancé",
+    prof_advanced_desc: "Affichage avancé : toutes les métriques, clustering, Kelly, statistiques.",
+    prof_simple_desc: "Affichage simplifié : l'essentiel uniquement (DD, risque, projections).",
+    prof_lang_fr: "Français",
+    mt_rr_real: "RR réel",
+    mt_pf_real: "PF réel",
+    mt_avg_gain: "Moy. gain",
+    mt_profit_phase1: "Profit Phase 1",
+    mt_obj_phase1: "Objectif Phase 1",
+    mt_profile_loaded: "Profil chargé",
+    mt_config_restored: "Configuration restaurée",
+    mt_sim_history: "Historique des simulations",
+    mt_ready: "Prêt",
+    mt_monthly: "Mensuel",
     mt_no_balance_dd: "Sans solde de départ réel, le drawdown ne peut pas être calculé — il est donc impossible de confirmer si le challenge est passé ou non.",
     login_cgu: "Conditions d'utilisation",
     login_and_our: " et notre ",
@@ -413,6 +513,106 @@ const I18N = {
     prof_account: "Cuenta",
     prof_prefs: "Preferencias",
     prof_lang: "Idioma",
+    sim_winrate_global2: "Win rate global",
+    sim_loss_clustering: "Agrupación de pérdidas",
+    sim_clustering_help: "0% = operaciones independientes (teórico). Cuanto más alto, más pérdidas llegan en",
+    sim_black_series: "rachas negativas",
+    sim_recommended: "Recomendado: 35-50%.",
+    sim_max_consec: "Máx pérdidas consecutivas EA",
+    sim_lot_instrument: "Lote e Instrumento",
+    sim_enable: "Activar",
+    sim_instrument: "Instrumento",
+    sim_of_capital: "% del capital",
+    sim_how_much_risk: "¿Cuánto arriesgas por operación?",
+    sim_define_risk: "Define tu riesgo en % del capital. Todo lo demás se calcula automáticamente.",
+    sim_capital_label: "Capital ($)",
+    sim_risk_per_trade: "Riesgo por operación (%)",
+    sim_target_obj: "Objetivo",
+    sim_expected: "esperado",
+    sim_new_sim: "Nueva simulación",
+    sim_copy_report2: "Copiar informe",
+    sim_print_pdf: "Imprimir / PDF",
+    sim_real_results: "Los resultados reales pueden ser 5 a 15% inferiores debido al spread, slippage y condiciones del mercado.",
+    sim_balance_net: "Balance Financiero Neto",
+    sim_reward_challenge: "Recompensa desafío",
+    sim_payouts_paid: "Payouts financiados pagados",
+    sim_pending_unpaid: "Pendiente (no pagado)",
+    sim_challenge_fees: "Costo de compra del desafío",
+    sim_net_result_label: "RESULTADO NETO",
+    sim_rules: "REGLAS",
+    sim_phase1_obj: "Objetivo Fase 1",
+    sim_phase2_obj: "Objetivo Fase 2",
+    sim_daily_dd2: "DD Diario",
+    sim_total_dd2: "DD Total",
+    sim_time_limit: "Límite de tiempo",
+    sim_none: "Ninguno",
+    sim_min_days_phase: "Mín días/fase",
+    sim_days_unit: "días",
+    sim_first_payout: "1er payout",
+    sim_after: "después",
+    sim_split_funded: "Split Financiado",
+    sim_ea_algo: "EA/Algo",
+    sim_authorized: "Permitido",
+    sim_save_config: "Guardar config",
+    sim_calendar_pnl: "Calendario PnL",
+    sim_month_dayday: "Mes {n} - simulación día a día",
+    sim_pl_month: "P&L mes",
+    sim_days_pm: "Días +/-",
+    sim_best: "Mejor",
+    sim_worst: "Peor",
+    sim_detail_monthly: "Detalle Mensual",
+    sim_month_col: "Mes",
+    sim_status_col: "Estado",
+    sim_mc_analysis: "ANÁLISIS MONTE CARLO",
+    sim_mc_sims: "Monte Carlo - 200 simulaciones",
+    sim_mc_survive: "Supervivencia funded",
+    sim_mc_profitable: "Rentable",
+    sim_mc_distribution: "Distribución resultado neto",
+    sim_mc_dd_avg: "DD medio en runs pasados:",
+    sim_mc_fees: "Costo desafío:",
+    sim_indicative: "Simulación indicativa - No es una garantía",
+    sim_rr_impossible: "RR imposible o > 20 - win rate demasiado bajo para este ratio",
+    sim_raise_wr: "Sube el win rate o baja el objetivo/día.",
+    mt_import_history: "IMPORTAR HISTORIAL",
+    mt_csv_text: "CSV / Texto",
+    mt_backtest_html: "Backtest HTML",
+    mt_csv_formats: "CSV, TXT, TSV, o HTML",
+    mt_no_file: "Ningún archivo",
+    mt_trading_journal: "DIARIO DE TRADING",
+    mt_my_real_journal: "Mi diario real",
+    mt_journal_desc: "Registra tus días de trading y añade tus capturas MT4/MT5. Sincronizado con el inicio.",
+    an_lever_reduce_risk: "Reducir riesgo/operación",
+    an_lever_improve_rr: "Mejorar ratio R/R",
+    an_lever_improve_wr: "Mejorar win rate",
+    an_probability: "Probabilidad",
+    an_time_estimated: "Tiempo estimado (f.1)",
+    an_max_losses: "Pérdidas máx soportables",
+    an_levers: "Palancas de optimización",
+    an_positive_points: "Puntos positivos",
+    an_wr_days: "WR días",
+    an_best_day: "Mejor día",
+    an_worst_day: "Peor día",
+    an_win_streak: "Racha ganadora máx",
+    an_loss_streak: "Racha perdedora máx",
+    an_run_or_enter: "Lanza una simulación o registra operaciones",
+    prof_choose_avatar: "Elegir un avatar",
+    prof_edit_avatar: "Editar avatar",
+    prof_display_mode: "MODO DE VISUALIZACIÓN",
+    prof_simple: "Simple",
+    prof_advanced: "Avanzado",
+    prof_advanced_desc: "Visualización avanzada: todas las métricas, clustering, Kelly, estadísticas.",
+    prof_simple_desc: "Visualización simple: solo lo esencial (DD, riesgo, proyecciones).",
+    prof_lang_fr: "Francés",
+    mt_rr_real: "RR real",
+    mt_pf_real: "PF real",
+    mt_avg_gain: "Ganancia med.",
+    mt_profit_phase1: "Beneficio Fase 1",
+    mt_obj_phase1: "Objetivo Fase 1",
+    mt_profile_loaded: "Perfil cargado",
+    mt_config_restored: "Configuración restaurada",
+    mt_sim_history: "Historial de simulaciones",
+    mt_ready: "Listo",
+    mt_monthly: "Mensual",
     mt_no_balance_dd: "Sin un saldo inicial real, el drawdown no puede calcularse — por lo tanto es imposible confirmar si el desafío fue superado o no.",
     login_cgu: "Términos de uso",
     login_and_our: " y nuestra ",
@@ -738,6 +938,106 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    sim_winrate_global2: "Global win rate",
+    sim_loss_clustering: "Loss Clustering",
+    sim_clustering_help: "0% = independent trades (theoretical). The higher it is, the more losses come in",
+    sim_black_series: "losing streaks",
+    sim_recommended: "Recommended: 35-50%.",
+    sim_max_consec: "Max consecutive EA losses",
+    sim_lot_instrument: "Lot & Instrument",
+    sim_enable: "Enable",
+    sim_instrument: "Instrument",
+    sim_of_capital: "% of capital",
+    sim_how_much_risk: "How much do you risk per trade?",
+    sim_define_risk: "Set your risk as % of capital. Everything else follows automatically.",
+    sim_capital_label: "Capital ($)",
+    sim_risk_per_trade: "Risk per trade (%)",
+    sim_target_obj: "Target",
+    sim_expected: "expected",
+    sim_new_sim: "New simulation",
+    sim_copy_report2: "Copy report",
+    sim_print_pdf: "Print / PDF",
+    sim_real_results: "Real results may be 5 to 15% lower due to spread, slippage and market conditions.",
+    sim_balance_net: "Net Financial Summary",
+    sim_reward_challenge: "Challenge reward",
+    sim_payouts_paid: "Funded payouts paid",
+    sim_pending_unpaid: "Pending (unpaid)",
+    sim_challenge_fees: "Challenge purchase fees",
+    sim_net_result_label: "NET RESULT",
+    sim_rules: "RULES",
+    sim_phase1_obj: "Phase 1 target",
+    sim_phase2_obj: "Phase 2 target",
+    sim_daily_dd2: "Daily DD",
+    sim_total_dd2: "Total DD",
+    sim_time_limit: "Time limit",
+    sim_none: "None",
+    sim_min_days_phase: "Min days/phase",
+    sim_days_unit: "days",
+    sim_first_payout: "1st payout",
+    sim_after: "after",
+    sim_split_funded: "Funded Split",
+    sim_ea_algo: "EA/Algo",
+    sim_authorized: "Allowed",
+    sim_save_config: "Save this config",
+    sim_calendar_pnl: "PnL Calendar",
+    sim_month_dayday: "Month {n} - day-by-day simulation",
+    sim_pl_month: "P&L month",
+    sim_days_pm: "Days +/-",
+    sim_best: "Best",
+    sim_worst: "Worst",
+    sim_detail_monthly: "Monthly Detail",
+    sim_month_col: "Month",
+    sim_status_col: "Status",
+    sim_mc_analysis: "MONTE CARLO ANALYSIS",
+    sim_mc_sims: "Monte Carlo - 200 simulations",
+    sim_mc_survive: "Funded survival",
+    sim_mc_profitable: "Profitable",
+    sim_mc_distribution: "Net result distribution",
+    sim_mc_dd_avg: "Avg DD on passed runs:",
+    sim_mc_fees: "Challenge fees:",
+    sim_indicative: "Indicative simulation - Not a guarantee",
+    sim_rr_impossible: "RR impossible or > 20 - win rate too low for this ratio",
+    sim_raise_wr: "Raise the win rate or lower the target/day.",
+    mt_import_history: "IMPORT HISTORY",
+    mt_csv_text: "CSV / Text",
+    mt_backtest_html: "Backtest HTML",
+    mt_csv_formats: "CSV, TXT, TSV, or HTML",
+    mt_no_file: "No file",
+    mt_trading_journal: "TRADING JOURNAL",
+    mt_my_real_journal: "My real journal",
+    mt_journal_desc: "Enter your trading days and add your MT4/MT5 screenshots. Synced with home.",
+    an_lever_reduce_risk: "Reduce risk/trade",
+    an_lever_improve_rr: "Improve R/R ratio",
+    an_lever_improve_wr: "Improve win rate",
+    an_probability: "Probability",
+    an_time_estimated: "Estimated time (ph.1)",
+    an_max_losses: "Max bearable losses",
+    an_levers: "Optimization levers",
+    an_positive_points: "Positive points",
+    an_wr_days: "WR days",
+    an_best_day: "Best day",
+    an_worst_day: "Worst day",
+    an_win_streak: "Max winning streak",
+    an_loss_streak: "Max losing streak",
+    an_run_or_enter: "Run a simulation or enter trades",
+    prof_choose_avatar: "Choose an avatar",
+    prof_edit_avatar: "Edit avatar",
+    prof_display_mode: "DISPLAY MODE",
+    prof_simple: "Simple",
+    prof_advanced: "Advanced",
+    prof_advanced_desc: "Advanced display: all metrics, clustering, Kelly, statistics.",
+    prof_simple_desc: "Simple display: essentials only (DD, risk, projections).",
+    prof_lang_fr: "French",
+    mt_rr_real: "Real RR",
+    mt_pf_real: "Real PF",
+    mt_avg_gain: "Avg gain",
+    mt_profit_phase1: "Phase 1 Profit",
+    mt_obj_phase1: "Phase 1 Target",
+    mt_profile_loaded: "Profile loaded",
+    mt_config_restored: "Configuration restored",
+    mt_sim_history: "Simulation history",
+    mt_ready: "Ready",
+    mt_monthly: "Monthly",
     mt_no_balance_dd: "Without a real starting balance, the drawdown cannot be calculated — it is therefore impossible to confirm whether the challenge was passed or not.",
     login_cgu: "Terms of Use",
     login_and_our: " and our ",
@@ -1369,15 +1669,15 @@ function coachAnalyze(data, firmName) {
     if (riskPct > 0.5) {
       const nr = Math.max(0.25, riskPct - 0.25);
       const np = coachEstimateProbability({ winrate, rr, ddUsedPct: worstDD*(nr/riskPct), ddLimitPct: worstDDLim, profitFactor, totalTrades, riskPct: nr });
-      if (np > probability) levers.push({ from: riskPct.toFixed(2)+'%', to: nr.toFixed(2)+'%', gain: np-probability, newProb: np, label:'Réduire le risque/trade' });
+      if (np > probability) levers.push({ from: riskPct.toFixed(2)+'%', to: nr.toFixed(2)+'%', gain: np-probability, newProb: np, label:t('an_lever_reduce_risk') });
     }
     const nrr = rr + 0.5, nPF = (1-wr)>0?(wr*nrr)/(1-wr):99;
     const np2 = coachEstimateProbability({ winrate, rr:nrr, ddUsedPct:worstDD, ddLimitPct:worstDDLim, profitFactor:nPF, totalTrades, riskPct });
-    if (np2 > probability) levers.push({ from:'1:'+rr.toFixed(1), to:'1:'+nrr.toFixed(1), gain:np2-probability, newProb:np2, label:'Améliorer le ratio R/R' });
+    if (np2 > probability) levers.push({ from:'1:'+rr.toFixed(1), to:'1:'+nrr.toFixed(1), gain:np2-probability, newProb:np2, label:t('an_lever_improve_rr') });
     if (winrate < 70) {
       const nwr=winrate+5, nwrr=nwr/100, nPF3=(1-nwrr)>0?(nwrr*rr)/(1-nwrr):99;
       const np3=coachEstimateProbability({winrate:nwr,rr,ddUsedPct:worstDD,ddLimitPct:worstDDLim,profitFactor:nPF3,totalTrades,riskPct});
-      if (np3>probability) levers.push({ from:winrate.toFixed(0)+'%', to:nwr.toFixed(0)+'%', gain:np3-probability, newProb:np3, label:'Améliorer le winrate' });
+      if (np3>probability) levers.push({ from:winrate.toFixed(0)+'%', to:nwr.toFixed(0)+'%', gain:np3-probability, newProb:np3, label:t('an_lever_improve_wr') });
     }
     return levers.sort((a,b)=>b.gain-a.gain).slice(0,3);
   };
@@ -1819,10 +2119,10 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
           <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}><span style={{marginRight:5}}>🎯</span>Projection Challenge</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
             {[
-              {l:'Probabilité',v:a.probability+'%',c:pColor},
-              {l:'Temps estimé (ph.1)',v:a.projection.daysMin?`${a.projection.daysMin}–${a.projection.daysMax}j`:'N/A',c:'#fff'},
+              {l:t('an_probability'),v:a.probability+'%',c:pColor},
+              {l:t('an_time_estimated'),v:a.projection.daysMin?`${a.projection.daysMin}–${a.projection.daysMax}j`:'N/A',c:'#fff'},
               {l:'Risque d\'échec',v:a.projection.failureRisk,c:a.projection.failureColor},
-              {l:'Pertes max supportables',v:a.projection.maxConsecLosses>0?`${a.projection.maxConsecLosses} trades`:'Inconnu',c:a.projection.maxConsecLosses>5?'#4ade80':a.projection.maxConsecLosses>2?'#fbbf24':'#ef4444'},
+              {l:t('an_max_losses'),v:a.projection.maxConsecLosses>0?`${a.projection.maxConsecLosses} trades`:'Inconnu',c:a.projection.maxConsecLosses>5?'#4ade80':a.projection.maxConsecLosses>2?'#fbbf24':'#ef4444'},
             ].map((m,i)=>(
               <div key={i} style={{background:'rgba(255,255,255,0.05)',borderRadius:12,padding:'11px 12px'}}>
                 <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',marginBottom:3,lineHeight:1.3}}>{m.l}</div>
@@ -1834,7 +2134,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
         {/* Optimisation */}
         {a.levers.length>0&&<div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>⚡</span>Leviers d'optimisation</div>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>⚡</span>{t("an_levers")}</div>
           {a.levers.map((l,i)=>(
             <div key={i} style={{background:'rgba(110,231,183,0.05)',border:'1px solid rgba(110,231,183,0.15)',borderRadius:12,padding:'11px 14px',marginBottom:i<a.levers.length-1?8:0,display:'flex',alignItems:'center',gap:12}}>
               <div style={{width:40,height:40,borderRadius:10,background:'rgba(110,231,183,0.12)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flexShrink:0}}>
@@ -1883,7 +2183,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
             <div style={{fontSize:22,fontWeight:900,color:cColor,marginBottom:2}}>{cLabel}</div>
             <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{j.totalDays} jours · P&L {j.totalPnl>0?'+':''}{j.totalPnl}$</div>
             <div style={{display:'flex',gap:8,marginTop:10}}>
-              {[{l:'WR jours',v:j.dayWR.toFixed(0)+'%',g:j.dayWR>=55},{l:'WR trades',v:j.tradeWR.toFixed(0)+'%',g:j.tradeWR>=50},{l:'Moy./jour',v:(j.avgDailyPnl>0?'+':'')+j.avgDailyPnl+'$',g:j.avgDailyPnl>0}].map((m,i)=>(
+              {[{l:t('an_wr_days'),v:j.dayWR.toFixed(0)+'%',g:j.dayWR>=55},{l:'WR trades',v:j.tradeWR.toFixed(0)+'%',g:j.tradeWR>=50},{l:'Moy./jour',v:(j.avgDailyPnl>0?'+':'')+j.avgDailyPnl+'$',g:j.avgDailyPnl>0}].map((m,i)=>(
                 <div key={i} style={{flex:1,background:'rgba(255,255,255,0.06)',borderRadius:10,padding:'7px 6px',textAlign:'center'}}>
                   <div style={{fontSize:8,color:'rgba(255,255,255,0.4)'}}>{m.l}</div>
                   <div style={{fontSize:12,fontWeight:800,color:m.warn?'#ef4444':m.g?'#4ade80':'#fbbf24'}}>{m.v}</div>
@@ -1898,10 +2198,10 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
           <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}><span style={{marginRight:5}}>🧠</span>{t("an_behavioral")}</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
             {[
-              {l:'Meilleur jour',v:'+'+(j.bestDay||0).toFixed(0)+'$',c:'#4ade80'},
-              {l:'Pire jour',v:(j.worstDay||0).toFixed(0)+'$',c:'#ef4444'},
-              {l:'Série gagnante max',v:j.maxStreakW+' jours',c:j.maxStreakW>=5?'#4ade80':'#fff'},
-              {l:'Série perdante max',v:j.maxStreakL+' jours',c:j.maxStreakL>=5?'#ef4444':j.maxStreakL>=3?'#fbbf24':'#6ee7b7'},
+              {l:t('an_best_day'),v:'+'+(j.bestDay||0).toFixed(0)+'$',c:'#4ade80'},
+              {l:t('an_worst_day'),v:(j.worstDay||0).toFixed(0)+'$',c:'#ef4444'},
+              {l:t('an_win_streak'),v:j.maxStreakW+' jours',c:j.maxStreakW>=5?'#4ade80':'#fff'},
+              {l:t('an_loss_streak'),v:j.maxStreakL+' jours',c:j.maxStreakL>=5?'#ef4444':j.maxStreakL>=3?'#fbbf24':'#6ee7b7'},
             ].map((m,i)=>(
               <div key={i} style={{background:'rgba(255,255,255,0.05)',borderRadius:12,padding:'11px 12px'}}>
                 <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',marginBottom:3}}>{m.l}</div>
@@ -1913,7 +2213,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
         {/* Points forts */}
         {j.strengths.length>0&&<div style={{background:'rgba(110,231,183,0.04)',border:'1px solid rgba(110,231,183,0.15)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>💪</span>Points positifs</div>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>💪</span>{t("an_positive_points")}</div>
           {j.strengths.map((s,i)=><div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:i<j.strengths.length-1?7:0}}><span style={{color:'#6ee7b7',fontSize:13,flexShrink:0}}>✓</span><div style={{fontSize:12,color:'rgba(255,255,255,0.8)',lineHeight:1.4}}>{s.text}</div></div>)}
         </div>}
 
@@ -3224,7 +3524,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         <input type="range" min={0} max={100} step={5} value={clusteringPct} onChange={e => setClusteringPct(parseInt(e.target.value))} />
         <div style={{ marginTop: 8, fontSize: 10, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
           0% = trades independants (theorique). Plus c'est haut, plus les pertes arrivent en
-          <b style={{ color: clColor }}> series noires</b>. Recommande : 35-50%.
+          <b style={{ color: clColor }}> {t("sim_black_series")}</b>. Recommande : 35-50%.
         </div>
 
         <div style={{ marginTop: 12, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 10 }}>
@@ -3263,7 +3563,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.75)", textTransform: "uppercase", letterSpacing: 1 }}>Lot & Instrument</span>
           <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.65)" }}>Activer</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.65)" }}>{t("sim_enable")}</span>
             <div onClick={() => setUseFixedLot(v => !v)} style={{
               width: 36, height: 20, borderRadius: 10, background: useFixedLot ? "#6ee7b7" : "rgba(255,255,255,0.12)",
               border: "1px solid " + (useFixedLot ? "#6ee7b7" : "rgba(255,255,255,0.08)"),
@@ -3277,7 +3577,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
           {/* Instrument */}
           <div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700 }}>Instrument</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700 }}>{t("sim_instrument")}</div>
             <select value={instrument} onChange={e => setInstrument(e.target.value)}
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 12, color: "#FFFFFF", padding: "8px 6px", width: "100%", fontSize: 12 }}>
               {Object.keys(INSTRUMENTS).map(i => (
@@ -3538,13 +3838,13 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             Combien risquez-vous par trade ?
           </div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.4 }}>
-            Définissez votre risque en % du capital. Tout le reste en découle automatiquement.
+            {t("sim_define_risk")}
           </div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {/* Capital */}
           <div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700 }}>Capital ($)</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700 }}>{t("sim_capital_label")}</div>
             <input type="number" value={capital} min={6000} max={200000} step={1000} onChange={e => setCapital(parseFloat(e.target.value) || 0)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#FFFFFF", padding: "5px 8px", width: "100%", fontSize: 13 }} />
             <input type="range" min={6000} max={200000} step={1000} value={capital} onChange={e => setCapital(parseFloat(e.target.value))} />
           </div>
@@ -3626,19 +3926,19 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
         {/* C4 — Estimation de réalisme */}
         <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 10, fontSize: 10, color: "rgba(255,255,255,0.35)", lineHeight: 1.6, textAlign: "center" }}>
-          Les résultats réels peuvent être inférieurs de 5 à 15 % à cause du spread, du slippage et des conditions de marché.
+          {t("sim_real_results")}
         </div>
       </div>
 
       {/* BILAN FINANCIER NET */}
       {bilan && (
         <div className="card" style={{ border: "1px solid rgba(110,231,183,0.10)" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Bilan Financier Net</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>{t("sim_balance_net")}</div>
           {[
-            { label: "Reward challenge (15%)", val: "+" + fmt2(bilan.reward), color: "#6ee7b7" },
-            { label: "Payouts funded verses", val: "+" + fmt2(bilan.payout), color: "#6ee7b7" },
-            { label: "En attente (non verse)", val: "+" + fmt2(bilan.pending), color: "rgba(255,255,255,0.55)" },
-            { label: "Frais d'achat challenge", val: "-" + fmt2(bilan.fee), color: "#ef4444" },
+            { label: t("sim_reward_challenge") + " (" + (model.rewardPct||15) + "%)", val: "+" + fmt2(bilan.reward), color: "#6ee7b7" },
+            { label: t("sim_payouts_paid"), val: "+" + fmt2(bilan.payout), color: "#6ee7b7" },
+            { label: t("sim_pending_unpaid"), val: "+" + fmt2(bilan.pending), color: "rgba(255,255,255,0.55)" },
+            { label: t("sim_challenge_fees"), val: "-" + fmt2(bilan.fee), color: "#ef4444" },
           ].map(k => (
             <div key={k.label} className="row">
               <span style={{ color: "rgba(255,255,255,0.65)" }}>{k.label}</span>
@@ -3714,7 +4014,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       {!finalRRValid && (
         <div className="card" style={{ textAlign: "center", padding: 24, color: "#ef4444", fontWeight: 700, fontSize: 13 }}>
           Combinaison impossible : winrate trop bas pour cet objectif.<br />
-          <span style={{ color: "rgba(255,255,255,0.65)", fontWeight: 400, fontSize: 12 }}>Monte le winrate ou baisse l'objectif/jour.</span>
+          <span style={{ color: "rgba(255,255,255,0.65)", fontWeight: 400, fontSize: 12 }}>{t("sim_raise_wr")}</span>
         </div>
       )}
 
@@ -3925,7 +4225,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             <CalendrierPnL t={t} lang={lang} dailyLog={sim.funded.dailyLog} newsSkipDays={newsSkipDays} activeDays={activeDays} />
 
             <div className="card">
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: "#fbbf24" }}>Detail Mensuel</div>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: "#fbbf24" }}>{t("sim_detail_monthly")}</div>
               <div style={{ overflowY: "auto", maxHeight: 300 }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
                   <thead>
@@ -4101,8 +4401,8 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
           {[
             { l: "Challenge", v: res.passRate + "%", c: rate_color(+res.passRate) },
-            { l: "Survie funded", v: res.survRate + "%", c: rate_color(+res.survRate) },
-            { l: "Profitable", v: res.profRate + "%", c: rate_color(+res.profRate) },
+            { l: t("sim_mc_survive"), v: res.survRate + "%", c: rate_color(+res.survRate) },
+            { l: t("sim_mc_profitable"), v: res.profRate + "%", c: rate_color(+res.profRate) },
           ].map(k => (
             <div key={k.l} className="kpi">
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{k.l}</div>
@@ -4111,7 +4411,7 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
           ))}
         </div>
         <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 10, marginBottom: 8 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.65)", marginBottom: 8 }}>Distribution resultat net</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.65)", marginBottom: 8 }}>{t("sim_mc_distribution")}</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 4 }}>
             {[["Min", res.min], ["P25", res.p25], ["P50", res.p50], ["P75", res.p75], ["Max", res.max]].map(([l, v]) => (
               <div key={l} style={{ textAlign: "center" }}>
@@ -4123,10 +4423,10 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
         </div>
         <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 10 }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)" }}>DD moyen sur runs passes : <b style={{ color: "#fbbf24" }}>{res.avgDD}%</b></div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginTop: 4 }}>Frais challenge : <b style={{ color: "#ef4444" }}>{fmt(-fee)}</b></div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginTop: 4 }}>{t("sim_mc_fees")} <b style={{ color: "#ef4444" }}>{fmt(-fee)}</b></div>
         </div>
         <div style={{ marginTop: 8, padding: "7px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 10, fontSize: 10, color: "rgba(255,255,255,0.35)", lineHeight: 1.5, textAlign: "center" }}>
-          Les résultats réels peuvent être inférieurs de 5 à 15 % (spread, slippage, conditions de marché).
+          {t("sim_real_results")}
         </div>
       </div>
     </div>
@@ -4865,7 +5165,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               { l: "Trades", v: stats.total, c: "#FFFFFF" },
               { l: "Winrate", v: stats.wr.toFixed(0) + "%", c: stats.wr >= winrate - 5 ? "#6ee7b7" : "#fbbf24" },
               { l: "Profit Factor", v: stats.pf.toFixed(2), c: stats.pf >= 1.5 ? "#6ee7b7" : stats.pf >= 1 ? "#fbbf24" : "#ef4444" },
-              { l: "RR réel", v: "1:" + stats.rr.toFixed(2), c: "#FFFFFF" },
+              { l: t("mt_rr_real"), v: "1:" + stats.rr.toFixed(2), c: "#FFFFFF" },
               { l: "P&L total", v: "$" + stats.totalPnl.toFixed(0), c: stats.totalPnl >= 0 ? "#6ee7b7" : "#ef4444" },
               { l: "DD max", v: "⚠ inconnu", c: "#fbbf24" },
             ].map(s => (
@@ -5007,8 +5307,8 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 14 }}>
               {[
                 { l: t("mt_wr_real"), v: verdict.realWR + "%", expected: winrate + "%", ok: parseFloat(verdict.realWR) >= winrate - 5 },
-                { l: "RR réel", v: "1:" + verdict.realRR, expected: "1:" + (finalRR || "-").toString().slice(0,4), ok: parseFloat(verdict.realRR) >= (finalRR || 0) * 0.85 },
-                { l: "PF réel", v: verdict.realPF, expected: "≥ 1.5", ok: parseFloat(verdict.realPF) >= 1.5 },
+                { l: t("mt_rr_real"), v: "1:" + verdict.realRR, expected: "1:" + (finalRR || "-").toString().slice(0,4), ok: parseFloat(verdict.realRR) >= (finalRR || 0) * 0.85 },
+                { l: t("mt_pf_real"), v: verdict.realPF, expected: "≥ 1.5", ok: parseFloat(verdict.realPF) >= 1.5 },
                 { l: "DD max", v: verdict.maxDD + "%", expected: "< " + verdict.ddLimitPct + "%", ok: !verdict.ddViolated },
               ].map(k => (
                 <div key={k.l} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "8px 4px", textAlign: "center" }}>
@@ -5121,7 +5421,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               { label: "Winrate", real: stats.wr.toFixed(0) + "%", sim2: winrate + "%", ok: stats.wr >= winrate - 5 },
               { label: "Moy. gain", real: "$" + stats.avgWin.toFixed(0), sim2: "-" },
               { label: "Moy. perte", real: "$" + stats.avgLoss.toFixed(0), sim2: "$" + (capital * riskPct / 100).toFixed(0), ok: stats.avgLoss <= capital * riskPct / 100 * 1.2 },
-              { label: "RR réel", real: "1:" + stats.rr.toFixed(2), sim2: finalRR ? "1:" + finalRR.toFixed(2) : "-", ok: stats.rr >= (finalRR || 0) * 0.85 },
+              { label: t("mt_rr_real"), real: "1:" + stats.rr.toFixed(2), sim2: finalRR ? "1:" + finalRR.toFixed(2) : "-", ok: stats.rr >= (finalRR || 0) * 0.85 },
               { label: "PF", real: stats.pf.toFixed(2), sim2: "-", ok: stats.pf >= 1.3 },
               { label: "P&L total", real: "$" + stats.totalPnl.toFixed(0), sim2: sim && sim.funded ? "$" + (sim.funded.cumulPayout).toFixed(0) : "-" },
               {
@@ -5238,7 +5538,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF", marginBottom: 2 }}>{t("mt_my_journal")}</div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.4 }}>
-              Saisis tes journées de trading et ajoute tes captures MT4/MT5. Synchronisé avec l'accueil.
+              {t("mt_journal_desc")}
             </div>
           </div>
           <div onClick={() => setShowJournal(v => !v)} style={{
@@ -7371,7 +7671,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         {/* 4 stat boxes */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6}}>
           {[
-            {l:"Objectif Phase 1",v:phase1Target.toFixed(0)+"%",sub:"+"+phase1Pct+"% atteint",vc:"#6ee7b7"},
+            {l:t("mt_obj_phase1"),v:phase1Target.toFixed(0)+"%",sub:"+"+phase1Pct+"% atteint",vc:"#6ee7b7"},
             {l:"DD journalier",v:dailyDDLimit+"%",sub:ddDayPct+"% utilisé",vc:"#fbbf24"},
             {l:"DD total",v:totalDDLimit+"%",sub:ddTotPct+"% utilisé",vc:"#f87171"},
             {l:"Profit split",v:splitStart+"-"+splitMax+"%",sub:ls.allPassed?"Atteint":"Non atteint",vc:"#FFFFFF"},
@@ -7524,7 +7824,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         ) : (
           <div style={{height:140,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.2)"}}>
             <div style={{fontSize:28,marginBottom:8}}>📈</div>
-            <div style={{fontSize:12}}>Lance une simulation ou saisis des trades</div>
+            <div style={{fontSize:12}}>{t("an_run_or_enter")}</div>
             <div style={{fontSize:10,marginTop:4,color:"rgba(255,255,255,0.15)"}}>pour voir la courbe du mois courant</div>
           </div>
         )}
@@ -7560,13 +7860,13 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           ))}
           <div style={{borderTop:"1px solid rgba(255,255,255,0.05)",marginTop:8,paddingTop:8}}>
             {[
-              {l:"Meilleur jour",
+              {l:t("an_best_day"),
                v: bestTrade > 0 ? "+$"+fmtMoney(bestTrade) : bestTrade < 0 ? "-$"+fmtMoney(Math.abs(bestTrade)) : "$0",
                c: bestTrade >= 0 ? "#6ee7b7" : "#f87171"},
-              {l:"Pire jour",
+              {l:t("an_worst_day"),
                v: worstTrade < 0 ? "-$"+fmtMoney(Math.abs(worstTrade)) : worstTrade > 0 ? "+$"+fmtMoney(worstTrade) : "$0",
                c: worstTrade <= 0 ? "#f87171" : "#6ee7b7"},
-              {l:"Profit Phase 1",
+              {l:t("mt_profit_phase1"),
                v: profitAmount >= 0 ? "+$"+fmtMoney(profitAmount) : "-$"+fmtMoney(Math.abs(profitAmount)),
                c: profitAmount >= 0 ? "#6ee7b7" : "#f87171"},
               {l:"RR cible",
@@ -7835,7 +8135,7 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
         {/* Grille avatar — visible uniquement au clic */}
         {showAvatarPicker && (
           <div style={{ animation: "fadeIn .15s ease" }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.40)", marginBottom: 10 }}>Choisir un avatar</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.40)", marginBottom: 10 }}>{t("prof_choose_avatar")}</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 8 }}>
               {[0,1,2,3,4,5,6,7,8,9,10,11].map(id => {
                 const sel = (profile.avatarId ?? 0) === id;
@@ -7868,7 +8168,7 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", marginBottom: 6 }}>{t("prof_lang")}</div>
           <div style={{ display: "flex", gap: 8 }}>
-            {[{ k: "fr", label: "Français" }, { k: "en", label: "English" }, { k: "es", label: "Español" }].map(o => (
+            {[{ k: "fr", label: t("prof_lang_fr") }, { k: "en", label: "English" }, { k: "es", label: "Español" }].map(o => (
               <button key={o.k} onClick={() => changeLang(o.k)} style={{
                 flex: 1, padding: "10px 6px", borderRadius: 10, cursor: "pointer", fontSize: 12, fontWeight: 700,
                 background: lang === o.k ? "#6ee7b7" : "rgba(255,255,255,0.07)", color: lang === o.k ? "#000000" : "rgba(255,255,255,0.50)",
@@ -7918,8 +8218,8 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
         <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 12 }}>Mode d'affichage</div>
         <div style={{ display: "flex", gap: 8 }}>
           {[
-            { k: "simple", label: "Simplifié" },
-            { k: "advanced", label: "Avancé" },
+            { k: "simple", label: t("prof_simple") },
+            { k: "advanced", label: t("prof_advanced") },
           ].map(m => {
             const sel = (profile.displayMode || "advanced") === m.k;
             return (
@@ -7940,8 +8240,8 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
         </div>
         <div style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.4 }}>
           {(profile.displayMode || "advanced") === "simple"
-            ? "Affichage simplifié : l'essentiel uniquement (DD, risque, projections)."
-            : "Affichage avancé : toutes les métriques, clustering, Kelly, statistiques."}
+            ? t("prof_simple_desc")
+            : t("prof_advanced_desc")}
         </div>
       </div>
 
@@ -8098,10 +8398,10 @@ function SplashScreen({ user, onReady }) {
   const [progress, setProgress] = useState(0);
 
   const steps = [
-    { label: "Profil chargé",         duration: 350 },
-    { label: "Configuration restaurée", duration: 400 },
-    { label: "Historique des simulations", duration: 350 },
-    { label: "Prêt",                  duration: 300 },
+    { label: t("mt_profile_loaded"),         duration: 350 },
+    { label: t("mt_config_restored"), duration: 400 },
+    { label: t("mt_sim_history"), duration: 350 },
+    { label: t("mt_ready"),                  duration: 300 },
   ];
 
   useEffect(() => {
