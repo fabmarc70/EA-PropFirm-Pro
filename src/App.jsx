@@ -87,6 +87,12 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    an_projection_challenge: "Projection Challenge",
+    mt_csv_instr: "MT4 : Historique → clic droit → CSV",
+    mt_csv_instr2: "MT5 : Historique → Rapport → CSV",
+    mt_html_instr: "MT4/MT5 : Testeur → Rapport → Ouvrir → Fichier HTML",
+    mt_trades_loaded: "trades chargés",
+    mt_clear_data: "Effacer les données importées",
     sim_winrate_global2: "Winrate global",
     sim_loss_clustering: "Loss Clustering",
     sim_clustering_help: "0% = trades indépendants (théorique). Plus c'est haut, plus les pertes arrivent en",
@@ -513,6 +519,12 @@ const I18N = {
     prof_account: "Cuenta",
     prof_prefs: "Preferencias",
     prof_lang: "Idioma",
+    an_projection_challenge: "Proyección del Desafío",
+    mt_csv_instr: "MT4: Historial → clic derecho → CSV",
+    mt_csv_instr2: "MT5: Historial → Informe → CSV",
+    mt_html_instr: "MT4/MT5: Probador → Informe → Abrir → Archivo HTML",
+    mt_trades_loaded: "operaciones cargadas",
+    mt_clear_data: "Borrar datos importados",
     sim_winrate_global2: "Win rate global",
     sim_loss_clustering: "Agrupación de pérdidas",
     sim_clustering_help: "0% = operaciones independientes (teórico). Cuanto más alto, más pérdidas llegan en",
@@ -938,6 +950,12 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    an_projection_challenge: "Challenge Projection",
+    mt_csv_instr: "MT4: History → right-click → CSV",
+    mt_csv_instr2: "MT5: History → Report → CSV",
+    mt_html_instr: "MT4/MT5: Tester → Report → Open → HTML file",
+    mt_trades_loaded: "trades loaded",
+    mt_clear_data: "Clear imported data",
     sim_winrate_global2: "Global win rate",
     sim_loss_clustering: "Loss Clustering",
     sim_clustering_help: "0% = independent trades (theoretical). The higher it is, the more losses come in",
@@ -2116,7 +2134,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
         {/* Projection */}
         <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}><span style={{marginRight:5}}>🎯</span>Projection Challenge</div>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}><span style={{marginRight:5}}>🎯</span>{t("an_projection_challenge")}</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
             {[
               {l:t('an_probability'),v:a.probability+'%',c:pColor},
@@ -4422,7 +4440,7 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
           </div>
         </div>
         <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 10 }}>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)" }}>DD moyen sur runs passes : <b style={{ color: "#fbbf24" }}>{res.avgDD}%</b></div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)" }}>{t("sim_mc_dd_avg")} <b style={{ color: "#fbbf24" }}>{res.avgDD}%</b></div>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginTop: 4 }}>{t("sim_mc_fees")} <b style={{ color: "#ef4444" }}>{fmt(-fee)}</b></div>
         </div>
         <div style={{ marginTop: 8, padding: "7px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 10, fontSize: 10, color: "rgba(255,255,255,0.35)", lineHeight: 1.5, textAlign: "center" }}>
@@ -5044,25 +5062,25 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
       {/* ── UPLOAD : CSV + HTML ── */}
       <div className="card">
         <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
-          Import historique
+          {t("mt_import_history")}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
           <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "8px 10px" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#FFFFFF", marginBottom: 2 }}>📊 CSV / Texte</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", lineHeight: 1.4 }}>MT4 : Historique → clic droit → CSV<br/>MT5 : Historique → Rapport → CSV</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#FFFFFF", marginBottom: 2 }}>📊 {t("mt_csv_text")}</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", lineHeight: 1.4 }}>{t("mt_csv_instr")}<br/>{t("mt_csv_instr2")}</div>
           </div>
           <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "8px 10px" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#FFFFFF", marginBottom: 2 }}>🌐 Backtest HTML</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", lineHeight: 1.4 }}>MT4/MT5 : Testeur → Rapport → Ouvrir → Fichier HTML</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#FFFFFF", marginBottom: 2 }}>🌐 {t("mt_backtest_html")}</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", lineHeight: 1.4 }}>{t("mt_html_instr")}</div>
           </div>
         </div>
         <label style={{ display: "block", background: "rgba(255,255,255,0.05)", border: "2px dashed #2d2d3d", borderRadius: 10, padding: "16px", textAlign: "center", cursor: "pointer" }}>
           <div style={{ fontSize: 28, marginBottom: 6 }}>📂</div>
           <div style={{ fontSize: 13, color: "#6ee7b7", fontWeight: 700 }}>
-            {filename ? filename : "CSV, TXT, TSV, ou HTML"}
+            {filename ? filename : t("mt_csv_formats")}
           </div>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>
-            {trades.length > 0 ? trades.length + " trades chargés" : "Aucun fichier"}
+            {trades.length > 0 ? trades.length + " " + t("mt_trades_loaded") : t("mt_no_file")}
           </div>
           <input type="file" accept=".csv,.txt,.tsv,.html,.htm" onChange={handleFile} style={{ display: "none" }} />
         </label>
@@ -5070,7 +5088,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
         {trades.length > 0 && (
           <button onClick={() => { setTrades([]); setFilename(null); setAlerts([]); setVerdict(null); try { localStorage.removeItem("eapropfirm_trades"); } catch (e) {} }}
             style={{ marginTop: 8, width: "100%", padding: 8, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 12, color: "#fca5a5", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-            Effacer les données importées
+            {t("mt_clear_data")}
           </button>
         )}
       </div>
@@ -8215,7 +8233,7 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
 
       {/* Mode d'affichage */}
       <div className="card">
-        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 12 }}>Mode d'affichage</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 12 }}>{t("prof_display_mode")}</div>
         <div style={{ display: "flex", gap: 8 }}>
           {[
             { k: "simple", label: t("prof_simple") },
