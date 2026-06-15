@@ -15,6 +15,7 @@ import {
   signOut,
   updateProfile,
 } from "firebase/auth";
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCYqMoWp-3BpU_yJZALoioSbTf1zb7HL3g",
@@ -28,6 +29,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+export const db = getFirestore(app);
 
 // Analytics : chargé en différé, sans bloquer si non supporté (iOS standalone etc.)
 import("firebase/analytics").then(({ getAnalytics, isSupported }) => {
@@ -73,4 +75,35 @@ export function fbUserToAppUser(fbUser) {
     provider: (fbUser.providerData && fbUser.providerData[0] && fbUser.providerData[0].providerId) || "password",
     guest: false,
   };
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+// FIRESTORE — Persistance cloud du profil par utilisateur (synchro multi-appareils)
+// Sécurité : chaque user ne peut lire/écrire que son propre document (règles RLS Firestore).
+// Document : users/{uid} → { profile, setupDone, updatedAt }
+// ══════════════════════════════════════════════════════════════════
+
+// Charge le profil cloud d'un utilisateur. Retourne null si absent ou erreur.
+export async function fbLoadUserProfile(uid) {
+  if (!uid) return null;
+  try {
+    const snap = await getDoc(doc(db, "users", uid));
+    return snap.exists() ? snap.data() : null;
+  } catch (e) {
+    console.warn("Firestore load failed (offline?):", e.message);
+    return null;
+  }
+}
+
+// Sauvegarde le profil cloud d'un utilisateur (merge).
+export async function fbSaveUserProfile(uid, data) {
+  if (!uid) return false;
+  try {
+    await setDoc(doc(db, "users", uid), { ...data, updatedAt: Date.now() }, { merge: true });
+    return true;
+  } catch (e) {
+    console.warn("Firestore save failed (offline?):", e.message);
+    return false;
+  }
 }

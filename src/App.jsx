@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser } from "./firebase.js";
+import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser, fbLoadUserProfile, fbSaveUserProfile } from "./firebase.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -1521,6 +1521,7 @@ const fmtPn = (v) => (v >= 0 ? "+" : "") + (v * 100).toFixed(2) + "%";
 // ── Helper de traduction pour les moteurs d'analyse ──
 const AL_DICT = {
   fr: {
+    lever_reduce_risk: "Réduire le risque/trade",    lever_improve_rr: "Améliorer le ratio R/R",    lever_improve_wr: "Améliorer le winrate",
     // Forces
     dd_unknown: "DD inconnu", dd_uncalc: "Drawdown non calculé — audit incomplet",
     pf_exceptional: "Profit Factor exceptionnel", pf_excellent: "Profit Factor excellent",
@@ -1552,6 +1553,7 @@ const AL_DICT = {
     per_trade: "/ trade",
   },
   en: {
+    lever_reduce_risk: "Reduce risk/trade",    lever_improve_rr: "Improve R/R ratio",    lever_improve_wr: "Improve win rate",
     dd_unknown: "Unknown DD", dd_uncalc: "Drawdown not calculated — incomplete audit",
     pf_exceptional: "Exceptional Profit Factor", pf_excellent: "Excellent Profit Factor",
     pf_solid: "Solid Profit Factor", pf_strategy_perf: "very high-performing strategy",
@@ -1580,6 +1582,7 @@ const AL_DICT = {
     per_trade: "/ trade",
   },
   es: {
+    lever_reduce_risk: "Reducir riesgo/operación",    lever_improve_rr: "Mejorar ratio R/R",    lever_improve_wr: "Mejorar win rate",
     dd_unknown: "DD desconocido", dd_uncalc: "Drawdown no calculado — auditoría incompleta",
     pf_exceptional: "Factor de beneficio excepcional", pf_excellent: "Factor de beneficio excelente",
     pf_solid: "Factor de beneficio sólido", pf_strategy_perf: "estrategia muy eficiente",
@@ -1702,15 +1705,15 @@ function coachAnalyze(data, firmName) {
     if (riskPct > 0.5) {
       const nr = Math.max(0.25, riskPct - 0.25);
       const np = coachEstimateProbability({ winrate, rr, ddUsedPct: worstDD*(nr/riskPct), ddLimitPct: worstDDLim, profitFactor, totalTrades, riskPct: nr });
-      if (np > probability) levers.push({ from: riskPct.toFixed(2)+'%', to: nr.toFixed(2)+'%', gain: np-probability, newProb: np, label:t('an_lever_reduce_risk') });
+      if (np > probability) levers.push({ from: riskPct.toFixed(2)+'%', to: nr.toFixed(2)+'%', gain: np-probability, newProb: np, label:AL('lever_reduce_risk') });
     }
     const nrr = rr + 0.5, nPF = (1-wr)>0?(wr*nrr)/(1-wr):99;
     const np2 = coachEstimateProbability({ winrate, rr:nrr, ddUsedPct:worstDD, ddLimitPct:worstDDLim, profitFactor:nPF, totalTrades, riskPct });
-    if (np2 > probability) levers.push({ from:'1:'+rr.toFixed(1), to:'1:'+nrr.toFixed(1), gain:np2-probability, newProb:np2, label:t('an_lever_improve_rr') });
+    if (np2 > probability) levers.push({ from:'1:'+rr.toFixed(1), to:'1:'+nrr.toFixed(1), gain:np2-probability, newProb:np2, label:AL('lever_improve_rr') });
     if (winrate < 70) {
       const nwr=winrate+5, nwrr=nwr/100, nPF3=(1-nwrr)>0?(nwrr*rr)/(1-nwrr):99;
       const np3=coachEstimateProbability({winrate:nwr,rr,ddUsedPct:worstDD,ddLimitPct:worstDDLim,profitFactor:nPF3,totalTrades,riskPct});
-      if (np3>probability) levers.push({ from:winrate.toFixed(0)+'%', to:nwr.toFixed(0)+'%', gain:np3-probability, newProb:np3, label:t('an_lever_improve_wr') });
+      if (np3>probability) levers.push({ from:winrate.toFixed(0)+'%', to:nwr.toFixed(0)+'%', gain:np3-probability, newProb:np3, label:AL('lever_improve_wr') });
     }
     return levers.sort((a,b)=>b.gain-a.gain).slice(0,3);
   };
@@ -4375,7 +4378,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               ))}
             </div>
           </div>
-          <MonteCarloTab firmKey={firmKey} modelKey={safeModelKey} capital={capital} p={p} fundedMonths={fundedMonths}
+          <MonteCarloTab t={t} firmKey={firmKey} modelKey={safeModelKey} capital={capital} p={p} fundedMonths={fundedMonths}
             splitRate={splitRate} winrate={winrate} fee={fee} clusteringPct={clusteringPct} />
         </div>
       )}
@@ -4392,7 +4395,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   );
 }
 
-function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate, winrate, fee, clusteringPct }) {
+function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate, winrate, fee, clusteringPct, t = (k)=>k }) {
   const [res, setRes] = useState(null);
   const _firm = PROP_FIRMS[firmKey] || PROP_FIRMS.fundednext;
   const model = _firm.models[modelKey] || Object.values(_firm.models)[0];
@@ -8426,7 +8429,7 @@ function WelcomeScreen({ onDone }) {
 // ══════════════════════════════════════════════════════════════════
 // SPLASH SCREEN — après login, chargement des données
 // ══════════════════════════════════════════════════════════════════
-function SplashScreen({ user, onReady }) {
+function SplashScreen({ user, onReady, t = (k)=>k }) {
   const [step, setStep]       = useState(0);
   const [progress, setProgress] = useState(0);
 
@@ -8918,6 +8921,8 @@ export default function App() {
     if (p && typeof p === "object") {
       const uid = user?.uid || user?.email || "guest";
       try { localStorage.setItem("eapropfirm_user_" + uid, JSON.stringify({ profile: p, setupDone: true })); } catch(e) {}
+      // Synchro cloud (non bloquante)
+      if (user?.uid) fbSaveUserProfile(user.uid, { profile: p, setupDone: true });
     }
   };
   const [screen, setScreen] = useState("dashboard");
@@ -8999,7 +9004,7 @@ export default function App() {
 
   // Splash — après login
   if (showSplash) {
-    return <SplashScreen user={user} onReady={() => setShowSplash(false)} />;
+    return <SplashScreen t={t} user={user} onReady={() => setShowSplash(false)} />;
   }
 
   if (!lang) {
@@ -9011,23 +9016,32 @@ export default function App() {
   if (!user) {
     return <LoginScreen t={t} lang={lang} setLang={setLang} onAuth={(u) => {
       setUser(u);
-      // ── Séparation des comptes : charger le profil/setup propre à cet utilisateur ──
+      saveApp({ user: u });
       const uid = u?.uid || u?.email || "guest";
-      let perUser = null;
-      try { perUser = JSON.parse(localStorage.getItem("eapropfirm_user_" + uid) || "null"); } catch(e) {}
-      if (perUser && perUser.profile) {
-        // Compte connu : restaurer son profil et son setup
-        setProfile(perUser.profile);
-        setSetupDone(perUser.setupDone ?? true);
-        saveApp({ user: u, profile: perUser.profile, setupDone: perUser.setupDone ?? true });
-      } else {
-        // Nouveau compte : pas de setup encore → ProfileSetup s'affichera
-        setSetupDone(false);
-        saveApp({ user: u, setupDone: false });
-      }
       const p = startTrialIfNeeded(); // démarre les 7 jours à la 1ère connexion
       setPremium(p);
       setShowSplash(true);
+      // ── Séparation des comptes : cloud d'abord (multi-appareils), fallback local ──
+      (async () => {
+        let restored = null;
+        if (u?.uid) {
+          const cloud = await fbLoadUserProfile(u.uid);
+          if (cloud && cloud.profile) restored = cloud;
+        }
+        if (!restored) {
+          try { restored = JSON.parse(localStorage.getItem("eapropfirm_user_" + uid) || "null"); } catch(e) {}
+        }
+        if (restored && restored.profile) {
+          setProfile(restored.profile);
+          setSetupDone(restored.setupDone ?? true);
+          saveApp({ profile: restored.profile, setupDone: restored.setupDone ?? true });
+          try { localStorage.setItem("eapropfirm_user_" + uid, JSON.stringify({ profile: restored.profile, setupDone: restored.setupDone ?? true })); } catch(e) {}
+        } else {
+          // Nouveau compte : ProfileSetup s'affichera
+          setSetupDone(false);
+          saveApp({ setupDone: false });
+        }
+      })();
     }} />;
   }
   if (!setupDone) {
@@ -9038,6 +9052,8 @@ export default function App() {
       saveApp({ profile: p, setupDone: true });
       const uid = user?.uid || user?.email || "guest";
       try { localStorage.setItem("eapropfirm_user_" + uid, JSON.stringify({ profile: p, setupDone: true })); } catch(e) {}
+      // Synchro cloud (non bloquante)
+      if (user?.uid) fbSaveUserProfile(user.uid, { profile: p, setupDone: true });
       // Synchroniser la config du simulateur (firm + capital)
       syncSimConfig({ firmKey: p.firmKey, capital: p.capital });
     }} />;
