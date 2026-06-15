@@ -1185,6 +1185,100 @@ const fmtPn = (v) => (v >= 0 ? "+" : "") + (v * 100).toFixed(2) + "%";
 // 3 modes : Simulation Challenge | Journal | Backtest
 // ══════════════════════════════════════════════════════════════════
 
+// ── Helper de traduction pour les moteurs d'analyse ──
+const AL_DICT = {
+  fr: {
+    // Forces
+    dd_unknown: "DD inconnu", dd_uncalc: "Drawdown non calculé — audit incomplet",
+    pf_exceptional: "Profit Factor exceptionnel", pf_excellent: "Profit Factor excellent",
+    pf_solid: "Profit Factor solide", pf_strategy_perf: "stratégie très performante",
+    pf_gains_over: "gains supérieurs aux pertes", pf_structurally: "stratégie structurellement rentable",
+    exp_high: "Espérance élevée", exp_positive: "Espérance positive",
+    exp_edge: "edge statistique fort", exp_profitable: "stratégie rentable en moyenne",
+    dd_controlled: "Drawdown très maîtrisé", dd_wellcontrolled: "Drawdown bien maîtrisé",
+    dd_oflimit: "de la limite", dd_safety_margin: "bonne marge de sécurité",
+    wr_robust: "Winrate robuste", wr_reliability: "fiabilité élevée",
+    rr_excellent: "Ratio R/R excellent", rr_good: "Bon ratio R/R",
+    rr_gains_over: "gains supérieurs aux pertes unitaires", rr_favorable: "rapport gain/risque favorable",
+    sample_excellent: "Excellent échantillon", sample_good: "Bon échantillon",
+    sample_veryreliable: "statistiquement très fiable", sample_usable: "base statistique exploitable",
+    // Risques
+    dd_absent: "DD ABSENT", dd_cantvalidate: "Impossible de valider le respect des limites de risque",
+    sample_critical: "Échantillon critique", sample_insufficient: "Échantillon insuffisant",
+    sample_min: "min. 50 recommandés", sample_bias: "risque de biais",
+    dd_critical: "Drawdown critique", dd_nearlimit: "Drawdown proche limite", dd_watch: "Drawdown à surveiller",
+    dd_imminent: "élimination imminente", dd_max: "max",
+    risk_excessive: "Risque/trade excessif", risk_high: "Risque/trade élevé",
+    risk_in4: "DD en 4 pertes", risk_reduce: "réduire à 0.75-1%",
+    rr_insufficient: "Ratio R/R insuffisant", rr_toolow: "trop faible",
+    overopt_risk: "Risque sur-optimisation", overopt_bias: "biais potentiel",
+    exp_negative: "Espérance négative", exp_losing: "stratégie structurellement perdante",
+    // Projection
+    risk_low: "Faible", risk_moderate: "Modéré", risk_elevated: "Élevé", risk_critical2: "Critique",
+    risk_unknown: "INCONNU",
+    per_trade: "/ trade",
+  },
+  en: {
+    dd_unknown: "Unknown DD", dd_uncalc: "Drawdown not calculated — incomplete audit",
+    pf_exceptional: "Exceptional Profit Factor", pf_excellent: "Excellent Profit Factor",
+    pf_solid: "Solid Profit Factor", pf_strategy_perf: "very high-performing strategy",
+    pf_gains_over: "gains exceed losses", pf_structurally: "structurally profitable strategy",
+    exp_high: "High expectancy", exp_positive: "Positive expectancy",
+    exp_edge: "strong statistical edge", exp_profitable: "profitable strategy on average",
+    dd_controlled: "Very controlled drawdown", dd_wellcontrolled: "Well-controlled drawdown",
+    dd_oflimit: "of the limit", dd_safety_margin: "good safety margin",
+    wr_robust: "Robust win rate", wr_reliability: "high reliability",
+    rr_excellent: "Excellent R/R ratio", rr_good: "Good R/R ratio",
+    rr_gains_over: "gains exceed unit losses", rr_favorable: "favorable gain/risk ratio",
+    sample_excellent: "Excellent sample", sample_good: "Good sample",
+    sample_veryreliable: "statistically very reliable", sample_usable: "usable statistical base",
+    dd_absent: "DD ABSENT", dd_cantvalidate: "Cannot validate risk limit compliance",
+    sample_critical: "Critical sample", sample_insufficient: "Insufficient sample",
+    sample_min: "min. 50 recommended", sample_bias: "bias risk",
+    dd_critical: "Critical drawdown", dd_nearlimit: "Drawdown near limit", dd_watch: "Drawdown to watch",
+    dd_imminent: "imminent elimination", dd_max: "max",
+    risk_excessive: "Excessive risk/trade", risk_high: "High risk/trade",
+    risk_in4: "DD in 4 losses", risk_reduce: "reduce to 0.75-1%",
+    rr_insufficient: "Insufficient R/R ratio", rr_toolow: "too low",
+    overopt_risk: "Over-optimization risk", overopt_bias: "potential bias",
+    exp_negative: "Negative expectancy", exp_losing: "structurally losing strategy",
+    risk_low: "Low", risk_moderate: "Moderate", risk_elevated: "High", risk_critical2: "Critical",
+    risk_unknown: "UNKNOWN",
+    per_trade: "/ trade",
+  },
+  es: {
+    dd_unknown: "DD desconocido", dd_uncalc: "Drawdown no calculado — auditoría incompleta",
+    pf_exceptional: "Factor de beneficio excepcional", pf_excellent: "Factor de beneficio excelente",
+    pf_solid: "Factor de beneficio sólido", pf_strategy_perf: "estrategia muy eficiente",
+    pf_gains_over: "ganancias superiores a pérdidas", pf_structurally: "estrategia estructuralmente rentable",
+    exp_high: "Esperanza alta", exp_positive: "Esperanza positiva",
+    exp_edge: "ventaja estadística fuerte", exp_profitable: "estrategia rentable en promedio",
+    dd_controlled: "Drawdown muy controlado", dd_wellcontrolled: "Drawdown bien controlado",
+    dd_oflimit: "del límite", dd_safety_margin: "buen margen de seguridad",
+    wr_robust: "Tasa de aciertos robusta", wr_reliability: "alta fiabilidad",
+    rr_excellent: "Ratio R/R excelente", rr_good: "Buen ratio R/R",
+    rr_gains_over: "ganancias superiores a pérdidas unitarias", rr_favorable: "relación ganancia/riesgo favorable",
+    sample_excellent: "Muestra excelente", sample_good: "Buena muestra",
+    sample_veryreliable: "estadísticamente muy fiable", sample_usable: "base estadística utilizable",
+    dd_absent: "DD AUSENTE", dd_cantvalidate: "Imposible validar el cumplimiento de los límites de riesgo",
+    sample_critical: "Muestra crítica", sample_insufficient: "Muestra insuficiente",
+    sample_min: "mín. 50 recomendados", sample_bias: "riesgo de sesgo",
+    dd_critical: "Drawdown crítico", dd_nearlimit: "Drawdown cerca del límite", dd_watch: "Drawdown a vigilar",
+    dd_imminent: "eliminación inminente", dd_max: "máx",
+    risk_excessive: "Riesgo/operación excesivo", risk_high: "Riesgo/operación alto",
+    risk_in4: "DD en 4 pérdidas", risk_reduce: "reducir a 0.75-1%",
+    rr_insufficient: "Ratio R/R insuficiente", rr_toolow: "demasiado bajo",
+    overopt_risk: "Riesgo de sobreoptimización", overopt_bias: "sesgo potencial",
+    exp_negative: "Esperanza negativa", exp_losing: "estrategia estructuralmente perdedora",
+    risk_low: "Bajo", risk_moderate: "Moderado", risk_elevated: "Alto", risk_critical2: "Crítico",
+    risk_unknown: "DESCONOCIDO",
+    per_trade: "/ operación",
+  },
+};
+let AL_LANG = "fr";
+function setALLang(l) { AL_LANG = l || "fr"; }
+function AL(key) { return (AL_DICT[AL_LANG] || AL_DICT.fr)[key] || (AL_DICT.fr[key] || key); }
+
 function coachEstimateProbability({ winrate, rr, ddUsedPct, ddLimitPct, profitFactor, totalTrades, riskPct }) {
   const wr = Math.max(0, Math.min(1, winrate / 100));
   const expectancyR = wr * rr - (1 - wr);
@@ -1222,19 +1316,19 @@ function coachAnalyze(data, firmName) {
     const f = [];
     const ddIsValidF = !(isNaN(worstDD) || worstDD === null || worstDD === undefined);
     const ddRatio = ddIsValidF && worstDDLim > 0 ? worstDD / worstDDLim : 0;
-    if (!ddIsValidF) { f.push({ icon:'⚠️', title:'DD inconnu', detail:'Drawdown non calculé — audit incomplet', s:0 }); }
-    if (profitFactor >= 2.5) f.push({ icon:'💎', title:'Profit Factor exceptionnel', detail:`PF ${profitFactor.toFixed(2)} — stratégie très performante`, s:100 });
-    else if (profitFactor >= 1.8) f.push({ icon:'✅', title:'Profit Factor excellent', detail:`PF ${profitFactor.toFixed(2)} — gains supérieurs aux pertes`, s:88 });
-    else if (profitFactor >= 1.4) f.push({ icon:'✅', title:'Profit Factor solide', detail:`PF ${profitFactor.toFixed(2)} — stratégie structurellement rentable`, s:72 });
-    if (expectancyR >= 0.8) f.push({ icon:'✅', title:'Espérance élevée', detail:`+${expectancyR.toFixed(2)}R / trade — edge statistique fort`, s:95 });
-    else if (expectancyR >= 0.4) f.push({ icon:'✅', title:'Espérance positive', detail:`+${expectancyR.toFixed(2)}R / trade — stratégie rentable en moyenne`, s:78 });
-    if (ddRatio <= 0.25) f.push({ icon:'✅', title:'Drawdown très maîtrisé', detail:`${worstDD.toFixed(1)}% — ${Math.round(ddRatio*100)}% de la limite`, s:90 });
-    else if (ddRatio <= 0.5) f.push({ icon:'✅', title:'Drawdown bien maîtrisé', detail:`${worstDD.toFixed(1)}% — bonne marge de sécurité`, s:74 });
-    if (winrate >= 60) f.push({ icon:'✅', title:'Winrate robuste', detail:`${winrate.toFixed(0)}% — fiabilité élevée`, s:80 });
-    if (rr >= 2.5) f.push({ icon:'✅', title:'Ratio R/R excellent', detail:`1:${rr.toFixed(1)} — gains supérieurs aux pertes unitaires`, s:85 });
-    else if (rr >= 2.0) f.push({ icon:'✅', title:'Bon ratio R/R', detail:`1:${rr.toFixed(1)} — rapport gain/risque favorable`, s:70 });
-    if (totalTrades >= 150) f.push({ icon:'✅', title:'Excellent échantillon', detail:`${totalTrades} trades — statistiquement très fiable`, s:88 });
-    else if (totalTrades >= 80) f.push({ icon:'✅', title:'Bon échantillon', detail:`${totalTrades} trades — base statistique exploitable`, s:70 });
+    if (!ddIsValidF) { f.push({ icon:'⚠️', title:AL('dd_unknown'), detail:AL('dd_uncalc'), s:0 }); }
+    if (profitFactor >= 2.5) f.push({ icon:'💎', title:AL('pf_exceptional'), detail:`PF ${profitFactor.toFixed(2)} — ${AL('pf_strategy_perf')}`, s:100 });
+    else if (profitFactor >= 1.8) f.push({ icon:'✅', title:AL('pf_excellent'), detail:`PF ${profitFactor.toFixed(2)} — ${AL('pf_gains_over')}`, s:88 });
+    else if (profitFactor >= 1.4) f.push({ icon:'✅', title:AL('pf_solid'), detail:`PF ${profitFactor.toFixed(2)} — ${AL('pf_structurally')}`, s:72 });
+    if (expectancyR >= 0.8) f.push({ icon:'✅', title:AL('exp_high'), detail:`+${expectancyR.toFixed(2)}R ${AL('per_trade')} — ${AL('exp_edge')}`, s:95 });
+    else if (expectancyR >= 0.4) f.push({ icon:'✅', title:AL('exp_positive'), detail:`+${expectancyR.toFixed(2)}R ${AL('per_trade')} — ${AL('exp_profitable')}`, s:78 });
+    if (ddRatio <= 0.25) f.push({ icon:'✅', title:AL('dd_controlled'), detail:`${worstDD.toFixed(1)}% — ${Math.round(ddRatio*100)}% ${AL('dd_oflimit')}`, s:90 });
+    else if (ddRatio <= 0.5) f.push({ icon:'✅', title:AL('dd_wellcontrolled'), detail:`${worstDD.toFixed(1)}% — ${AL('dd_safety_margin')}`, s:74 });
+    if (winrate >= 60) f.push({ icon:'✅', title:AL('wr_robust'), detail:`${winrate.toFixed(0)}% — ${AL('wr_reliability')}`, s:80 });
+    if (rr >= 2.5) f.push({ icon:'✅', title:AL('rr_excellent'), detail:`1:${rr.toFixed(1)} — ${AL('rr_gains_over')}`, s:85 });
+    else if (rr >= 2.0) f.push({ icon:'✅', title:AL('rr_good'), detail:`1:${rr.toFixed(1)} — ${AL('rr_favorable')}`, s:70 });
+    if (totalTrades >= 150) f.push({ icon:'✅', title:AL('sample_excellent'), detail:`${totalTrades} trades — ${AL('sample_veryreliable')}`, s:88 });
+    else if (totalTrades >= 80) f.push({ icon:'✅', title:AL('sample_good'), detail:`${totalTrades} trades — ${AL('sample_usable')}`, s:70 });
     return f.sort((a,b)=>b.s-a.s).slice(0,3);
   };
 
@@ -1243,16 +1337,16 @@ function coachAnalyze(data, firmName) {
     const ddIsValidR = !(isNaN(worstDD) || worstDD === null || worstDD === undefined);
     const ddRatio = ddIsValidR && worstDDLim > 0 ? worstDD / worstDDLim : 0;
     if (!ddIsValidR) { r.push({ icon:'🚨', title:'DD ABSENT', detail:'Impossible de valider les limites de risque prop firm — verdict NON VALIDABLE', s:100 }); }
-    if (totalTrades < 20) r.push({ icon:'🚨', title:'Échantillon critique', detail:`${totalTrades} trades — min. 50 recommandés`, s:100 });
-    else if (totalTrades < 50) r.push({ icon:'⚠️', title:'Échantillon insuffisant', detail:`${totalTrades} trades — risque de biais`, s:80 });
-    if (ddRatio >= 0.9) r.push({ icon:'🚨', title:'Drawdown critique', detail:`${worstDD.toFixed(1)}% / ${worstDDLim}% — élimination imminente`, s:100 });
-    else if (ddRatio >= 0.75) r.push({ icon:'🚨', title:'Drawdown proche limite', detail:`${worstDD.toFixed(1)}% sur ${worstDDLim}% max`, s:85 });
-    else if (ddRatio >= 0.6) r.push({ icon:'⚠️', title:'Drawdown à surveiller', detail:`${worstDD.toFixed(1)}% / ${worstDDLim}%`, s:60 });
-    if (riskPct > 2.5) r.push({ icon:'🚨', title:'Risque/trade excessif', detail:`${riskPct.toFixed(2)}% — ${Math.round(riskPct*4)}% DD en 4 pertes`, s:95 });
-    else if (riskPct > 1.5) r.push({ icon:'⚠️', title:'Risque/trade élevé', detail:`${riskPct.toFixed(2)}% — réduire à 0.75-1%`, s:70 });
-    if (rr < 1.2) r.push({ icon:'🚨', title:'Ratio R/R insuffisant', detail:`1:${rr.toFixed(1)} — trop faible`, s:90 });
-    if (profitFactor > 3.5 && totalTrades < 60) r.push({ icon:'⚠️', title:'Risque sur-optimisation', detail:`PF ${profitFactor.toFixed(2)} sur ${totalTrades} trades — biais potentiel`, s:72 });
-    if (expectancyR <= 0) r.push({ icon:'🚨', title:'Espérance négative', detail:`${expectancyR.toFixed(2)}R — stratégie structurellement perdante`, s:100 });
+    if (totalTrades < 20) r.push({ icon:'🚨', title:AL('sample_critical'), detail:`${totalTrades} trades — ${AL('sample_min')}`, s:100 });
+    else if (totalTrades < 50) r.push({ icon:'⚠️', title:AL('sample_insufficient'), detail:`${totalTrades} trades — ${AL('sample_bias')}`, s:80 });
+    if (ddRatio >= 0.9) r.push({ icon:'🚨', title:AL('dd_critical'), detail:`${worstDD.toFixed(1)}% / ${worstDDLim}% — ${AL('dd_imminent')}`, s:100 });
+    else if (ddRatio >= 0.75) r.push({ icon:'🚨', title:AL('dd_nearlimit'), detail:`${worstDD.toFixed(1)}% / ${worstDDLim}% ${AL('dd_max')}`, s:85 });
+    else if (ddRatio >= 0.6) r.push({ icon:'⚠️', title:AL('dd_watch'), detail:`${worstDD.toFixed(1)}% / ${worstDDLim}%`, s:60 });
+    if (riskPct > 2.5) r.push({ icon:'🚨', title:AL('risk_excessive'), detail:`${riskPct.toFixed(2)}% — ${Math.round(riskPct*4)}% ${AL('risk_in4')}`, s:95 });
+    else if (riskPct > 1.5) r.push({ icon:'⚠️', title:AL('risk_high'), detail:`${riskPct.toFixed(2)}% — ${AL('risk_reduce')}`, s:70 });
+    if (rr < 1.2) r.push({ icon:'🚨', title:AL('rr_insufficient'), detail:`1:${rr.toFixed(1)} — ${AL('rr_toolow')}`, s:90 });
+    if (profitFactor > 3.5 && totalTrades < 60) r.push({ icon:'⚠️', title:AL('overopt_risk'), detail:`PF ${profitFactor.toFixed(2)} / ${totalTrades} trades — ${AL('overopt_bias')}`, s:72 });
+    if (expectancyR <= 0) r.push({ icon:'🚨', title:AL('exp_negative'), detail:`${expectancyR.toFixed(2)}R — ${AL('exp_losing')}`, s:100 });
     return r.sort((a,b)=>b.s-a.s).slice(0,3);
   };
 
@@ -1265,7 +1359,7 @@ function coachAnalyze(data, firmName) {
     const maxLosses = riskPct > 0 ? Math.floor(ddRemaining / riskPct) : 0;
     const daysMin = eDailyPnl > 0 ? Math.ceil(targetAmt / (eDailyPnl * 1.3)) : null;
     const daysMax = eDailyPnl > 0 ? Math.ceil(targetAmt / (eDailyPnl * 0.7)) : null;
-    const failureRisk = probability >= 75 ? 'Faible' : probability >= 55 ? 'Modéré' : probability >= 35 ? 'Élevé' : 'Critique';
+    const failureRisk = probability >= 75 ? AL('risk_low') : probability >= 55 ? AL('risk_moderate') : probability >= 35 ? AL('risk_elevated') : AL('risk_critical2');
     const failureColor = probability >= 75 ? '#6ee7b7' : probability >= 55 ? '#fbbf24' : probability >= 35 ? '#f97316' : '#ef4444';
     return { daysMin, daysMax, maxConsecLosses: maxLosses, failureRisk, failureColor, ddRemaining: ddRemaining.toFixed(1) };
   };
@@ -1499,6 +1593,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
   const backtestStats = backtestRaw ? backtestAnalyze(backtestRaw) : null;
 
   // Simulation data
+  setALLang(lang);
   const simAnalysis = lastSim ? coachAnalyze({ winrate:lastSim.winrate, rr:lastSim.rr, ddDayPct:lastSim.ddDayPct, ddTotPct:lastSim.ddTotPct, dailyDDLimit:lastSim.dailyDDLimit, totalDDLimit:lastSim.totalDDLimit, riskPctValue:lastSim.riskPctValue, riskPct:lastSim.riskPct, totalTrades:lastSim.totalTrades, capital:lastSim.capital, phase1Target:lastSim.phase1Target }, lastSim.firmKey?lastSim.firmKey.toUpperCase():'PROP FIRM') : null;
 
   // Appel expert async selon le mode
