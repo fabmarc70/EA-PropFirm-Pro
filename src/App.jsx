@@ -3377,7 +3377,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           borderBottom: "1px solid rgba(110,231,183,0.1)",
           transition: "all 0.2s ease-out",
         }}>
-          {saveStatus && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 6, textAlign: "left" }}>✓ {saveStatus}</div>}
+          {/* saveStatus silencieux — pas d'affichage visuel */}
           <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, border: "1px solid rgba(255,255,255,0.08)" }}>
             {[{ id: "challenge", label: "Challenge" }, { id: "funded", label: "Funded" }].map(tg => (
               <button key={tg.id} onClick={() => {
@@ -7778,7 +7778,11 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           </div>
         ) : ls.funded ? (
           <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,overflow:"hidden"}}>
-            <CalendrierPnL t={t} lang={lang} dailyLog={ls.funded.dailyLog} />
+            {/* Copie exacte du CalendrierPnL de la page Funded */}
+            <CalendrierPnL t={t} lang={lang} dailyLog={ls.funded.dailyLog}
+              newsSkipDays={ls.newsSkipDays || 0}
+              activeDays={ls.activeDays || [1,2,3,4,5]}
+            />
           </div>
         ) : (
           <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
