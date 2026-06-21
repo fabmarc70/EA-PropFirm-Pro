@@ -10138,6 +10138,131 @@ function checkDailyReminder() {
 // ══════════════════════════════════════════════════════════════════
 // DASHBOARD (page d'accueil)
 // ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// Construit les données de la courbe Équité (Journal réel vs Simulation)
+// pour un mois donné — réutilisé par DashboardScreen ET JournalScreen.
+// ══════════════════════════════════════════════════════════════════
+function buildMonthlyEquityChart({ monthKey, journalAll, lastSim, capital, journalMode }) {
+  const ls = lastSim || {};
+  const cap = capital || ls.capital || 25000;
+  const [y, m] = monthKey.split("-").map(Number);
+  const isCurrentMonth = (() => {
+    const n = new Date();
+    return n.getFullYear() === y && (n.getMonth() + 1) === m;
+  })();
+  const lastDayOfMonth = new Date(y, m, 0).getDate();
+  const upToDay = isCurrentMonth ? new Date().getDate() : lastDayOfMonth;
+
+  const simDailyLog = ls.funded?.dailyLog || [];
+  const simMonth1Days = simDailyLog.filter(d => d.month === 1);
+
+  const journalMonthData = journalAll?.[monthKey] || {};
+  const journalDays = Object.entries(journalMonthData)
+    .map(([day, data]) => ({ day: parseInt(day), pnl: data?.pnl || 0 }))
+    .sort((a, b) => a.day - b.day);
+  const hasJournal = journalDays.length > 0;
+  const hasSim = simMonth1Days.length > 0;
+
+  const chartData = [];
+  let simEquity = cap, journalEquity = cap;
+  for (let day = 1; day <= upToDay; day++) {
+    const simDay = simMonth1Days.find(d => d.dayOfMonth === day);
+    if (simDay) simEquity = simDay.equity;
+    const journalDay = journalDays.find(d => d.day === day);
+    if (journalDay) journalEquity += journalDay.pnl;
+    chartData.push({
+      day,
+      simEquity: hasSim ? simEquity : null,
+      journalEquity: hasJournal ? journalEquity : null,
+    });
+  }
+
+  const primaryIsJournal = journalMode && hasJournal;
+  return { chartData, hasJournal, hasSim, primaryIsJournal, cap, todayDay: upToDay };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Composant visuel — Carte "Équité" (Journal réel vs Simulation)
+// Réplique exacte du graphique de la Home, réutilisée dans JournalScreen.
+// ══════════════════════════════════════════════════════════════════
+function EquityChartCard({ t, monthKey, chartData, hasJournal, hasSim, primaryIsJournal, cap, todayDay, gradientSuffix = "" }) {
+  const gradJournal = "grad-journal-eq" + gradientSuffix;
+  const gradSim = "grad-sim-eq" + gradientSuffix;
+  return (
+    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, padding: 16, marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>Équité — {monthKey}</div>
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
+            {primaryIsJournal ? t("cal_journal_active") : t("cal_sim_active")} · J1 → J{todayDay}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {hasJournal && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              {primaryIsJournal
+                ? <div style={{ width: 14, height: 2, background: "#6ee7b7", borderRadius: 1 }} />
+                : <svg width="14" height="3" viewBox="0 0 14 3"><line x1="0" y1="1.5" x2="14" y2="1.5" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 2" /></svg>}
+              <span style={{ fontSize: 9, color: primaryIsJournal ? "#6ee7b7" : "rgba(255,255,255,0.4)", fontWeight: primaryIsJournal ? 700 : 400 }}>Journal</span>
+            </div>
+          )}
+          {hasSim && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              {!primaryIsJournal
+                ? <div style={{ width: 14, height: 2, background: "#6ee7b7", borderRadius: 1 }} />
+                : <svg width="14" height="3" viewBox="0 0 14 3"><line x1="0" y1="1.5" x2="14" y2="1.5" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 2" /></svg>}
+              <span style={{ fontSize: 9, color: !primaryIsJournal ? "#6ee7b7" : "rgba(255,255,255,0.4)", fontWeight: !primaryIsJournal ? 700 : 400 }}>Simulation</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {(hasJournal || hasSim) ? (
+        <ResponsiveContainer width="100%" height={180}>
+          <ComposedChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id={gradJournal} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.2} />
+                <stop offset="100%" stopColor="#6ee7b7" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id={gradSim} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.15} />
+                <stop offset="100%" stopColor="#fbbf24" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+            <XAxis dataKey="day" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "J" + v} interval={4} />
+            <YAxis tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v / 1000).toFixed(0) + "k"} domain={["auto", "auto"]} width={40} />
+            <Tooltip
+              labelFormatter={v => "Jour " + v}
+              formatter={(v, name) => [fmt(v), name === "journalEquity" ? "Journal réel" : name === "simEquity" ? "Simulation" : name]}
+              contentStyle={{ background: "rgba(10,12,22,0.97)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, fontSize: 11 }}
+            />
+            <ReferenceLine y={cap} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 2" />
+            {primaryIsJournal && hasJournal && (
+              <Area type="monotone" dataKey="journalEquity" stroke="#6ee7b7" strokeWidth={2.5} fill={`url(#${gradJournal})`} dot={false} name="journalEquity" connectNulls={true} />
+            )}
+            {primaryIsJournal && hasSim && (
+              <Line type="monotone" dataKey="simEquity" stroke="#fbbf24" strokeWidth={1.5} strokeDasharray="5 3" dot={false} name="simEquity" connectNulls={true} />
+            )}
+            {!primaryIsJournal && hasSim && (
+              <Area type="monotone" dataKey="simEquity" stroke="#6ee7b7" strokeWidth={2.5} fill={`url(#${gradSim})`} dot={false} name="simEquity" connectNulls={true} />
+            )}
+            {!primaryIsJournal && hasJournal && (
+              <Line type="monotone" dataKey="journalEquity" stroke="#fbbf24" strokeWidth={1.5} strokeDasharray="5 3" dot={false} name="journalEquity" connectNulls={true} />
+            )}
+          </ComposedChart>
+        </ResponsiveContainer>
+      ) : (
+        <div style={{ height: 140, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.2)" }}>
+          <div style={{ fontSize: 12 }}>{t("an_run_or_enter")}</div>
+          <div style={{ fontSize: 10, marginTop: 4, color: "rgba(255,255,255,0.15)" }}>pour voir la courbe du mois</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, premiumAccess = true, daysLeft = 0, requirePremium = () => {} }) {
   setALLang(lang); // requis pour AL() — traduit les libellés d'événements économiques, etc.
   const firm = PROP_FIRMS[profile.firmKey] || PROP_FIRMS.fundednext;
@@ -11061,7 +11186,7 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
 // ══════════════════════════════════════════════════════════════════
 // NAVBAR (bas d'écran)
 // ══════════════════════════════════════════════════════════════════
-function JournalScreen({ t, lang, goto, capital = 25000 }) {
+function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
   const { journal: journalAll, journalMonth, setJournalMonth, saveJournalEntry, monthData: journalMonthData } = useJournal();
   const journalStats = journalAnalyze(journalAll);
   const discipline = disciplineAnalyze(journalAll);
@@ -11080,6 +11205,11 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
   const lossDays = daysArr.filter(d => (d.pnl || 0) < 0).length;
   const bestDay = daysArr.length ? Math.max(...daysArr.map(d => d.pnl || 0)) : 0;
   const worstDay = daysArr.length ? Math.min(...daysArr.map(d => d.pnl || 0)) : 0;
+
+  // ── Courbe Équité du mois affiché (Journal réel vs Simulation) — copie de la Home ──
+  const equityData = buildMonthlyEquityChart({
+    monthKey: journalMonth, journalAll, lastSim, capital, journalMode: true,
+  });
 
   return (
     <div style={{ fontFamily: "-apple-system, sans-serif", color: "#fff" }}>
@@ -11212,6 +11342,14 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
             ))}
           </div>
         </div>
+
+        {/* Courbe Équité du mois — copie de la Home (Journal réel vs Simulation) */}
+        <EquityChartCard
+          t={t} monthKey={journalMonth}
+          chartData={equityData.chartData} hasJournal={equityData.hasJournal} hasSim={equityData.hasSim}
+          primaryIsJournal={equityData.primaryIsJournal} cap={equityData.cap} todayDay={equityData.todayDay}
+          gradientSuffix="-journalpage"
+        />
 
         {/* Calendrier en mode journal (saisie + visualisation) */}
         <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, overflow: "hidden", marginBottom: 14 }}>
@@ -12105,7 +12243,7 @@ export default function App() {
           <ProfileScreen t={t} lang={lang} setLang={setLang} user={user} profile={profile} setProfile={setProfile} onLogout={logout} onReset={reset} premium={premium} daysLeft={daysLeft} onUpgrade={() => setShowPaywall(true)} />
         )}
         {screen === "journal" && (
-          <JournalScreen t={t} lang={lang} goto={navGoto} capital={profile.capital || 25000} />
+          <JournalScreen t={t} lang={lang} goto={navGoto} capital={profile.capital || 25000} lastSim={lastSim} />
         )}
       </div>
       <NavBar t={t} active={navActive} goto={navGoto} />
