@@ -11,6 +11,17 @@ import {
 // ══════════════════════════════════════════════════════════════════
 const I18N = {
   fr: {
+    cmp_dd_excellent: "Ton drawdown laisse une large marge de sécurité sous la limite", cmp_dd_good: "Ton drawdown reste confortable par rapport à la limite",
+    cmp_dd_tight: "Ton drawdown est proche de la limite — marge réduite", cmp_dd_critical: "Ton drawdown est trop agressif pour cette firme",
+    cmp_dd_exceeds: "Ton drawdown dépasse la limite autorisée", cmp_trailing_strict: "DD trailing — plus strict qu'un DD statique au même seuil",
+    cmp_rr_favors: "Ton RR favorise fortement cette firme", cmp_rr_low: "Ton RR moyen est faible pour ce type de challenge",
+    cmp_risk_too_high_tight: "Ton risque/trade est trop élevé pour le DD serré de cette firme", cmp_risk_disciplined: "Ton risque/trade discipliné convient bien",
+    cmp_risk_moderate: "Ton risque/trade est modéré",
+    cmp_hft_forbidden: "Le HFT est interdit chez cette firme", cmp_ea_forbidden: "Les EA sont interdits sur ce modèle",
+    cmp_news_restricted: "Le trading de news est restreint chez cette firme", cmp_style_compatible: "Ton style de trading est compatible",
+    cmp_freq_reduces: "Ta fréquence de trading réduit tes chances sur ce modèle (durée minimale de phase)",
+    cmp_sample_low: "Échantillon de trades trop faible pour une évaluation fiable",
+
     dec_pf_strong: "Profit Factor solide", dec_pf_ok: "Profit Factor correct", dec_pf_weak: "PF trop faible", dec_pf_negative: "PF négatif — stratégie perdante",
     dec_wr_rr_balanced: "Winrate et RR équilibrés", dec_wr_low: "Winrate trop bas pour ce RR",
     dec_dd_unknown: "DD inconnu — impossible de valider", dec_dd_excellent: "Drawdown très maîtrisé", dec_dd_good: "Drawdown maîtrisé",
@@ -110,6 +121,22 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    cmp_card_title: "Comparateur Prop Firm",
+    cmp_card_sub: "Compatibilité avec ton style",
+    cmp_card_desc: "Découvre quelle prop firm correspond le mieux à ton profil de trading réel.",
+    cmp_card_cta: "Comparer les firms",
+    cmp_no_data: "Importe un backtest ou lance une simulation pour comparer.",
+    cmp_report_title: "Comparateur Prop Firm",
+    cmp_report_sub: "Classement de compatibilité",
+    cmp_why_title: "Pourquoi cette compatibilité",
+    cmp_blockers_title: "Points bloquants",
+    cmp_adjustments_title: "Ajustements nécessaires",
+    cmp_tier_excellent: "Excellent match",
+    cmp_tier_good: "Bon match",
+    cmp_tier_moderate: "Match modéré",
+    cmp_tier_poor: "Match faible",
+    cmp_based_on: "Basé sur",
+    cmp_dd_limit: "Limite DD",
     dec_title: "Puis-je lancer ce challenge ?",
     dec_subtitle: "Décision basée sur ton historique importé",
     dec_score_label: "Score de décision",
@@ -542,6 +569,17 @@ const I18N = {
     dash_stay_focused: "Reste focus et discipliné",
   },
   es: {
+    cmp_dd_excellent: "Tu drawdown deja un amplio margen de seguridad bajo el límite", cmp_dd_good: "Tu drawdown se mantiene cómodo respecto al límite",
+    cmp_dd_tight: "Tu drawdown está cerca del límite — margen reducido", cmp_dd_critical: "Tu drawdown es demasiado agresivo para esta firma",
+    cmp_dd_exceeds: "Tu drawdown supera el límite permitido", cmp_trailing_strict: "DD trailing — más estricto que un DD estático al mismo umbral",
+    cmp_rr_favors: "Tu RR favorece fuertemente a esta firma", cmp_rr_low: "Tu RR medio es bajo para este tipo de desafío",
+    cmp_risk_too_high_tight: "Tu riesgo/operación es demasiado alto para el DD ajustado de esta firma", cmp_risk_disciplined: "Tu riesgo/operación disciplinado se adapta bien",
+    cmp_risk_moderate: "Tu riesgo/operación es moderado",
+    cmp_hft_forbidden: "El HFT está prohibido en esta firma", cmp_ea_forbidden: "Los EA están prohibidos en este modelo",
+    cmp_news_restricted: "El trading de noticias está restringido en esta firma", cmp_style_compatible: "Tu estilo de trading es compatible",
+    cmp_freq_reduces: "Tu frecuencia de trading reduce tus posibilidades en este modelo (duración mínima de fase)",
+    cmp_sample_low: "Muestra de operaciones demasiado baja para una evaluación fiable",
+
     dec_pf_strong: "Factor de beneficio sólido", dec_pf_ok: "Factor de beneficio correcto", dec_pf_weak: "PF demasiado débil", dec_pf_negative: "PF negativo — estrategia perdedora",
     dec_wr_rr_balanced: "Win rate y RR equilibrados", dec_wr_low: "Win rate demasiado bajo para este RR",
     dec_dd_unknown: "DD desconocido — no se puede validar", dec_dd_excellent: "Drawdown muy controlado", dec_dd_good: "Drawdown controlado",
@@ -635,6 +673,22 @@ const I18N = {
     prof_account: "Cuenta",
     prof_prefs: "Preferencias",
     prof_lang: "Idioma",
+    cmp_card_title: "Comparador de Prop Firms",
+    cmp_card_sub: "Compatibilidad con tu estilo",
+    cmp_card_desc: "Descubre qué prop firm se adapta mejor a tu perfil real de trading.",
+    cmp_card_cta: "Comparar firms",
+    cmp_no_data: "Importa un backtest o lanza una simulación para comparar.",
+    cmp_report_title: "Comparador de Prop Firms",
+    cmp_report_sub: "Clasificación de compatibilidad",
+    cmp_why_title: "Por qué esta compatibilidad",
+    cmp_blockers_title: "Puntos bloqueantes",
+    cmp_adjustments_title: "Ajustes necesarios",
+    cmp_tier_excellent: "Coincidencia excelente",
+    cmp_tier_good: "Buena coincidencia",
+    cmp_tier_moderate: "Coincidencia moderada",
+    cmp_tier_poor: "Coincidencia débil",
+    cmp_based_on: "Basado en",
+    cmp_dd_limit: "Límite DD",
     dec_title: "¿Puedo lanzar este desafío?",
     dec_subtitle: "Decisión basada en tu historial importado",
     dec_score_label: "Puntuación de decisión",
@@ -1066,6 +1120,17 @@ const I18N = {
     dash_stay_focused: "Mantente enfocado y disciplinado",
   },
   en: {
+    cmp_dd_excellent: "Your drawdown leaves a wide safety margin under the limit", cmp_dd_good: "Your drawdown stays comfortable vs. the limit",
+    cmp_dd_tight: "Your drawdown is close to the limit — reduced margin", cmp_dd_critical: "Your drawdown is too aggressive for this firm",
+    cmp_dd_exceeds: "Your drawdown exceeds the allowed limit", cmp_trailing_strict: "Trailing DD — stricter than a static DD at the same threshold",
+    cmp_rr_favors: "Your RR strongly favors this firm", cmp_rr_low: "Your average RR is low for this type of challenge",
+    cmp_risk_too_high_tight: "Your risk/trade is too high for this firm's tight DD", cmp_risk_disciplined: "Your disciplined risk/trade fits well",
+    cmp_risk_moderate: "Your risk/trade is moderate",
+    cmp_hft_forbidden: "HFT is forbidden at this firm", cmp_ea_forbidden: "EAs are forbidden on this model",
+    cmp_news_restricted: "News trading is restricted at this firm", cmp_style_compatible: "Your trading style is compatible",
+    cmp_freq_reduces: "Your trading frequency reduces your odds on this model (minimum phase duration)",
+    cmp_sample_low: "Trade sample too low for a reliable assessment",
+
     dec_pf_strong: "Solid Profit Factor", dec_pf_ok: "Decent Profit Factor", dec_pf_weak: "PF too weak", dec_pf_negative: "Negative PF — losing strategy",
     dec_wr_rr_balanced: "Balanced win rate and RR", dec_wr_low: "Win rate too low for this RR",
     dec_dd_unknown: "Unknown DD — cannot validate", dec_dd_excellent: "Very controlled drawdown", dec_dd_good: "Controlled drawdown",
@@ -1159,6 +1224,22 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    cmp_card_title: "Prop Firm Comparator",
+    cmp_card_sub: "Compatibility with your style",
+    cmp_card_desc: "Discover which prop firm best matches your real trading profile.",
+    cmp_card_cta: "Compare firms",
+    cmp_no_data: "Import a backtest or run a simulation to compare.",
+    cmp_report_title: "Prop Firm Comparator",
+    cmp_report_sub: "Compatibility ranking",
+    cmp_why_title: "Why this compatibility",
+    cmp_blockers_title: "Blocking points",
+    cmp_adjustments_title: "Necessary adjustments",
+    cmp_tier_excellent: "Excellent match",
+    cmp_tier_good: "Good match",
+    cmp_tier_moderate: "Moderate match",
+    cmp_tier_poor: "Poor match",
+    cmp_based_on: "Based on",
+    cmp_dd_limit: "DD limit",
     dec_title: "Can I launch this challenge?",
     dec_subtitle: "Decision based on your imported history",
     dec_score_label: "Decision score",
@@ -1718,6 +1799,28 @@ const PROP_FIRMS = {
       },
     },
   },
+  fundingtraders: {
+    name: "Funding Traders",
+    color: "#a78bfa",
+    note: "2-Step Standard - DD total 10% STATIC - Style flexible (scalping/news autorisés)",
+    models: {
+      "2step": {
+        name: "FT 2-Step",
+        phases: [
+          { label: "Phase 1", target: 0.08, minDays: 0 },
+          { label: "Phase 2", target: 0.05, minDays: 0 },
+        ],
+        dailyDD: 0.05, totalDD: 0.10, ddType: "static", challengeReward: 0,
+        firstPayoutDays: 14, payoutCycle: 14, splitStart: 80, splitMax: 90,
+      },
+      "1step": {
+        name: "FT 1-Step",
+        phases: [{ label: "Evaluation", target: 0.10, minDays: 0 }],
+        dailyDD: 0.04, totalDD: 0.08, ddType: "trailing", challengeReward: 0,
+        firstPayoutDays: 14, payoutCycle: 14, splitStart: 80, splitMax: 90,
+      },
+    },
+  },
   fundingpips: {
     name: "FundingPips",
     color: "#6ee7b7",
@@ -2177,7 +2280,7 @@ Réponds UNIQUEMENT en JSON valide sans markdown :
 }
 
 function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, requirePremium = () => {} }) {
-  const [mode, setMode] = useState(null); // null | 'simulation' | 'journal' | 'backtest'
+  const [mode, setMode] = useState(null); // null | 'simulation' | 'journal' | 'backtest' | 'comparator'
   const [gemini, setGemini] = useState(null);
   const [gemLoading, setGemLoading] = useState(false);
 
@@ -2195,6 +2298,19 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
   // Simulation data
   setALLang(lang);
   const simAnalysis = lastSim ? coachAnalyze({ winrate:lastSim.winrate, rr:lastSim.rr, ddDayPct:lastSim.ddDayPct, ddTotPct:lastSim.ddTotPct, dailyDDLimit:lastSim.dailyDDLimit, totalDDLimit:lastSim.totalDDLimit, riskPctValue:lastSim.riskPctValue, riskPct:lastSim.riskPct, totalTrades:lastSim.totalTrades, capital:lastSim.capital, phase1Target:lastSim.phase1Target }, lastSim.firmKey?lastSim.firmKey.toUpperCase():'PROP FIRM') : null;
+
+  // ── Profil trader réel pour le Comparateur Prop Firm (priorité: backtest > simulation) ──
+  const traderProfileForCompare = backtestStats ? {
+    winrate: backtestStats.wr || 50, avgRR: backtestStats.rr || 1.5, avgDD: backtestStats.maxDD || 5,
+    riskPerTrade: backtestStats.avgRiskPct || 1, tradesPerDay: backtestStats.tradesPerDay || 3,
+    style: backtestStats.style || "swing", sampleSize: backtestStats.totalTrades || 0,
+  } : simAnalysis ? {
+    winrate: simAnalysis.metrics.winrate || 50, avgRR: simAnalysis.metrics.rr || 1.5,
+    avgDD: Math.max(simAnalysis.metrics.ddDayUsed||0, simAnalysis.metrics.ddTotUsed||0) || 5,
+    riskPerTrade: simAnalysis.metrics.riskPct || 1, tradesPerDay: 3, style: "swing",
+    sampleSize: simAnalysis.metrics.totalTrades || 0,
+  } : null;
+  const firmComparison = traderProfileForCompare ? compareAllFirms(traderProfileForCompare) : null;
 
   // Appel expert async selon le mode
   useEffect(() => {
@@ -2308,6 +2424,18 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         hasData: !!backtestStats,
         dataLabel: backtestStats ? `${backtestStats.totalTrades} trades importés · PF ${backtestStats.pf} · Score ${backtestStats.robustness}%` : (lang==='en'?'Import a CSV file in My Trades':'Importez un fichier CSV dans Mes Trades'),
         cta: t('an_bt_cta'),
+        ctaGoto: 'trades',
+      },
+      {
+        key:'comparator', accent:'#a78bfa', bg:'rgba(167,139,250,0.06)', border:'rgba(167,139,250,0.2)',
+        icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 17V9M9 17V5M15 17v-7M21 17v-3" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+        title: t('cmp_card_title'),
+        subtitle: t('cmp_card_sub'),
+        desc: t('cmp_card_desc'),
+        chips: ['FTMO', 'FundedNext', 'E8', 'The5ers'],
+        hasData: !!firmComparison,
+        dataLabel: firmComparison ? `${firmComparison[0].firmName} ${firmComparison[0].score}% · ${firmComparison.length} firms` : t('cmp_no_data'),
+        cta: t('cmp_card_cta'),
         ctaGoto: 'trades',
       },
     ];
@@ -2624,6 +2752,87 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
         {/* Rapport expert */}
         <ExpertSection gemini={gemini} gemLoading={gemLoading} localText={localText}/>
+      </div>
+    );
+  }
+
+  if (mode === 'comparator') {
+    if (!firmComparison) return (
+      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+        <ReportHeader title={t('cmp_report_title')} subtitle={t('cmp_report_sub')} onBack={()=>setMode(null)}/>
+        <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
+          <div style={{fontSize:32,marginBottom:12}}>📊</div>
+          <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>{t('cmp_no_data')}</div>
+          <button onClick={()=>goto('trades')} style={{padding:'12px 24px',borderRadius:12,background:'#a78bfa',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>{t('an_import_bt')}</button>
+        </div>
+      </div>
+    );
+    const tierLabel = (tier) => tier==='excellent' ? t('cmp_tier_excellent') : tier==='good' ? t('cmp_tier_good') : tier==='moderate' ? t('cmp_tier_moderate') : t('cmp_tier_poor');
+    const tierColor = (tier) => tier==='excellent' ? '#6ee7b7' : tier==='good' ? '#6ee7b7' : tier==='moderate' ? '#fbbf24' : '#ef4444';
+    return (
+      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+        <ReportHeader title={t('cmp_report_title')} subtitle={t('cmp_report_sub')} onBack={()=>setMode(null)}/>
+
+        {/* Classement complet — toutes les Prop Firms */}
+        {firmComparison.map((f, i) => (
+          <div key={f.firmKey} style={{
+            background: i===0 ? `${f.color}10` : 'rgba(255,255,255,0.03)',
+            border: `1.5px solid ${i===0 ? f.color+'55' : 'rgba(255,255,255,0.08)'}`,
+            borderRadius: 16, padding: '14px 16px', marginBottom: 10,
+          }}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom: (f.blockers.length+f.adjustments.length+f.strengths.length)>0 ? 10 : 0}}>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <span style={{fontSize:18,fontWeight:900,color:'rgba(255,255,255,0.3)',width:20}}>{i+1}</span>
+                <div>
+                  <div style={{fontSize:14,fontWeight:800,color:'#fff',display:'flex',alignItems:'center',gap:6}}>
+                    {f.tierIcon} {f.firmName}
+                  </div>
+                  <div style={{fontSize:10,color:tierColor(f.tier),fontWeight:600}}>{tierLabel(f.tier)}</div>
+                </div>
+              </div>
+              <div style={{fontSize:22,fontWeight:900,color:f.score>=75?'#6ee7b7':f.score>=60?'#6ee7b7':f.score>=40?'#fbbf24':'#ef4444'}}>{f.score}%</div>
+            </div>
+
+            {/* Détail : pourquoi / blockers / ajustements (collapsible visuellement par simple liste) */}
+            {f.blockers.length > 0 && (
+              <div style={{marginBottom:6}}>
+                {f.blockers.map((b,bi) => (
+                  <div key={bi} style={{display:'flex',gap:6,alignItems:'flex-start',padding:'3px 0'}}>
+                    <span style={{color:'#ef4444',fontSize:10,flexShrink:0,marginTop:2}}>🔴</span>
+                    <span style={{fontSize:11,color:'rgba(255,255,255,0.65)',lineHeight:1.4}}>{AL(b.key)}{b.val ? ` (${b.val}%)` : ''}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {f.adjustments.length > 0 && (
+              <div style={{marginBottom:6}}>
+                {f.adjustments.map((a,ai) => (
+                  <div key={ai} style={{display:'flex',gap:6,alignItems:'flex-start',padding:'3px 0'}}>
+                    <span style={{color:'#fbbf24',fontSize:10,flexShrink:0,marginTop:2}}>🟡</span>
+                    <span style={{fontSize:11,color:'rgba(255,255,255,0.65)',lineHeight:1.4}}>{AL(a.key)}{a.val ? ` (${a.val}%)` : ''}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {f.strengths.length > 0 && (
+              <div>
+                {f.strengths.map((s,si) => (
+                  <div key={si} style={{display:'flex',gap:6,alignItems:'flex-start',padding:'3px 0'}}>
+                    <span style={{color:'#6ee7b7',fontSize:10,flexShrink:0,marginTop:2}}>✓</span>
+                    <span style={{fontSize:11,color:'rgba(255,255,255,0.65)',lineHeight:1.4}}>{AL(s.key)}{s.val ? ` (${s.val}%)` : ''}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{fontSize:9,color:'rgba(255,255,255,0.3)',marginTop:8,paddingTop:8,borderTop:'1px solid rgba(255,255,255,0.05)'}}>
+              {f.model.name} · {t('cmp_dd_limit')} {f.ddLimitPct.toFixed(0)}%
+            </div>
+          </div>
+        ))}
+
+        <div style={{fontSize:9,color:'rgba(255,255,255,0.3)',textAlign:'center',marginTop:10}}>
+          {t('cmp_based_on')} {traderProfileForCompare.sampleSize} {t('mt5_trades_analyzed')}
+        </div>
       </div>
     );
   }
@@ -5065,6 +5274,92 @@ function mt5Analyze(trades, initBalance) {
 // final 🟢🟡🔴 avec raisons précises et score /100.
 // Fonctionne avec tout résultat de computeVerdictSync (CSV ou backtest).
 // ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// COMPARATEUR INTELLIGENT DE COMPATIBILITÉ PROP FIRM
+// Compare le profil réel du trader (winrate, RR, DD, risque/trade,
+// trades/jour, style) avec les règles réelles de chaque Prop Firm
+// (PROP_FIRMS) → classement de compatibilité % avec raisons précises.
+// ══════════════════════════════════════════════════════════════════
+function compareAllFirms(trader) {
+  // trader = { winrate, avgRR, avgDD, riskPerTrade, tradesPerDay, style, sampleSize }
+  if (!trader) return null;
+  const { winrate = 0, avgRR = 0, avgDD = 0, riskPerTrade = 0, tradesPerDay = 0, style = "swing", sampleSize = 0 } = trader;
+  const isScalper = style === "scalping" || tradesPerDay >= 8;
+  const isHFT = tradesPerDay >= 20;
+
+  const results = Object.keys(PROP_FIRMS).map(firmKey => {
+    const firm = PROP_FIRMS[firmKey];
+    // Utiliser le modèle 2-step par défaut (référence la plus commune), sinon le premier dispo
+    const model = firm.models["2step"] || Object.values(firm.models)[0];
+    const blockers = [], adjustments = [], strengths = [];
+    let score = 0;
+
+    // ── 1. Drawdown compatibility (35 pts) — le facteur le plus déterminant ──
+    const ddLimitPct = model.totalDD * 100;
+    const ddMarginPct = ddLimitPct - avgDD; // marge restante en points
+    if (avgDD <= ddLimitPct * 0.4) { score += 35; strengths.push({ key: 'cmp_dd_excellent', val: ddLimitPct.toFixed(0) }); }
+    else if (avgDD <= ddLimitPct * 0.6) { score += 28; strengths.push({ key: 'cmp_dd_good', val: ddLimitPct.toFixed(0) }); }
+    else if (avgDD <= ddLimitPct * 0.85) { score += 16; adjustments.push({ key: 'cmp_dd_tight', val: ddLimitPct.toFixed(0) }); }
+    else if (avgDD <= ddLimitPct) { score += 6; blockers.push({ key: 'cmp_dd_critical', val: ddLimitPct.toFixed(0) }); }
+    else { score += 0; blockers.push({ key: 'cmp_dd_exceeds', val: ddLimitPct.toFixed(0) }); }
+    // Pénalité supplémentaire si DD type trailing (plus strict) et trader proche de la limite
+    if (model.ddType === "trailing" && avgDD > ddLimitPct * 0.5) {
+      score -= 5; adjustments.push({ key: 'cmp_trailing_strict', val: null });
+    }
+
+    // ── 2. Profil de risque / RR (20 pts) ──
+    // Firms avec DD total serré (≤8%) favorisent un RR élevé et un risque/trade faible
+    const tightDD = ddLimitPct <= 8;
+    if (avgRR >= 1.5) { score += 12; strengths.push({ key: 'cmp_rr_favors', val: null }); }
+    else if (avgRR >= 1.0) { score += 7; }
+    else { score += 2; adjustments.push({ key: 'cmp_rr_low', val: null }); }
+    if (riskPerTrade > 0) {
+      if (tightDD && riskPerTrade > 1.0) { score += 0; blockers.push({ key: 'cmp_risk_too_high_tight', val: ddLimitPct.toFixed(0) }); }
+      else if (riskPerTrade <= 1.0) { score += 8; strengths.push({ key: 'cmp_risk_disciplined', val: null }); }
+      else { score += 4; adjustments.push({ key: 'cmp_risk_moderate', val: null }); }
+    } else { score += 4; }
+
+    // ── 3. Style de trading vs règles spécifiques (20 pts) ──
+    const firmForbidsHFT = (firm.note && firm.note.toUpperCase().includes("HFT INTERDIT")) || (firm.note && firm.note.toUpperCase().includes("HFT") && firm.note.toUpperCase().includes("INTERDIT"));
+    const firmForbidsNews = model.newsForbidden || (firm.note && firm.note.toLowerCase().includes("news") && (firm.note.toLowerCase().includes("interdit") || firm.note.toLowerCase().includes("non comptee")));
+    if (firmForbidsHFT && isHFT) {
+      score += 0; blockers.push({ key: 'cmp_hft_forbidden', val: null });
+    } else if (model.eaForbidden && style === "ea") {
+      score += 0; blockers.push({ key: 'cmp_ea_forbidden', val: null });
+    } else if (firmForbidsNews && style === "news") {
+      score += 3; blockers.push({ key: 'cmp_news_restricted', val: null });
+    } else if (firmForbidsNews && isScalper) {
+      score += 10; adjustments.push({ key: 'cmp_news_restricted', val: null });
+    } else {
+      score += 18; strengths.push({ key: 'cmp_style_compatible', val: null });
+    }
+    // Fréquence de trading vs minDays (phases courtes pénalisent le swing/scalping lent)
+    const minDaysTotal = model.phases.reduce((s,p) => s + (p.minDays||0), 0);
+    if (tradesPerDay > 0 && tradesPerDay < 1 && minDaysTotal >= 6) {
+      score -= 4; adjustments.push({ key: 'cmp_freq_reduces', val: null });
+    }
+
+    // ── 4. Échantillon statistique / fiabilité (15 pts) ──
+    if (sampleSize >= 100) score += 15;
+    else if (sampleSize >= 30) score += 10;
+    else if (sampleSize >= 10) score += 5;
+    else { score += 0; adjustments.push({ key: 'cmp_sample_low', val: null }); }
+
+    // ── 5. Winrate cohérence (10 pts) ──
+    if (winrate >= 40 && winrate <= 70) score += 10;
+    else if (winrate > 0) score += 5;
+
+    score = Math.round(Math.max(0, Math.min(100, score)));
+    const tier = score >= 75 ? "excellent" : score >= 60 ? "good" : score >= 40 ? "moderate" : "poor";
+    const tierIcon = score >= 75 ? "✅" : score >= 60 ? "✅" : score >= 40 ? "⚠️" : "❌";
+
+    return { firmKey, firmName: firm.name, color: firm.color, model, score, tier, tierIcon, blockers, adjustments, strengths, ddLimitPct };
+  });
+
+  results.sort((a, b) => b.score - a.score);
+  return results;
+}
+
 function canLaunchChallenge(verdict) {
   if (!verdict) return null;
   const reasons = [];      // raisons négatives précises (pourquoi pas / attendre)
