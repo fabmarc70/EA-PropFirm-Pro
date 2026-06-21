@@ -6670,8 +6670,7 @@ function canLaunchChallenge(verdict) {
 function HeatmapReport({ heat, t }) {
   if (!heat) {
     return (
-      <div className="card" style={{ textAlign: "center", padding: "20px 14px" }}>
-        
+      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: "20px 14px", textAlign: "center" }}>
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{t("heat_no_data")}</div>
       </div>
     );
@@ -6692,7 +6691,7 @@ function HeatmapReport({ heat, t }) {
   const maxAbsProfit = Math.max(1, ...heat.gridCells.map(c => Math.abs(c.profit)));
 
   return (
-    <div className="card">
+    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16 }}>
       <div style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>{t("heat_title")}</div>
         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("heat_subtitle")}</div>
@@ -11081,7 +11080,6 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
   const lossDays = daysArr.filter(d => (d.pnl || 0) < 0).length;
   const bestDay = daysArr.length ? Math.max(...daysArr.map(d => d.pnl || 0)) : 0;
   const worstDay = daysArr.length ? Math.min(...daysArr.map(d => d.pnl || 0)) : 0;
-  const scoreColor = (s) => s >= 70 ? "#6ee7b7" : s >= 45 ? "#fbbf24" : "#ef4444";
 
   return (
     <div style={{ fontFamily: "-apple-system, sans-serif", color: "#fff" }}>
@@ -11094,29 +11092,11 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
       </div>
 
       <div style={{ padding: "14px 16px 100px", maxWidth: 480, margin: "0 auto" }}>
-        {/* Score de cohérence (si données dispo) */}
-        {journalStats && (
-          <div className="card" style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ position: "relative", width: 60, height: 60, flexShrink: 0 }}>
-              <svg width="60" height="60" viewBox="0 0 60 60">
-                <circle cx="30" cy="30" r="25" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
-                <circle cx="30" cy="30" r="25" fill="none" stroke={scoreColor(journalStats.consistency)} strokeWidth="6" strokeLinecap="round"
-                  strokeDasharray={`${2*Math.PI*25*(journalStats.consistency/100)} ${2*Math.PI*25}`} transform="rotate(-90 30 30)" />
-              </svg>
-              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: scoreColor(journalStats.consistency) }}>{journalStats.consistency}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>{t("journal_consistency_title")}</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{journalStats.totalDays} {t("cal_days_entered")}</div>
-            </div>
-          </div>
-        )}
-
         {/* ══════════════════════════════════════════════════════════
             COACH DE DISCIPLINE — score comportemental façon jeu vidéo
         ══════════════════════════════════════════════════════════ */}
         {!discipline ? (
-          <div className="card" style={{ textAlign: "center", padding: "20px 14px", marginBottom: 14 }}>
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: "20px 14px", marginBottom: 16, textAlign: "center" }}>
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={{ marginBottom: 8, opacity: 0.3 }}>
               <circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/>
               <circle cx="12" cy="12" r="4" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/>
@@ -11131,7 +11111,7 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
             : t("disc_level_beginner");
           const progressToNext = discipline.level === "elite" ? 100 : Math.min(100, (discipline.score / discipline.nextLevelScore) * 100);
           return (
-            <div className="card">
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>{t("disc_title")}</div>
@@ -11212,7 +11192,7 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
         })()}
 
         {/* Navigation mois + stats rapides — regroupées dans une carte standard */}
-        <div className="card">
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <button onClick={() => shiftMonth(-1)} aria-label={t("journal_prev_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>‹</button>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>{journalMonth}</div>
@@ -11252,7 +11232,7 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
 
         {/* Forces / faiblesses (si données dispo) — réutilise journalAnalyze */}
         {journalStats && journalStats.bestDay !== undefined && (
-          <div className="card">
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 10 }}>{t("journal_overview")}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               <div style={{ background: "rgba(110,231,183,0.06)", borderRadius: 10, padding: "8px 10px" }}>
