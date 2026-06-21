@@ -126,6 +126,31 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    disc_title: "Coach de Discipline",
+    disc_subtitle: "Ton comportement, mesuré au quotidien",
+    disc_score_label: "Score de discipline",
+    disc_level_beginner: "Débutant",
+    disc_level_disciplined: "Discipliné",
+    disc_level_professional: "Professionnel",
+    disc_level_elite: "Elite",
+    disc_next_level: "Prochain niveau à",
+    disc_positives_title: "Points positifs",
+    disc_negatives_title: "Points négatifs",
+    disc_no_data: "Saisis tes journées avec les indicateurs de discipline pour activer le coach.",
+    disc_respect_risk_count: "Jours risque respecté",
+    disc_respect_plan_count: "Jours plan respecté",
+    disc_exceeded_risk_count: "Jours risque dépassé",
+    disc_broke_plan_count: "Jours plan non respecté",
+    disc_lot_increase_count: "Jours lot augmenté après perte",
+    disc_emotional_count: "Jours trading émotionnel",
+    disc_overtrading_count: "Jours de sur-trading",
+    disc_clean_days_count: "Journées sans sur-trading",
+    disc_today_change: "Aujourd'hui",
+    cal_respect_plan: "J'ai respecté mon plan de trading",
+    cal_respect_risk: "J'ai respecté mon risque par trade",
+    cal_lot_increase: "J'ai augmenté mon lot après une perte",
+    cal_emotional: "J'ai tradé sous le coup de l'émotion",
+    disc_form_title: "Discipline du jour",
     nav_journal: "Journal",
     journal_title: "Journal de Trading",
     journal_subtitle: "Suis tes trades réels jour par jour",
@@ -717,6 +742,31 @@ const I18N = {
     prof_account: "Cuenta",
     prof_prefs: "Preferencias",
     prof_lang: "Idioma",
+    disc_title: "Coach de Disciplina",
+    disc_subtitle: "Tu comportamiento, medido a diario",
+    disc_score_label: "Puntuación de disciplina",
+    disc_level_beginner: "Principiante",
+    disc_level_disciplined: "Disciplinado",
+    disc_level_professional: "Profesional",
+    disc_level_elite: "Elite",
+    disc_next_level: "Próximo nivel en",
+    disc_positives_title: "Puntos positivos",
+    disc_negatives_title: "Puntos negativos",
+    disc_no_data: "Registra tus días con los indicadores de disciplina para activar el coach.",
+    disc_respect_risk_count: "Días riesgo respetado",
+    disc_respect_plan_count: "Días plan respetado",
+    disc_exceeded_risk_count: "Días riesgo excedido",
+    disc_broke_plan_count: "Días plan incumplido",
+    disc_lot_increase_count: "Días lote aumentado tras pérdida",
+    disc_emotional_count: "Días trading emocional",
+    disc_overtrading_count: "Días de overtrading",
+    disc_clean_days_count: "Días sin overtrading",
+    disc_today_change: "Hoy",
+    cal_respect_plan: "Respeté mi plan de trading",
+    cal_respect_risk: "Respeté mi riesgo por operación",
+    cal_lot_increase: "Aumenté mi lote después de una pérdida",
+    cal_emotional: "Operé de forma emocional",
+    disc_form_title: "Disciplina del día",
     nav_journal: "Diario",
     journal_title: "Diario de Trading",
     journal_subtitle: "Sigue tus operaciones reales día a día",
@@ -1307,6 +1357,31 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    disc_title: "Discipline Coach",
+    disc_subtitle: "Your behavior, measured daily",
+    disc_score_label: "Discipline score",
+    disc_level_beginner: "Beginner",
+    disc_level_disciplined: "Disciplined",
+    disc_level_professional: "Professional",
+    disc_level_elite: "Elite",
+    disc_next_level: "Next level at",
+    disc_positives_title: "Positive points",
+    disc_negatives_title: "Negative points",
+    disc_no_data: "Log your days with discipline indicators to activate the coach.",
+    disc_respect_risk_count: "Days risk respected",
+    disc_respect_plan_count: "Days plan respected",
+    disc_exceeded_risk_count: "Days risk exceeded",
+    disc_broke_plan_count: "Days plan broken",
+    disc_lot_increase_count: "Days lot increased after loss",
+    disc_emotional_count: "Days emotional trading",
+    disc_overtrading_count: "Overtrading days",
+    disc_clean_days_count: "Days without overtrading",
+    disc_today_change: "Today",
+    cal_respect_plan: "I respected my trading plan",
+    cal_respect_risk: "I respected my risk per trade",
+    cal_lot_increase: "I increased my lot size after a loss",
+    cal_emotional: "I traded emotionally",
+    disc_form_title: "Today's discipline",
     nav_journal: "Journal",
     journal_title: "Trading Journal",
     journal_subtitle: "Track your real trades day by day",
@@ -2254,6 +2329,112 @@ function journalAnalyze(journalRaw) {
     bestDay:bestDay===-Infinity?0:+bestDay.toFixed(2), worstDay:worstDay===Infinity?0:+worstDay.toFixed(2),
     maxStreakW, maxStreakL, monthsTracked:Object.keys(journalRaw||{}).length,
     issues:issues.slice(0,3), strengths:strengths.slice(0,3),
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// COACH DE DISCIPLINE — score comportemental /100 basé sur le journal
+// Points positifs : respect risque/plan, pas de sur-trading
+// Points négatifs : revenge trading, lot augmenté après perte, trading émotionnel, dépassement risque
+// Évolue quotidiennement (système de progression façon jeu vidéo).
+// ══════════════════════════════════════════════════════════════════
+function disciplineAnalyze(journalRaw) {
+  const allDays = [];
+  Object.entries(journalRaw || {}).forEach(([mk, days]) => {
+    Object.entries(days || {}).forEach(([d, e]) => {
+      if (e && (e.pnl !== undefined || e.wins !== undefined)) {
+        allDays.push({
+          date: `${mk}-${d.padStart(2,'0')}`, pnl: e.pnl || 0, wins: e.wins || 0, losses: e.losses || 0,
+          respectPlan: e.respectPlan !== undefined ? e.respectPlan : null,
+          respectRisk: e.respectRisk !== undefined ? e.respectRisk : null,
+          lotIncreaseAfterLoss: !!e.lotIncreaseAfterLoss,
+          emotionalTrading: !!e.emotionalTrading,
+        });
+      }
+    });
+  });
+  if (!allDays.length) return null;
+  allDays.sort((a,b) => a.date.localeCompare(b.date));
+
+  const events = []; // historique des +/- points (façon jeu vidéo)
+
+  // ── Score quotidien individuel par jour (0-100), puis moyenne pondérée récente ──
+  // Système "jeu vidéo" : la forme récente compte plus que l'historique ancien (decay exponentiel).
+  let curLossStreakDays = 0;
+  const dailyScores = allDays.map((day, i) => {
+    let dayScore = 50; // neutre par défaut pour CE jour
+    const totalTrades = day.wins + day.losses;
+    const lossRate = totalTrades > 0 ? day.losses / totalTrades : 0;
+
+    if (day.respectRisk === true) { dayScore += 15; events.push({ date: day.date, delta: +3, key: 'disc_ev_respect_risk' }); }
+    else if (day.respectRisk === false) { dayScore -= 25; events.push({ date: day.date, delta: -6, key: 'disc_ev_exceeded_risk' }); }
+
+    if (day.respectPlan === true) { dayScore += 15; events.push({ date: day.date, delta: +3, key: 'disc_ev_respect_plan' }); }
+    else if (day.respectPlan === false) { dayScore -= 20; events.push({ date: day.date, delta: -5, key: 'disc_ev_broke_plan' }); }
+
+    if (day.lotIncreaseAfterLoss) { dayScore -= 25; events.push({ date: day.date, delta: -8, key: 'disc_ev_lot_increase' }); }
+    if (day.emotionalTrading) { dayScore -= 20; events.push({ date: day.date, delta: -7, key: 'disc_ev_emotional' }); }
+
+    // Revenge trading proxy : journée à forte proportion de pertes (>=70%, 3+ trades) + émotionnel
+    if (totalTrades >= 3 && lossRate >= 0.7 && day.emotionalTrading) {
+      dayScore -= 15; events.push({ date: day.date, delta: -10, key: 'disc_ev_revenge' });
+      curLossStreakDays++;
+    } else if (day.pnl < 0) {
+      curLossStreakDays++;
+    } else {
+      curLossStreakDays = 0;
+    }
+
+    // Sur-trading proxy : plus de 8 trades dans la journée
+    if (totalTrades > 8) { dayScore -= 12; events.push({ date: day.date, delta: -4, key: 'disc_ev_overtrading' }); }
+    else if (totalTrades > 0) { dayScore += 3; events.push({ date: day.date, delta: +1, key: 'disc_ev_no_overtrading' }); }
+
+    // Journée propre : pas de pertes, pas d'émotion, plan + risque respectés
+    if (day.pnl >= 0 && !day.emotionalTrading && !day.lotIncreaseAfterLoss && day.respectPlan !== false && day.respectRisk !== false) {
+      dayScore += 10; events.push({ date: day.date, delta: +2, key: 'disc_ev_clean_day' });
+    }
+
+    return Math.max(0, Math.min(100, dayScore));
+  });
+
+  // Moyenne pondérée : les jours récents comptent plus (decay), façon "forme du moment" jeu vidéo.
+  // Poids exponentiel croissant vers les jours les plus récents.
+  let weightedSum = 0, weightTotal = 0;
+  dailyScores.forEach((s, i) => {
+    const recencyWeight = Math.pow(1.08, i); // les indices élevés (récents) pèsent plus
+    weightedSum += s * recencyWeight;
+    weightTotal += recencyWeight;
+  });
+  let score = weightTotal > 0 ? weightedSum / weightTotal : 50;
+  score = Math.round(Math.max(0, Math.min(100, score)));
+
+  // ── Niveau (façon jeu vidéo) ──
+  let level, levelColor, levelIcon, nextLevelScore;
+  if (score >= 85) { level = "elite"; levelColor = "#a78bfa"; levelIcon = "👑"; nextLevelScore = 100; }
+  else if (score >= 65) { level = "professional"; levelColor = "#6ee7b7"; levelIcon = "🏆"; nextLevelScore = 85; }
+  else if (score >= 40) { level = "disciplined"; levelColor = "#fbbf24"; levelIcon = "🎯"; nextLevelScore = 65; }
+  else { level = "beginner"; levelColor = "#f97316"; levelIcon = "🌱"; nextLevelScore = 40; }
+
+  // ── Compteurs pour l'affichage Forces/Faiblesses ──
+  const respectRiskDays = allDays.filter(d => d.respectRisk === true).length;
+  const respectPlanDays = allDays.filter(d => d.respectPlan === true).length;
+  const exceededRiskDays = allDays.filter(d => d.respectRisk === false).length;
+  const brokePlanDays = allDays.filter(d => d.respectPlan === false).length;
+  const lotIncreaseDays = allDays.filter(d => d.lotIncreaseAfterLoss).length;
+  const emotionalDays = allDays.filter(d => d.emotionalTrading).length;
+  const overtradingDays = allDays.filter(d => (d.wins + d.losses) > 8).length;
+  const cleanDays = allDays.filter(d => d.pnl >= 0 && !d.emotionalTrading && !d.lotIncreaseAfterLoss && d.respectPlan !== false && d.respectRisk !== false).length;
+
+  // Score d'hier vs aujourd'hui (progression façon jeu vidéo)
+  const last7 = events.slice(-7);
+  const todayDelta = events.length ? events[events.length - 1] : null;
+
+  return {
+    score, level, levelColor, levelIcon, nextLevelScore,
+    totalDays: allDays.length, events, last7,
+    respectRiskDays, respectPlanDays, exceededRiskDays, brokePlanDays,
+    lotIncreaseDays, emotionalDays, overtradingDays, cleanDays,
+    todayDelta,
   };
 }
 
@@ -7236,6 +7417,11 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
   const [formGainAbs, setFormGainAbs] = useState(""); // valeur absolue (toujours positive)
   const [formGainSign, setFormGainSign] = useState(1); // +1 ou -1
   const [formImages, setFormImages] = useState([]);
+  // ── Coach de Discipline : signaux comportementaux saisis par le trader ──
+  const [formRespectPlan, setFormRespectPlan] = useState(true);
+  const [formRespectRisk, setFormRespectRisk] = useState(true);
+  const [formLotIncreaseAfterLoss, setFormLotIncreaseAfterLoss] = useState(false);
+  const [formEmotionalTrading, setFormEmotionalTrading] = useState(false);
   const [viewerImg, setViewerImg] = useState(null);
   const [imgLoading, setImgLoading] = useState(false);
   const [imgDateWarn, setImgDateWarn] = useState(null); // alerte doublon potentiel
@@ -7479,6 +7665,10 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 setFormGainAbs(existingPnl !== 0 ? String(Math.abs(existingPnl)) : "");
                 setFormGainSign(existingPnl < 0 ? -1 : 1);
                 setFormImages(existing && existing.images ? existing.images : []);
+                setFormRespectPlan(existing && existing.respectPlan !== undefined ? existing.respectPlan : true);
+                setFormRespectRisk(existing && existing.respectRisk !== undefined ? existing.respectRisk : true);
+                setFormLotIncreaseAfterLoss(existing ? !!existing.lotIncreaseAfterLoss : false);
+                setFormEmotionalTrading(existing ? !!existing.emotionalTrading : false);
                 setImgDateWarn(null);
               }}
               style={{
@@ -7652,6 +7842,37 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 </div>
               </div>
 
+              {/* ── Coach de Discipline : signaux comportementaux du jour ── */}
+              <div style={{ marginTop: 4 }}>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 7 }}>
+                  {t("disc_form_title")}
+                </div>
+                {[
+                  [t("cal_respect_plan"), formRespectPlan, setFormRespectPlan, true],
+                  [t("cal_respect_risk"), formRespectRisk, setFormRespectRisk, true],
+                  [t("cal_lot_increase"), formLotIncreaseAfterLoss, setFormLotIncreaseAfterLoss, false],
+                  [t("cal_emotional"), formEmotionalTrading, setFormEmotionalTrading, false],
+                ].map(([label, val, setter, positiveIsTrue], i) => {
+                  const isGood = positiveIsTrue ? val : !val;
+                  return (
+                    <div key={i} onClick={() => setter(v => !v)} style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "8px 10px", borderRadius: 10, marginBottom: 6, cursor: "pointer",
+                      background: isGood ? "rgba(110,231,183,0.05)" : "rgba(239,68,68,0.06)",
+                      border: "1px solid " + (isGood ? "rgba(110,231,183,0.15)" : "rgba(239,68,68,0.2)"),
+                    }}>
+                      <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.75)" }}>{label}</span>
+                      <div style={{
+                        width: 38, height: 22, borderRadius: 11, position: "relative", flexShrink: 0,
+                        background: val ? "#6ee7b7" : "rgba(255,255,255,0.12)", transition: "all .2s",
+                      }}>
+                        <div style={{ position: "absolute", top: 2, left: val ? 18 : 2, width: 18, height: 18, borderRadius: 9, background: "#fff", transition: "all .2s" }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
               {/* Captures MT4/MT5 — compact */}
               <div>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 7 }}>
@@ -7729,7 +7950,9 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
               </button>
               <button onClick={() => {
                   const pnl = +(parseFloat(formGainAbs) || 0) * formGainSign;
-                  const entry = { wins: formWins, losses: formLosses, pnl };
+                  const entry = { wins: formWins, losses: formLosses, pnl,
+                    respectPlan: formRespectPlan, respectRisk: formRespectRisk,
+                    lotIncreaseAfterLoss: formLotIncreaseAfterLoss, emotionalTrading: formEmotionalTrading };
                   if (formImages.length > 0) entry.images = formImages;
                   if (onJournalSave) onJournalSave(editingDay, entry);
                   setEditingDay(null);
@@ -9888,6 +10111,7 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
 function JournalScreen({ t, lang, goto, capital = 25000 }) {
   const { journal: journalAll, journalMonth, setJournalMonth, saveJournalEntry, monthData: journalMonthData } = useJournal();
   const journalStats = journalAnalyze(journalAll);
+  const discipline = disciplineAnalyze(journalAll);
 
   const shiftMonth = (delta) => {
     const [y, m] = journalMonth.split("-").map(Number);
@@ -9932,6 +10156,101 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
             </div>
           </div>
         )}
+
+        {/* ══════════════════════════════════════════════════════════
+            🎮 COACH DE DISCIPLINE — score comportemental façon jeu vidéo
+        ══════════════════════════════════════════════════════════ */}
+        {!discipline ? (
+          <div className="card" style={{ textAlign: "center", padding: "20px 14px", marginBottom: 14 }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>🎮</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{t("disc_no_data")}</div>
+          </div>
+        ) : (() => {
+          const levelLabel = discipline.level === "elite" ? t("disc_level_elite")
+            : discipline.level === "professional" ? t("disc_level_professional")
+            : discipline.level === "disciplined" ? t("disc_level_disciplined")
+            : t("disc_level_beginner");
+          const progressToNext = discipline.level === "elite" ? 100 : Math.min(100, (discipline.score / discipline.nextLevelScore) * 100);
+          return (
+            <div className="card" style={{ marginBottom: 14, border: `1.5px solid ${discipline.levelColor}40`, background: discipline.levelColor + "0c" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>🎮 {t("disc_title")}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("disc_subtitle")}</div>
+                </div>
+                {discipline.todayDelta && (
+                  <div style={{ fontSize: 11, fontWeight: 800, color: discipline.todayDelta.delta >= 0 ? "#6ee7b7" : "#ef4444", padding: "3px 9px", borderRadius: 8, background: (discipline.todayDelta.delta >= 0 ? "#6ee7b7" : "#ef4444") + "15" }}>
+                    {discipline.todayDelta.delta >= 0 ? "+" : ""}{discipline.todayDelta.delta}
+                  </div>
+                )}
+              </div>
+
+              {/* Score + niveau façon jeu vidéo */}
+              <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14 }}>
+                <div style={{ position: "relative", width: 72, height: 72, flexShrink: 0 }}>
+                  <svg width="72" height="72" viewBox="0 0 72 72">
+                    <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="7" />
+                    <circle cx="36" cy="36" r="30" fill="none" stroke={discipline.levelColor} strokeWidth="7" strokeLinecap="round"
+                      strokeDasharray={`${2*Math.PI*30*(discipline.score/100)} ${2*Math.PI*30}`} transform="rotate(-90 36 36)" />
+                  </svg>
+                  <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                    <span style={{ fontSize: 17, fontWeight: 800, color: discipline.levelColor }}>{discipline.score}</span>
+                    <span style={{ fontSize: 7, color: "rgba(255,255,255,0.4)" }}>/100</span>
+                  </div>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5 }}>{t("disc_score_label")}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: discipline.levelColor, display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                    <span style={{ fontSize: 20 }}>{discipline.levelIcon}</span> {levelLabel}
+                  </div>
+                  {/* Barre XP vers le prochain niveau */}
+                  {discipline.level !== "elite" && (
+                    <>
+                      <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: progressToNext + "%", background: discipline.levelColor, transition: "width .4s ease" }} />
+                      </div>
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 3 }}>{t("disc_next_level")} {discipline.nextLevelScore}</div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Points positifs */}
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", marginBottom: 6 }}>✅ {t("disc_positives_title")}</div>
+                {[
+                  [t("disc_respect_risk_count"), discipline.respectRiskDays],
+                  [t("disc_respect_plan_count"), discipline.respectPlanDays],
+                  [t("disc_clean_days_count"), discipline.cleanDays],
+                ].filter(([,v]) => v > 0).map(([label, val], i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{label}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7" }}>{val}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Points négatifs */}
+              {(discipline.exceededRiskDays + discipline.brokePlanDays + discipline.lotIncreaseDays + discipline.emotionalDays + discipline.overtradingDays) > 0 && (
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#ef4444", textTransform: "uppercase", marginBottom: 6 }}>⚠️ {t("disc_negatives_title")}</div>
+                  {[
+                    [t("disc_exceeded_risk_count"), discipline.exceededRiskDays],
+                    [t("disc_broke_plan_count"), discipline.brokePlanDays],
+                    [t("disc_lot_increase_count"), discipline.lotIncreaseDays],
+                    [t("disc_emotional_count"), discipline.emotionalDays],
+                    [t("disc_overtrading_count"), discipline.overtradingDays],
+                  ].filter(([,v]) => v > 0).map(([label, val], i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{label}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#ef4444" }}>{val}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Navigation mois + stats rapides */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
