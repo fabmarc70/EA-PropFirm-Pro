@@ -126,6 +126,26 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    heat_title: "Heatmap des Erreurs de Trading",
+    heat_subtitle: "Où perds-tu réellement ton argent ?",
+    heat_no_data: "Données temporelles insuffisantes pour générer la heatmap.",
+    heat_red_zones: "Zones à risque",
+    heat_green_zones: "Zones favorables",
+    heat_financial_impact: "Impact financier identifié",
+    heat_sessions_title: "Sessions de marché",
+    heat_days_title: "Carte thermique — Jours",
+    heat_grid_title: "Carte thermique — Jour × Heure",
+    heat_session_asia: "Asie",
+    heat_session_london: "Londres",
+    heat_session_overlap: "Londres/NY",
+    heat_session_newyork: "New York",
+    heat_after: "après",
+    heat_morning: "matin",
+    heat_afternoon: "après-midi",
+    heat_evening: "soir",
+    heat_trades_unit: "trades",
+    heat_legend_more_loss: "Plus de pertes",
+    heat_legend_more_gain: "Plus de gains",
     disc_title: "Coach de Discipline",
     disc_subtitle: "Ton comportement, mesuré au quotidien",
     disc_score_label: "Score de discipline",
@@ -742,6 +762,26 @@ const I18N = {
     prof_account: "Cuenta",
     prof_prefs: "Preferencias",
     prof_lang: "Idioma",
+    heat_title: "Mapa de Calor de Errores de Trading",
+    heat_subtitle: "¿Dónde pierdes realmente tu dinero?",
+    heat_no_data: "Datos temporales insuficientes para generar el mapa de calor.",
+    heat_red_zones: "Zonas de riesgo",
+    heat_green_zones: "Zonas favorables",
+    heat_financial_impact: "Impacto financiero identificado",
+    heat_sessions_title: "Sesiones de mercado",
+    heat_days_title: "Mapa de calor — Días",
+    heat_grid_title: "Mapa de calor — Día × Hora",
+    heat_session_asia: "Asia",
+    heat_session_london: "Londres",
+    heat_session_overlap: "Londres/NY",
+    heat_session_newyork: "Nueva York",
+    heat_after: "después de",
+    heat_morning: "mañana",
+    heat_afternoon: "tarde",
+    heat_evening: "noche",
+    heat_trades_unit: "operaciones",
+    heat_legend_more_loss: "Más pérdidas",
+    heat_legend_more_gain: "Más ganancias",
     disc_title: "Coach de Disciplina",
     disc_subtitle: "Tu comportamiento, medido a diario",
     disc_score_label: "Puntuación de disciplina",
@@ -1357,6 +1397,26 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    heat_title: "Trading Mistakes Heatmap",
+    heat_subtitle: "Where are you really losing money?",
+    heat_no_data: "Insufficient time data to generate the heatmap.",
+    heat_red_zones: "Risk zones",
+    heat_green_zones: "Favorable zones",
+    heat_financial_impact: "Identified financial impact",
+    heat_sessions_title: "Market sessions",
+    heat_days_title: "Heatmap — Days",
+    heat_grid_title: "Heatmap — Day × Hour",
+    heat_session_asia: "Asia",
+    heat_session_london: "London",
+    heat_session_overlap: "London/NY",
+    heat_session_newyork: "New York",
+    heat_after: "after",
+    heat_morning: "morning",
+    heat_afternoon: "afternoon",
+    heat_evening: "evening",
+    heat_trades_unit: "trades",
+    heat_legend_more_loss: "More losses",
+    heat_legend_more_gain: "More gains",
     disc_title: "Discipline Coach",
     disc_subtitle: "Your behavior, measured daily",
     disc_score_label: "Discipline score",
@@ -5805,6 +5865,174 @@ function compareAllFirms(trader) {
   return results;
 }
 
+// ══════════════════════════════════════════════════════════════════
+// HEATMAP DES ERREURS DE TRADING
+// Croise jours de semaine × heures × actifs × sessions de marché
+// pour identifier précisément où le trader perd réellement son argent.
+// ══════════════════════════════════════════════════════════════════
+
+// Sessions de marché (heures UTC approximatives, usage courant retail)
+function getMarketSession(hourUTC) {
+  if (hourUTC >= 0 && hourUTC < 8) return "asia";
+  if (hourUTC >= 8 && hourUTC < 13) return "london";
+  if (hourUTC >= 13 && hourUTC < 16) return "london_ny_overlap";
+  if (hourUTC >= 16 && hourUTC < 22) return "newyork";
+  return "asia"; // 22h-00h, début session Asie
+}
+const SESSION_LABELS = { asia: "Asie", london: "Londres", london_ny_overlap: "Londres/NY", newyork: "New York" };
+
+function heatmapAnalyze(trades) {
+  if (!trades || trades.length < 10) return null;
+  const DAY_NAMES = [AL('day_sun'), AL('day_mon'), AL('day_tue'), AL('day_wed'), AL('day_thu'), AL('day_fri'), AL('day_sat')];
+  const withDates = trades.filter(t => t.parsedDate);
+  if (withDates.length < trades.length * 0.5) return null; // pas assez de dates fiables
+
+  const totalLossAll = Math.abs(trades.filter(t => t.profit < 0).reduce((s,t)=>s+t.profit,0)) || 1;
+  const totalProfitAll = trades.filter(t => t.profit > 0).reduce((s,t)=>s+t.profit,0) || 1;
+
+  // ── 1. Heatmap croisée Jour × Heure (grille 7×24) ──
+  const grid = {}; // key "day-hour" -> {trades, profit, wins, losses}
+  withDates.forEach(t => {
+    const day = t.parsedDate.getDay();
+    const hour = t.parsedDate.getHours();
+    const key = day + "-" + hour;
+    if (!grid[key]) grid[key] = { day, hour, trades: 0, profit: 0, wins: 0, losses: 0 };
+    grid[key].trades++; grid[key].profit += t.profit;
+    if (t.profit > 0) grid[key].wins++; else if (t.profit < 0) grid[key].losses++;
+  });
+  const gridCells = Object.values(grid).map(c => ({
+    ...c, dayLabel: DAY_NAMES[c.day], wr: c.trades ? (c.wins/c.trades)*100 : 0,
+    pctOfTotalLoss: c.profit < 0 ? (Math.abs(c.profit)/totalLossAll)*100 : 0,
+  }));
+
+  // ── 2. Sessions de marché ──
+  let sessionStats = {};
+  withDates.forEach(t => {
+    const sess = getMarketSession(t.parsedDate.getHours());
+    if (!sessionStats[sess]) sessionStats[sess] = { trades: 0, profit: 0, wins: 0, losses: 0 };
+    sessionStats[sess].trades++; sessionStats[sess].profit += t.profit;
+    if (t.profit > 0) sessionStats[sess].wins++; else if (t.profit < 0) sessionStats[sess].losses++;
+  });
+  const sessionList = Object.entries(sessionStats).map(([k, s]) => ({
+    key: k, label: SESSION_LABELS[k] || k, ...s, wr: s.trades ? (s.wins/s.trades)*100 : 0,
+    pctOfTotalLoss: s.profit < 0 ? (Math.abs(s.profit)/totalLossAll)*100 : 0,
+    pctOfTotalProfit: s.profit > 0 ? (s.profit/totalProfitAll)*100 : 0,
+  })).sort((a,b) => a.profit - b.profit);
+
+  // ── 3. Croisement Actif × Heure (ex: "XAUUSD après 15h30") ──
+  const withSymbol = withDates.filter(t => t.symbol);
+  const hasSymbolData = withSymbol.length >= trades.length * 0.3;
+  let symbolHourStats = {};
+  if (hasSymbolData) {
+    withSymbol.forEach(t => {
+      const hour = t.parsedDate.getHours();
+      const bucket = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening"; // tranches larges
+      const key = t.symbol + "|" + bucket;
+      if (!symbolHourStats[key]) symbolHourStats[key] = { symbol: t.symbol, bucket, trades: 0, profit: 0, wins: 0, losses: 0, hours: [] };
+      symbolHourStats[key].trades++; symbolHourStats[key].profit += t.profit; symbolHourStats[key].hours.push(hour);
+      if (t.profit > 0) symbolHourStats[key].wins++; else if (t.profit < 0) symbolHourStats[key].losses++;
+    });
+  }
+  const symbolHourList = Object.values(symbolHourStats)
+    .filter(s => s.trades >= 3)
+    .map(s => ({
+      ...s, wr: s.trades ? (s.wins/s.trades)*100 : 0,
+      avgHour: s.hours.length ? Math.round(s.hours.reduce((a,b)=>a+b,0)/s.hours.length) : 0,
+      pctOfTotalLoss: s.profit < 0 ? (Math.abs(s.profit)/totalLossAll)*100 : 0,
+    }))
+    .sort((a,b) => a.profit - b.profit);
+
+  // ── 4. Zones rouges / vertes — synthèse des pires et meilleures combinaisons ──
+  const dayAgg = {};
+  gridCells.forEach(c => {
+    if (!dayAgg[c.day]) dayAgg[c.day] = { day: c.day, dayLabel: c.dayLabel, trades: 0, profit: 0, wins: 0 };
+    dayAgg[c.day].trades += c.trades; dayAgg[c.day].profit += c.profit; dayAgg[c.day].wins += c.wins;
+  });
+  const dayList = Object.values(dayAgg).map(d => ({
+    ...d, wr: d.trades ? (d.wins/d.trades)*100 : 0, pctOfTotalLoss: d.profit < 0 ? (Math.abs(d.profit)/totalLossAll)*100 : 0,
+  })).sort((a,b) => a.profit - b.profit);
+
+  // Construire les "red zones" et "green zones" les plus significatives (triées par impact $ et fiabilité échantillon)
+  const redZones = [];
+  const worstDay = dayList.find(d => d.trades >= 5 && d.profit < 0);
+  if (worstDay) redZones.push({ type: "day", label: worstDay.dayLabel, detail: worstDay, impact: Math.abs(worstDay.profit) });
+  const worstSession = sessionList.find(s => s.trades >= 5 && s.profit < 0);
+  if (worstSession) redZones.push({ type: "session", label: worstSession.label, detail: worstSession, impact: Math.abs(worstSession.profit) });
+  const worstSymbolHour = symbolHourList.find(sh => sh.profit < 0);
+  if (worstSymbolHour) redZones.push({ type: "symbolhour", label: worstSymbolHour.symbol, detail: worstSymbolHour, impact: Math.abs(worstSymbolHour.profit) });
+  redZones.sort((a,b) => b.impact - a.impact);
+
+  const greenZones = [];
+  const bestDay = [...dayList].reverse().find(d => d.trades >= 5 && d.profit > 0);
+  if (bestDay) greenZones.push({ type: "day", label: bestDay.dayLabel, detail: bestDay, impact: bestDay.profit });
+  const bestSession = [...sessionList].reverse().find(s => s.trades >= 5 && s.profit > 0);
+  if (bestSession) greenZones.push({ type: "session", label: bestSession.label, detail: bestSession, impact: bestSession.profit });
+  const bestSymbolHour = [...symbolHourList].reverse().find(sh => sh.profit > 0);
+  if (bestSymbolHour) greenZones.push({ type: "symbolhour", label: bestSymbolHour.symbol, detail: bestSymbolHour, impact: bestSymbolHour.profit });
+  greenZones.sort((a,b) => b.impact - a.impact);
+
+  // ── Impact financier total identifié ──
+  const totalRedImpact = redZones.reduce((s,z) => s + z.impact, 0);
+
+  return {
+    gridCells, dayList, sessionList, symbolHourList, hasSymbolData,
+    redZones, greenZones, totalRedImpact,
+    totalTrades: withDates.length,
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// HEATMAP — variante Journal de Trading
+// Le journal capture pnl/wins/losses PAR JOUR CALENDAIRE (pas d'heure ni
+// d'actif précis) → on analyse uniquement la dimension Jour de semaine,
+// mais on réutilise le même format de sortie (redZones/greenZones) pour
+// garder un rendu visuel identique au rapport MesTrades.
+// ══════════════════════════════════════════════════════════════════
+function heatmapAnalyzeJournal(journalRaw) {
+  const allDays = [];
+  Object.entries(journalRaw || {}).forEach(([mk, days]) => {
+    Object.entries(days || {}).forEach(([d, e]) => {
+      if (e && (e.pnl !== undefined || e.wins !== undefined)) {
+        const [y, m] = mk.split("-").map(Number);
+        const date = new Date(y, m - 1, parseInt(d, 10));
+        allDays.push({ date, pnl: e.pnl || 0, wins: e.wins || 0, losses: e.losses || 0 });
+      }
+    });
+  });
+  if (allDays.length < 5) return null;
+
+  const DAY_NAMES = [AL('day_sun'), AL('day_mon'), AL('day_tue'), AL('day_wed'), AL('day_thu'), AL('day_fri'), AL('day_sat')];
+  const totalLossAll = Math.abs(allDays.filter(d => d.pnl < 0).reduce((s,d)=>s+d.pnl,0)) || 1;
+
+  let dayAgg = {};
+  allDays.forEach(d => {
+    const dow = d.date.getDay();
+    if (!dayAgg[dow]) dayAgg[dow] = { day: dow, dayLabel: DAY_NAMES[dow], trades: 0, profit: 0, wins: 0, losses: 0 };
+    dayAgg[dow].trades++; dayAgg[dow].profit += d.pnl;
+    dayAgg[dow].wins += d.wins > d.losses ? 1 : 0;
+    dayAgg[dow].losses += d.losses > d.wins ? 1 : 0;
+  });
+  const dayList = Object.values(dayAgg).map(d => ({
+    ...d, wr: d.trades ? (d.wins/d.trades)*100 : 0, pctOfTotalLoss: d.profit < 0 ? (Math.abs(d.profit)/totalLossAll)*100 : 0,
+  })).sort((a,b) => a.profit - b.profit);
+
+  const redZones = [];
+  const worstDay = dayList.find(d => d.trades >= 2 && d.profit < 0);
+  if (worstDay) redZones.push({ type: "day", label: worstDay.dayLabel, detail: worstDay, impact: Math.abs(worstDay.profit) });
+
+  const greenZones = [];
+  const bestDay = [...dayList].reverse().find(d => d.trades >= 2 && d.profit > 0);
+  if (bestDay) greenZones.push({ type: "day", label: bestDay.dayLabel, detail: bestDay, impact: bestDay.profit });
+
+  const totalRedImpact = redZones.reduce((s,z) => s + z.impact, 0);
+
+  // gridCells/sessionList vides (pas de donnée horaire dans le journal) → le composant masquera ces sections
+  return {
+    gridCells: [], dayList, sessionList: [], symbolHourList: [], hasSymbolData: false,
+    redZones, greenZones, totalRedImpact, totalTrades: allDays.length, dayOnly: true,
+  };
+}
+
 function canLaunchChallenge(verdict) {
   if (!verdict) return null;
   const reasons = [];      // raisons négatives précises (pourquoi pas / attendre)
@@ -5865,6 +6093,126 @@ function canLaunchChallenge(verdict) {
   return { score, verdictLevel, verdictLabel, verdictColor, verdictEmoji, reasons, positives, pf, wr, rr, dd, mc, nTrades };
 }
 
+// ══════════════════════════════════════════════════════════════════
+// COMPOSANT RÉUTILISABLE — Rapport Heatmap des Erreurs de Trading
+// Utilisé dans MesTradesTab (après import CSV) ET dans JournalScreen.
+// ══════════════════════════════════════════════════════════════════
+function HeatmapReport({ heat, t }) {
+  if (!heat) {
+    return (
+      <div className="card" style={{ textAlign: "center", padding: "20px 14px" }}>
+        <div style={{ fontSize: 28, marginBottom: 8 }}>🗺️</div>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{t("heat_no_data")}</div>
+      </div>
+    );
+  }
+
+  const sessionLabel = (k) => k === "asia" ? t("heat_session_asia") : k === "london" ? t("heat_session_london")
+    : k === "london_ny_overlap" ? t("heat_session_overlap") : t("heat_session_newyork");
+  const zoneIcon = { day: "📅", session: "🌍", symbolhour: "⏰" };
+  const fmtZoneDetail = (z) => {
+    if (z.type === "day") return `${z.detail.trades} ${t("heat_trades_unit")} · WR ${z.detail.wr.toFixed(0)}%`;
+    if (z.type === "session") return `${sessionLabel(z.detail.key)} · ${z.detail.trades} ${t("heat_trades_unit")}`;
+    return `${z.detail.symbol} ${z.detail.bucket === "morning" ? t("heat_morning") : z.detail.bucket === "afternoon" ? t("heat_afternoon") : t("heat_evening")} (~${z.detail.avgHour}h) · ${z.detail.trades} ${t("heat_trades_unit")}`;
+  };
+
+  // Grille 7×24 pour la carte thermique visuelle (simplifiée par tranches de 3h pour la lisibilité mobile)
+  const DAY_SHORT = ["D","L","M","M","J","V","S"];
+  const hourBuckets = [0,3,6,9,12,15,18,21]; // tranches de 3h
+  const maxAbsProfit = Math.max(1, ...heat.gridCells.map(c => Math.abs(c.profit)));
+
+  return (
+    <div className="card">
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>🗺️ {t("heat_title")}</div>
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("heat_subtitle")}</div>
+      </div>
+
+      {/* Impact financier total */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 12, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", marginBottom: 14 }}>
+        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{t("heat_financial_impact")}</span>
+        <span style={{ fontSize: 16, fontWeight: 800, color: "#ef4444" }}>-${Math.round(heat.totalRedImpact)}</span>
+      </div>
+
+      {/* Carte thermique Jour × Heure — uniquement si données horaires dispo (pas dans le journal) */}
+      {!heat.dayOnly && (
+        <>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>{t("heat_grid_title")}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "24px repeat(7, 1fr)", gap: 3, marginBottom: 6 }}>
+            <div></div>
+            {DAY_SHORT.map((d, i) => <div key={i} style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", textAlign: "center" }}>{d}</div>)}
+          </div>
+          {hourBuckets.map(hStart => (
+            <div key={hStart} style={{ display: "grid", gridTemplateColumns: "24px repeat(7, 1fr)", gap: 3, marginBottom: 3 }}>
+              <div style={{ fontSize: 7.5, color: "rgba(255,255,255,0.35)", display: "flex", alignItems: "center" }}>{hStart}h</div>
+              {[0,1,2,3,4,5,6].map(day => {
+                const cells = heat.gridCells.filter(c => c.day === day && c.hour >= hStart && c.hour < hStart + 3);
+                const profit = cells.reduce((s,c) => s + c.profit, 0);
+                const tradesCount = cells.reduce((s,c) => s + c.trades, 0);
+                const intensity = tradesCount > 0 ? Math.min(1, Math.abs(profit) / maxAbsProfit) : 0;
+                const color = tradesCount === 0 ? "rgba(255,255,255,0.03)" : profit < 0 ? `rgba(239,68,68,${0.15 + intensity*0.65})` : `rgba(110,231,183,${0.15 + intensity*0.65})`;
+                return <div key={day} style={{ height: 16, borderRadius: 3, background: color }} title={tradesCount + " trades, $" + profit.toFixed(0)} />;
+              })}
+            </div>
+          ))}
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, marginBottom: 16 }}>
+            <span style={{ fontSize: 8, color: "#ef4444" }}>🔴 {t("heat_legend_more_loss")}</span>
+            <span style={{ fontSize: 8, color: "#6ee7b7" }}>🟢 {t("heat_legend_more_gain")}</span>
+          </div>
+        </>
+      )}
+
+      {/* Sessions de marché — uniquement si données horaires dispo */}
+      {!heat.dayOnly && heat.sessionList.length > 0 && (
+        <>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>{t("heat_sessions_title")}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+            {heat.sessionList.map((s, i) => (
+              <div key={i} style={{ background: s.profit < 0 ? "rgba(239,68,68,0.06)" : "rgba(110,231,183,0.06)", borderRadius: 10, padding: "8px 10px" }}>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{sessionLabel(s.key)}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: s.profit < 0 ? "#ef4444" : "#6ee7b7" }}>{s.profit >= 0 ? "+" : ""}${s.profit.toFixed(0)}</div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{s.trades} {t("heat_trades_unit")} · WR {s.wr.toFixed(0)}%</div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Zones à risque */}
+      {heat.redZones.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "#ef4444", textTransform: "uppercase", marginBottom: 6 }}>🔴 {t("heat_red_zones")}</div>
+          {heat.redZones.map((z, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < heat.redZones.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+              <div>
+                <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>{zoneIcon[z.type]} {z.label}</span>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{fmtZoneDetail(z)}</div>
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 800, color: "#ef4444" }}>-${Math.round(z.impact)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Zones favorables */}
+      {heat.greenZones.length > 0 && (
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", marginBottom: 6 }}>🟢 {t("heat_green_zones")}</div>
+          {heat.greenZones.map((z, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < heat.greenZones.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+              <div>
+                <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>{zoneIcon[z.type]} {z.label}</span>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{fmtZoneDetail(z)}</div>
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 800, color: "#6ee7b7" }}>+${Math.round(z.impact)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTargetPct, model, finalRR, tradesPerDay, firm, effectiveRiskAmount, t = (k) => k, lang = "fr" }) {
   // ── Journal de trading (partagé avec l'accueil via useJournal) ──
   const { journalMonth: jMonth, setJournalMonth: setJMonth, saveJournalEntry: saveJEntry, monthData: jMonthData } = useJournal();
@@ -5891,6 +6239,8 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   const mt5Analysis = trades.length >= 5 ? mt5Analyze(trades, effectiveInitBalance) : null;
   // ── Calendrier économique intelligent : impact des news sur la performance ──
   const econAnalysis = trades.length >= 10 ? economicAnalyze(trades, 30) : null;
+  // ── Heatmap des erreurs de trading : jours/heures/actifs/sessions ──
+  const heatmapData = trades.length >= 10 ? heatmapAnalyze(trades) : null;
   const upcomingEconEvents = generateUpcomingEconEvents(new Date(), 5);
   const [manualDDInput, setManualDDInput] = useState("");
   const [geminiVerdict, setGeminiVerdict] = useState(null);
@@ -7149,6 +7499,11 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               </div>
             );
           })()}
+
+          {/* ══════════════════════════════════════════════════════════
+              🗺️ HEATMAP DES ERREURS DE TRADING
+          ══════════════════════════════════════════════════════════ */}
+          {trades.length >= 10 && <HeatmapReport heat={heatmapData} t={t} />}
 
           {/* ── ALERTES ── */}
           <div className="card">
@@ -10112,6 +10467,7 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
   const { journal: journalAll, journalMonth, setJournalMonth, saveJournalEntry, monthData: journalMonthData } = useJournal();
   const journalStats = journalAnalyze(journalAll);
   const discipline = disciplineAnalyze(journalAll);
+  const journalHeatmap = heatmapAnalyzeJournal(journalAll);
 
   const shiftMonth = (delta) => {
     const [y, m] = journalMonth.split("-").map(Number);
@@ -10305,6 +10661,13 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
             </div>
           </div>
         )}
+
+        {/* ══════════════════════════════════════════════════════════
+            🗺️ HEATMAP DES ERREURS DE TRADING (variante journal)
+        ══════════════════════════════════════════════════════════ */}
+        <div style={{ marginTop: 14 }}>
+          <HeatmapReport heat={journalHeatmap} t={t} />
+        </div>
       </div>
     </div>
   );
