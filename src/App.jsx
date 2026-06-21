@@ -6520,7 +6520,19 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   const { journalMonth: jMonth, setJournalMonth: setJMonth, saveJournalEntry: saveJEntry, monthData: jMonthData } = useJournal();
   const [showJournal, setShowJournal] = useState(false);
   const loadTrades = () => {
-    try { const r = localStorage.getItem("eapropfirm_trades"); return r ? JSON.parse(r) : { trades: [], filename: null, initBalance: null, balanceReconstructed: false }; } catch (e) { return { trades: [], filename: null, initBalance: null, balanceReconstructed: false }; }
+    try {
+      const r = localStorage.getItem("eapropfirm_trades");
+      if (!r) return { trades: [], filename: null, initBalance: null, balanceReconstructed: false };
+      const data = JSON.parse(r);
+      // JSON.parse désérialise les Date en strings — les reconvertir pour mt5Analyze/economicAnalyze/heatmapAnalyze
+      if (data.trades && Array.isArray(data.trades)) {
+        data.trades = data.trades.map(tr => ({
+          ...tr,
+          parsedDate: tr.parsedDate ? new Date(tr.parsedDate) : null,
+        }));
+      }
+      return data;
+    } catch (e) { return { trades: [], filename: null, initBalance: null, balanceReconstructed: false }; }
   };
   const saved0 = loadTrades();
   const [trades, setTrades] = useState(saved0.trades || []);
@@ -6536,6 +6548,8 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   const [showBalanceInput, setShowBalanceInput] = useState(false);
   // DD max saisi manuellement par l'utilisateur (quand non calculable depuis le fichier)
   const [manualDD, setManualDD] = useState(saved0.manualDD ?? null);
+  // effectiveInitBalance doit être défini AVANT les moteurs qui l'utilisent (mt5Analyze, etc.)
+  const effectiveInitBalance = initBalance || (trades.length > 0 ? trades[0].balance - trades[0].profit : capital);
   // ── Moteur d'analyse automatique MT5 (calculé à chaque changement de trades) ──
   setALLang(lang);
   const mt5Analysis = trades.length >= 5 ? mt5Analyze(trades, effectiveInitBalance) : null;
@@ -7129,7 +7143,6 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
     });
   })();
 
-  const effectiveInitBalance = initBalance || (trades.length > 0 ? trades[0].balance - trades[0].profit : capital);
   // Le DD n'est fiable que si la balance vient du fichier (pas reconstruite depuis les profits)
   const verdict = trades.length > 0 && stats
     ? computeVerdictSync(trades, effectiveInitBalance, !balanceReconstructed, manualDD)
