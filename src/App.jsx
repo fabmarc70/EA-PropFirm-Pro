@@ -87,6 +87,30 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    guard_title: "Daily Loss Guardian",
+    guard_subtitle: "Garde-fou en temps réel",
+    guard_zone_safe: "Zone sécurité",
+    guard_zone_warning: "Zone attention",
+    guard_zone_danger: "Zone danger",
+    guard_losses_left_daily: "pertes possibles avant Daily DD",
+    guard_losses_left_max: "pertes possibles avant Max DD",
+    guard_daily_consumed: "de ton Daily DD consommé",
+    guard_max_consumed: "de ton Max DD consommé",
+    guard_margin_left: "Marge restante",
+    guard_min_capital: "Capital minimum à protéger",
+    guard_stop_recommended: "🛑 Stop trading recommandé",
+    guard_stay_alert: "⚠️ Reste vigilant",
+    guard_all_clear: "✅ Tout va bien, continue",
+    guard_one_loss_left: "Encore 1 perte possible aujourd'hui.",
+    guard_n_losses_left: "pertes possibles aujourd'hui.",
+    guard_zero_left: "0 perte restante — limite atteinte.",
+    guard_based_on: "Basé sur ton risque/trade actuel et",
+    guard_trades_day: "trades/jour",
+    guard_daily_limit: "Limite Daily DD",
+    guard_total_limit: "Limite Max DD",
+    guard_consumed: "Consommé",
+    guard_capital_floor: "Plancher de capital",
+    guard_below_floor: "Ne descends pas sous ce seuil aujourd'hui",
     sim_funded_need_challenge: "Lance une simulation Challenge d'abord pour accéder au compte Funded.",
     sim_go_challenge: "Aller au Challenge",
     sim_challenge_not_validated: "Le challenge n'a pas été validé. Modifie tes paramètres et relance la simulation.",
@@ -524,6 +548,30 @@ const I18N = {
     prof_account: "Cuenta",
     prof_prefs: "Preferencias",
     prof_lang: "Idioma",
+    guard_title: "Daily Loss Guardian",
+    guard_subtitle: "Guardián en tiempo real",
+    guard_zone_safe: "Zona segura",
+    guard_zone_warning: "Zona de atención",
+    guard_zone_danger: "Zona de peligro",
+    guard_losses_left_daily: "pérdidas posibles antes del Daily DD",
+    guard_losses_left_max: "pérdidas posibles antes del Max DD",
+    guard_daily_consumed: "de tu Daily DD consumido",
+    guard_max_consumed: "de tu Max DD consumido",
+    guard_margin_left: "Margen restante",
+    guard_min_capital: "Capital mínimo a proteger",
+    guard_stop_recommended: "🛑 Se recomienda detener el trading",
+    guard_stay_alert: "⚠️ Mantente alerta",
+    guard_all_clear: "✅ Todo bien, continúa",
+    guard_one_loss_left: "Queda 1 pérdida posible hoy.",
+    guard_n_losses_left: "pérdidas posibles hoy.",
+    guard_zero_left: "0 pérdidas restantes — límite alcanzado.",
+    guard_based_on: "Basado en tu riesgo/operación actual y",
+    guard_trades_day: "operaciones/día",
+    guard_daily_limit: "Límite Daily DD",
+    guard_total_limit: "Límite Max DD",
+    guard_consumed: "Consumido",
+    guard_capital_floor: "Piso de capital",
+    guard_below_floor: "No bajes de este umbral hoy",
     sim_funded_need_challenge: "Lanza primero una simulación Challenge para acceder a la cuenta Funded.",
     sim_go_challenge: "Ir al Desafío",
     sim_challenge_not_validated: "El desafío no fue validado. Ajusta tus parámetros y relanza la simulación.",
@@ -960,6 +1008,30 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    guard_title: "Daily Loss Guardian",
+    guard_subtitle: "Real-time safety guard",
+    guard_zone_safe: "Safety zone",
+    guard_zone_warning: "Warning zone",
+    guard_zone_danger: "Danger zone",
+    guard_losses_left_daily: "losses possible before Daily DD",
+    guard_losses_left_max: "losses possible before Max DD",
+    guard_daily_consumed: "of your Daily DD consumed",
+    guard_max_consumed: "of your Max DD consumed",
+    guard_margin_left: "Margin remaining",
+    guard_min_capital: "Minimum capital to protect",
+    guard_stop_recommended: "🛑 Stop trading recommended",
+    guard_stay_alert: "⚠️ Stay alert",
+    guard_all_clear: "✅ All good, keep going",
+    guard_one_loss_left: "1 more loss possible today.",
+    guard_n_losses_left: "losses possible today.",
+    guard_zero_left: "0 losses left — limit reached.",
+    guard_based_on: "Based on your current risk/trade and",
+    guard_trades_day: "trades/day",
+    guard_daily_limit: "Daily DD Limit",
+    guard_total_limit: "Max DD Limit",
+    guard_consumed: "Consumed",
+    guard_capital_floor: "Capital floor",
+    guard_below_floor: "Don't go below this threshold today",
     sim_funded_need_challenge: "Run a Challenge simulation first to access the Funded account.",
     sim_go_challenge: "Go to Challenge",
     sim_challenge_not_validated: "The challenge was not validated. Adjust your parameters and rerun the simulation.",
@@ -3160,15 +3232,41 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     }
     const distancePct = model.totalDD * 100 - simMaxDD;
     const distanceAmt = capital * model.totalDD - simMaxDDAmount;
+    // ── Daily Loss Guardian : pertes restantes avant violation ──
+    const lossesLeftDaily = effectiveRiskAmount > 0 ? Math.max(0, Math.floor(dailyDDLimit / effectiveRiskAmount)) : 0;
+    const lossesLeftMax = effectiveRiskAmount > 0 ? Math.max(0, Math.floor((ddLimit - simMaxDDAmount) / effectiveRiskAmount)) : 0;
+    const dailyConsumedPct = dailyDDLimit > 0 ? Math.min(100, (maxDayLoss / dailyDDLimit) * 100) : 0;
+    const maxConsumedPct = ddLimit > 0 ? Math.min(100, (simMaxDDAmount / ddLimit) * 100) : 0;
+    const guardMarginPct = 100 - Math.max(dailyConsumedPct, maxConsumedPct);
+    const guardMinCapital = capital - (ddLimit - simMaxDDAmount); // plancher = capital - marge restante avant Max DD
+    const guardZone = (Math.max(dailyConsumedPct, maxConsumedPct) >= 80) ? "danger"
+                     : (Math.max(dailyConsumedPct, maxConsumedPct) >= 50) ? "warning"
+                     : "safe";
     return {
       maxDayLoss, maxDayLossPct, ddLimit, dailyDDLimit,
       daysToTotalDD, canBreachDaily,
       simMaxDD, simMaxDDAmount,
       distancePct, distanceAmt,
       safePct: 100 - (simMaxDD / (model.totalDD * 100)) * 100,
+      lossesLeftDaily, lossesLeftMax, dailyConsumedPct, maxConsumedPct,
+      guardMarginPct, guardMinCapital, guardZone,
     };
   };
   const dda = ddAnalysis();
+
+  // ── Daily Loss Guardian : notification si passage en zone danger ──
+  const guardZoneRef = useRef(null);
+  useEffect(() => {
+    if (!dda || !dda.guardZone) return;
+    if (guardZoneRef.current === "danger") { guardZoneRef.current = dda.guardZone; return; } // déjà alerté
+    if (dda.guardZone === "danger" && guardZoneRef.current !== "danger") {
+      fireNotification(
+        "🛑 " + t("guard_title"),
+        t("guard_stop_recommended") + " — " + Math.round(Math.max(dda.dailyConsumedPct, dda.maxConsumedPct)) + "% " + t("guard_daily_consumed")
+      );
+    }
+    guardZoneRef.current = dda.guardZone;
+  }, [dda?.guardZone]);
 
   const globalStatus = () => {
     if (!sim) return null;
@@ -3535,6 +3633,102 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </div>
         </div>
       )}
+
+      {/* ══════════════════════════════════════════════════════════
+          🛡️ DAILY LOSS GUARDIAN — garde-fou DD temps réel
+          Fonctionne avec toutes les Prop Firms (model.dailyDD/totalDD dynamiques)
+      ══════════════════════════════════════════════════════════ */}
+      {!isSimple && (() => {
+        const zoneColor = dda.guardZone === "danger" ? "#ef4444" : dda.guardZone === "warning" ? "#fbbf24" : "#6ee7b7";
+        const zoneBg = dda.guardZone === "danger" ? "rgba(239,68,68,0.08)" : dda.guardZone === "warning" ? "rgba(251,191,36,0.08)" : "rgba(110,231,183,0.06)";
+        const zoneLabel = dda.guardZone === "danger" ? t("guard_zone_danger") : dda.guardZone === "warning" ? t("guard_zone_warning") : t("guard_zone_safe");
+        const zoneEmoji = dda.guardZone === "danger" ? "🔴" : dda.guardZone === "warning" ? "🟡" : "🟢";
+        const maxConsumed = Math.max(dda.dailyConsumedPct, dda.maxConsumedPct);
+        const recoText = dda.guardZone === "danger" ? t("guard_stop_recommended") : dda.guardZone === "warning" ? t("guard_stay_alert") : t("guard_all_clear");
+        const lossesLeftText = dda.lossesLeftDaily === 0 ? t("guard_zero_left")
+          : dda.lossesLeftDaily === 1 ? t("guard_one_loss_left")
+          : `${t("guard_n_losses_left").includes("Encore") ? "" : ""}${dda.lossesLeftDaily} ${t("guard_n_losses_left")}`;
+        return (
+          <div className="card" style={{ border: `1.5px solid ${zoneColor}40`, background: zoneBg }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 800, color: "#fff", display: "flex", alignItems: "center", gap: 6 }}>
+                  🛡️ {t("guard_title")}
+                </div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("guard_subtitle")}</div>
+              </div>
+              <div style={{ padding: "6px 12px", borderRadius: 10, background: zoneColor + "22", border: `1px solid ${zoneColor}55`, display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 14 }}>{zoneEmoji}</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: zoneColor }}>{zoneLabel}</span>
+              </div>
+            </div>
+
+            {/* Jauge visuelle temps réel — 3 zones */}
+            <div style={{ position: "relative", height: 14, borderRadius: 8, overflow: "hidden", background: "rgba(255,255,255,0.06)", marginBottom: 4 }}>
+              <div style={{ position: "absolute", inset: 0, display: "flex" }}>
+                <div style={{ width: "50%", background: "rgba(110,231,183,0.25)" }} />
+                <div style={{ width: "30%", background: "rgba(251,191,36,0.25)" }} />
+                <div style={{ width: "20%", background: "rgba(239,68,68,0.25)" }} />
+              </div>
+              <div style={{
+                position: "absolute", top: 0, left: 0, height: "100%",
+                width: Math.min(100, maxConsumed) + "%",
+                background: zoneColor, transition: "width .4s ease, background .4s ease",
+                boxShadow: `0 0 8px ${zoneColor}99`,
+              }} />
+              <div style={{ position: "absolute", left: "50%", top: 0, height: "100%", width: 1, background: "rgba(0,0,0,0.3)" }} />
+              <div style={{ position: "absolute", left: "80%", top: 0, height: "100%", width: 1, background: "rgba(0,0,0,0.3)" }} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "rgba(255,255,255,0.35)", marginBottom: 14 }}>
+              <span>0%</span><span>50%</span><span>80%</span><span>100%</span>
+            </div>
+
+            {/* Message recommandation */}
+            <div style={{ padding: "9px 12px", borderRadius: 10, background: zoneColor + "15", marginBottom: 12, textAlign: "center" }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: zoneColor }}>{recoText}</span>
+            </div>
+
+            {/* Pertes restantes */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+              <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: "10px 12px" }}>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", marginBottom: 3 }}>{t("guard_daily_limit")}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: dda.lossesLeftDaily <= 1 ? "#ef4444" : dda.lossesLeftDaily <= 2 ? "#fbbf24" : "#6ee7b7" }}>
+                  {dda.lossesLeftDaily}
+                </div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{t("guard_losses_left_daily")}</div>
+              </div>
+              <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: "10px 12px" }}>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", marginBottom: 3 }}>{t("guard_total_limit")}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: dda.lossesLeftMax <= 1 ? "#ef4444" : dda.lossesLeftMax <= 3 ? "#fbbf24" : "#6ee7b7" }}>
+                  {dda.lossesLeftMax}
+                </div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{t("guard_losses_left_max")}</div>
+              </div>
+            </div>
+
+            {/* % consommé + marge + plancher capital */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                <span style={{ color: "rgba(255,255,255,0.55)" }}>{dda.dailyConsumedPct.toFixed(0)}% {t("guard_daily_consumed")}</span>
+                <span style={{ color: "rgba(255,255,255,0.55)" }}>{dda.maxConsumedPct.toFixed(0)}% {t("guard_max_consumed")}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 6, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{t("guard_margin_left")}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: zoneColor }}>{Math.max(0, dda.guardMarginPct).toFixed(0)}%</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{t("guard_min_capital")}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{fmt2(Math.max(0, dda.guardMinCapital))}</span>
+              </div>
+            </div>
+
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", textAlign: "center" }}>
+              {t("guard_based_on")} {effectiveRiskAmount ? fmt2(effectiveRiskAmount) : ""} · {tradesPerDay} {t("guard_trades_day")}
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="card" style={{ border: "1px solid rgba(110,231,183,0.10)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: wrColor, textTransform: "uppercase", letterSpacing: 1, display: "flex", alignItems: "center" }}>Winrate global<InfoTip text="Pourcentage de trades gagnants. Ex : 55% = sur 100 trades, 55 sont gagnants. Plus c'est élevé, mieux c'est — mais un bon RR peut compenser un winrate bas." /></span>
