@@ -7781,126 +7781,6 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             );
           })()}
 
-          {/* ══════════════════════════════════════════════════════════
-              CALENDRIER ÉCONOMIQUE INTELLIGENT
-              NFP/CPI/FOMC/Taux/PMI/PIB → impact réel sur la performance
-          ══════════════════════════════════════════════════════════ */}
-          {(() => {
-            const ASSET_LIST = ["XAUUSD", "GBPUSD", "EURUSD", "US30", "NASDAQ"];
-            const now = new Date();
-            const fmtEventDelay = (date) => {
-              const diffMs = date - now;
-              const diffH = diffMs / 3600000;
-              if (diffH < 24) return t("econ_today");
-              const days = Math.floor(diffH / 24);
-              return `${t("econ_in")} ${days}${t("econ_days")}`;
-            };
-            return (
-              <div className="card" style={{ border: "1px solid rgba(110,231,183,0.10)" }}>
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>{t("econ_title")}</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("econ_subtitle")}</div>
-                </div>
-
-                {/* Prochains événements critiques */}
-                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>{t("econ_upcoming_title")}</div>
-                <div style={{ marginBottom: 16 }}>
-                  {upcomingEconEvents.map((ev, i) => {
-                    const impacts = ECON_ASSET_IMPACT[ev.type] || {};
-                    const highImpactAssets = ASSET_LIST.filter(a => impacts[a] === "high");
-                    return (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: i < upcomingEconEvents.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
-                        <div>
-                          <div style={{ fontSize: 11.5, fontWeight: 700, color: "#fff" }}>{t('econ_' + ev.type.toLowerCase())}</div>
-                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
-                            {highImpactAssets.length > 0 ? `${t("econ_assets_impacted")}: ${highImpactAssets.join(", ")}` : ""}
-                          </div>
-                        </div>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24", whiteSpace: "nowrap" }}>{fmtEventDelay(ev.date)}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Analyse d'impact réel sur l'historique */}
-                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>{t("econ_risk_title")}</div>
-                {!econAnalysis ? (
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontStyle: "italic" }}>{t("econ_no_data")}</div>
-                ) : (
-                  <>
-                    {/* Badge niveau de risque */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 12, background: econAnalysis.riskColor + "15", border: `1px solid ${econAnalysis.riskColor}40`, marginBottom: 14 }}>
-                      <StatusDot kind={econAnalysis.riskLevel === "high" ? "danger" : econAnalysis.riskLevel === "medium" ? "warn" : "ok"} />
-                      <span style={{ fontSize: 13, fontWeight: 800, color: econAnalysis.riskColor }}>
-                        {econAnalysis.riskLevel === "high" ? t("econ_risk_high") : econAnalysis.riskLevel === "medium" ? t("econ_risk_medium") : t("econ_risk_low")}
-                      </span>
-                    </div>
-
-                    {/* Comparaison news vs normal */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
-                      <div style={{ background: "rgba(239,68,68,0.06)", borderRadius: 10, padding: "10px 12px" }}>
-                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>{t("econ_during_label")} ({econAnalysis.totalNewsTrades} {t("econ_trades_count")})</div>
-                        <div style={{ fontSize: 15, fontWeight: 800, color: "#ef4444" }}>PF {econAnalysis.newsStats.pf.toFixed(2)}</div>
-                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{econAnalysis.newsStats.lossRate.toFixed(0)}% pertes</div>
-                      </div>
-                      <div style={{ background: "rgba(110,231,183,0.06)", borderRadius: 10, padding: "10px 12px" }}>
-                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>{t("econ_normal_label")} ({econAnalysis.totalNormalTrades} {t("econ_trades_count")})</div>
-                        <div style={{ fontSize: 15, fontWeight: 800, color: "#6ee7b7" }}>PF {econAnalysis.normalStats.pf.toFixed(2)}</div>
-                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{econAnalysis.normalStats.lossRate.toFixed(0)}% pertes</div>
-                      </div>
-                    </div>
-
-                    {/* Messages d'impact précis */}
-                    {econAnalysis.lossIncreasePct > 5 && (
-                      <div style={{ display: "flex", gap: 7, alignItems: "flex-start", padding: "5px 0" }}>
-                        <StatusDot kind="danger" />
-                        <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}>
-                          {t("econ_loss_increase")} {econAnalysis.lossIncreasePct.toFixed(0)}% {t("econ_during_news")}.
-                        </span>
-                      </div>
-                    )}
-                    {econAnalysis.pfDropPct > 5 && (
-                      <div style={{ display: "flex", gap: 7, alignItems: "flex-start", padding: "5px 0" }}>
-                        <span style={{ color: "#ef4444", fontSize: 10, flexShrink: 0, marginTop: 2 }}>⚠️</span>
-                        <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}>
-                          {t("econ_pf_drops")} {econAnalysis.normalStats.pf.toFixed(2)} {t("econ_to")} {econAnalysis.newsStats.pf.toFixed(2)} {t("econ_during_news")}.
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Détail par type d'événement */}
-                    {econAnalysis.eventBreakdown.length > 0 && (
-                      <div style={{ marginTop: 12 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 6 }}>{t("econ_breakdown_title")}</div>
-                        {econAnalysis.eventBreakdown.map((e, i) => (
-                          <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: i < econAnalysis.eventBreakdown.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
-                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{e.label}</span>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: e.pf < 1 ? "#ef4444" : "#6ee7b7" }}>PF {e.pf.toFixed(2)} · {e.n} {t("econ_trades_count")}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* ══════════════════════════════════════════════════════════
-              HEATMAP DES ERREURS DE TRADING
-          ══════════════════════════════════════════════════════════ */}
-          {trades.length >= 10 && <HeatmapReport heat={heatmapData} t={t} />}
-
-          {/* ── ALERTES ── */}
-          <div className="card">
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Alertes & Diagnostics</div>
-            {alerts.map((a, i) => (
-              <div key={i} style={{ background: alertBg(a.level), border: "1px solid " + alertColor(a.level) + "30", borderRadius: 8, padding: "9px 12px", marginBottom: 8, fontSize: 12, color: alertColor(a.level), lineHeight: 1.5, display: "flex", gap: 8, alignItems: "flex-start" }}>
-                <span>{alertIcon(a.level)}</span><span>{a.msg}</span>
-              </div>
-            ))}
-          </div>
-
           {/* ── STATS COMPARATIVES ── */}
           <div className="card">
             <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>{t("mt_real_vs_sim")}</div>
@@ -11150,6 +11030,47 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
           primaryIsJournal={equityData.primaryIsJournal} cap={equityData.cap} todayDay={equityData.todayDay}
           gradientSuffix="-journalpage"
         />
+
+        {/* ══════════════════════════════════════════════════════════
+            CALENDRIER ÉCONOMIQUE INTELLIGENT
+            NFP/CPI/FOMC/Taux/PMI/PIB → prochains événements critiques
+        ══════════════════════════════════════════════════════════ */}
+        {(() => {
+          const ASSET_LIST = ["XAUUSD", "GBPUSD", "EURUSD", "US30", "NASDAQ"];
+          const upcoming = generateUpcomingEconEvents(new Date(), 5);
+          const now = new Date();
+          const fmtEventDelay = (date) => {
+            const diffH = (date - now) / 3600000;
+            if (diffH < 24) return t("econ_today");
+            return `${t("econ_in")} ${Math.floor(diffH / 24)}${t("econ_days")}`;
+          };
+          return (
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>{t("econ_title")}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("econ_subtitle")}</div>
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>{t("econ_upcoming_title")}</div>
+              <div>
+                {upcoming.map((ev, i) => {
+                  const impacts = ECON_ASSET_IMPACT[ev.type] || {};
+                  const highImpactAssets = ASSET_LIST.filter(a => impacts[a] === "high");
+                  return (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: i < upcoming.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                      <div>
+                        <div style={{ fontSize: 11.5, fontWeight: 700, color: "#fff" }}>{t('econ_' + ev.type.toLowerCase())}</div>
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
+                          {highImpactAssets.length > 0 ? `${t("econ_assets_impacted")}: ${highImpactAssets.join(", ")}` : ""}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24", whiteSpace: "nowrap" }}>{fmtEventDelay(ev.date)}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Calendrier en mode journal (saisie + visualisation) */}
         <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, overflow: "hidden", marginBottom: 14 }}>
