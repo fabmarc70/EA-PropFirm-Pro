@@ -11,6 +11,11 @@ import {
 // ══════════════════════════════════════════════════════════════════
 const I18N = {
   fr: {
+    econ_nfp: "NFP (Non-Farm Payrolls)", econ_cpi: "CPI (Inflation)", econ_fomc: "FOMC (Fed)",
+    econ_rate: "Taux directeurs", econ_pmi: "PMI", econ_gdp: "PIB",
+    econ_loss_increase: "Tes pertes augmentent de", econ_during: "pendant les", econ_pf_drops: "Ton Profit Factor chute de",
+    econ_to: "à", econ_during_news: "durant les news",
+
     cmp_dd_excellent: "Ton drawdown laisse une large marge de sécurité sous la limite", cmp_dd_good: "Ton drawdown reste confortable par rapport à la limite",
     cmp_dd_tight: "Ton drawdown est proche de la limite — marge réduite", cmp_dd_critical: "Ton drawdown est trop agressif pour cette firme",
     cmp_dd_exceeds: "Ton drawdown dépasse la limite autorisée", cmp_trailing_strict: "DD trailing — plus strict qu'un DD statique au même seuil",
@@ -121,6 +126,25 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    econ_title: "Calendrier Économique Intelligent",
+    econ_subtitle: "Impact des news sur ta performance",
+    econ_risk_title: "Niveau de risque news",
+    econ_risk_low: "Faible",
+    econ_risk_medium: "Moyen",
+    econ_risk_high: "Élevé",
+    econ_during_label: "Pendant les news",
+    econ_normal_label: "Hors news",
+    econ_breakdown_title: "Détail par événement",
+    econ_no_data: "Données temporelles insuffisantes pour analyser l'impact des news.",
+    econ_assets_impacted: "Actifs impactés",
+    econ_upcoming_title: "Prochains événements critiques",
+    econ_impact_high: "Impact fort",
+    econ_impact_medium: "Impact modéré",
+    econ_in: "dans",
+    econ_days: "j",
+    econ_hours: "h",
+    econ_today: "Aujourd'hui",
+    econ_trades_count: "trades",
     cmp_card_title: "Comparateur Prop Firm",
     cmp_card_sub: "Compatibilité avec ton style",
     cmp_card_desc: "Découvre quelle prop firm correspond le mieux à ton profil de trading réel.",
@@ -569,6 +593,11 @@ const I18N = {
     dash_stay_focused: "Reste focus et discipliné",
   },
   es: {
+    econ_nfp: "NFP (Nóminas no agrícolas)", econ_cpi: "CPI (Inflación)", econ_fomc: "FOMC (Fed)",
+    econ_rate: "Tipos de interés", econ_pmi: "PMI", econ_gdp: "PIB",
+    econ_loss_increase: "Tus pérdidas aumentan un", econ_during: "durante", econ_pf_drops: "Tu Factor de Beneficio cae de",
+    econ_to: "a", econ_during_news: "durante las noticias",
+
     cmp_dd_excellent: "Tu drawdown deja un amplio margen de seguridad bajo el límite", cmp_dd_good: "Tu drawdown se mantiene cómodo respecto al límite",
     cmp_dd_tight: "Tu drawdown está cerca del límite — margen reducido", cmp_dd_critical: "Tu drawdown es demasiado agresivo para esta firma",
     cmp_dd_exceeds: "Tu drawdown supera el límite permitido", cmp_trailing_strict: "DD trailing — más estricto que un DD estático al mismo umbral",
@@ -673,6 +702,25 @@ const I18N = {
     prof_account: "Cuenta",
     prof_prefs: "Preferencias",
     prof_lang: "Idioma",
+    econ_title: "Calendario Económico Inteligente",
+    econ_subtitle: "Impacto de las noticias en tu rendimiento",
+    econ_risk_title: "Nivel de riesgo noticias",
+    econ_risk_low: "Bajo",
+    econ_risk_medium: "Medio",
+    econ_risk_high: "Alto",
+    econ_during_label: "Durante noticias",
+    econ_normal_label: "Fuera de noticias",
+    econ_breakdown_title: "Detalle por evento",
+    econ_no_data: "Datos temporales insuficientes para analizar el impacto de las noticias.",
+    econ_assets_impacted: "Activos impactados",
+    econ_upcoming_title: "Próximos eventos críticos",
+    econ_impact_high: "Impacto alto",
+    econ_impact_medium: "Impacto medio",
+    econ_in: "en",
+    econ_days: "d",
+    econ_hours: "h",
+    econ_today: "Hoy",
+    econ_trades_count: "operaciones",
     cmp_card_title: "Comparador de Prop Firms",
     cmp_card_sub: "Compatibilidad con tu estilo",
     cmp_card_desc: "Descubre qué prop firm se adapta mejor a tu perfil real de trading.",
@@ -1120,6 +1168,11 @@ const I18N = {
     dash_stay_focused: "Mantente enfocado y disciplinado",
   },
   en: {
+    econ_nfp: "NFP (Non-Farm Payrolls)", econ_cpi: "CPI (Inflation)", econ_fomc: "FOMC (Fed)",
+    econ_rate: "Interest rates", econ_pmi: "PMI", econ_gdp: "GDP",
+    econ_loss_increase: "Your losses increase by", econ_during: "during", econ_pf_drops: "Your Profit Factor drops from",
+    econ_to: "to", econ_during_news: "during news",
+
     cmp_dd_excellent: "Your drawdown leaves a wide safety margin under the limit", cmp_dd_good: "Your drawdown stays comfortable vs. the limit",
     cmp_dd_tight: "Your drawdown is close to the limit — reduced margin", cmp_dd_critical: "Your drawdown is too aggressive for this firm",
     cmp_dd_exceeds: "Your drawdown exceeds the allowed limit", cmp_trailing_strict: "Trailing DD — stricter than a static DD at the same threshold",
@@ -1224,6 +1277,25 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    econ_title: "Smart Economic Calendar",
+    econ_subtitle: "News impact on your performance",
+    econ_risk_title: "News risk level",
+    econ_risk_low: "Low",
+    econ_risk_medium: "Medium",
+    econ_risk_high: "High",
+    econ_during_label: "During news",
+    econ_normal_label: "Outside news",
+    econ_breakdown_title: "Breakdown by event",
+    econ_no_data: "Insufficient time data to analyze news impact.",
+    econ_assets_impacted: "Impacted assets",
+    econ_upcoming_title: "Upcoming critical events",
+    econ_impact_high: "High impact",
+    econ_impact_medium: "Medium impact",
+    econ_in: "in",
+    econ_days: "d",
+    econ_hours: "h",
+    econ_today: "Today",
+    econ_trades_count: "trades",
     cmp_card_title: "Prop Firm Comparator",
     cmp_card_sub: "Compatibility with your style",
     cmp_card_desc: "Discover which prop firm best matches your real trading profile.",
@@ -5090,6 +5162,153 @@ function parseTradeDate(raw) {
 // Reçoit la liste de trades parsés (avec profit, parsedDate, symbol si dispo)
 // Retourne : stats globales, forces, faiblesses, recommandations, score/100
 // ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// CALENDRIER ÉCONOMIQUE INTELLIGENT
+// Base d'événements récurrents (NFP, CPI, FOMC, taux directeurs, PMI, PIB)
+// + mapping vers les actifs impactés + moteur d'analyse d'impact réel
+// sur l'historique du trader (PF/pertes pendant vs hors événements).
+// ══════════════════════════════════════════════════════════════════
+
+// Actifs impactés par type d'événement, avec niveau d'impact (high/medium)
+const ECON_ASSET_IMPACT = {
+  NFP:    { XAUUSD: "high", GBPUSD: "medium", EURUSD: "medium", US30: "high", NASDAQ: "high" },
+  CPI:    { XAUUSD: "high", GBPUSD: "medium", EURUSD: "medium", US30: "high", NASDAQ: "high" },
+  FOMC:   { XAUUSD: "high", GBPUSD: "medium", EURUSD: "medium", US30: "high", NASDAQ: "high" },
+  RATE:   { XAUUSD: "high", GBPUSD: "high",   EURUSD: "high",   US30: "medium", NASDAQ: "medium" },
+  PMI:    { XAUUSD: "medium", GBPUSD: "medium", EURUSD: "medium", US30: "medium", NASDAQ: "medium" },
+  GDP:    { XAUUSD: "medium", GBPUSD: "medium", EURUSD: "medium", US30: "medium", NASDAQ: "medium" },
+};
+
+const ECON_EVENT_LABELS = {
+  NFP: "NFP (Non-Farm Payrolls)", CPI: "CPI (Inflation)", FOMC: "FOMC (Fed)",
+  RATE: "Taux directeurs", PMI: "PMI", GDP: "PIB",
+};
+
+// Génère les prochains événements économiques récurrents à partir d'aujourd'hui (best-effort, dates réalistes)
+function generateUpcomingEconEvents(fromDate, count = 8) {
+  const events = [];
+  const d0 = new Date(fromDate);
+  // NFP : 1er vendredi de chaque mois, 13:30 UTC
+  for (let m = 0; m < 3; m++) {
+    const ref = new Date(d0.getFullYear(), d0.getMonth() + m, 1);
+    while (ref.getDay() !== 5) ref.setDate(ref.getDate() + 1);
+    const ev = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate(), 13, 30);
+    if (ev >= d0) events.push({ type: "NFP", date: ev });
+  }
+  // CPI : ~13 de chaque mois, 13:30 UTC (date indicative)
+  for (let m = 0; m < 3; m++) {
+    const ev = new Date(d0.getFullYear(), d0.getMonth() + m, 13, 13, 30);
+    if (ev >= d0) events.push({ type: "CPI", date: ev });
+  }
+  // FOMC : ~8 fois par an, environ toutes les 6 semaines (indicatif, mi-mois pairs)
+  for (let m = 0; m < 4; m++) {
+    if (((d0.getMonth() + m) % 2) === 0) {
+      const ev = new Date(d0.getFullYear(), d0.getMonth() + m, 19, 19, 0);
+      if (ev >= d0) events.push({ type: "FOMC", date: ev });
+    }
+  }
+  // Taux directeurs (BCE/BoE) : indicatif, jeudi milieu de mois alterné
+  for (let m = 0; m < 4; m++) {
+    if (((d0.getMonth() + m) % 2) === 1) {
+      const ref = new Date(d0.getFullYear(), d0.getMonth() + m, 14);
+      const ev = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate(), 13, 0);
+      if (ev >= d0) events.push({ type: "RATE", date: ev });
+    }
+  }
+  // PMI : 1er jour ouvré du mois, 9:00 UTC
+  for (let m = 0; m < 3; m++) {
+    const ref = new Date(d0.getFullYear(), d0.getMonth() + m, 1);
+    while (ref.getDay() === 0 || ref.getDay() === 6) ref.setDate(ref.getDate() + 1);
+    const ev = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate(), 9, 0);
+    if (ev >= d0) events.push({ type: "PMI", date: ev });
+  }
+  // PIB : trimestriel, ~28 du dernier mois du trimestre
+  for (let m = 0; m < 4; m++) {
+    if (((d0.getMonth() + m + 1) % 3) === 0) {
+      const ev = new Date(d0.getFullYear(), d0.getMonth() + m, 28, 13, 30);
+      if (ev >= d0) events.push({ type: "GDP", date: ev });
+    }
+  }
+  events.sort((a, b) => a.date - b.date);
+  return events.slice(0, count);
+}
+
+// ── Analyse d'impact réel des news sur l'historique du trader ──
+// Croise parsedDate des trades avec les fenêtres d'événements (±windowMin minutes)
+function economicAnalyze(trades, windowMin = 30) {
+  if (!trades || trades.length < 10) return null;
+  const withDates = trades.filter(t => t.parsedDate);
+  if (withDates.length < trades.length * 0.5) return null; // pas assez de dates fiables
+
+  // Construire les fenêtres d'événements couvrant la période des trades
+  const dates = withDates.map(t => t.parsedDate);
+  const minDate = new Date(Math.min(...dates)), maxDate = new Date(Math.max(...dates));
+  const allEvents = [];
+  let cursor = new Date(minDate.getFullYear(), minDate.getMonth() - 1, 1);
+  while (cursor <= maxDate) {
+    allEvents.push(...generateUpcomingEconEvents(cursor, 20).filter(e => e.date <= maxDate));
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  // Dédupliquer par type+date
+  const seen = new Set();
+  const uniqueEvents = allEvents.filter(e => {
+    const k = e.type + e.date.getTime();
+    if (seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+
+  // Classer chaque trade : pendant un événement (et lequel) ou hors événement
+  const newsTrades = [], normalTrades = [];
+  const byEventType = {};
+  withDates.forEach(t => {
+    const hit = uniqueEvents.find(e => Math.abs(t.parsedDate - e.date) <= windowMin * 60000);
+    if (hit) {
+      newsTrades.push(t);
+      if (!byEventType[hit.type]) byEventType[hit.type] = [];
+      byEventType[hit.type].push(t);
+    } else {
+      normalTrades.push(t);
+    }
+  });
+
+  if (newsTrades.length < 3) return null; // pas assez de trades pendant news pour conclure
+
+  const calcStats = (arr) => {
+    const wins = arr.filter(t => t.profit > 0);
+    const losses = arr.filter(t => t.profit < 0);
+    const grossWin = wins.reduce((s,t)=>s+t.profit,0);
+    const grossLoss = Math.abs(losses.reduce((s,t)=>s+t.profit,0));
+    const pf = grossLoss > 0 ? grossWin / grossLoss : (grossWin > 0 ? 99 : 0);
+    const avgLoss = losses.length ? grossLoss / losses.length : 0;
+    const totalLossAmt = grossLoss;
+    return { n: arr.length, wins: wins.length, losses: losses.length, pf, avgLoss, totalLossAmt,
+      lossRate: arr.length ? (losses.length / arr.length) * 100 : 0 };
+  };
+
+  const newsStats = calcStats(newsTrades);
+  const normalStats = calcStats(normalTrades);
+
+  // % d'augmentation des pertes pendant news vs normal
+  const lossIncreasePct = normalStats.lossRate > 0 ? ((newsStats.lossRate - normalStats.lossRate) / normalStats.lossRate) * 100 : 0;
+  const pfDropPct = normalStats.pf > 0 ? ((normalStats.pf - newsStats.pf) / normalStats.pf) * 100 : 0;
+
+  // Stats par type d'événement
+  const eventBreakdown = Object.entries(byEventType).map(([type, arr]) => ({
+    type, label: ECON_EVENT_LABELS[type] || type, ...calcStats(arr),
+  })).sort((a,b) => b.n - a.n);
+
+  // ── Niveau de risque global 🟢🟡🔴 ──
+  let riskLevel, riskColor;
+  if (pfDropPct >= 40 || lossIncreasePct >= 35) { riskLevel = "high"; riskColor = "#ef4444"; }
+  else if (pfDropPct >= 15 || lossIncreasePct >= 15) { riskLevel = "medium"; riskColor = "#fbbf24"; }
+  else { riskLevel = "low"; riskColor = "#6ee7b7"; }
+
+  return {
+    newsStats, normalStats, lossIncreasePct, pfDropPct, eventBreakdown,
+    riskLevel, riskColor, totalNewsTrades: newsTrades.length, totalNormalTrades: normalTrades.length,
+  };
+}
+
 function mt5Analyze(trades, initBalance) {
   if (!trades || trades.length < 5) return null;
   const DAY_NAMES = [AL('day_sun'), AL('day_mon'), AL('day_tue'), AL('day_wed'), AL('day_thu'), AL('day_fri'), AL('day_sat')];
@@ -5444,6 +5663,9 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   // ── Moteur d'analyse automatique MT5 (calculé à chaque changement de trades) ──
   setALLang(lang);
   const mt5Analysis = trades.length >= 5 ? mt5Analyze(trades, effectiveInitBalance) : null;
+  // ── Calendrier économique intelligent : impact des news sur la performance ──
+  const econAnalysis = trades.length >= 10 ? economicAnalyze(trades, 30) : null;
+  const upcomingEconEvents = generateUpcomingEconEvents(new Date(), 5);
   const [manualDDInput, setManualDDInput] = useState("");
   const [geminiVerdict, setGeminiVerdict] = useState(null);
   const [geminiVerdictLoading, setGeminiVerdictLoading] = useState(false);
@@ -6592,6 +6814,111 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                       </div>
                     ))}
                   </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ══════════════════════════════════════════════════════════
+              📅 CALENDRIER ÉCONOMIQUE INTELLIGENT
+              NFP/CPI/FOMC/Taux/PMI/PIB → impact réel sur la performance
+          ══════════════════════════════════════════════════════════ */}
+          {(() => {
+            const ASSET_LIST = ["XAUUSD", "GBPUSD", "EURUSD", "US30", "NASDAQ"];
+            const now = new Date();
+            const fmtEventDelay = (date) => {
+              const diffMs = date - now;
+              const diffH = diffMs / 3600000;
+              if (diffH < 24) return t("econ_today");
+              const days = Math.floor(diffH / 24);
+              return `${t("econ_in")} ${days}${t("econ_days")}`;
+            };
+            return (
+              <div className="card" style={{ border: "1px solid rgba(110,231,183,0.10)" }}>
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>📅 {t("econ_title")}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("econ_subtitle")}</div>
+                </div>
+
+                {/* Prochains événements critiques */}
+                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>{t("econ_upcoming_title")}</div>
+                <div style={{ marginBottom: 16 }}>
+                  {upcomingEconEvents.map((ev, i) => {
+                    const impacts = ECON_ASSET_IMPACT[ev.type] || {};
+                    const highImpactAssets = ASSET_LIST.filter(a => impacts[a] === "high");
+                    return (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: i < upcomingEconEvents.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                        <div>
+                          <div style={{ fontSize: 11.5, fontWeight: 700, color: "#fff" }}>{AL('econ_' + ev.type.toLowerCase())}</div>
+                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
+                            {highImpactAssets.length > 0 ? `${t("econ_assets_impacted")}: ${highImpactAssets.join(", ")}` : ""}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24", whiteSpace: "nowrap" }}>{fmtEventDelay(ev.date)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Analyse d'impact réel sur l'historique */}
+                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>{t("econ_risk_title")}</div>
+                {!econAnalysis ? (
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontStyle: "italic" }}>{t("econ_no_data")}</div>
+                ) : (
+                  <>
+                    {/* Badge niveau de risque */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 12, background: econAnalysis.riskColor + "15", border: `1px solid ${econAnalysis.riskColor}40`, marginBottom: 14 }}>
+                      <span style={{ fontSize: 18 }}>{econAnalysis.riskLevel === "high" ? "🔴" : econAnalysis.riskLevel === "medium" ? "🟡" : "🟢"}</span>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: econAnalysis.riskColor }}>
+                        {econAnalysis.riskLevel === "high" ? t("econ_risk_high") : econAnalysis.riskLevel === "medium" ? t("econ_risk_medium") : t("econ_risk_low")}
+                      </span>
+                    </div>
+
+                    {/* Comparaison news vs normal */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+                      <div style={{ background: "rgba(239,68,68,0.06)", borderRadius: 10, padding: "10px 12px" }}>
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>{t("econ_during_label")} ({econAnalysis.totalNewsTrades} {t("econ_trades_count")})</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: "#ef4444" }}>PF {econAnalysis.newsStats.pf.toFixed(2)}</div>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{econAnalysis.newsStats.lossRate.toFixed(0)}% pertes</div>
+                      </div>
+                      <div style={{ background: "rgba(110,231,183,0.06)", borderRadius: 10, padding: "10px 12px" }}>
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>{t("econ_normal_label")} ({econAnalysis.totalNormalTrades} {t("econ_trades_count")})</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: "#6ee7b7" }}>PF {econAnalysis.normalStats.pf.toFixed(2)}</div>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{econAnalysis.normalStats.lossRate.toFixed(0)}% pertes</div>
+                      </div>
+                    </div>
+
+                    {/* Messages d'impact précis */}
+                    {econAnalysis.lossIncreasePct > 5 && (
+                      <div style={{ display: "flex", gap: 7, alignItems: "flex-start", padding: "5px 0" }}>
+                        <span style={{ color: "#ef4444", fontSize: 10, flexShrink: 0, marginTop: 2 }}>⚠️</span>
+                        <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}>
+                          {t("econ_loss_increase")} {econAnalysis.lossIncreasePct.toFixed(0)}% {t("econ_during_news")}.
+                        </span>
+                      </div>
+                    )}
+                    {econAnalysis.pfDropPct > 5 && (
+                      <div style={{ display: "flex", gap: 7, alignItems: "flex-start", padding: "5px 0" }}>
+                        <span style={{ color: "#ef4444", fontSize: 10, flexShrink: 0, marginTop: 2 }}>⚠️</span>
+                        <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}>
+                          {t("econ_pf_drops")} {econAnalysis.normalStats.pf.toFixed(2)} {t("econ_to")} {econAnalysis.newsStats.pf.toFixed(2)} {t("econ_during_news")}.
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Détail par type d'événement */}
+                    {econAnalysis.eventBreakdown.length > 0 && (
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 6 }}>{t("econ_breakdown_title")}</div>
+                        {econAnalysis.eventBreakdown.map((e, i) => (
+                          <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: i < econAnalysis.eventBreakdown.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{e.label}</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: e.pf < 1 ? "#ef4444" : "#6ee7b7" }}>PF {e.pf.toFixed(2)} · {e.n} {t("econ_trades_count")}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             );
@@ -8898,6 +9225,33 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           ))}
         </div>
       </div>
+
+      {/* ══════════════════════════════════════════════════════════
+          📅 WIDGET PROCHAINS ÉVÉNEMENTS ÉCONOMIQUES CRITIQUES
+      ══════════════════════════════════════════════════════════ */}
+      {(() => {
+        const upcoming = generateUpcomingEconEvents(new Date(), 3);
+        if (!upcoming.length) return null;
+        const now = new Date();
+        const fmtDelay = (date) => {
+          const diffH = (date - now) / 3600000;
+          if (diffH < 24) return t("econ_today");
+          return `${t("econ_in")} ${Math.floor(diffH / 24)}${t("econ_days")}`;
+        };
+        return (
+          <div className="card" style={{ marginBottom: 14, border: "1px solid rgba(251,191,36,0.15)", background: "rgba(251,191,36,0.04)" }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: "#fbbf24", marginBottom: 9, textTransform: "uppercase", letterSpacing: 0.5 }}>
+              📅 {t("econ_upcoming_title")}
+            </div>
+            {upcoming.map((ev, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: i < upcoming.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>{AL('econ_' + ev.type.toLowerCase())}</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fbbf24" }}>{fmtDelay(ev.date)}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* ── CALENDRIER PNL / JOURNAL DE TRADING ── */}
       <div style={{marginBottom:"14px"}}>
