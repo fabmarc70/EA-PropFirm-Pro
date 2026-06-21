@@ -3616,8 +3616,9 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
         {/* 🏅 Prochaine étape */}
         {nextLevelKey && b.weakestMetric && (
-          <div className="card" style={{marginTop:6,border:'1px solid rgba(251,191,36,0.25)',background:'rgba(251,191,36,0.06)'}}>
-            <div style={{fontSize:10,fontWeight:700,color:'#fbbf24',textTransform:'uppercase',marginBottom:8}}>🏅 {t('bench_next_step')}</div>
+          <div className="card" style={{marginTop:6, position:"relative", overflow:"hidden"}}>
+            <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: "#fbbf24", opacity: 0.6 }} />
+            <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.5)',textTransform:'uppercase',letterSpacing:0.5,marginBottom:8}}>{t('bench_next_step')}</div>
             <div style={{fontSize:12,color:'rgba(255,255,255,0.7)',lineHeight:1.5}}>
               {t('bench_to_reach')} <b style={{color:'#fbbf24'}}>{nextLevelLabels[nextLevelKey]}</b>, {t('bench_improve')} <b style={{color:'#fff'}}>{metricLabels[b.weakestMetric[0]]}</b>.
             </div>
@@ -11081,7 +11082,8 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
             : t("disc_level_beginner");
           const progressToNext = discipline.level === "elite" ? 100 : Math.min(100, (discipline.score / discipline.nextLevelScore) * 100);
           return (
-            <div className="card" style={{ marginBottom: 14, border: `1.5px solid ${discipline.levelColor}40`, background: discipline.levelColor + "0c" }}>
+            <div className="card" style={{ marginBottom: 14, position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: discipline.levelColor, opacity: 0.6 }} />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>🎮 {t("disc_title")}</div>
