@@ -331,6 +331,7 @@ const I18N = {
     sim_recommended: "Recommandé : 35-50%.",
     sim_max_consec: "Max pertes consécutives EA",
     sim_lot_instrument: "Lot & Instrument",
+    dash_journal_pnl: "P&L Journal",
     an_premium_locked: "Premium",
     cal_journal_active: "Journal actif",
     cal_sim_active: "Simulation active",
@@ -997,6 +998,7 @@ const I18N = {
     sim_recommended: "Recomendado: 35-50%.",
     sim_max_consec: "Máx pérdidas consecutivas EA",
     sim_lot_instrument: "Lote e Instrumento",
+    dash_journal_pnl: "P&L del Diario",
     an_premium_locked: "Premium",
     cal_journal_active: "Diario activo",
     cal_sim_active: "Simulación activa",
@@ -1662,6 +1664,7 @@ const I18N = {
     sim_recommended: "Recommended: 35-50%.",
     sim_max_consec: "Max consecutive EA losses",
     sim_lot_instrument: "Lot & Instrument",
+    dash_journal_pnl: "Journal P&L",
     an_premium_locked: "Premium",
     cal_journal_active: "Journal active",
     cal_sim_active: "Simulation active",
@@ -7642,205 +7645,6 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
 
       {trades.length > 0 && stats && verdict && (
         <>
-          {/* ── VERDICT CHALLENGE (pièce maîtresse) ── */}
-          <div style={{ background: verdict.bg, border: "2px solid " + verdict.color + "50", borderRadius: 16, padding: 18, marginBottom: 12 }}>
-            {/* Header verdict */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: -0.2, marginBottom: 4 }}>
-                  {`Analyse Backtest · ${firm?.name || ""}`}
-                </div>
-                <div style={{ fontSize: 19, fontWeight: 700, color: verdict.color, lineHeight: 1.1 }}>
-                  <VerdictIcon icon={verdict.icon} /> {verdict.label}
-                </div>
-              </div>
-              {/* Cercle probabilité */}
-              <div style={{ textAlign: "center", flexShrink: 0, marginLeft: 12 }}>
-                <div style={{ width: 68, height: 68, borderRadius: 34, background: verdict.color + "20", border: "3px solid " + verdict.color, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                  <div style={{ fontSize: verdict.passPct === null ? 26 : 19, fontWeight: 700, color: verdict.color, lineHeight: 1 }}>{verdict.passPct === null ? "?" : "~" + verdict.passPct + "%"}</div>
-                  <div style={{ fontSize: 7, color: "rgba(255,255,255,0.55)", marginTop: 1 }}>{verdict.passPct === null ? "incertain" : "estimation"}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Raison du verdict — explication claire pour l'utilisateur */}
-            {verdict.verdictReason && (
-              <div style={{
-                background: "rgba(0,0,0,0.25)", borderRadius: 10, padding: "11px 13px",
-                marginBottom: 14, borderLeft: "3px solid " + verdict.color,
-              }}>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", lineHeight: 1.55 }}>
-                  {verdict.verdictReason}
-                </div>
-              </div>
-            )}
-
-            {/* ── SAISIE MANUELLE DU DD (si non calculable) ── */}
-            {verdict.ddUnreliable && (
-              <div style={{ background: "rgba(110,231,183,0.05)", border: "1px solid rgba(110,231,183,0.2)", borderRadius: 10, padding: "12px 13px", marginBottom: 14 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#6ee7b7", marginBottom: 4 }}>
-                  Tu connais ton drawdown max ?
-                </div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", lineHeight: 1.5, marginBottom: 10 }}>
-                  Saisis le DD max de ton backtest (visible dans ton rapport MT4/MT5 ou ta prop firm) pour débloquer le verdict complet.
-                </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <div style={{ position: "relative", flex: 1 }}>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      placeholder="Ex : 6.5"
-                      value={manualDDInput}
-                      onChange={e => setManualDDInput(e.target.value)}
-                      style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(110,231,183,0.25)", borderRadius: 10, color: "#fff", padding: "11px 32px 11px 12px", fontSize: 15, fontWeight: 700, outline: "none" }}
-                    />
-                    <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "rgba(255,255,255,0.4)", fontWeight: 700 }}>%</span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const v = parseFloat(manualDDInput);
-                      if (!isNaN(v) && v >= 0 && v <= 100) { setManualDD(v); setManualDDInput(""); }
-                    }}
-                    disabled={!manualDDInput || isNaN(parseFloat(manualDDInput)) || parseFloat(manualDDInput) < 0 || parseFloat(manualDDInput) > 100}
-                    style={{
-                      padding: "11px 18px", borderRadius: 10, border: "none", flexShrink: 0,
-                      background: (manualDDInput && !isNaN(parseFloat(manualDDInput)) && parseFloat(manualDDInput) >= 0 && parseFloat(manualDDInput) <= 100) ? "#6ee7b7" : "rgba(255,255,255,0.1)",
-                      color: (manualDDInput && !isNaN(parseFloat(manualDDInput)) && parseFloat(manualDDInput) >= 0 && parseFloat(manualDDInput) <= 100) ? "#000" : "rgba(255,255,255,0.35)",
-                      fontSize: 13, fontWeight: 700, cursor: "pointer",
-                    }}>
-                    Valider
-                  </button>
-                </div>
-                <div style={{ marginTop: 8, fontSize: 10, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>
-                  Le DD saisi sera utilisé tel quel pour évaluer le respect de la limite {verdict.ddLimitPct}%.
-                </div>
-              </div>
-            )}
-
-            {/* Badge DD saisi manuellement */}
-            {verdict.hasManualDD && (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(110,231,183,0.06)", border: "1px solid rgba(110,231,183,0.18)", borderRadius: 10, padding: "9px 12px", marginBottom: 14 }}>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
-                  DD saisi manuellement : <span style={{ color: "#6ee7b7", fontWeight: 700 }}>{manualDD}%</span>
-                </div>
-                <button onClick={() => setManualDD(null)} style={{ fontSize: 11, color: "#f87171", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
-                  Retirer
-                </button>
-              </div>
-            )}
-
-            {/* Lecture factuelle du backtest */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-              <div style={{ flex: 1, background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px" }}>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>"Phases atteintes (backtest)"</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: verdict.phasesPassed >= verdict.totalPhases ? "#6ee7b7" : "rgba(255,255,255,0.85)" }}>
-                  {verdict.phasesPassed} / {verdict.totalPhases}
-                </div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>profit final {verdict.finalProfit >= 0 ? "+" : ""}{verdict.finalProfit}%</div>
-              </div>
-              <div style={{ flex: 1, background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px" }}>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>DD max observé ({verdict.isTrailing ? "trailing" : "absolu"})</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: verdict.ddUnreliable ? "#fbbf24" : verdict.ddViolated ? "#ef4444" : parseFloat(verdict.maxDD) > verdict.ddLimitPct * 0.7 ? "#fbbf24" : "#6ee7b7" }}>
-                  {verdict.ddUnreliable ? "N/A" : verdict.maxDD + "%"}
-                </div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{verdict.ddUnreliable ? "donnée manquante" : "limite " + verdict.ddLimitPct + "%"}</div>
-              </div>
-            </div>
-
-            {/* Score de cohérence */}
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}>{t("mt_coherence_sim")}</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: verdict.matchScore >= 70 ? "#6ee7b7" : verdict.matchScore >= 50 ? "#fbbf24" : "#ef4444" }}>{verdict.matchScore}%</span>
-              </div>
-              <div style={{ height: 8, background: "rgba(255,255,255,0.05)", borderRadius: 4, overflow: "hidden" }}>
-                <div style={{
-                  height: "100%", borderRadius: 4, transition: "width .6s",
-                  width: verdict.matchScore + "%",
-                  background: verdict.matchScore >= 70 ? "#6ee7b7" : verdict.matchScore >= 50 ? "#fbbf24" : "#ef4444"
-                }} />
-              </div>
-            </div>
-
-            {/* KPIs réels rapides */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 14 }}>
-              {[
-                { l: t("mt_wr_real"), v: verdict.realWR + "%", expected: winrate + "%", ok: parseFloat(verdict.realWR) >= winrate - 5 },
-                { l: t("mt_rr_real"), v: "1:" + verdict.realRR, expected: "1:" + (finalRR || "-").toString().slice(0,4), ok: parseFloat(verdict.realRR) >= (finalRR || 0) * 0.85 },
-                { l: t("mt_pf_real"), v: verdict.realPF, expected: "≥ 1.5", ok: parseFloat(verdict.realPF) >= 1.5 },
-                { l: "DD max", v: verdict.maxDD + "%", expected: "< " + verdict.ddLimitPct + "%", ok: !verdict.ddViolated },
-              ].map(k => (
-                <div key={k.l} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "8px 4px", textAlign: "center" }}>
-                  <div style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", marginBottom: 2 }}>{k.l}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: k.ok ? "#6ee7b7" : "#ef4444" }}>{k.v}</div>
-                  <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>cible: {k.expected}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Facteurs clés */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {verdict.factors.map((f, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "7px 10px", borderLeft: "3px solid " + f.c + "60" }}>
-                  <span style={{ fontSize: 12 }}>{f.c === "#6ee7b7" ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l2.5 2.5L10 3" stroke="#6ee7b7" strokeWidth="1.8" strokeLinecap="round"/></svg> : f.c === "#fbbf24" ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1l1.5 3.5L12 5l-3.5 3 1 4.5L6 10l-3.5 2.5 1-4.5L0 5l4.5-.5L6 1z" stroke="#fbbf24" strokeWidth="1.2" fill="none"/></svg> : <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="#ef4444" strokeWidth="1.8" strokeLinecap="round"/></svg>}</span>
-                  <span style={{ fontSize: 11, color: "#FFFFFF" }}>{f.t}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Disclaimer prudent */}
-            <div style={{ marginTop: 12, padding: "9px 11px", background: "rgba(255,255,255,0.03)", borderRadius: 12, fontSize: 9, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>
-              Estimation statistique basée sur tes données de backtest et une projection Monte Carlo (200 simulations). Les performances passées ne garantissent pas les résultats futurs. Ceci n'est pas un conseil financier.
-            </div>
-
-            {/* ── VALIDATION INDÉPENDANTE (filtre de cohérence silencieux) ── */}
-            {(geminiVerdictLoading || geminiVerdict) && (
-              <div style={{ marginTop: 10, padding: "13px 14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.12)", borderRadius: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>
-                    {t('mt_indep_validation')}
-                  </div>
-                  {geminiVerdict?.confidenceLevel && (
-                    <div style={{ padding: "2px 8px", borderRadius: 8, fontSize: 9, fontWeight: 700,
-                      background: geminiVerdict.confidenceLevel === 'ÉLEVÉ' ? 'rgba(110,231,183,0.12)' : geminiVerdict.confidenceLevel === 'MODÉRÉ' ? 'rgba(251,191,36,0.12)' : 'rgba(239,68,68,0.12)',
-                      color: geminiVerdict.confidenceLevel === 'ÉLEVÉ' ? '#6ee7b7' : geminiVerdict.confidenceLevel === 'MODÉRÉ' ? '#fbbf24' : '#ef4444',
-                    }}>
-                      {t('mt_confidence')} {geminiVerdict.confidenceLevel}
-                    </div>
-                  )}
-                </div>
-
-                {geminiVerdictLoading && !geminiVerdict ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {[85, 70, 55].map((w, i) => (
-                      <div key={i} style={{ height: 9, borderRadius: 5, background: "rgba(255,255,255,0.06)", width: w + "%" }} />
-                    ))}
-                  </div>
-                ) : geminiVerdict ? (
-                  <>
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", lineHeight: 1.65, marginBottom: 10 }}>
-                      {geminiVerdict.validationSummary}
-                    </div>
-                    {geminiVerdict.confidenceReason && (
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontStyle: "italic", marginBottom: 8 }}>
-                        {geminiVerdict.confidenceReason}
-                      </div>
-                    )}
-                    {geminiVerdict.watchpoints?.length > 0 && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 6 }}>
-                        {geminiVerdict.watchpoints.map((wp, i) => (
-                          <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-                            <StatusDot kind="warn" />
-                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", lineHeight: 1.4 }}>{wp}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                ) : null}
-              </div>
-            )}
-          </div>
 
           {/* ══════════════════════════════════════════════════════
               MOTEUR D'ANALYSE AUTOMATIQUE MT5
@@ -10400,12 +10204,19 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
   const totalDDLimit = ls.totalDDLimit || (fm?.totalDD*100) || 10;
   const splitStart = ls.splitStart || fm?.splitStart || 80;
   const splitMax = ls.splitMax || fm?.splitMax || 90;
-  const wins = ls.wins || 0; const losses = ls.losses || 0;
-  const totalTrades = ls.totalTrades || wins+losses;
-  const wr = ls.winrate ? parseFloat(ls.winrate) : (totalTrades>0?wins/totalTrades*100:0);
-  const rr = ls.rr || 2.0;
-  const bestTrade = ls.bestTrade || 0; const worstTrade = ls.worstTrade || 0;
-  const profitAmount = ls.profitAmount || 0;
+  // ── Bloc STATISTIQUES de la Home : basé sur le JOURNAL DE TRADING réel (pas la simulation) ──
+  const journalGlobalStats = journalAnalyze(journalAll);
+  const allJournalDays = Object.values(journalAll || {}).flatMap(monthData => Object.values(monthData || {}));
+  const journalWins = allJournalDays.reduce((s, d) => s + (d.wins || 0), 0);
+  const journalLosses = allJournalDays.reduce((s, d) => s + (d.losses || 0), 0);
+  const wins = journalWins;
+  const losses = journalLosses;
+  const totalTrades = wins + losses;
+  const wr = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
+  const rr = ls.rr || 2.0; // RR cible reste celui de la simulation (objectif visé), pas une donnée du journal
+  const bestTrade = journalGlobalStats ? journalGlobalStats.bestDay : 0;
+  const worstTrade = journalGlobalStats ? journalGlobalStats.worstDay : 0;
+  const profitAmount = journalGlobalStats ? journalGlobalStats.totalPnl : 0;
   const tradingDays = ls.tradingDays || 0;
   const hasData = !!lastSim;
 
@@ -10788,13 +10599,13 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           <div style={{borderTop:"1px solid rgba(255,255,255,0.05)",marginTop:8,paddingTop:8}}>
             {[
               {l:t("an_best_day"),
-               v: bestTrade > 0 ? "+$"+fmtMoney(bestTrade) : bestTrade < 0 ? "-$"+fmtMoney(Math.abs(bestTrade)) : "$0",
+               v: bestTrade > 0 ? "+"+fmtMoney(bestTrade) : bestTrade < 0 ? "-"+fmtMoney(Math.abs(bestTrade)) : "$0",
                c: bestTrade >= 0 ? "#6ee7b7" : "#f87171"},
               {l:t("an_worst_day"),
-               v: worstTrade < 0 ? "-$"+fmtMoney(Math.abs(worstTrade)) : worstTrade > 0 ? "+$"+fmtMoney(worstTrade) : "$0",
+               v: worstTrade < 0 ? "-"+fmtMoney(Math.abs(worstTrade)) : worstTrade > 0 ? "+"+fmtMoney(worstTrade) : "$0",
                c: worstTrade <= 0 ? "#f87171" : "#6ee7b7"},
-              {l:t("mt_profit_phase1"),
-               v: profitAmount >= 0 ? "+$"+fmtMoney(profitAmount) : "-$"+fmtMoney(Math.abs(profitAmount)),
+              {l:t("dash_journal_pnl"),
+               v: profitAmount >= 0 ? "+"+fmtMoney(profitAmount) : "-"+fmtMoney(Math.abs(profitAmount)),
                c: profitAmount >= 0 ? "#6ee7b7" : "#f87171"},
               {l:"RR cible",
                v: rr > 0 ? "1:" + rr : "—",
@@ -10868,17 +10679,6 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
 
       </>)}
 
-      {/* ── CTA ── */}
-      <div style={{marginBottom:"16px",background:"rgba(110,231,183,0.05)",border:"1px solid rgba(110,231,183,0.12)",borderRadius:20,padding:"16px",display:"flex",alignItems:"center",gap:14}}>
-        <div style={{width:46,height:46,borderRadius:12,background:"rgba(110,231,183,0.1)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#6ee7b7" strokeWidth="1.8"/><circle cx="11" cy="11" r="4" stroke="#6ee7b7" strokeWidth="1.5"/><circle cx="11" cy="11" r="1.5" fill="#6ee7b7"/></svg></div>
-        <div style={{flex:1}}>
-          <div style={{fontSize:14,fontWeight:700,marginBottom:2}}>{t("dash_stay_focused")}</div>
-          <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",lineHeight:1.4}}>{t("dash_each_day")}</div>
-        </div>
-        <button onClick={()=>goto("simulator")} style={{padding:"12px 18px",borderRadius:16,background:"#6ee7b7",color:"#000",fontSize:12,fontWeight:700,border:"none",cursor:"pointer",flexShrink:0,lineHeight:1.3,textAlign:"center",whiteSpace:"nowrap"}}>
-          Démarrer<br/>une simulation
-        </button>
-      </div>
     </div>
   );
 }
