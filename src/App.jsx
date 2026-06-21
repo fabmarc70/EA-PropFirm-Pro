@@ -126,6 +126,21 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    nav_journal: "Journal",
+    journal_title: "Journal de Trading",
+    journal_subtitle: "Suis tes trades réels jour par jour",
+    journal_month_stats: "Statistiques du mois",
+    journal_consistency_title: "Score de cohérence",
+    journal_no_data: "Aucune saisie ce mois-ci. Clique un jour pour commencer.",
+    journal_prev_month: "Mois précédent",
+    journal_next_month: "Mois suivant",
+    journal_overview: "Vue d'ensemble",
+    journal_total_days: "Jours saisis",
+    journal_total_pnl: "P&L total",
+    journal_best_day: "Meilleur jour",
+    journal_worst_day: "Pire jour",
+    journal_win_days: "Jours gagnants",
+    journal_loss_days: "Jours perdants",
     econ_title: "Calendrier Économique Intelligent",
     econ_subtitle: "Impact des news sur ta performance",
     econ_risk_title: "Niveau de risque news",
@@ -702,6 +717,21 @@ const I18N = {
     prof_account: "Cuenta",
     prof_prefs: "Preferencias",
     prof_lang: "Idioma",
+    nav_journal: "Diario",
+    journal_title: "Diario de Trading",
+    journal_subtitle: "Sigue tus operaciones reales día a día",
+    journal_month_stats: "Estadísticas del mes",
+    journal_consistency_title: "Puntuación de consistencia",
+    journal_no_data: "Sin registros este mes. Haz clic en un día para empezar.",
+    journal_prev_month: "Mes anterior",
+    journal_next_month: "Mes siguiente",
+    journal_overview: "Resumen",
+    journal_total_days: "Días registrados",
+    journal_total_pnl: "P&L total",
+    journal_best_day: "Mejor día",
+    journal_worst_day: "Peor día",
+    journal_win_days: "Días ganadores",
+    journal_loss_days: "Días perdedores",
     econ_title: "Calendario Económico Inteligente",
     econ_subtitle: "Impacto de las noticias en tu rendimiento",
     econ_risk_title: "Nivel de riesgo noticias",
@@ -1277,6 +1307,21 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    nav_journal: "Journal",
+    journal_title: "Trading Journal",
+    journal_subtitle: "Track your real trades day by day",
+    journal_month_stats: "Monthly statistics",
+    journal_consistency_title: "Consistency score",
+    journal_no_data: "No entries this month. Click a day to start.",
+    journal_prev_month: "Previous month",
+    journal_next_month: "Next month",
+    journal_overview: "Overview",
+    journal_total_days: "Days logged",
+    journal_total_pnl: "Total P&L",
+    journal_best_day: "Best day",
+    journal_worst_day: "Worst day",
+    journal_win_days: "Winning days",
+    journal_loss_days: "Losing days",
     econ_title: "Smart Economic Calendar",
     econ_subtitle: "News impact on your performance",
     econ_risk_title: "News risk level",
@@ -9116,6 +9161,14 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
             <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",marginTop:1}}>{t("dash_subtitle")}</div>
           </div>
         </div>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          {/* Icône Profil — déplacée ici depuis la navbar */}
+          <button onClick={() => goto("profile")} aria-label={t("nav_profile")} style={{width:38,height:38,borderRadius:10,background:"rgba(255,255,255,0.08)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>
+            <svg width="18" height="18" viewBox="0 0 22 22" fill="none">
+              <circle cx="11" cy="8" r="4" stroke="rgba(255,255,255,0.7)" strokeWidth="1.6"/>
+              <path d="M3 20c0-4 3.6-7 8-7s8 3 8 7" stroke="rgba(255,255,255,0.7)" strokeWidth="1.6" strokeLinecap="round"/>
+            </svg>
+          </button>
         <div style={{position:"relative"}}>
           <button onClick={() => setShowNotifPanel(v => !v)} style={{width:38,height:38,borderRadius:10,background:"rgba(255,255,255,0.08)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
             <svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M9 0C6.8 0 5 1.8 5 4v1.1C3.4 5.9 2 7.8 2 10v4l-2 2v1h18v-1l-2-2v-4c0-2.2-1.4-4.1-3-4.9V4c0-2.2-1.8-4-4-4z" fill={notifPref.enabled ? "#6ee7b7" : "white"} opacity={notifPref.enabled ? "1" : "0.8"}/><path d="M7 18c0 1.1.9 2 2 2s2-.9 2-2H7z" fill={notifPref.enabled ? "#6ee7b7" : "white"} opacity="0.6"/></svg>
@@ -9174,6 +9227,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
               </div>
             </>
           )}
+        </div>
         </div>
       </div>
 
@@ -9831,6 +9885,112 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
 // ══════════════════════════════════════════════════════════════════
 // NAVBAR (bas d'écran)
 // ══════════════════════════════════════════════════════════════════
+function JournalScreen({ t, lang, goto, capital = 25000 }) {
+  const { journal: journalAll, journalMonth, setJournalMonth, saveJournalEntry, monthData: journalMonthData } = useJournal();
+  const journalStats = journalAnalyze(journalAll);
+
+  const shiftMonth = (delta) => {
+    const [y, m] = journalMonth.split("-").map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    setJournalMonth(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"));
+  };
+
+  // Stats rapides du mois courant
+  const daysArr = Object.values(journalMonthData || {});
+  const monthPnl = daysArr.reduce((s, d) => s + (d.pnl || 0), 0);
+  const winDays = daysArr.filter(d => (d.pnl || 0) > 0).length;
+  const lossDays = daysArr.filter(d => (d.pnl || 0) < 0).length;
+  const bestDay = daysArr.length ? Math.max(...daysArr.map(d => d.pnl || 0)) : 0;
+  const worstDay = daysArr.length ? Math.min(...daysArr.map(d => d.pnl || 0)) : 0;
+  const scoreColor = (s) => s >= 70 ? "#6ee7b7" : s >= 45 ? "#fbbf24" : "#ef4444";
+
+  return (
+    <div style={{ fontFamily: "-apple-system, sans-serif", color: "#fff" }}>
+      {/* ── HEADER ── */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>📓 {t("journal_title")}</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("journal_subtitle")}</div>
+        </div>
+      </div>
+
+      <div style={{ padding: "14px 16px 100px", maxWidth: 480, margin: "0 auto" }}>
+        {/* Score de cohérence (si données dispo) */}
+        {journalStats && (
+          <div className="card" style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14, border: `1px solid ${scoreColor(journalStats.consistency)}33` }}>
+            <div style={{ position: "relative", width: 60, height: 60, flexShrink: 0 }}>
+              <svg width="60" height="60" viewBox="0 0 60 60">
+                <circle cx="30" cy="30" r="25" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
+                <circle cx="30" cy="30" r="25" fill="none" stroke={scoreColor(journalStats.consistency)} strokeWidth="6" strokeLinecap="round"
+                  strokeDasharray={`${2*Math.PI*25*(journalStats.consistency/100)} ${2*Math.PI*25}`} transform="rotate(-90 30 30)" />
+              </svg>
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: scoreColor(journalStats.consistency) }}>{journalStats.consistency}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>{t("journal_consistency_title")}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{journalStats.totalDays} {t("cal_days_entered")}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Navigation mois + stats rapides */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <button onClick={() => shiftMonth(-1)} aria-label={t("journal_prev_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>‹</button>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>{journalMonth}</div>
+          <button onClick={() => shiftMonth(1)} aria-label={t("journal_next_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>›</button>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
+          {[
+            [t("journal_total_pnl"), (monthPnl>=0?"+":"") + "$" + Math.abs(Math.round(monthPnl)), monthPnl>=0?"#6ee7b7":"#ef4444"],
+            [t("journal_win_days"), winDays, "#6ee7b7"],
+            [t("journal_loss_days"), lossDays, "#ef4444"],
+          ].map(([label, val, color], i) => (
+            <div key={i} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color }}>{val}</div>
+              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Calendrier en mode journal (saisie + visualisation) */}
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, overflow: "hidden", marginBottom: 14 }}>
+          <CalendrierPnL t={t} lang={lang}
+            dailyLog={[]}
+            journalMode={true}
+            journalData={journalMonthData}
+            onJournalSave={saveJournalEntry}
+            journalMonthLabel={t("cal_click_day") + " · " + journalMonth}
+          />
+        </div>
+
+        {!journalStats && (
+          <div style={{ textAlign: "center", padding: "20px 10px", color: "rgba(255,255,255,0.35)", fontSize: 12 }}>
+            {t("journal_no_data")}
+          </div>
+        )}
+
+        {/* Forces / faiblesses (si données dispo) — réutilise journalAnalyze */}
+        {journalStats && journalStats.bestDay !== undefined && (
+          <div className="card">
+            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 10 }}>{t("journal_overview")}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div style={{ background: "rgba(110,231,183,0.06)", borderRadius: 10, padding: "8px 10px" }}>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{t("journal_best_day")}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>+${Math.abs(Math.round(journalStats.bestDay))}</div>
+              </div>
+              <div style={{ background: "rgba(239,68,68,0.06)", borderRadius: 10, padding: "8px 10px" }}>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{t("journal_worst_day")}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#ef4444" }}>-${Math.abs(Math.round(journalStats.worstDay))}</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function NavBar({ t, active, goto }) {
   const items = [
     { k:"dashboard", label:t("nav_dashboard"),
@@ -9858,10 +10018,10 @@ function NavBar({ t, active, goto }) {
         <path d="M7 2h8" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinecap="round"/>
         <path d="M7 11h4M7 14.5h7" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.4" strokeLinecap="round"/>
       </svg>},
-    { k:"profile", label:t("nav_profile"),
+    { k:"journal", label:t("nav_journal"),
       icon:(on)=><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <circle cx="11" cy="8" r="4" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
-        <path d="M3 20c0-4 3.6-7 8-7s8 3 8 7" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinecap="round"/>
+        <rect x="4" y="2" width="14" height="18" rx="2" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
+        <path d="M8 7h6M8 10.5h6M8 14h4" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.4" strokeLinecap="round"/>
       </svg>},
   ];
 
@@ -10676,6 +10836,9 @@ export default function App() {
         )}
         {screen === "profile" && (
           <ProfileScreen t={t} lang={lang} setLang={setLang} user={user} profile={profile} setProfile={setProfile} onLogout={logout} onReset={reset} premium={premium} daysLeft={daysLeft} onUpgrade={() => setShowPaywall(true)} />
+        )}
+        {screen === "journal" && (
+          <JournalScreen t={t} lang={lang} goto={navGoto} capital={profile.capital || 25000} />
         )}
       </div>
       <NavBar t={t} active={navActive} goto={navGoto} />
