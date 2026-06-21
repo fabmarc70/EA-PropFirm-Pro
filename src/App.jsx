@@ -300,9 +300,9 @@ const I18N = {
     guard_max_consumed: "de ton Max DD consommé",
     guard_margin_left: "Marge restante",
     guard_min_capital: "Capital minimum à protéger",
-    guard_stop_recommended: "🛑 Stop trading recommandé",
-    guard_stay_alert: "⚠️ Reste vigilant",
-    guard_all_clear: "✅ Tout va bien, continue",
+    guard_stop_recommended: "Stop trading recommandé",
+    guard_stay_alert: "Reste vigilant",
+    guard_all_clear: "Tout va bien, continue",
     guard_one_loss_left: "Encore 1 perte possible aujourd'hui.",
     guard_n_losses_left: "pertes possibles aujourd'hui.",
     guard_zero_left: "0 perte restante — limite atteinte.",
@@ -331,6 +331,9 @@ const I18N = {
     sim_recommended: "Recommandé : 35-50%.",
     sim_max_consec: "Max pertes consécutives EA",
     sim_lot_instrument: "Lot & Instrument",
+    an_premium_locked: "Premium",
+    cal_journal_active: "Journal actif",
+    cal_sim_active: "Simulation active",
     sim_enable: "Activer",
     sim_instrument: "Instrument",
     sim_of_capital: "% du capital",
@@ -963,9 +966,9 @@ const I18N = {
     guard_max_consumed: "de tu Max DD consumido",
     guard_margin_left: "Margen restante",
     guard_min_capital: "Capital mínimo a proteger",
-    guard_stop_recommended: "🛑 Se recomienda detener el trading",
-    guard_stay_alert: "⚠️ Mantente alerta",
-    guard_all_clear: "✅ Todo bien, continúa",
+    guard_stop_recommended: "Se recomienda detener el trading",
+    guard_stay_alert: "Mantente alerta",
+    guard_all_clear: "Todo bien, continúa",
     guard_one_loss_left: "Queda 1 pérdida posible hoy.",
     guard_n_losses_left: "pérdidas posibles hoy.",
     guard_zero_left: "0 pérdidas restantes — límite alcanzado.",
@@ -994,6 +997,9 @@ const I18N = {
     sim_recommended: "Recomendado: 35-50%.",
     sim_max_consec: "Máx pérdidas consecutivas EA",
     sim_lot_instrument: "Lote e Instrumento",
+    an_premium_locked: "Premium",
+    cal_journal_active: "Diario activo",
+    cal_sim_active: "Simulación activa",
     sim_enable: "Activar",
     sim_instrument: "Instrumento",
     sim_of_capital: "% del capital",
@@ -1625,9 +1631,9 @@ const I18N = {
     guard_max_consumed: "of your Max DD consumed",
     guard_margin_left: "Margin remaining",
     guard_min_capital: "Minimum capital to protect",
-    guard_stop_recommended: "🛑 Stop trading recommended",
-    guard_stay_alert: "⚠️ Stay alert",
-    guard_all_clear: "✅ All good, keep going",
+    guard_stop_recommended: "Stop trading recommended",
+    guard_stay_alert: "Stay alert",
+    guard_all_clear: "All good, keep going",
     guard_one_loss_left: "1 more loss possible today.",
     guard_n_losses_left: "losses possible today.",
     guard_zero_left: "0 losses left — limit reached.",
@@ -1656,6 +1662,9 @@ const I18N = {
     sim_recommended: "Recommended: 35-50%.",
     sim_max_consec: "Max consecutive EA losses",
     sim_lot_instrument: "Lot & Instrument",
+    an_premium_locked: "Premium",
+    cal_journal_active: "Journal active",
+    cal_sim_active: "Simulation active",
     sim_enable: "Enable",
     sim_instrument: "Instrument",
     sim_of_capital: "% of capital",
@@ -2586,19 +2595,19 @@ function coachAnalyze(data, firmName) {
     const f = [];
     const ddIsValidF = !(isNaN(worstDD) || worstDD === null || worstDD === undefined);
     const ddRatio = ddIsValidF && worstDDLim > 0 ? worstDD / worstDDLim : 0;
-    if (!ddIsValidF) { f.push({ icon:'⚠️', title:AL('dd_unknown'), detail:AL('dd_uncalc'), s:0 }); }
-    if (profitFactor >= 2.5) f.push({ icon:'💎', title:AL('pf_exceptional'), detail:`PF ${profitFactor.toFixed(2)} — ${AL('pf_strategy_perf')}`, s:100 });
-    else if (profitFactor >= 1.8) f.push({ icon:'✅', title:AL('pf_excellent'), detail:`PF ${profitFactor.toFixed(2)} — ${AL('pf_gains_over')}`, s:88 });
-    else if (profitFactor >= 1.4) f.push({ icon:'✅', title:AL('pf_solid'), detail:`PF ${profitFactor.toFixed(2)} — ${AL('pf_structurally')}`, s:72 });
-    if (expectancyR >= 0.8) f.push({ icon:'✅', title:AL('exp_high'), detail:`+${expectancyR.toFixed(2)}R ${AL('per_trade')} — ${AL('exp_edge')}`, s:95 });
-    else if (expectancyR >= 0.4) f.push({ icon:'✅', title:AL('exp_positive'), detail:`+${expectancyR.toFixed(2)}R ${AL('per_trade')} — ${AL('exp_profitable')}`, s:78 });
-    if (ddRatio <= 0.25) f.push({ icon:'✅', title:AL('dd_controlled'), detail:`${worstDD.toFixed(1)}% — ${Math.round(ddRatio*100)}% ${AL('dd_oflimit')}`, s:90 });
-    else if (ddRatio <= 0.5) f.push({ icon:'✅', title:AL('dd_wellcontrolled'), detail:`${worstDD.toFixed(1)}% — ${AL('dd_safety_margin')}`, s:74 });
-    if (winrate >= 60) f.push({ icon:'✅', title:AL('wr_robust'), detail:`${winrate.toFixed(0)}% — ${AL('wr_reliability')}`, s:80 });
-    if (rr >= 2.5) f.push({ icon:'✅', title:AL('rr_excellent'), detail:`1:${rr.toFixed(1)} — ${AL('rr_gains_over')}`, s:85 });
-    else if (rr >= 2.0) f.push({ icon:'✅', title:AL('rr_good'), detail:`1:${rr.toFixed(1)} — ${AL('rr_favorable')}`, s:70 });
-    if (totalTrades >= 150) f.push({ icon:'✅', title:AL('sample_excellent'), detail:`${totalTrades} trades — ${AL('sample_veryreliable')}`, s:88 });
-    else if (totalTrades >= 80) f.push({ icon:'✅', title:AL('sample_good'), detail:`${totalTrades} trades — ${AL('sample_usable')}`, s:70 });
+    if (!ddIsValidF) { f.push({ icon:'warn', title:AL('dd_unknown'), detail:AL('dd_uncalc'), s:0 }); }
+    if (profitFactor >= 2.5) f.push({ icon:'star', title:AL('pf_exceptional'), detail:`PF ${profitFactor.toFixed(2)} — ${AL('pf_strategy_perf')}`, s:100 });
+    else if (profitFactor >= 1.8) f.push({ icon:'ok', title:AL('pf_excellent'), detail:`PF ${profitFactor.toFixed(2)} — ${AL('pf_gains_over')}`, s:88 });
+    else if (profitFactor >= 1.4) f.push({ icon:'ok', title:AL('pf_solid'), detail:`PF ${profitFactor.toFixed(2)} — ${AL('pf_structurally')}`, s:72 });
+    if (expectancyR >= 0.8) f.push({ icon:'ok', title:AL('exp_high'), detail:`+${expectancyR.toFixed(2)}R ${AL('per_trade')} — ${AL('exp_edge')}`, s:95 });
+    else if (expectancyR >= 0.4) f.push({ icon:'ok', title:AL('exp_positive'), detail:`+${expectancyR.toFixed(2)}R ${AL('per_trade')} — ${AL('exp_profitable')}`, s:78 });
+    if (ddRatio <= 0.25) f.push({ icon:'ok', title:AL('dd_controlled'), detail:`${worstDD.toFixed(1)}% — ${Math.round(ddRatio*100)}% ${AL('dd_oflimit')}`, s:90 });
+    else if (ddRatio <= 0.5) f.push({ icon:'ok', title:AL('dd_wellcontrolled'), detail:`${worstDD.toFixed(1)}% — ${AL('dd_safety_margin')}`, s:74 });
+    if (winrate >= 60) f.push({ icon:'ok', title:AL('wr_robust'), detail:`${winrate.toFixed(0)}% — ${AL('wr_reliability')}`, s:80 });
+    if (rr >= 2.5) f.push({ icon:'ok', title:AL('rr_excellent'), detail:`1:${rr.toFixed(1)} — ${AL('rr_gains_over')}`, s:85 });
+    else if (rr >= 2.0) f.push({ icon:'ok', title:AL('rr_good'), detail:`1:${rr.toFixed(1)} — ${AL('rr_favorable')}`, s:70 });
+    if (totalTrades >= 150) f.push({ icon:'ok', title:AL('sample_excellent'), detail:`${totalTrades} trades — ${AL('sample_veryreliable')}`, s:88 });
+    else if (totalTrades >= 80) f.push({ icon:'ok', title:AL('sample_good'), detail:`${totalTrades} trades — ${AL('sample_usable')}`, s:70 });
     return f.sort((a,b)=>b.s-a.s).slice(0,3);
   };
 
@@ -2606,17 +2615,17 @@ function coachAnalyze(data, firmName) {
     const r = [];
     const ddIsValidR = !(isNaN(worstDD) || worstDD === null || worstDD === undefined);
     const ddRatio = ddIsValidR && worstDDLim > 0 ? worstDD / worstDDLim : 0;
-    if (!ddIsValidR) { r.push({ icon:'🚨', title:'DD ABSENT', detail:'Impossible de valider les limites de risque prop firm — verdict NON VALIDABLE', s:100 }); }
-    if (totalTrades < 20) r.push({ icon:'🚨', title:AL('sample_critical'), detail:`${totalTrades} trades — ${AL('sample_min')}`, s:100 });
-    else if (totalTrades < 50) r.push({ icon:'⚠️', title:AL('sample_insufficient'), detail:`${totalTrades} trades — ${AL('sample_bias')}`, s:80 });
-    if (ddRatio >= 0.9) r.push({ icon:'🚨', title:AL('dd_critical'), detail:`${worstDD.toFixed(1)}% / ${worstDDLim}% — ${AL('dd_imminent')}`, s:100 });
-    else if (ddRatio >= 0.75) r.push({ icon:'🚨', title:AL('dd_nearlimit'), detail:`${worstDD.toFixed(1)}% / ${worstDDLim}% ${AL('dd_max')}`, s:85 });
-    else if (ddRatio >= 0.6) r.push({ icon:'⚠️', title:AL('dd_watch'), detail:`${worstDD.toFixed(1)}% / ${worstDDLim}%`, s:60 });
-    if (riskPct > 2.5) r.push({ icon:'🚨', title:AL('risk_excessive'), detail:`${riskPct.toFixed(2)}% — ${Math.round(riskPct*4)}% ${AL('risk_in4')}`, s:95 });
-    else if (riskPct > 1.5) r.push({ icon:'⚠️', title:AL('risk_high'), detail:`${riskPct.toFixed(2)}% — ${AL('risk_reduce')}`, s:70 });
-    if (rr < 1.2) r.push({ icon:'🚨', title:AL('rr_insufficient'), detail:`1:${rr.toFixed(1)} — ${AL('rr_toolow')}`, s:90 });
-    if (profitFactor > 3.5 && totalTrades < 60) r.push({ icon:'⚠️', title:AL('overopt_risk'), detail:`PF ${profitFactor.toFixed(2)} / ${totalTrades} trades — ${AL('overopt_bias')}`, s:72 });
-    if (expectancyR <= 0) r.push({ icon:'🚨', title:AL('exp_negative'), detail:`${expectancyR.toFixed(2)}R — ${AL('exp_losing')}`, s:100 });
+    if (!ddIsValidR) { r.push({ icon:'danger', title:'DD ABSENT', detail:'Impossible de valider les limites de risque prop firm — verdict NON VALIDABLE', s:100 }); }
+    if (totalTrades < 20) r.push({ icon:'danger', title:AL('sample_critical'), detail:`${totalTrades} trades — ${AL('sample_min')}`, s:100 });
+    else if (totalTrades < 50) r.push({ icon:'warn', title:AL('sample_insufficient'), detail:`${totalTrades} trades — ${AL('sample_bias')}`, s:80 });
+    if (ddRatio >= 0.9) r.push({ icon:'danger', title:AL('dd_critical'), detail:`${worstDD.toFixed(1)}% / ${worstDDLim}% — ${AL('dd_imminent')}`, s:100 });
+    else if (ddRatio >= 0.75) r.push({ icon:'danger', title:AL('dd_nearlimit'), detail:`${worstDD.toFixed(1)}% / ${worstDDLim}% ${AL('dd_max')}`, s:85 });
+    else if (ddRatio >= 0.6) r.push({ icon:'warn', title:AL('dd_watch'), detail:`${worstDD.toFixed(1)}% / ${worstDDLim}%`, s:60 });
+    if (riskPct > 2.5) r.push({ icon:'danger', title:AL('risk_excessive'), detail:`${riskPct.toFixed(2)}% — ${Math.round(riskPct*4)}% ${AL('risk_in4')}`, s:95 });
+    else if (riskPct > 1.5) r.push({ icon:'warn', title:AL('risk_high'), detail:`${riskPct.toFixed(2)}% — ${AL('risk_reduce')}`, s:70 });
+    if (rr < 1.2) r.push({ icon:'danger', title:AL('rr_insufficient'), detail:`1:${rr.toFixed(1)} — ${AL('rr_toolow')}`, s:90 });
+    if (profitFactor > 3.5 && totalTrades < 60) r.push({ icon:'warn', title:AL('overopt_risk'), detail:`PF ${profitFactor.toFixed(2)} / ${totalTrades} trades — ${AL('overopt_bias')}`, s:72 });
+    if (expectancyR <= 0) r.push({ icon:'danger', title:AL('exp_negative'), detail:`${expectancyR.toFixed(2)}R — ${AL('exp_losing')}`, s:100 });
     return r.sort((a,b)=>b.s-a.s).slice(0,3);
   };
 
@@ -2785,10 +2794,10 @@ function disciplineAnalyze(journalRaw) {
 
   // ── Niveau (façon jeu vidéo) ──
   let level, levelColor, levelIcon, nextLevelScore;
-  if (score >= 85) { level = "elite"; levelColor = "#a78bfa"; levelIcon = "👑"; nextLevelScore = 100; }
-  else if (score >= 65) { level = "professional"; levelColor = "#6ee7b7"; levelIcon = "🏆"; nextLevelScore = 85; }
-  else if (score >= 40) { level = "disciplined"; levelColor = "#fbbf24"; levelIcon = "🎯"; nextLevelScore = 65; }
-  else { level = "beginner"; levelColor = "#f97316"; levelIcon = "🌱"; nextLevelScore = 40; }
+  if (score >= 85) { level = "elite"; levelColor = "#a78bfa"; levelIcon = "elite"; nextLevelScore = 100; }
+  else if (score >= 65) { level = "professional"; levelColor = "#6ee7b7"; levelIcon = "professional"; nextLevelScore = 85; }
+  else if (score >= 40) { level = "disciplined"; levelColor = "#fbbf24"; levelIcon = "disciplined"; nextLevelScore = 65; }
+  else { level = "beginner"; levelColor = "#f97316"; levelIcon = "beginner"; nextLevelScore = 40; }
 
   // ── Compteurs pour l'affichage Forces/Faiblesses ──
   const respectRiskDays = allDays.filter(d => d.respectRisk === true).length;
@@ -2811,6 +2820,31 @@ function disciplineAnalyze(journalRaw) {
     lotIncreaseDays, emotionalDays, overtradingDays, cleanDays,
     todayDelta,
   };
+}
+
+// ── Icône de statut neutre (puce colorée) — remplace les émojis dans les listes forces/risques ──
+function StatusDot({ kind }) {
+  const color = kind === 'danger' ? '#ef4444' : kind === 'warn' ? '#fbbf24' : kind === 'star' ? '#a78bfa' : '#6ee7b7';
+  return <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 4, background: color, flexShrink: 0 }} />;
+}
+
+// ── Icône de niveau (étoile à N branches selon le rang) — remplace les émojis 👑🏆🎯🌱 ──
+function LevelIcon({ level, color, size = 20 }) {
+  const points = level === 'elite' ? 8 : level === 'professional' ? 6 : level === 'disciplined' ? 5 : 4;
+  const cx = size/2, cy = size/2, rOuter = size/2 - 1, rInner = rOuter * 0.45;
+  let path = '';
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 === 0 ? rOuter : rInner;
+    const angle = (Math.PI * i) / points - Math.PI / 2;
+    const x = cx + r * Math.cos(angle), y = cy + r * Math.sin(angle);
+    path += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+  }
+  path += 'Z';
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <path d={path} fill={color} opacity="0.9" />
+    </svg>
+  );
 }
 
 // Moteur analyse backtest (mode 3)
@@ -3042,7 +3076,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
       <div style={{background:'linear-gradient(135deg,rgba(110,231,183,0.07),rgba(6,9,15,0.8))',border:'1px solid rgba(110,231,183,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
           <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2}}>
-            <span style={{marginRight:5}}>🔬</span>Rapport Expert
+            Rapport Expert
           </div>
           <div style={{padding:'3px 8px',borderRadius:9,fontSize:9,fontWeight:700,background:gemLoading?'rgba(251,191,36,0.12)':gemini?'rgba(110,231,183,0.12)':'rgba(255,255,255,0.07)',color:gemLoading?'#fbbf24':gemini?'#6ee7b7':'rgba(255,255,255,0.4)',border:`1px solid ${gemLoading?'rgba(251,191,36,0.3)':gemini?'rgba(110,231,183,0.3)':'rgba(255,255,255,0.1)'}`}}>
             {gemLoading?t('an_analyzing') : gemini?t('an_advanced') : t('an_local')}
@@ -3061,7 +3095,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
             )}
             {narrative.readyForChallenge !== null && narrative.readyForChallenge !== undefined && (
               <div style={{marginTop:9,display:'flex',alignItems:'center',gap:6}}>
-                <span style={{fontSize:12}}>{narrative.readyForChallenge?'✅':'⚠️'}</span>
+                <StatusDot kind={narrative.readyForChallenge?'ok':'warn'} />
                 <span style={{fontSize:11,color:narrative.readyForChallenge?'#6ee7b7':'#fbbf24',fontWeight:600}}>{narrative.readyForChallenge?'Stratégie validée pour un challenge':'Optimisation recommandée avant de lancer'}</span>
               </div>
             )}
@@ -3162,7 +3196,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
               ))}
             </div>
             <div style={{fontSize:10,color:card.hasData?'rgba(255,255,255,0.55)':'rgba(255,255,255,0.3)',marginBottom:12,lineHeight:1.4}}>
-              {card.hasData?'✓ ':card.key==='simulation'?'ℹ ':card.key==='journal'?'ℹ ':'ℹ '}{card.dataLabel}
+              {card.dataLabel}
             </div>
             <button
               onClick={() => { if(!premiumAccess){requirePremium();return;} if(!card.hasData){goto(card.ctaGoto);return;} setMode(card.key); }}
@@ -3170,7 +3204,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
                 background:card.hasData?(card.accent==='#6ee7b7'?'linear-gradient(135deg,#6ee7b7,#34d399)':card.accent==='#fbbf24'?'linear-gradient(135deg,#fbbf24,#f59e0b)':'linear-gradient(135deg,#e05252,#c93b3b)'):'rgba(255,255,255,0.07)',
                 color:card.hasData?'#000':'rgba(255,255,255,0.4)',
               }}>
-              {!premiumAccess?'🔒 Premium':card.hasData?card.cta:t('an_get_data')}
+              {!premiumAccess?t('an_premium_locked'):card.hasData?card.cta:t('an_get_data')}
             </button>
           </div>
         ))}
@@ -3192,7 +3226,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
       <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
         <ReportHeader title="Simulation Challenge" subtitle="Rapport d'évaluation" onBack={()=>setMode(null)}/>
         <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
-          <div style={{fontSize:32,marginBottom:12}}>📊</div>
+          
           <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>{t('an_no_sim')}</div>
           <button onClick={()=>goto('simulator')} style={{padding:'12px 24px',borderRadius:12,background:'#6ee7b7',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>{t('an_run_sim')}</button>
         </div>
@@ -3225,14 +3259,14 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
         {/* Forces */}
         {a.forces.length>0&&<div style={{background:'rgba(110,231,183,0.04)',border:'1px solid rgba(110,231,183,0.15)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>💪</span>{t('an_forces')}</div>
-          {a.forces.map((f,i)=><div key={i} style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:i<a.forces.length-1?8:0}}><span style={{fontSize:14,flexShrink:0}}>{f.icon}</span><div><div style={{fontSize:13,fontWeight:700,color:'#fff'}}>{f.title}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.5)',marginTop:1,lineHeight:1.4}}>{f.detail}</div></div></div>)}
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}>{t('an_forces')}</div>
+          {a.forces.map((f,i)=><div key={i} style={{display:'flex',gap:10,alignItems:'center',marginBottom:i<a.forces.length-1?8:0}}><StatusDot kind={f.icon} /><div><div style={{fontSize:13,fontWeight:700,color:'#fff'}}>{f.title}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.5)',marginTop:1,lineHeight:1.4}}>{f.detail}</div></div></div>)}
         </div>}
 
         {/* Risques */}
         {a.risks.length>0&&<div style={{background:'rgba(251,191,36,0.04)',border:'1px solid rgba(251,191,36,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>🔍</span>{t('an_risks')}</div>
-          {a.risks.map((r,i)=><div key={i} style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:i<a.risks.length-1?8:0}}><span style={{fontSize:14,flexShrink:0}}>{r.icon}</span><div><div style={{fontSize:13,fontWeight:700,color:'#fff'}}>{r.title}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.5)',marginTop:1,lineHeight:1.4}}>{r.detail}</div></div></div>)}
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}>{t('an_risks')}</div>
+          {a.risks.map((r,i)=><div key={i} style={{display:'flex',gap:10,alignItems:'center',marginBottom:i<a.risks.length-1?8:0}}><StatusDot kind={r.icon} /><div><div style={{fontSize:13,fontWeight:700,color:'#fff'}}>{r.title}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.5)',marginTop:1,lineHeight:1.4}}>{r.detail}</div></div></div>)}
         </div>}
 
         {/* Rapport expert */}
@@ -3240,7 +3274,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
         {/* Projection */}
         <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}><span style={{marginRight:5}}>🎯</span>{t("an_projection_challenge")}</div>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}>{t("an_projection_challenge")}</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
             {[
               {l:t('an_probability'),v:a.probability+'%',c:pColor},
@@ -3258,7 +3292,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
         {/* Optimisation */}
         {a.levers.length>0&&<div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>⚡</span>{t("an_levers")}</div>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}>{t("an_levers")}</div>
           {a.levers.map((l,i)=>(
             <div key={i} style={{background:'rgba(110,231,183,0.05)',border:'1px solid rgba(110,231,183,0.15)',borderRadius:12,padding:'11px 14px',marginBottom:i<a.levers.length-1?8:0,display:'flex',alignItems:'center',gap:12}}>
               <div style={{width:40,height:40,borderRadius:10,background:'rgba(110,231,183,0.12)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flexShrink:0}}>
@@ -3285,7 +3319,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
       <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
         <ReportHeader title="Journal de Trading" subtitle="Analyse comportementale" onBack={()=>setMode(null)}/>
         <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
-          <div style={{fontSize:32,marginBottom:12}}>📓</div>
+          
           <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>{t('an_no_journal')}</div>
           <button onClick={()=>goto('dashboard')} style={{padding:'12px 24px',borderRadius:12,background:'#fbbf24',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>{t('an_open_journal')}</button>
         </div>
@@ -3319,7 +3353,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
         {/* Métriques comportementales */}
         <div style={{background:'rgba(251,191,36,0.04)',border:'1px solid rgba(251,191,36,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}><span style={{marginRight:5}}>🧠</span>{t("an_behavioral")}</div>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}>{t("an_behavioral")}</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
             {[
               {l:t('an_best_day'),v:'+'+(j.bestDay||0).toFixed(0)+'$',c:'#4ade80'},
@@ -3337,13 +3371,13 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
         {/* Points forts */}
         {j.strengths.length>0&&<div style={{background:'rgba(110,231,183,0.04)',border:'1px solid rgba(110,231,183,0.15)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>💪</span>{t("an_positive_points")}</div>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}>{t("an_positive_points")}</div>
           {j.strengths.map((s,i)=><div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:i<j.strengths.length-1?7:0}}><span style={{color:'#6ee7b7',fontSize:13,flexShrink:0}}>✓</span><div style={{fontSize:12,color:'rgba(255,255,255,0.8)',lineHeight:1.4}}>{s.text}</div></div>)}
         </div>}
 
         {/* Erreurs */}
         {j.issues.length>0&&<div style={{background:'rgba(239,68,68,0.04)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>⚠️</span>{t("an_improve_axes")}</div>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}>{t("an_improve_axes")}</div>
           {j.issues.map((issue,i)=><div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:i<j.issues.length-1?7:0}}><span style={{color:issue.sev==='high'?'#f87171':'#fbbf24',fontSize:13,flexShrink:0}}>{issue.sev==='high'?'✕':'!'}</span><div style={{fontSize:12,color:'rgba(255,255,255,0.8)',lineHeight:1.4}}>{issue.text}</div></div>)}
         </div>}
 
@@ -3362,7 +3396,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
       <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
         <ReportHeader title="Résultats Backtest" subtitle="Audit statistique" onBack={()=>setMode(null)}/>
         <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
-          <div style={{fontSize:32,marginBottom:12}}>📁</div>
+          
           <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>{t('an_no_bt')}</div>
           <button onClick={()=>goto('trades')} style={{padding:'12px 24px',borderRadius:12,background:'#e05252',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>{t('an_import_bt')}</button>
         </div>
@@ -3401,12 +3435,12 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         {/* Alerte DD absent — calquée sur Mes Trades */}
         {(!b.ddKnown && b.manualDD==null) && (
           <div style={{background:'rgba(251,191,36,0.08)',border:'2px solid rgba(251,191,36,0.4)',borderRadius:16,padding:16,marginBottom:12}}>
-            <div style={{fontSize:13,fontWeight:900,color:'#fbbf24',marginBottom:8}}>⚠️ DONNÉES DD MANQUANTES</div>
+            <div style={{fontSize:13,fontWeight:900,color:'#fbbf24',marginBottom:8}}>DONNÉES DD MANQUANTES</div>
             <div style={{fontSize:12,color:'rgba(255,255,255,0.75)',lineHeight:1.6,marginBottom:12}}>
               {b.ddMissingReason||'Drawdown non calculable'}. Les métriques WR, RR et PF sont fiables, mais <strong style={{color:'#fbbf24'}}>le verdict prop firm est invalide</strong> sans DD réel.
             </div>
             <div style={{fontSize:11,color:'rgba(255,255,255,0.5)',lineHeight:1.5}}>
-              💡 Pour débloquer le verdict complet :<br/>
+              Pour débloquer le verdict complet :<br/>
               • Importez un CSV avec colonne Balance (trade par trade)<br/>
               • Ou saisissez le DD max manuellement dans <strong style={{color:'#6ee7b7'}}>Mes Trades</strong>
             </div>
@@ -3415,7 +3449,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
         {/* KPIs statistiques */}
         <div style={{background:'rgba(224,82,82,0.04)',border:'1px solid rgba(224,82,82,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}><span style={{marginRight:5}}>📊</span>{t('an_stat_metrics')}</div>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}>{t('an_stat_metrics')}</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
             {[
               {l:t('an_trades_analyzed'),v:b.totalTrades,c:b.totalTrades>=100?'#4ade80':b.totalTrades>=50?'#fbbf24':'#ef4444'},
@@ -3433,7 +3467,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
         {/* Alertes statistiques */}
         <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}><span style={{marginRight:5}}>🔍</span>{t('an_validity')}</div>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}>{t('an_validity')}</div>
           {[
             {cond:b.totalTrades>=100,good:'Échantillon statistiquement significatif ('+b.totalTrades+' trades)',bad:'Échantillon insuffisant ('+b.totalTrades+' trades) — min. 100 pour un backtest fiable'},
             {cond:b.pf>=1.5&&!overfit,good:'Profit Factor robuste ('+b.pf+') validé sur suffisamment de trades',bad:overfit?'Risque de sur-optimisation : PF '+b.pf+' sur '+b.totalTrades+' trades seulement':'Profit Factor faible ('+b.pf+') — stratégie peu rentable'},
@@ -3457,7 +3491,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
       <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
         <ReportHeader title={t('cmp_report_title')} subtitle={t('cmp_report_sub')} onBack={()=>setMode(null)}/>
         <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
-          <div style={{fontSize:32,marginBottom:12}}>📊</div>
+          
           <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>{t('cmp_no_data')}</div>
           <button onClick={()=>goto('trades')} style={{padding:'12px 24px',borderRadius:12,background:'#a78bfa',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>{t('an_import_bt')}</button>
         </div>
@@ -3481,7 +3515,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
                 <span style={{fontSize:18,fontWeight:900,color:'rgba(255,255,255,0.3)',width:20}}>{i+1}</span>
                 <div>
                   <div style={{fontSize:14,fontWeight:800,color:'#fff',display:'flex',alignItems:'center',gap:6}}>
-                    {f.tierIcon} {f.firmName}
+                    <StatusDot kind={f.tierIcon} /> {f.firmName}
                   </div>
                   <div style={{fontSize:10,color:tierColor(f.tier),fontWeight:600}}>{tierLabel(f.tier)}</div>
                 </div>
@@ -3494,7 +3528,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
               <div style={{marginBottom:6}}>
                 {f.blockers.map((b,bi) => (
                   <div key={bi} style={{display:'flex',gap:6,alignItems:'flex-start',padding:'3px 0'}}>
-                    <span style={{color:'#ef4444',fontSize:10,flexShrink:0,marginTop:2}}>🔴</span>
+                    <StatusDot kind="danger" />
                     <span style={{fontSize:11,color:'rgba(255,255,255,0.65)',lineHeight:1.4}}>{AL(b.key)}{b.val ? ` (${b.val}%)` : ''}</span>
                   </div>
                 ))}
@@ -3504,7 +3538,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
               <div style={{marginBottom:6}}>
                 {f.adjustments.map((a,ai) => (
                   <div key={ai} style={{display:'flex',gap:6,alignItems:'flex-start',padding:'3px 0'}}>
-                    <span style={{color:'#fbbf24',fontSize:10,flexShrink:0,marginTop:2}}>🟡</span>
+                    <StatusDot kind="warn" />
                     <span style={{fontSize:11,color:'rgba(255,255,255,0.65)',lineHeight:1.4}}>{AL(a.key)}{a.val ? ` (${a.val}%)` : ''}</span>
                   </div>
                 ))}
@@ -3538,7 +3572,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
       <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
         <ReportHeader title={t('bench_title')} subtitle={t('bench_subtitle')} onBack={()=>setMode(null)}/>
         <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
-          <div style={{fontSize:32,marginBottom:12}}>🏅</div>
+          
           <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>{t('bench_no_data')}</div>
           <button onClick={()=>goto('trades')} style={{padding:'12px 24px',borderRadius:12,background:'#fbbf24',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>{t('an_import_bt')}</button>
         </div>
@@ -3564,9 +3598,9 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
       <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
         <ReportHeader title={t('bench_title')} subtitle={t('bench_subtitle')} onBack={()=>setMode(null)}/>
 
-        {/* 🏅 Classement mondial + niveau actuel */}
+        {/* Classement mondial + niveau actuel */}
         <div style={{background:`${b.globalLevel.color}12`,border:`1.5px solid ${b.globalLevel.color}50`,borderRadius:20,padding:'20px 18px',marginBottom:14,textAlign:'center'}}>
-          <div style={{fontSize:36,marginBottom:6}}>{b.globalLevel.icon}</div>
+          <div style={{marginBottom:6, display:"flex", justifyContent:"center"}}><LevelIcon level={b.globalLevel.icon} color={b.globalLevel.color} size={36} /></div>
           <div style={{fontSize:11,color:'rgba(255,255,255,0.5)',textTransform:'uppercase',letterSpacing:0.5,marginBottom:2}}>{t('bench_current_level')}</div>
           <div style={{fontSize:22,fontWeight:900,color:b.globalLevel.color,marginBottom:10}}>{b.globalLevel.label}</div>
           <div style={{display:'flex',justifyContent:'center',gap:20}}>
@@ -3598,7 +3632,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
             <div key={key} className="card" style={{marginBottom:10}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:8}}>
                 <span style={{fontSize:12,fontWeight:700,color:'#fff'}}>{metricLabels[key]}</span>
-                <span style={{fontSize:11,fontWeight:700,color:m.level.color}}>{m.level.icon} {m.level.label}</span>
+                <span style={{fontSize:11,fontWeight:700,color:m.level.color,display:"inline-flex",alignItems:"center",gap:4}}><LevelIcon level={m.level.icon} color={m.level.color} size={12} /> {m.level.label}</span>
               </div>
               {/* Barre de positionnement avec marqueurs */}
               <div style={{position:'relative',height:8,borderRadius:4,background:'rgba(255,255,255,0.08)',marginBottom:8}}>
@@ -3614,10 +3648,10 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
           );
         })}
 
-        {/* 🏅 Prochaine étape */}
+        {/* Prochaine étape */}
         {nextLevelKey && b.weakestMetric && (
           <div className="card" style={{marginTop:6}}>
-            <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.5)',textTransform:'uppercase',letterSpacing:0.5,marginBottom:8}}>🏅 {t('bench_next_step')}</div>
+            <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.5)',textTransform:'uppercase',letterSpacing:0.5,marginBottom:8}}>{t('bench_next_step')}</div>
             <div style={{fontSize:12,color:'rgba(255,255,255,0.7)',lineHeight:1.5}}>
               {t('bench_to_reach')} <b style={{color:'#fbbf24'}}>{nextLevelLabels[nextLevelKey]}</b>, {t('bench_improve')} <b style={{color:'#fff'}}>{metricLabels[b.weakestMetric[0]]}</b>.
             </div>
@@ -4455,7 +4489,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     if (guardZoneRef.current === "danger") { guardZoneRef.current = dda.guardZone; return; } // déjà alerté
     if (dda.guardZone === "danger" && guardZoneRef.current !== "danger") {
       fireNotification(
-        "🛑 " + t("guard_title"),
+        t("guard_title"),
         t("guard_stop_recommended") + " — " + Math.round(Math.max(dda.dailyConsumedPct, dda.maxConsumedPct)) + "% " + t("guard_daily_consumed")
       );
     }
@@ -4829,14 +4863,14 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       )}
 
       {/* ══════════════════════════════════════════════════════════
-          🛡️ DAILY LOSS GUARDIAN — garde-fou DD temps réel
+          DAILY LOSS GUARDIAN — garde-fou DD temps réel
           Fonctionne avec toutes les Prop Firms (model.dailyDD/totalDD dynamiques)
       ══════════════════════════════════════════════════════════ */}
       {!isSimple && (() => {
         const zoneColor = dda.guardZone === "danger" ? "#ef4444" : dda.guardZone === "warning" ? "#fbbf24" : "#6ee7b7";
         const zoneBg = dda.guardZone === "danger" ? "rgba(239,68,68,0.08)" : dda.guardZone === "warning" ? "rgba(251,191,36,0.08)" : "rgba(110,231,183,0.06)";
         const zoneLabel = dda.guardZone === "danger" ? t("guard_zone_danger") : dda.guardZone === "warning" ? t("guard_zone_warning") : t("guard_zone_safe");
-        const zoneEmoji = dda.guardZone === "danger" ? "🔴" : dda.guardZone === "warning" ? "🟡" : "🟢";
+        const zoneEmoji = dda.guardZone === "danger" ? "danger" : dda.guardZone === "warning" ? "warn" : "ok";
         const maxConsumed = Math.max(dda.dailyConsumedPct, dda.maxConsumedPct);
         const recoText = dda.guardZone === "danger" ? t("guard_stop_recommended") : dda.guardZone === "warning" ? t("guard_stay_alert") : t("guard_all_clear");
         const lossesLeftText = dda.lossesLeftDaily === 0 ? t("guard_zero_left")
@@ -4847,12 +4881,12 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 800, color: "#fff", display: "flex", alignItems: "center", gap: 6 }}>
-                  🛡️ {t("guard_title")}
+                  {t("guard_title")}
                 </div>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("guard_subtitle")}</div>
               </div>
               <div style={{ padding: "6px 12px", borderRadius: 10, background: zoneColor + "22", border: `1px solid ${zoneColor}55`, display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 14 }}>{zoneEmoji}</span>
+                <StatusDot kind={zoneEmoji} />
                 <span style={{ fontSize: 11, fontWeight: 800, color: zoneColor }}>{zoneLabel}</span>
               </div>
             </div>
@@ -5076,7 +5110,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </div>
           {kellyFraction > 0 && effectiveRisk > kellyFraction && (
             <div style={{ marginTop: 8, fontSize: 10, color: "#fbbf24", lineHeight: 1.4 }}>
-              ⚠ Ton risque ({effectiveRiskPct.toFixed(2)}%) dépasse le Kelly optimal ({(kellyFraction * 100).toFixed(1)}%). Risque de ruine accru.
+              Ton risque ({effectiveRiskPct.toFixed(2)}%) dépasse le Kelly optimal ({(kellyFraction * 100).toFixed(1)}%). Risque de ruine accru.
             </div>
           )}
         </div>}
@@ -5137,7 +5171,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </div>
           {includeWeekend && (
             <div style={{ marginTop: 6, background: "rgba(110,231,183,0.06)", border: "1px solid rgba(110,231,183,0.18)", borderRadius: 12, padding: "7px 10px", fontSize: 10, color: "#6ee7b7", lineHeight: 1.5 }}>
-              ⚠️ Vérifie les règles de ta prop firm : le forex est fermé le weekend. Le weekend ne s'applique qu'au crypto/indices 24/7 selon les firms.
+              Vérifie les règles de ta prop firm : le forex est fermé le weekend. Le weekend ne s'applique qu'au crypto/indices 24/7 selon les firms.
             </div>
           )}
         </div>
@@ -5422,7 +5456,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               <path d="M10 1H3a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V4L10 1z" stroke="#6ee7b7" strokeWidth="1.4" strokeLinecap="round"/>
               <path d="M9 1v3H4V1M4 8h6M4 10.5h4" stroke="#6ee7b7" strokeWidth="1.4" strokeLinecap="round"/>
             </svg>
-            {t("sim_save_config")}{!premiumAccess && " 🔒"}
+            {t("sim_save_config")}
           </>
         ) : (
           <>
@@ -5458,7 +5492,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                   <div style={{ fontWeight: 700, fontSize: 14 }}>{ph.label} - Objectif +{(ph.target * 100)}%</div>
                   {data ? (
                     !premiumAccess ? (
-                      <span className="tag" style={{ background: "rgba(110,231,183,0.1)", color: "#6ee7b7", border: "1px solid rgba(110,231,183,0.3)" }}>🔒 Premium</span>
+                      <span className="tag" style={{ background: "rgba(110,231,183,0.1)", color: "#6ee7b7", border: "1px solid rgba(110,231,183,0.3)" }}>Premium</span>
                     ) : (
                     <span className="tag" style={{ background: phaseIcon(data.status).bg, color: phaseIcon(data.status).color }}>
                       {phaseIcon(data.status).icon} {phaseIcon(data.status).label}
@@ -5532,7 +5566,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               border: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               boxShadow: "0 4px 20px rgba(110,231,183,0.25)",
             }}>
-              {t("sim_view_funded")}{!premiumAccess && " 🔒"}
+              {t("sim_view_funded")}
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <path d="M7 4l5 5-5 5" stroke="#000000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -6291,7 +6325,7 @@ function compareAllFirms(trader) {
 
     score = Math.round(Math.max(0, Math.min(100, score)));
     const tier = score >= 75 ? "excellent" : score >= 60 ? "good" : score >= 40 ? "moderate" : "poor";
-    const tierIcon = score >= 75 ? "✅" : score >= 60 ? "✅" : score >= 40 ? "⚠️" : "❌";
+    const tierIcon = score >= 75 ? "ok" : score >= 60 ? "ok" : score >= 40 ? "warn" : "danger";
 
     return { firmKey, firmName: firm.name, color: firm.color, model, score, tier, tierIcon, blockers, adjustments, strengths, ddLimitPct };
   });
@@ -6368,11 +6402,11 @@ function estimatePercentile(value, dist) {
 
 // Détermine le niveau de classement (badge) à partir du percentile
 function rankLevelFromPercentile(pct) {
-  if (pct >= 99) return { key: "top1", label: "Top 1%", color: "#fbbf24", icon: "👑" };
-  if (pct >= 90) return { key: "top10", label: "Top 10%", color: "#a78bfa", icon: "🏅" };
-  if (pct >= 75) return { key: "top25", label: "Top 25%", color: "#6ee7b7", icon: "🥈" };
-  if (pct >= 50) return { key: "top50", label: "Top 50%", color: "#60a5fa", icon: "🥉" };
-  return { key: "average", label: "Moyenne", color: "rgba(255,255,255,0.5)", icon: "📊" };
+  if (pct >= 99) return { key: "top1", label: "Top 1%", color: "#fbbf24", icon: "elite" };
+  if (pct >= 90) return { key: "top10", label: "Top 10%", color: "#a78bfa", icon: "professional" };
+  if (pct >= 75) return { key: "top25", label: "Top 25%", color: "#6ee7b7", icon: "disciplined" };
+  if (pct >= 50) return { key: "top50", label: "Top 50%", color: "#60a5fa", icon: "beginner" };
+  return { key: "average", label: "Moyenne", color: "rgba(255,255,255,0.5)", icon: "beginner" };
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -6619,11 +6653,11 @@ function canLaunchChallenge(verdict) {
   // Blocages immédiats : DD réel trop élevé, DD inconnu, ou échantillon trop faible pour décider
   const hasBlockingIssue = (dd !== null && dd > 10) || dd === null || tooFewTrades || nTrades < 20;
   if (hasBlockingIssue || score < 35) {
-    verdictLevel = "red"; verdictLabel = AL('dec_dont_launch'); verdictColor = "#ef4444"; verdictEmoji = "🔴";
+    verdictLevel = "red"; verdictLabel = AL('dec_dont_launch'); verdictColor = "#ef4444"; verdictEmoji = "danger";
   } else if (score < 65) {
-    verdictLevel = "yellow"; verdictLabel = AL('dec_wait'); verdictColor = "#fbbf24"; verdictEmoji = "🟡";
+    verdictLevel = "yellow"; verdictLabel = AL('dec_wait'); verdictColor = "#fbbf24"; verdictEmoji = "warn";
   } else {
-    verdictLevel = "green"; verdictLabel = AL('dec_launch'); verdictColor = "#6ee7b7"; verdictEmoji = "🟢";
+    verdictLevel = "green"; verdictLabel = AL('dec_launch'); verdictColor = "#6ee7b7"; verdictEmoji = "ok";
   }
 
   return { score, verdictLevel, verdictLabel, verdictColor, verdictEmoji, reasons, positives, pf, wr, rr, dd, mc, nTrades };
@@ -6637,7 +6671,7 @@ function HeatmapReport({ heat, t }) {
   if (!heat) {
     return (
       <div className="card" style={{ textAlign: "center", padding: "20px 14px" }}>
-        <div style={{ fontSize: 28, marginBottom: 8 }}>🗺️</div>
+        
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{t("heat_no_data")}</div>
       </div>
     );
@@ -6645,7 +6679,7 @@ function HeatmapReport({ heat, t }) {
 
   const sessionLabel = (k) => k === "asia" ? t("heat_session_asia") : k === "london" ? t("heat_session_london")
     : k === "london_ny_overlap" ? t("heat_session_overlap") : t("heat_session_newyork");
-  const zoneIcon = { day: "📅", session: "🌍", symbolhour: "⏰" };
+  const zoneIcon = { day: "", session: "", symbolhour: "" };
   const fmtZoneDetail = (z) => {
     if (z.type === "day") return `${z.detail.trades} ${t("heat_trades_unit")} · WR ${z.detail.wr.toFixed(0)}%`;
     if (z.type === "session") return `${sessionLabel(z.detail.key)} · ${z.detail.trades} ${t("heat_trades_unit")}`;
@@ -6660,7 +6694,7 @@ function HeatmapReport({ heat, t }) {
   return (
     <div className="card">
       <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>🗺️ {t("heat_title")}</div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>{t("heat_title")}</div>
         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("heat_subtitle")}</div>
       </div>
 
@@ -6692,8 +6726,8 @@ function HeatmapReport({ heat, t }) {
             </div>
           ))}
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, marginBottom: 16 }}>
-            <span style={{ fontSize: 8, color: "#ef4444" }}>🔴 {t("heat_legend_more_loss")}</span>
-            <span style={{ fontSize: 8, color: "#6ee7b7" }}>🟢 {t("heat_legend_more_gain")}</span>
+            <span style={{ fontSize: 8, color: "#ef4444" }}>{t("heat_legend_more_loss")}</span>
+            <span style={{ fontSize: 8, color: "#6ee7b7" }}>{t("heat_legend_more_gain")}</span>
           </div>
         </>
       )}
@@ -6717,11 +6751,11 @@ function HeatmapReport({ heat, t }) {
       {/* Zones à risque */}
       {heat.redZones.length > 0 && (
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#ef4444", textTransform: "uppercase", marginBottom: 6 }}>🔴 {t("heat_red_zones")}</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "#ef4444", textTransform: "uppercase", marginBottom: 6 }}>{t("heat_red_zones")}</div>
           {heat.redZones.map((z, i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < heat.redZones.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
               <div>
-                <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>{zoneIcon[z.type]} {z.label}</span>
+                <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>{z.label}</span>
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{fmtZoneDetail(z)}</div>
               </div>
               <span style={{ fontSize: 12, fontWeight: 800, color: "#ef4444" }}>-${Math.round(z.impact)}</span>
@@ -6733,11 +6767,11 @@ function HeatmapReport({ heat, t }) {
       {/* Zones favorables */}
       {heat.greenZones.length > 0 && (
         <div>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", marginBottom: 6 }}>🟢 {t("heat_green_zones")}</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", marginBottom: 6 }}>{t("heat_green_zones")}</div>
           {heat.greenZones.map((z, i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < heat.greenZones.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
               <div>
-                <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>{zoneIcon[z.type]} {z.label}</span>
+                <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>{z.label}</span>
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{fmtZoneDetail(z)}</div>
               </div>
               <span style={{ fontSize: 12, fontWeight: 800, color: "#6ee7b7" }}>+${Math.round(z.impact)}</span>
@@ -7391,12 +7425,12 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   return (
     <div>
       {/* ══════════════════════════════════════════════════════════
-          🎯 "PUIS-JE LANCER CE CHALLENGE ?" — écran de décision
-          Synthèse PF/WR/RR/DD/Échantillon/Monte Carlo → verdict 🟢🟡🔴
+          "PUIS-JE LANCER CE CHALLENGE ?" — écran de décision
+          Synthèse PF/WR/RR/DD/Échantillon/Monte Carlo → verdict 3 niveaux
       ══════════════════════════════════════════════════════════ */}
       <div className="card" style={{ border: decision ? `1.5px solid ${decision.verdictColor}55` : "1px solid rgba(255,255,255,0.08)", background: decision ? decision.verdictColor + "0c" : "rgba(255,255,255,0.03)" }}>
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>🎯 {t("dec_title")}</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{t("dec_title")}</div>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("dec_subtitle")}</div>
         </div>
 
@@ -7423,7 +7457,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               <div>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5 }}>{t("dec_score_label")}</div>
                 <div style={{ fontSize: 19, fontWeight: 800, color: decision.verdictColor, display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-                  <span style={{ fontSize: 22 }}>{decision.verdictEmoji}</span> {decision.verdictLabel}
+                  <StatusDot kind={decision.verdictEmoji} /> {decision.verdictLabel}
                 </div>
               </div>
             </div>
@@ -7474,16 +7508,16 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
           <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "8px 10px" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#FFFFFF", marginBottom: 2 }}>📊 {t("mt_csv_text")}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#FFFFFF", marginBottom: 2 }}>{t("mt_csv_text")}</div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", lineHeight: 1.4 }}>{t("mt_csv_instr")}<br/>{t("mt_csv_instr2")}</div>
           </div>
           <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "8px 10px" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#FFFFFF", marginBottom: 2 }}>🌐 {t("mt_backtest_html")}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#FFFFFF", marginBottom: 2 }}>{t("mt_backtest_html")}</div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", lineHeight: 1.4 }}>{t("mt_html_instr")}</div>
           </div>
         </div>
         <label style={{ display: "block", background: "rgba(255,255,255,0.05)", border: "2px dashed #2d2d3d", borderRadius: 10, padding: "16px", textAlign: "center", cursor: "pointer" }}>
-          <div style={{ fontSize: 28, marginBottom: 6 }}>📂</div>
+          
           <div style={{ fontSize: 13, color: "#6ee7b7", fontWeight: 700 }}>
             {filename ? filename : t("mt_csv_formats")}
           </div>
@@ -7513,7 +7547,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
           {/* Ligne de statut + solde détecté */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 16 }}>{balanceReconstructed ? "⚠️" : "✅"}</span>
+              <StatusDot kind={balanceReconstructed ? "warn" : "ok"} />
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: balanceReconstructed ? "#fbbf24" : "#6ee7b7" }}>
                   {balanceReconstructed ? "Solde initial non détecté" : "Solde initial détecté"}
@@ -7593,7 +7627,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               { l: "Profit Factor", v: stats.pf.toFixed(2), c: stats.pf >= 1.5 ? "#6ee7b7" : stats.pf >= 1 ? "#fbbf24" : "#ef4444" },
               { l: t("mt_rr_real"), v: "1:" + stats.rr.toFixed(2), c: "#FFFFFF" },
               { l: "P&L total", v: "$" + stats.totalPnl.toFixed(0), c: stats.totalPnl >= 0 ? "#6ee7b7" : "#ef4444" },
-              { l: "DD max", v: "⚠ inconnu", c: "#fbbf24" },
+              { l: "DD max", v: "inconnu", c: "#fbbf24" },
             ].map(s => (
               <div key={s.l} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 9, padding: "9px 8px", textAlign: "center" }}>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginBottom: 3 }}>{s.l}</div>
@@ -7609,7 +7643,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
 
       {trades.length > 0 && stats && verdict && (
         <>
-          {/* ── 🎯 VERDICT CHALLENGE (pièce maîtresse) ── */}
+          {/* ── VERDICT CHALLENGE (pièce maîtresse) ── */}
           <div style={{ background: verdict.bg, border: "2px solid " + verdict.color + "50", borderRadius: 16, padding: 18, marginBottom: 12 }}>
             {/* Header verdict */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -7765,7 +7799,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               <div style={{ marginTop: 10, padding: "13px 14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.12)", borderRadius: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                   <div style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>
-                    🔬 {t('mt_indep_validation')}
+                    {t('mt_indep_validation')}
                   </div>
                   {geminiVerdict?.confidenceLevel && (
                     <div style={{ padding: "2px 8px", borderRadius: 8, fontSize: 9, fontWeight: 700,
@@ -7797,7 +7831,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                       <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 6 }}>
                         {geminiVerdict.watchpoints.map((wp, i) => (
                           <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-                            <span style={{ color: "#fbbf24", fontSize: 10, flexShrink: 0, marginTop: 1 }}>⚡</span>
+                            <StatusDot kind="warn" />
                             <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", lineHeight: 1.4 }}>{wp}</span>
                           </div>
                         ))}
@@ -7810,7 +7844,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
           </div>
 
           {/* ══════════════════════════════════════════════════════
-              🤖 MOTEUR D'ANALYSE AUTOMATIQUE MT5
+              MOTEUR D'ANALYSE AUTOMATIQUE MT5
               Winrate, PF, RR, DD, séries, horaires, jours, instruments
               + détection revenge trading / overtrading / sous-risque
           ══════════════════════════════════════════════════════ */}
@@ -7821,7 +7855,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             return (
               <div className="card" style={{ border: "1px solid rgba(110,231,183,0.12)" }}>
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>🤖 {t("mt5_title")}</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>{t("mt5_title")}</div>
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("mt5_subtitle")} · {m.n} {t("mt5_trades_analyzed")}</div>
                 </div>
 
@@ -7905,7 +7939,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                 {/* Forces */}
                 {m.forces.length > 0 && (
                   <div style={{ marginBottom: 14 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", marginBottom: 6 }}>✅ {t("mt5_forces")}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", marginBottom: 6 }}>{t("mt5_forces")}</div>
                     {m.forces.map((f, i) => (
                       <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: i < m.forces.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
                         <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>{f.title}</span>
@@ -7918,7 +7952,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                 {/* Points faibles */}
                 {m.weaknesses.length > 0 && (
                   <div style={{ marginBottom: 14 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24", textTransform: "uppercase", marginBottom: 6 }}>⚠️ {t("mt5_weaknesses")}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24", textTransform: "uppercase", marginBottom: 6 }}>{t("mt5_weaknesses")}</div>
                     {m.weaknesses.map((w, i) => (
                       <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: i < m.weaknesses.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
                         <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>{w.title}</span>
@@ -7931,7 +7965,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                 {/* Recommandations */}
                 {m.recommendations.length > 0 && (
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 6 }}>📈 {t("mt5_recommendations")}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 6 }}>{t("mt5_recommendations")}</div>
                     {m.recommendations.map((r, i) => (
                       <div key={i} style={{ display: "flex", gap: 7, alignItems: "flex-start", padding: "5px 0" }}>
                         <span style={{ color: "#6ee7b7", fontSize: 10, flexShrink: 0, marginTop: 2 }}>→</span>
@@ -7945,7 +7979,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
           })()}
 
           {/* ══════════════════════════════════════════════════════════
-              📅 CALENDRIER ÉCONOMIQUE INTELLIGENT
+              CALENDRIER ÉCONOMIQUE INTELLIGENT
               NFP/CPI/FOMC/Taux/PMI/PIB → impact réel sur la performance
           ══════════════════════════════════════════════════════════ */}
           {(() => {
@@ -7961,7 +7995,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             return (
               <div className="card" style={{ border: "1px solid rgba(110,231,183,0.10)" }}>
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>📅 {t("econ_title")}</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>{t("econ_title")}</div>
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("econ_subtitle")}</div>
                 </div>
 
@@ -7993,7 +8027,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                   <>
                     {/* Badge niveau de risque */}
                     <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 12, background: econAnalysis.riskColor + "15", border: `1px solid ${econAnalysis.riskColor}40`, marginBottom: 14 }}>
-                      <span style={{ fontSize: 18 }}>{econAnalysis.riskLevel === "high" ? "🔴" : econAnalysis.riskLevel === "medium" ? "🟡" : "🟢"}</span>
+                      <StatusDot kind={econAnalysis.riskLevel === "high" ? "danger" : econAnalysis.riskLevel === "medium" ? "warn" : "ok"} />
                       <span style={{ fontSize: 13, fontWeight: 800, color: econAnalysis.riskColor }}>
                         {econAnalysis.riskLevel === "high" ? t("econ_risk_high") : econAnalysis.riskLevel === "medium" ? t("econ_risk_medium") : t("econ_risk_low")}
                       </span>
@@ -8016,7 +8050,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                     {/* Messages d'impact précis */}
                     {econAnalysis.lossIncreasePct > 5 && (
                       <div style={{ display: "flex", gap: 7, alignItems: "flex-start", padding: "5px 0" }}>
-                        <span style={{ color: "#ef4444", fontSize: 10, flexShrink: 0, marginTop: 2 }}>⚠️</span>
+                        <StatusDot kind="danger" />
                         <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}>
                           {t("econ_loss_increase")} {econAnalysis.lossIncreasePct.toFixed(0)}% {t("econ_during_news")}.
                         </span>
@@ -8050,7 +8084,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
           })()}
 
           {/* ══════════════════════════════════════════════════════════
-              🗺️ HEATMAP DES ERREURS DE TRADING
+              HEATMAP DES ERREURS DE TRADING
           ══════════════════════════════════════════════════════════ */}
           {trades.length >= 10 && <HeatmapReport heat={heatmapData} t={t} />}
 
@@ -8097,7 +8131,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               { label: "P&L total", real: "$" + stats.totalPnl.toFixed(0), sim2: sim && sim.funded ? "$" + (sim.funded.cumulPayout).toFixed(0) : "-" },
               {
                 label: "DD max",
-                real: balanceReconstructed ? "⚠ inconnu" : stats.ddPct.toFixed(2) + "%",
+                real: balanceReconstructed ? "inconnu" : stats.ddPct.toFixed(2) + "%",
                 sim2: balanceReconstructed ? "solde requis" : (model ? model.totalDD * 100 : 10) + "% max",
                 ok: balanceReconstructed ? undefined : stats.ddPct < (model ? model.totalDD * 100 * 0.7 : 7),
                 note: balanceReconstructed,
@@ -8130,7 +8164,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                 {t("mt_equity_real_sim")}
               </div>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", marginBottom: 12 }}>
-                🟢 Réel (backtest importé){sim && sim.funded && sim.funded.data && sim.funded.data.length ? " · ⬜ Simulation" : ""}
+                Réel (backtest importé){sim && sim.funded && sim.funded.data && sim.funded.data.length ? " · Simulation" : ""}
               </div>
               <ResponsiveContainer width="100%" height={220}>
                 <ComposedChart data={chartData}>
@@ -8198,7 +8232,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
       <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 0 12px" }}>
         <div style={{ flex: 1, height: 1, background: "rgba(110,231,183,0.15)" }} />
         <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", letterSpacing: 1.5 }}>
-          📓 {t("cal_journal_title")}
+          {t("cal_journal_title")}
         </div>
         <div style={{ flex: 1, height: 1, background: "rgba(110,231,183,0.15)" }} />
       </div>
@@ -8617,7 +8651,11 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                       {cell.data.wins}W {cell.data.losses}L
                     </span>
                     {journalMode && cell.journalEntry && cell.journalEntry.images && cell.journalEntry.images.length > 0 && (
-                      <span style={{ fontSize: 7 }}>📷</span>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                        <rect x="3" y="3" width="18" height="18" rx="2" stroke="rgba(255,255,255,0.5)" strokeWidth="2"/>
+                        <circle cx="9" cy="9" r="1.5" fill="rgba(255,255,255,0.5)"/>
+                        <path d="M21 15l-5-5-4 4-3-3-6 6" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
                     )}
                   </div>
                 </>
@@ -8784,7 +8822,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 </div>
                 {imgDateWarn && (
                   <div style={{ marginBottom: 7, padding: "8px 10px", borderRadius: 9, background: "rgba(251,191,36,0.07)", border: "1px solid rgba(251,191,36,0.2)", fontSize: 10, color: "#fbbf24", lineHeight: 1.4 }}>
-                    ⚠️ {imgDateWarn}
+                    {imgDateWarn}
                   </div>
                 )}
                 <div style={{ display: "flex", gap: 8, flexWrap: "nowrap" }}>
@@ -9643,7 +9681,11 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
       {/* Badge essai gratuit 7 jours */}
       <div style={{ textAlign:"center", marginTop:22, position:"relative", zIndex:1 }}>
         <div style={{ display:"inline-flex", alignItems:"center", gap:7, padding:"9px 16px", borderRadius:20, background:"rgba(110,231,183,0.10)", border:"1px solid rgba(110,231,183,0.22)" }}>
-          <span style={{ fontSize:14 }}>🎁</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="8" width="18" height="13" rx="1" stroke="#6ee7b7" strokeWidth="1.6"/>
+            <path d="M3 12h18M12 8v13" stroke="#6ee7b7" strokeWidth="1.6"/>
+            <path d="M12 8c-1.5-3-5-3-5 0s3.5 0 5 0zM12 8c1.5-3 5-3 5 0s-3.5 0-5 0z" stroke="#6ee7b7" strokeWidth="1.4" strokeLinejoin="round"/>
+          </svg>
           <span style={{ fontSize:13, fontWeight:600, color:"#6ee7b7" }}>{t("login_trial_badge")}</span>
         </div>
       </div>
@@ -9992,9 +10034,9 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {[
-              { k: "beginner", icon: "🌱", title: t("ps_beginner"), desc: t("ps_beginner_desc") },
-              { k: "experienced", icon: "📈", title: t("ps_experienced"), desc: t("ps_experienced_desc") },
-              { k: "professional", icon: "🏆", title: t("ps_professional"), desc: t("ps_professional_desc") },
+              { k: "beginner", icon: "beginner", title: t("ps_beginner"), desc: t("ps_beginner_desc") },
+              { k: "experienced", icon: "disciplined", title: t("ps_experienced"), desc: t("ps_experienced_desc") },
+              { k: "professional", icon: "professional", title: t("ps_professional"), desc: t("ps_professional_desc") },
             ].map(opt => (
               <button key={opt.k} onClick={() => { setLevel(opt.k); setDisplayMode(opt.k === "beginner" ? "simple" : "advanced"); }} style={{
                 background: level === opt.k ? "rgba(110,231,183,0.08)" : "rgba(255,255,255,0.03)",
@@ -10002,7 +10044,7 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
                 borderRadius: 16, padding: "16px 16px", cursor: "pointer", textAlign: "left",
                 display: "flex", alignItems: "center", gap: 14,
               }}>
-                <div style={{ fontSize: 28, flexShrink: 0 }}>{opt.icon}</div>
+                <div style={{ flexShrink: 0 }}><LevelIcon level={opt.icon} color={level === opt.k ? "#6ee7b7" : "rgba(255,255,255,0.4)"} size={28} /></div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: level === opt.k ? "#fff" : "rgba(255,255,255,0.7)", marginBottom: 3 }}>{opt.title}</div>
                   <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", lineHeight: 1.4 }}>{opt.desc}</div>
@@ -10028,7 +10070,7 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
           borderRadius: 16, border: "none", cursor: canAdvance() ? "pointer" : "default",
           fontSize: 15, fontWeight: 800, letterSpacing: -0.2,
         }}>
-          {step === 2 ? "🚀 " + t("ps_start") : t("ps_continue") + " →"}
+          {step === 2 ? t("ps_start") : t("ps_continue") + " →"}
         </button>
       </div>
 
@@ -10088,7 +10130,7 @@ function checkDailyReminder() {
   if (now.getHours() >= hour && pref.lastFired !== todayKey) {
     fireNotification(
       "EA PropFirm Pro",
-      "N'oublie pas de remplir ton journal de trading du jour 📓"
+      "N'oublie pas de remplir ton journal de trading du jour"
     );
     saveNotifPref({ ...pref, lastFired: todayKey });
   }
@@ -10132,7 +10174,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         const next = { ...notifPref, enabled: true, hour: notifPref.hour ?? 21 };
         setNotifPref(next); saveNotifPref(next);
         // Notif de confirmation immédiate
-        fireNotification("Notifications activées ✅", "Tu recevras un rappel chaque jour après " + (next.hour) + "h pour ton journal.");
+        fireNotification("Notifications activées", "Tu recevras un rappel chaque jour après " + (next.hour) + "h pour ton journal.");
       } else if (perm === "denied") {
         alert("Les notifications sont bloquées. Active-les dans les réglages de ton navigateur/téléphone pour cette app.");
       } else if (perm === "unsupported") {
@@ -10361,7 +10403,11 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
 
       {!hasData && (
         <div style={{margin:"16px",background:"rgba(110,231,183,0.05)",border:"1px solid rgba(110,231,183,0.15)",borderRadius:16,padding:"28px 20px",textAlign:"center"}}>
-          <div style={{fontSize:36,marginBottom:12}}>🚀</div>
+          <div style={{marginBottom:12, display:"flex", justifyContent:"center"}}>
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+              <path d="M5 19L19 5M19 5h-6M19 5v6" stroke="#6ee7b7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
           <div style={{fontSize:16,fontWeight:700,marginBottom:6}}>{t("dash_first_sim")}</div>
           <div style={{fontSize:13,color:"rgba(255,255,255,0.4)",marginBottom:18}}>{t("dash_stats_appear")}</div>
           <button onClick={()=>goto("simulator")} style={{padding:"14px 28px",borderRadius:100,background:"#6ee7b7",color:"#000",fontSize:14,fontWeight:700,border:"none",cursor:"pointer"}}>{t("dash_start_now")}</button>
@@ -10409,7 +10455,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
       </div>
 
       {/* ══════════════════════════════════════════════════════════
-          📅 Prochains événements économiques — chips discrètes premium
+          Prochains événements économiques — chips discrètes premium
       ══════════════════════════════════════════════════════════ */}
       {(() => {
         const upcoming = generateUpcomingEconEvents(new Date(), 3);
@@ -10443,12 +10489,12 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         {/* Toggle mode journal */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, padding: "0 2px" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}>
-            {journalMode ? ("📓 " + t("cal_journal_title")) : ("📊 " + t("cal_title"))}
+            {journalMode ? t("cal_journal_title") : t("cal_title")}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 11, color: journalMode ? "#6ee7b7" : "rgba(255,255,255,0.4)", fontWeight: 600 }}>
               {t("cal_journal_mode")}
-              {!premiumAccess && <span style={{ marginLeft: 5, fontSize: 10 }}>🔒</span>}
+              
             </span>
             <div onClick={() => {
               if (!premiumAccess) { requirePremium(); return; }
@@ -10514,7 +10560,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           <div>
             <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1}}>Équité — {currentMonthKey}</div>
             <div style={{fontSize:9,color:"rgba(255,255,255,0.3)",marginTop:2}}>
-              {monthlyPrimaryIsJournal ? "📓 Journal actif" : "📊 Simulation active"} · J1 → J{todayDay}
+              {monthlyPrimaryIsJournal ? t("cal_journal_active") : t("cal_sim_active")} · J1 → J{todayDay}
             </div>
           </div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
@@ -10580,7 +10626,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           </ResponsiveContainer>
         ) : (
           <div style={{height:140,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.2)"}}>
-            <div style={{fontSize:28,marginBottom:8}}>📈</div>
+            
             <div style={{fontSize:12}}>{t("an_run_or_enter")}</div>
             <div style={{fontSize:10,marginTop:4,color:"rgba(255,255,255,0.15)"}}>pour voir la courbe du mois courant</div>
           </div>
@@ -11042,7 +11088,7 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
       {/* ── HEADER ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>📓 {t("journal_title")}</div>
+          <div style={{ fontSize: 16, fontWeight: 700 }}>{t("journal_title")}</div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("journal_subtitle")}</div>
         </div>
       </div>
@@ -11067,11 +11113,15 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
         )}
 
         {/* ══════════════════════════════════════════════════════════
-            🎮 COACH DE DISCIPLINE — score comportemental façon jeu vidéo
+            COACH DE DISCIPLINE — score comportemental façon jeu vidéo
         ══════════════════════════════════════════════════════════ */}
         {!discipline ? (
           <div className="card" style={{ textAlign: "center", padding: "20px 14px", marginBottom: 14 }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>🎮</div>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={{ marginBottom: 8, opacity: 0.3 }}>
+              <circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/>
+              <circle cx="12" cy="12" r="4" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/>
+              <circle cx="12" cy="12" r="1" fill="rgba(255,255,255,0.5)"/>
+            </svg>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{t("disc_no_data")}</div>
           </div>
         ) : (() => {
@@ -11084,7 +11134,7 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
             <div className="card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>🎮 {t("disc_title")}</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>{t("disc_title")}</div>
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("disc_subtitle")}</div>
                 </div>
                 {discipline.todayDelta && (
@@ -11110,7 +11160,7 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5 }}>{t("disc_score_label")}</div>
                   <div style={{ fontSize: 18, fontWeight: 800, color: discipline.levelColor, display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                    <span style={{ fontSize: 20 }}>{discipline.levelIcon}</span> {levelLabel}
+                    <LevelIcon level={discipline.levelIcon} color={discipline.levelColor} size={18} /> {levelLabel}
                   </div>
                   {/* Barre XP vers le prochain niveau */}
                   {discipline.level !== "elite" && (
@@ -11126,7 +11176,7 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
 
               {/* Points positifs */}
               <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", marginBottom: 6 }}>✅ {t("disc_positives_title")}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", marginBottom: 6 }}>{t("disc_positives_title")}</div>
                 {[
                   [t("disc_respect_risk_count"), discipline.respectRiskDays],
                   [t("disc_respect_plan_count"), discipline.respectPlanDays],
@@ -11142,7 +11192,7 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
               {/* Points négatifs */}
               {(discipline.exceededRiskDays + discipline.brokePlanDays + discipline.lotIncreaseDays + discipline.emotionalDays + discipline.overtradingDays) > 0 && (
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#ef4444", textTransform: "uppercase", marginBottom: 6 }}>⚠️ {t("disc_negatives_title")}</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#ef4444", textTransform: "uppercase", marginBottom: 6 }}>{t("disc_negatives_title")}</div>
                   {[
                     [t("disc_exceeded_risk_count"), discipline.exceededRiskDays],
                     [t("disc_broke_plan_count"), discipline.brokePlanDays],
@@ -11161,24 +11211,26 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
           );
         })()}
 
-        {/* Navigation mois + stats rapides */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <button onClick={() => shiftMonth(-1)} aria-label={t("journal_prev_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>‹</button>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>{journalMonth}</div>
-          <button onClick={() => shiftMonth(1)} aria-label={t("journal_next_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>›</button>
-        </div>
+        {/* Navigation mois + stats rapides — regroupées dans une carte standard */}
+        <div className="card">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <button onClick={() => shiftMonth(-1)} aria-label={t("journal_prev_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>‹</button>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>{journalMonth}</div>
+            <button onClick={() => shiftMonth(1)} aria-label={t("journal_next_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>›</button>
+          </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
-          {[
-            [t("journal_total_pnl"), (monthPnl>=0?"+":"") + "$" + Math.abs(Math.round(monthPnl)), monthPnl>=0?"#6ee7b7":"#ef4444"],
-            [t("journal_win_days"), winDays, "#6ee7b7"],
-            [t("journal_loss_days"), lossDays, "#ef4444"],
-          ].map(([label, val, color], i) => (
-            <div key={i} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color }}>{val}</div>
-              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{label}</div>
-            </div>
-          ))}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            {[
+              [t("journal_total_pnl"), (monthPnl>=0?"+":"") + "$" + Math.abs(Math.round(monthPnl)), monthPnl>=0?"#6ee7b7":"#ef4444"],
+              [t("journal_win_days"), winDays, "#6ee7b7"],
+              [t("journal_loss_days"), lossDays, "#ef4444"],
+            ].map(([label, val, color], i) => (
+              <div key={i} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color }}>{val}</div>
+                <div style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{label}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Calendrier en mode journal (saisie + visualisation) */}
@@ -11216,7 +11268,7 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
         )}
 
         {/* ══════════════════════════════════════════════════════════
-            🗺️ HEATMAP DES ERREURS DE TRADING (variante journal)
+            HEATMAP DES ERREURS DE TRADING (variante journal)
         ══════════════════════════════════════════════════════════ */}
         <div style={{ marginTop: 14 }}>
           <HeatmapReport heat={journalHeatmap} t={t} />
