@@ -11,6 +11,20 @@ import {
 // ══════════════════════════════════════════════════════════════════
 const I18N = {
   fr: {
+    day_sun: "Dimanche", day_mon: "Lundi", day_tue: "Mardi", day_wed: "Mercredi", day_thu: "Jeudi", day_fri: "Vendredi", day_sat: "Samedi",
+    mt5_pf_strong: "Profit Factor solide", mt5_wr_strong: "Winrate solide", mt5_dd_controlled: "Drawdown maîtrisé",
+    mt5_rr_strong: "Ratio R/R favorable", mt5_symbol_strong: "Instrument moteur de performance", mt5_of_gains: "de tes gains",
+    mt5_pf_weak: "Profit Factor faible", mt5_dd_high: "Drawdown élevé", mt5_revenge: "Revenge trading détecté",
+    mt5_after_streak: "après série de pertes", mt5_overtrading: "Overtrading détecté", mt5_days_over8: "jours à 8+ trades",
+    mt5_underrisk: "Sous-utilisation du risque", mt5_underrisk_detail: "risque moyen < 0.3% du capital",
+    mt5_bad_day: "Jour à risque", mt5_of_losses: "de tes pertes", mt5_bad_hour: "Horaire à risque", mt5_bad_symbol: "Instrument à risque",
+    mt5_reco_revenge: "Arrête de trader après 3 pertes consécutives — fais une pause d'au moins 1h.",
+    mt5_reco_overtrading: "Limite-toi à un nombre de trades fixe par jour pour éviter l'overtrading.",
+    mt5_reco_avoid_day: "Évite ou réduis ton exposition le", mt5_reco_avoid_hour: "Évite de trader autour de",
+    mt5_reco_avoid_symbol: "Réévalue ta stratégie sur", mt5_reco_underrisk: "Augmente légèrement ton risque/trade pour exploiter ton edge statistique.",
+    mt5_reco_streak: "Ta pire série perdante est de", mt5_reco_streak2: "trades — prévois une règle d'arrêt avant ce seuil.",
+    mt5_reco_keep_going: "Aucun pattern à risque détecté — continue sur cette voie.",
+
     // Onboarding
     ob1_title: "Simule ton challenge",
     ob1_desc: "Teste ta strategie sur les regles reelles de ta prop firm avant de risquer ta mise.",
@@ -87,6 +101,34 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    mt5_title: "Analyse Comportementale MT5",
+    mt5_subtitle: "Analyse automatique de ton historique",
+    mt5_score_title: "Score Qualité Trader",
+    mt5_score_excellent: "Excellent",
+    mt5_score_good: "Bon",
+    mt5_score_average: "Moyen",
+    mt5_score_weak: "Faible",
+    mt5_global_stats: "Statistiques globales",
+    mt5_winrate: "Winrate",
+    mt5_pf: "Profit Factor",
+    mt5_avg_rr: "RR moyen",
+    mt5_max_dd: "Drawdown max",
+    mt5_win_streak: "Série gagnante max",
+    mt5_loss_streak: "Série perdante max",
+    mt5_time_analysis: "Horaires & jours rentables",
+    mt5_best_day: "Meilleur jour",
+    mt5_worst_day: "Pire jour",
+    mt5_best_hour: "Meilleure heure",
+    mt5_worst_hour: "Pire heure",
+    mt5_instrument_analysis: "Instruments rentables",
+    mt5_best_instrument: "Meilleur instrument",
+    mt5_worst_instrument: "Pire instrument",
+    mt5_forces: "Forces",
+    mt5_weaknesses: "Points faibles",
+    mt5_recommendations: "Recommandations",
+    mt5_no_time_data: "Données horaires insuffisantes dans le fichier importé",
+    mt5_no_symbol_data: "Données d'instrument non disponibles dans le fichier importé",
+    mt5_trades_analyzed: "trades analysés",
     guard_title: "Daily Loss Guardian",
     guard_subtitle: "Garde-fou en temps réel",
     guard_zone_safe: "Zone sécurité",
@@ -478,6 +520,20 @@ const I18N = {
     dash_stay_focused: "Reste focus et discipliné",
   },
   es: {
+    day_sun: "Domingo", day_mon: "Lunes", day_tue: "Martes", day_wed: "Miércoles", day_thu: "Jueves", day_fri: "Viernes", day_sat: "Sábado",
+    mt5_pf_strong: "Factor de beneficio sólido", mt5_wr_strong: "Win rate sólido", mt5_dd_controlled: "Drawdown controlado",
+    mt5_rr_strong: "Ratio R/R favorable", mt5_symbol_strong: "Instrumento motor de rendimiento", mt5_of_gains: "de tus ganancias",
+    mt5_pf_weak: "Factor de beneficio débil", mt5_dd_high: "Drawdown alto", mt5_revenge: "Revenge trading detectado",
+    mt5_after_streak: "tras racha de pérdidas", mt5_overtrading: "Overtrading detectado", mt5_days_over8: "días con 8+ operaciones",
+    mt5_underrisk: "Subutilización del riesgo", mt5_underrisk_detail: "riesgo medio < 0.3% del capital",
+    mt5_bad_day: "Día de riesgo", mt5_of_losses: "de tus pérdidas", mt5_bad_hour: "Horario de riesgo", mt5_bad_symbol: "Instrumento de riesgo",
+    mt5_reco_revenge: "Deja de operar tras 3 pérdidas consecutivas — toma un descanso de al menos 1h.",
+    mt5_reco_overtrading: "Límitate a un número fijo de operaciones por día para evitar el overtrading.",
+    mt5_reco_avoid_day: "Evita o reduce tu exposición el", mt5_reco_avoid_hour: "Evita operar alrededor de",
+    mt5_reco_avoid_symbol: "Reevalúa tu estrategia en", mt5_reco_underrisk: "Aumenta ligeramente tu riesgo/operación para explotar tu ventaja estadística.",
+    mt5_reco_streak: "Tu peor racha perdedora es de", mt5_reco_streak2: "operaciones — prevé una regla de parada antes de este umbral.",
+    mt5_reco_keep_going: "No se detectó ningún patrón de riesgo — continúa así.",
+
     ob1_title: "Simula tu reto",
     ob1_desc: "Prueba tu estrategia con las reglas reales de tu prop firm antes de arriesgar tu cuota.",
     ob2_title: "6 prop firms incluidas",
@@ -548,6 +604,34 @@ const I18N = {
     prof_account: "Cuenta",
     prof_prefs: "Preferencias",
     prof_lang: "Idioma",
+    mt5_title: "Análisis Conductual MT5",
+    mt5_subtitle: "Análisis automático de tu historial",
+    mt5_score_title: "Puntuación de Calidad del Trader",
+    mt5_score_excellent: "Excelente",
+    mt5_score_good: "Bueno",
+    mt5_score_average: "Promedio",
+    mt5_score_weak: "Débil",
+    mt5_global_stats: "Estadísticas globales",
+    mt5_winrate: "Win rate",
+    mt5_pf: "Factor de beneficio",
+    mt5_avg_rr: "RR medio",
+    mt5_max_dd: "Drawdown máx",
+    mt5_win_streak: "Racha ganadora máx",
+    mt5_loss_streak: "Racha perdedora máx",
+    mt5_time_analysis: "Horarios y días rentables",
+    mt5_best_day: "Mejor día",
+    mt5_worst_day: "Peor día",
+    mt5_best_hour: "Mejor hora",
+    mt5_worst_hour: "Peor hora",
+    mt5_instrument_analysis: "Instrumentos rentables",
+    mt5_best_instrument: "Mejor instrumento",
+    mt5_worst_instrument: "Peor instrumento",
+    mt5_forces: "Fortalezas",
+    mt5_weaknesses: "Puntos débiles",
+    mt5_recommendations: "Recomendaciones",
+    mt5_no_time_data: "Datos horarios insuficientes en el archivo importado",
+    mt5_no_symbol_data: "Datos de instrumento no disponibles en el archivo importado",
+    mt5_trades_analyzed: "operaciones analizadas",
     guard_title: "Daily Loss Guardian",
     guard_subtitle: "Guardián en tiempo real",
     guard_zone_safe: "Zona segura",
@@ -938,6 +1022,20 @@ const I18N = {
     dash_stay_focused: "Mantente enfocado y disciplinado",
   },
   en: {
+    day_sun: "Sunday", day_mon: "Monday", day_tue: "Tuesday", day_wed: "Wednesday", day_thu: "Thursday", day_fri: "Friday", day_sat: "Saturday",
+    mt5_pf_strong: "Solid Profit Factor", mt5_wr_strong: "Solid win rate", mt5_dd_controlled: "Controlled drawdown",
+    mt5_rr_strong: "Favorable R/R ratio", mt5_symbol_strong: "Performance-driving instrument", mt5_of_gains: "of your gains",
+    mt5_pf_weak: "Weak Profit Factor", mt5_dd_high: "High drawdown", mt5_revenge: "Revenge trading detected",
+    mt5_after_streak: "after losing streak", mt5_overtrading: "Overtrading detected", mt5_days_over8: "days with 8+ trades",
+    mt5_underrisk: "Risk underutilization", mt5_underrisk_detail: "avg risk < 0.3% of capital",
+    mt5_bad_day: "Risky day", mt5_of_losses: "of your losses", mt5_bad_hour: "Risky hour", mt5_bad_symbol: "Risky instrument",
+    mt5_reco_revenge: "Stop trading after 3 consecutive losses — take a break of at least 1h.",
+    mt5_reco_overtrading: "Limit yourself to a fixed number of trades per day to avoid overtrading.",
+    mt5_reco_avoid_day: "Avoid or reduce exposure on", mt5_reco_avoid_hour: "Avoid trading around",
+    mt5_reco_avoid_symbol: "Re-evaluate your strategy on", mt5_reco_underrisk: "Slightly increase your risk/trade to exploit your statistical edge.",
+    mt5_reco_streak: "Your worst losing streak is", mt5_reco_streak2: "trades — plan a stop rule before this threshold.",
+    mt5_reco_keep_going: "No risky pattern detected — keep going this way.",
+
     ob1_title: "Simulate your challenge",
     ob1_desc: "Test your strategy on your prop firm's real rules before risking your fee.",
     ob2_title: "6 prop firms included",
@@ -1008,6 +1106,34 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    mt5_title: "MT5 Behavioral Analysis",
+    mt5_subtitle: "Automatic analysis of your trading history",
+    mt5_score_title: "Trader Quality Score",
+    mt5_score_excellent: "Excellent",
+    mt5_score_good: "Good",
+    mt5_score_average: "Average",
+    mt5_score_weak: "Weak",
+    mt5_global_stats: "Global statistics",
+    mt5_winrate: "Win rate",
+    mt5_pf: "Profit Factor",
+    mt5_avg_rr: "Avg R/R",
+    mt5_max_dd: "Max drawdown",
+    mt5_win_streak: "Max winning streak",
+    mt5_loss_streak: "Max losing streak",
+    mt5_time_analysis: "Profitable hours & days",
+    mt5_best_day: "Best day",
+    mt5_worst_day: "Worst day",
+    mt5_best_hour: "Best hour",
+    mt5_worst_hour: "Worst hour",
+    mt5_instrument_analysis: "Profitable instruments",
+    mt5_best_instrument: "Best instrument",
+    mt5_worst_instrument: "Worst instrument",
+    mt5_forces: "Strengths",
+    mt5_weaknesses: "Weaknesses",
+    mt5_recommendations: "Recommendations",
+    mt5_no_time_data: "Insufficient time data in the imported file",
+    mt5_no_symbol_data: "Instrument data not available in the imported file",
+    mt5_trades_analyzed: "trades analyzed",
     guard_title: "Daily Loss Guardian",
     guard_subtitle: "Real-time safety guard",
     guard_zone_safe: "Safety zone",
@@ -4663,6 +4789,210 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
   );
 }
 
+// ══════════════════════════════════════════════════════════════════
+// PARSE DATE — robuste multi-formats MT4/MT5 (best-effort, retourne null si échec)
+// Formats gérés : "2026.06.15 14:32:10", "2026-06-15 14:32", "15/06/2026 14:32", "06/15/2026"
+// ══════════════════════════════════════════════════════════════════
+function parseTradeDate(raw) {
+  if (!raw) return null;
+  const s = raw.trim();
+  // Format MT4/MT5 natif : YYYY.MM.DD HH:MM[:SS]
+  let m = s.match(/^(\d{4})\.(\d{2})\.(\d{2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (m) return new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +(m[6]||0));
+  // Format ISO : YYYY-MM-DD HH:MM[:SS]
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (m) return new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +(m[6]||0));
+  // Format DD/MM/YYYY HH:MM
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/);
+  if (m) return new Date(+m[3], +m[2]-1, +m[1], +m[4], +m[5]);
+  // Dernier recours : laisser le moteur natif tenter
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MOTEUR D'ANALYSE AUTOMATIQUE MT5 — analyse comportementale + détection de patterns
+// Reçoit la liste de trades parsés (avec profit, parsedDate, symbol si dispo)
+// Retourne : stats globales, forces, faiblesses, recommandations, score/100
+// ══════════════════════════════════════════════════════════════════
+function mt5Analyze(trades, initBalance) {
+  if (!trades || trades.length < 5) return null;
+  const DAY_NAMES = [AL('day_sun'), AL('day_mon'), AL('day_tue'), AL('day_wed'), AL('day_thu'), AL('day_fri'), AL('day_sat')];
+
+  const wins = trades.filter(t => t.profit > 0);
+  const losses = trades.filter(t => t.profit < 0);
+  const n = trades.length;
+  const winrate = (wins.length / n) * 100;
+  const grossWin = wins.reduce((s,t)=>s+t.profit,0);
+  const grossLoss = Math.abs(losses.reduce((s,t)=>s+t.profit,0));
+  const profitFactor = grossLoss > 0 ? grossWin / grossLoss : (grossWin > 0 ? 99 : 0);
+  const avgWin = wins.length ? grossWin / wins.length : 0;
+  const avgLoss = losses.length ? grossLoss / losses.length : 0;
+  const avgRR = avgLoss > 0 ? avgWin / avgLoss : 0;
+
+  // ── Drawdown (équité reconstituée) ──
+  let bal = initBalance || trades[0].balance - trades[0].profit || 1000;
+  let peak = bal, maxDD = 0, maxDDAmt = 0;
+  trades.forEach(t => {
+    bal = t.balance != null ? t.balance : bal + t.profit;
+    if (bal > peak) peak = bal;
+    const dd = peak > 0 ? ((peak - bal) / peak) * 100 : 0;
+    if (dd > maxDD) { maxDD = dd; maxDDAmt = peak - bal; }
+  });
+
+  // ── Séries gagnantes / perdantes ──
+  let curWinStreak = 0, maxWinStreak = 0, curLossStreak = 0, maxLossStreak = 0;
+  let streaks = []; // historique des séries perdantes (pour détecter le pattern "PF chute après N pertes")
+  trades.forEach(t => {
+    if (t.profit > 0) {
+      curWinStreak++; maxWinStreak = Math.max(maxWinStreak, curWinStreak);
+      if (curLossStreak > 0) streaks.push(curLossStreak);
+      curLossStreak = 0;
+    } else if (t.profit < 0) {
+      curLossStreak++; maxLossStreak = Math.max(maxLossStreak, curLossStreak);
+      curWinStreak = 0;
+    }
+  });
+  if (curLossStreak > 0) streaks.push(curLossStreak);
+
+  // ── Détection "PF chute après N pertes consécutives" (revenge trading proxy) ──
+  // On regarde le profit moyen des trades qui suivent une série de 3+ pertes
+  let afterStreakTrades = [], normalTrades = [];
+  let runningLossStreak = 0;
+  for (let i = 0; i < trades.length; i++) {
+    if (runningLossStreak >= 3 && trades[i]) afterStreakTrades.push(trades[i]);
+    else if (trades[i]) normalTrades.push(trades[i]);
+    if (trades[i].profit < 0) runningLossStreak++; else runningLossStreak = 0;
+  }
+  const afterStreakWR = afterStreakTrades.length ? (afterStreakTrades.filter(t=>t.profit>0).length / afterStreakTrades.length) * 100 : null;
+  const revengeTradingDetected = afterStreakTrades.length >= 5 && afterStreakWR !== null && afterStreakWR < winrate - 15;
+
+  // ── Analyse temporelle (heures / jours) — nécessite parsedDate ──
+  const withDates = trades.filter(t => t.parsedDate);
+  const hasTimeData = withDates.length >= n * 0.5; // au moins 50% des trades datés
+  let hourStats = {}, dayStats = {};
+  if (hasTimeData) {
+    withDates.forEach(t => {
+      const h = t.parsedDate.getHours();
+      const d = t.parsedDate.getDay();
+      if (!hourStats[h]) hourStats[h] = { trades: 0, profit: 0, wins: 0 };
+      hourStats[h].trades++; hourStats[h].profit += t.profit; if (t.profit > 0) hourStats[h].wins++;
+      if (!dayStats[d]) dayStats[d] = { trades: 0, profit: 0, wins: 0 };
+      dayStats[d].trades++; dayStats[d].profit += t.profit; if (t.profit > 0) dayStats[d].wins++;
+    });
+  }
+  const totalLossAmt = grossLoss || 1;
+  const totalProfitAmt = grossWin || 1;
+  const dayList = Object.entries(dayStats).map(([d, s]) => ({
+    day: DAY_NAMES[+d], dayIdx: +d, ...s,
+    wr: s.trades ? (s.wins / s.trades) * 100 : 0,
+    pctOfLosses: s.profit < 0 ? (Math.abs(s.profit) / totalLossAmt) * 100 : 0,
+    pctOfProfit: s.profit > 0 ? (s.profit / totalProfitAmt) * 100 : 0,
+  })).sort((a,b) => a.profit - b.profit);
+  const bestDay = dayList.length ? dayList[dayList.length-1] : null;
+  const worstDay = dayList.length ? dayList[0] : null;
+
+  const hourList = Object.entries(hourStats).map(([h, s]) => ({
+    hour: +h, ...s, wr: s.trades ? (s.wins / s.trades) * 100 : 0,
+  })).sort((a,b) => a.profit - b.profit);
+  const bestHour = hourList.length ? hourList[hourList.length-1] : null;
+  const worstHour = hourList.length ? hourList[0] : null;
+
+  // ── Analyse par instrument ──
+  const withSymbol = trades.filter(t => t.symbol);
+  const hasSymbolData = withSymbol.length >= n * 0.5;
+  let symbolStats = {};
+  if (hasSymbolData) {
+    withSymbol.forEach(t => {
+      if (!symbolStats[t.symbol]) symbolStats[t.symbol] = { trades: 0, profit: 0, wins: 0 };
+      symbolStats[t.symbol].trades++; symbolStats[t.symbol].profit += t.profit; if (t.profit > 0) symbolStats[t.symbol].wins++;
+    });
+  }
+  const symbolList = Object.entries(symbolStats).map(([sym, s]) => ({
+    symbol: sym, ...s, wr: s.trades ? (s.wins / s.trades) * 100 : 0,
+    pctOfProfit: s.profit > 0 ? (s.profit / totalProfitAmt) * 100 : 0,
+    pctOfLosses: s.profit < 0 ? (Math.abs(s.profit) / totalLossAmt) * 100 : 0,
+  })).sort((a,b) => b.profit - a.profit);
+  const bestSymbol = symbolList.length ? symbolList[0] : null;
+  const worstSymbol = symbolList.length ? symbolList[symbolList.length-1] : null;
+
+  // ── Overtrading : trades/jour anormalement élevé (proxy : >8 trades le même jour calendaire) ──
+  let overtradingDays = 0;
+  if (hasTimeData) {
+    const byCalDay = {};
+    withDates.forEach(t => {
+      const key = t.parsedDate.toDateString();
+      byCalDay[key] = (byCalDay[key] || 0) + 1;
+    });
+    overtradingDays = Object.values(byCalDay).filter(c => c > 8).length;
+  }
+  const overtradingDetected = overtradingDays >= 3;
+
+  // ── Sous-utilisation du risque : volume très variable ou risque moyen < 0.3% du capital ──
+  const withVolume = trades.filter(t => t.volume != null);
+  let underRiskDetected = false;
+  if (avgLoss > 0 && initBalance) {
+    const avgRiskPct = (avgLoss / initBalance) * 100;
+    underRiskDetected = avgRiskPct < 0.3 && avgRiskPct > 0;
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // SCORE GLOBAL /100 — pondération multi-facteurs
+  // ──────────────────────────────────────────────────────────────
+  let score = 0;
+  // Profit Factor (35 pts max)
+  score += profitFactor >= 2 ? 35 : profitFactor >= 1.5 ? 28 : profitFactor >= 1.2 ? 20 : profitFactor >= 1 ? 10 : 0;
+  // Winrate (15 pts max)
+  score += winrate >= 55 ? 15 : winrate >= 45 ? 11 : winrate >= 35 ? 6 : 2;
+  // Drawdown maîtrisé (20 pts max)
+  score += maxDD <= 5 ? 20 : maxDD <= 10 ? 15 : maxDD <= 15 ? 8 : maxDD <= 25 ? 3 : 0;
+  // RR moyen (15 pts max)
+  score += avgRR >= 2 ? 15 : avgRR >= 1.5 ? 11 : avgRR >= 1 ? 7 : 2;
+  // Discipline (pas de revenge trading / overtrading) (15 pts max)
+  score += (!revengeTradingDetected ? 8 : 0) + (!overtradingDetected ? 7 : 0);
+  score = Math.round(Math.max(0, Math.min(100, score)));
+
+  // ──────────────────────────────────────────────────────────────
+  // FORCES / FAIBLESSES / RECOMMANDATIONS
+  // ──────────────────────────────────────────────────────────────
+  const forces = [], weaknesses = [], recommendations = [];
+
+  if (profitFactor >= 1.5) forces.push({ title: AL('mt5_pf_strong'), detail: `PF ${profitFactor.toFixed(2)}` });
+  if (winrate >= 50) forces.push({ title: AL('mt5_wr_strong'), detail: `${winrate.toFixed(0)}%` });
+  if (maxDD <= 10) forces.push({ title: AL('mt5_dd_controlled'), detail: `${maxDD.toFixed(1)}%` });
+  if (avgRR >= 1.5) forces.push({ title: AL('mt5_rr_strong'), detail: `1:${avgRR.toFixed(2)}` });
+  if (bestSymbol && bestSymbol.pctOfProfit >= 30) forces.push({ title: AL('mt5_symbol_strong'), detail: `${bestSymbol.symbol} → ${bestSymbol.pctOfProfit.toFixed(0)}% ${AL('mt5_of_gains')}` });
+
+  if (profitFactor < 1.2) weaknesses.push({ title: AL('mt5_pf_weak'), detail: `PF ${profitFactor.toFixed(2)}` });
+  if (maxDD > 15) weaknesses.push({ title: AL('mt5_dd_high'), detail: `${maxDD.toFixed(1)}%` });
+  if (revengeTradingDetected) weaknesses.push({ title: AL('mt5_revenge'), detail: `WR ${afterStreakWR.toFixed(0)}% ${AL('mt5_after_streak')}` });
+  if (overtradingDetected) weaknesses.push({ title: AL('mt5_overtrading'), detail: `${overtradingDays} ${AL('mt5_days_over8')}` });
+  if (underRiskDetected) weaknesses.push({ title: AL('mt5_underrisk'), detail: AL('mt5_underrisk_detail') });
+  if (worstDay && worstDay.pctOfLosses >= 30) weaknesses.push({ title: AL('mt5_bad_day'), detail: `${worstDay.day} → ${worstDay.pctOfLosses.toFixed(0)}% ${AL('mt5_of_losses')}` });
+  if (worstHour && worstHour.trades >= 5 && worstHour.wr < winrate - 15) weaknesses.push({ title: AL('mt5_bad_hour'), detail: `${worstHour.hour}h → WR ${worstHour.wr.toFixed(0)}%` });
+  if (worstSymbol && worstSymbol.profit < 0 && worstSymbol.pctOfLosses >= 25) weaknesses.push({ title: AL('mt5_bad_symbol'), detail: `${worstSymbol.symbol} → ${worstSymbol.pctOfLosses.toFixed(0)}% ${AL('mt5_of_losses')}` });
+
+  if (revengeTradingDetected) recommendations.push(AL('mt5_reco_revenge'));
+  if (overtradingDetected) recommendations.push(AL('mt5_reco_overtrading'));
+  if (worstDay && worstDay.pctOfLosses >= 30) recommendations.push(`${AL('mt5_reco_avoid_day')} ${worstDay.day}`);
+  if (worstHour && worstHour.wr < winrate - 15 && worstHour.trades >= 5) recommendations.push(`${AL('mt5_reco_avoid_hour')} ${worstHour.hour}h`);
+  if (worstSymbol && worstSymbol.pctOfLosses >= 25) recommendations.push(`${AL('mt5_reco_avoid_symbol')} ${worstSymbol.symbol}`);
+  if (underRiskDetected) recommendations.push(AL('mt5_reco_underrisk'));
+  if (maxLossStreak >= 4) recommendations.push(`${AL('mt5_reco_streak')} ${maxLossStreak} ${AL('mt5_reco_streak2')}`);
+  if (recommendations.length === 0) recommendations.push(AL('mt5_reco_keep_going'));
+
+  return {
+    n, winrate, profitFactor, avgRR, avgWin, avgLoss, maxDD, maxDDAmt,
+    maxWinStreak, maxLossStreak,
+    hasTimeData, hasSymbolData,
+    bestDay, worstDay, bestHour, worstHour, bestSymbol, worstSymbol,
+    dayList, hourList, symbolList,
+    revengeTradingDetected, overtradingDetected, overtradingDays, underRiskDetected,
+    afterStreakWR,
+    score, forces, weaknesses, recommendations,
+  };
+}
+
 function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTargetPct, model, finalRR, tradesPerDay, firm, effectiveRiskAmount, t = (k) => k, lang = "fr" }) {
   // ── Journal de trading (partagé avec l'accueil via useJournal) ──
   const { journalMonth: jMonth, setJournalMonth: setJMonth, saveJournalEntry: saveJEntry, monthData: jMonthData } = useJournal();
@@ -4684,6 +5014,9 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   const [showBalanceInput, setShowBalanceInput] = useState(false);
   // DD max saisi manuellement par l'utilisateur (quand non calculable depuis le fichier)
   const [manualDD, setManualDD] = useState(saved0.manualDD ?? null);
+  // ── Moteur d'analyse automatique MT5 (calculé à chaque changement de trades) ──
+  setALLang(lang);
+  const mt5Analysis = trades.length >= 5 ? mt5Analyze(trades, effectiveInitBalance) : null;
   const [manualDDInput, setManualDDInput] = useState("");
   const [geminiVerdict, setGeminiVerdict] = useState(null);
   const [geminiVerdictLoading, setGeminiVerdictLoading] = useState(false);
@@ -4718,6 +5051,9 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
     }
     if (!format) return { error: "Format non reconnu. Attendu : export MT4/MT5 ou colonnes Date,Profit,Balance" };
     if (profitIdx === -1) return { error: "Colonne Profit introuvable" };
+    // Colonnes additionnelles pour le moteur d'analyse avancé (symbole, volume) — best-effort, n'affecte rien si absent
+    const symbolIdx = cols.findIndex(c => c.includes('symbol') || c.includes('instrument') || c.trim() === 'item');
+    const volumeIdx = cols.findIndex(c => c.includes('volume') || c.includes('lots') || c.trim() === 'size');
     const parsed = []; let runningBalance = capital; let initBalance = null;
     let hasRealBalance = false; // true si au moins une ligne a une vraie balance
     for (let i = 1; i < lines.length; i++) {
@@ -4729,7 +5065,14 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
       if (!isNaN(balance) && balance > 0) { hasRealBalance = true; }
       if (isNaN(balance)) { runningBalance += netProfit; balance = runningBalance; }
       if (initBalance === null) initBalance = balance - netProfit;
-      parsed.push({ idx: i, time: (timeIdx >= 0 ? row[timeIdx] : '').trim(), type: (typeIdx >= 0 ? row[typeIdx] : '').trim(), profit: netProfit, balance });
+      const timeRaw = (timeIdx >= 0 ? row[timeIdx] : '').trim();
+      const symbolRaw = (symbolIdx >= 0 ? row[symbolIdx] : '').trim().toUpperCase();
+      const volumeRaw = volumeIdx >= 0 ? parseFloat(row[volumeIdx]) : null;
+      parsed.push({
+        idx: i, time: timeRaw, type: (typeIdx >= 0 ? row[typeIdx] : '').trim(), profit: netProfit, balance,
+        symbol: symbolRaw || null, volume: (volumeRaw && !isNaN(volumeRaw)) ? volumeRaw : null,
+        parsedDate: parseTradeDate(timeRaw),
+      });
     }
     if (parsed.length === 0) return { error: "Aucun trade valide dans le fichier" };
     return { trades: parsed, format, initBalance: initBalance || null, balanceReconstructed: !hasRealBalance };
@@ -5612,6 +5955,141 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
               </div>
             )}
           </div>
+
+          {/* ══════════════════════════════════════════════════════
+              🤖 MOTEUR D'ANALYSE AUTOMATIQUE MT5
+              Winrate, PF, RR, DD, séries, horaires, jours, instruments
+              + détection revenge trading / overtrading / sous-risque
+          ══════════════════════════════════════════════════════ */}
+          {mt5Analysis && (() => {
+            const m = mt5Analysis;
+            const scoreColor = m.score >= 75 ? "#6ee7b7" : m.score >= 55 ? "#fbbf24" : m.score >= 35 ? "#f97316" : "#ef4444";
+            const scoreLabel = m.score >= 75 ? t("mt5_score_excellent") : m.score >= 55 ? t("mt5_score_good") : m.score >= 35 ? t("mt5_score_average") : t("mt5_score_weak");
+            return (
+              <div className="card" style={{ border: "1px solid rgba(110,231,183,0.12)" }}>
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>🤖 {t("mt5_title")}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("mt5_subtitle")} · {m.n} {t("mt5_trades_analyzed")}</div>
+                </div>
+
+                {/* Score global /100 */}
+                <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16, padding: "12px 14px", background: scoreColor + "12", borderRadius: 14, border: `1px solid ${scoreColor}33` }}>
+                  <div style={{ position: "relative", width: 64, height: 64, flexShrink: 0 }}>
+                    <svg width="64" height="64" viewBox="0 0 64 64">
+                      <circle cx="32" cy="32" r="27" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
+                      <circle cx="32" cy="32" r="27" fill="none" stroke={scoreColor} strokeWidth="6" strokeLinecap="round"
+                        strokeDasharray={`${2*Math.PI*27*(m.score/100)} ${2*Math.PI*27}`}
+                        transform="rotate(-90 32 32)" />
+                    </svg>
+                    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: scoreColor }}>{m.score}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5 }}>{t("mt5_score_title")}</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: scoreColor }}>{scoreLabel}</div>
+                  </div>
+                </div>
+
+                {/* Stats globales */}
+                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>{t("mt5_global_stats")}</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
+                  {[
+                    [t("mt5_winrate"), m.winrate.toFixed(0) + "%"],
+                    [t("mt5_pf"), m.profitFactor.toFixed(2)],
+                    [t("mt5_avg_rr"), "1:" + m.avgRR.toFixed(2)],
+                    [t("mt5_max_dd"), m.maxDD.toFixed(1) + "%"],
+                    [t("mt5_win_streak"), m.maxWinStreak],
+                    [t("mt5_loss_streak"), m.maxLossStreak],
+                  ].map(([label, val], i) => (
+                    <div key={i} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{val}</div>
+                      <div style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Horaires & jours rentables */}
+                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>{t("mt5_time_analysis")}</div>
+                {m.hasTimeData ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+                    {m.bestDay && <div style={{ background: "rgba(110,231,183,0.06)", borderRadius: 10, padding: "8px 10px" }}>
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{t("mt5_best_day")}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>{m.bestDay.day}</div>
+                    </div>}
+                    {m.worstDay && <div style={{ background: "rgba(239,68,68,0.06)", borderRadius: 10, padding: "8px 10px" }}>
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{t("mt5_worst_day")}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#ef4444" }}>{m.worstDay.day}{m.worstDay.pctOfLosses >= 10 ? ` (${m.worstDay.pctOfLosses.toFixed(0)}%)` : ""}</div>
+                    </div>}
+                    {m.bestHour && <div style={{ background: "rgba(110,231,183,0.06)", borderRadius: 10, padding: "8px 10px" }}>
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{t("mt5_best_hour")}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>{m.bestHour.hour}h</div>
+                    </div>}
+                    {m.worstHour && <div style={{ background: "rgba(239,68,68,0.06)", borderRadius: 10, padding: "8px 10px" }}>
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{t("mt5_worst_hour")}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#ef4444" }}>{m.worstHour.hour}h</div>
+                    </div>}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: 16, fontStyle: "italic" }}>{t("mt5_no_time_data")}</div>
+                )}
+
+                {/* Instruments rentables */}
+                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>{t("mt5_instrument_analysis")}</div>
+                {m.hasSymbolData ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+                    {m.bestSymbol && <div style={{ background: "rgba(110,231,183,0.06)", borderRadius: 10, padding: "8px 10px" }}>
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{t("mt5_best_instrument")}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>{m.bestSymbol.symbol}</div>
+                    </div>}
+                    {m.worstSymbol && m.worstSymbol.symbol !== m.bestSymbol?.symbol && <div style={{ background: "rgba(239,68,68,0.06)", borderRadius: 10, padding: "8px 10px" }}>
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{t("mt5_worst_instrument")}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#ef4444" }}>{m.worstSymbol.symbol}</div>
+                    </div>}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: 16, fontStyle: "italic" }}>{t("mt5_no_symbol_data")}</div>
+                )}
+
+                {/* Forces */}
+                {m.forces.length > 0 && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", marginBottom: 6 }}>✅ {t("mt5_forces")}</div>
+                    {m.forces.map((f, i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: i < m.forces.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>{f.title}</span>
+                        <span style={{ fontSize: 11, color: "#6ee7b7", fontWeight: 700 }}>{f.detail}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Points faibles */}
+                {m.weaknesses.length > 0 && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24", textTransform: "uppercase", marginBottom: 6 }}>⚠️ {t("mt5_weaknesses")}</div>
+                    {m.weaknesses.map((w, i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: i < m.weaknesses.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>{w.title}</span>
+                        <span style={{ fontSize: 11, color: "#fbbf24", fontWeight: 700 }}>{w.detail}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Recommandations */}
+                {m.recommendations.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 6 }}>📈 {t("mt5_recommendations")}</div>
+                    {m.recommendations.map((r, i) => (
+                      <div key={i} style={{ display: "flex", gap: 7, alignItems: "flex-start", padding: "5px 0" }}>
+                        <span style={{ color: "#6ee7b7", fontSize: 10, flexShrink: 0, marginTop: 2 }}>→</span>
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", lineHeight: 1.4 }}>{r}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ── ALERTES ── */}
           <div className="card">
