@@ -11051,7 +11051,8 @@ function JournalScreen({ t, lang, goto, capital = 25000 }) {
       <div style={{ padding: "14px 16px 100px", maxWidth: 480, margin: "0 auto" }}>
         {/* Score de cohérence (si données dispo) */}
         {journalStats && (
-          <div className="card" style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14, border: `1px solid ${scoreColor(journalStats.consistency)}33` }}>
+          <div className="card" style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14, position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: scoreColor(journalStats.consistency), opacity: 0.6 }} />
             <div style={{ position: "relative", width: 60, height: 60, flexShrink: 0 }}>
               <svg width="60" height="60" viewBox="0 0 60 60">
                 <circle cx="30" cy="30" r="25" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
