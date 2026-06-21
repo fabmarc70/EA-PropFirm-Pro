@@ -11,6 +11,15 @@ import {
 // ══════════════════════════════════════════════════════════════════
 const I18N = {
   fr: {
+    dec_pf_strong: "Profit Factor solide", dec_pf_ok: "Profit Factor correct", dec_pf_weak: "PF trop faible", dec_pf_negative: "PF négatif — stratégie perdante",
+    dec_wr_rr_balanced: "Winrate et RR équilibrés", dec_wr_low: "Winrate trop bas pour ce RR",
+    dec_dd_unknown: "DD inconnu — impossible de valider", dec_dd_excellent: "Drawdown très maîtrisé", dec_dd_good: "Drawdown maîtrisé",
+    dec_dd_borderline: "DD proche de la limite", dec_dd_too_high: "DD trop élevé",
+    dec_sample_insufficient: "Échantillon insuffisant", dec_sample_ok: "Échantillon correct", dec_sample_strong: "Échantillon solide",
+    dec_mc_unavailable: "Monte Carlo non disponible", dec_mc_favorable: "Monte Carlo favorable", dec_mc_moderate: "Monte Carlo modéré",
+    dec_mc_unfavorable: "Monte Carlo défavorable",
+    dec_launch: "Lancer le challenge", dec_wait: "Attendre", dec_dont_launch: "Ne lancez pas ce challenge",
+
     day_sun: "Dimanche", day_mon: "Lundi", day_tue: "Mardi", day_wed: "Mercredi", day_thu: "Jeudi", day_fri: "Vendredi", day_sat: "Samedi",
     mt5_pf_strong: "Profit Factor solide", mt5_wr_strong: "Winrate solide", mt5_dd_controlled: "Drawdown maîtrisé",
     mt5_rr_strong: "Ratio R/R favorable", mt5_symbol_strong: "Instrument moteur de performance", mt5_of_gains: "de tes gains",
@@ -101,6 +110,19 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    dec_title: "Puis-je lancer ce challenge ?",
+    dec_subtitle: "Décision basée sur ton historique importé",
+    dec_score_label: "Score de décision",
+    dec_why: "Pourquoi ce verdict",
+    dec_metrics: "Métriques clés",
+    dec_import_first: "Importe un CSV MT5 ou un backtest pour obtenir ta décision.",
+    dec_pf_metric: "Profit Factor",
+    dec_wr_metric: "Winrate",
+    dec_rr_metric: "RR",
+    dec_dd_metric: "Drawdown",
+    dec_sample_metric: "Échantillon",
+    dec_mc_metric: "Monte Carlo",
+    dec_trades_unit: "trades",
     mt5_title: "Analyse Comportementale MT5",
     mt5_subtitle: "Analyse automatique de ton historique",
     mt5_score_title: "Score Qualité Trader",
@@ -520,6 +542,15 @@ const I18N = {
     dash_stay_focused: "Reste focus et discipliné",
   },
   es: {
+    dec_pf_strong: "Factor de beneficio sólido", dec_pf_ok: "Factor de beneficio correcto", dec_pf_weak: "PF demasiado débil", dec_pf_negative: "PF negativo — estrategia perdedora",
+    dec_wr_rr_balanced: "Win rate y RR equilibrados", dec_wr_low: "Win rate demasiado bajo para este RR",
+    dec_dd_unknown: "DD desconocido — no se puede validar", dec_dd_excellent: "Drawdown muy controlado", dec_dd_good: "Drawdown controlado",
+    dec_dd_borderline: "DD cerca del límite", dec_dd_too_high: "DD demasiado alto",
+    dec_sample_insufficient: "Muestra insuficiente", dec_sample_ok: "Muestra correcta", dec_sample_strong: "Muestra sólida",
+    dec_mc_unavailable: "Monte Carlo no disponible", dec_mc_favorable: "Monte Carlo favorable", dec_mc_moderate: "Monte Carlo moderado",
+    dec_mc_unfavorable: "Monte Carlo desfavorable",
+    dec_launch: "Lanzar el desafío", dec_wait: "Esperar", dec_dont_launch: "No lances este desafío",
+
     day_sun: "Domingo", day_mon: "Lunes", day_tue: "Martes", day_wed: "Miércoles", day_thu: "Jueves", day_fri: "Viernes", day_sat: "Sábado",
     mt5_pf_strong: "Factor de beneficio sólido", mt5_wr_strong: "Win rate sólido", mt5_dd_controlled: "Drawdown controlado",
     mt5_rr_strong: "Ratio R/R favorable", mt5_symbol_strong: "Instrumento motor de rendimiento", mt5_of_gains: "de tus ganancias",
@@ -604,6 +635,19 @@ const I18N = {
     prof_account: "Cuenta",
     prof_prefs: "Preferencias",
     prof_lang: "Idioma",
+    dec_title: "¿Puedo lanzar este desafío?",
+    dec_subtitle: "Decisión basada en tu historial importado",
+    dec_score_label: "Puntuación de decisión",
+    dec_why: "Por qué este veredicto",
+    dec_metrics: "Métricas clave",
+    dec_import_first: "Importa un CSV de MT5 o un backtest para obtener tu decisión.",
+    dec_pf_metric: "Factor de beneficio",
+    dec_wr_metric: "Win rate",
+    dec_rr_metric: "RR",
+    dec_dd_metric: "Drawdown",
+    dec_sample_metric: "Muestra",
+    dec_mc_metric: "Monte Carlo",
+    dec_trades_unit: "operaciones",
     mt5_title: "Análisis Conductual MT5",
     mt5_subtitle: "Análisis automático de tu historial",
     mt5_score_title: "Puntuación de Calidad del Trader",
@@ -1022,6 +1066,15 @@ const I18N = {
     dash_stay_focused: "Mantente enfocado y disciplinado",
   },
   en: {
+    dec_pf_strong: "Solid Profit Factor", dec_pf_ok: "Decent Profit Factor", dec_pf_weak: "PF too weak", dec_pf_negative: "Negative PF — losing strategy",
+    dec_wr_rr_balanced: "Balanced win rate and RR", dec_wr_low: "Win rate too low for this RR",
+    dec_dd_unknown: "Unknown DD — cannot validate", dec_dd_excellent: "Very controlled drawdown", dec_dd_good: "Controlled drawdown",
+    dec_dd_borderline: "DD close to the limit", dec_dd_too_high: "DD too high",
+    dec_sample_insufficient: "Insufficient sample", dec_sample_ok: "Decent sample", dec_sample_strong: "Strong sample",
+    dec_mc_unavailable: "Monte Carlo unavailable", dec_mc_favorable: "Favorable Monte Carlo", dec_mc_moderate: "Moderate Monte Carlo",
+    dec_mc_unfavorable: "Unfavorable Monte Carlo",
+    dec_launch: "Launch the challenge", dec_wait: "Wait", dec_dont_launch: "Don't launch this challenge",
+
     day_sun: "Sunday", day_mon: "Monday", day_tue: "Tuesday", day_wed: "Wednesday", day_thu: "Thursday", day_fri: "Friday", day_sat: "Saturday",
     mt5_pf_strong: "Solid Profit Factor", mt5_wr_strong: "Solid win rate", mt5_dd_controlled: "Controlled drawdown",
     mt5_rr_strong: "Favorable R/R ratio", mt5_symbol_strong: "Performance-driving instrument", mt5_of_gains: "of your gains",
@@ -1106,6 +1159,19 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    dec_title: "Can I launch this challenge?",
+    dec_subtitle: "Decision based on your imported history",
+    dec_score_label: "Decision score",
+    dec_why: "Why this verdict",
+    dec_metrics: "Key metrics",
+    dec_import_first: "Import an MT5 CSV or a backtest to get your decision.",
+    dec_pf_metric: "Profit Factor",
+    dec_wr_metric: "Win rate",
+    dec_rr_metric: "RR",
+    dec_dd_metric: "Drawdown",
+    dec_sample_metric: "Sample",
+    dec_mc_metric: "Monte Carlo",
+    dec_trades_unit: "trades",
     mt5_title: "MT5 Behavioral Analysis",
     mt5_subtitle: "Automatic analysis of your trading history",
     mt5_score_title: "Trader Quality Score",
@@ -4993,6 +5059,72 @@ function mt5Analyze(trades, initBalance) {
   };
 }
 
+// ══════════════════════════════════════════════════════════════════
+// MOTEUR DE DÉCISION — "Puis-je lancer ce challenge ?"
+// Synthétise verdict (Monte Carlo/PF/WR/DD/échantillon) en un verdict
+// final 🟢🟡🔴 avec raisons précises et score /100.
+// Fonctionne avec tout résultat de computeVerdictSync (CSV ou backtest).
+// ══════════════════════════════════════════════════════════════════
+function canLaunchChallenge(verdict) {
+  if (!verdict) return null;
+  const reasons = [];      // raisons négatives précises (pourquoi pas / attendre)
+  const positives = [];    // raisons positives (pourquoi c'est bon)
+  let score = 0;
+
+  const pf = parseFloat(verdict.realPF) || 0;
+  const wr = parseFloat(verdict.realWR) || 0;
+  const rr = parseFloat(verdict.realRR) || 0;
+  const dd = verdict.ddUnreliable ? null : parseFloat(verdict.maxDD);
+  const mc = verdict.passPct; // probabilité Monte Carlo (peut être null)
+  const tooFewTrades = verdict.tooFewTrades;
+  const nTrades = verdict.metrics?.totalTrades || 0;
+
+  // ── 1. Profit Factor (25 pts) ──
+  if (pf >= 1.8) { score += 25; positives.push(AL('dec_pf_strong')); }
+  else if (pf >= 1.3) { score += 18; positives.push(AL('dec_pf_ok')); }
+  else if (pf >= 1.0) { score += 8; reasons.push(AL('dec_pf_weak')); }
+  else { score += 0; reasons.push(AL('dec_pf_negative')); }
+
+  // ── 2. Winrate / RR cohérence (15 pts) ──
+  if (wr >= 45 && rr >= 1.2) { score += 15; positives.push(AL('dec_wr_rr_balanced')); }
+  else if (wr >= 35) { score += 9; }
+  else { score += 3; reasons.push(AL('dec_wr_low')); }
+
+  // ── 3. Drawdown (25 pts) — pénalité forte si DD inconnu ──
+  if (dd === null) { score += 0; reasons.push(AL('dec_dd_unknown')); }
+  else if (dd <= 5) { score += 25; positives.push(AL('dec_dd_excellent')); }
+  else if (dd <= 8) { score += 18; positives.push(AL('dec_dd_good')); }
+  else if (dd <= 10) { score += 10; reasons.push(AL('dec_dd_borderline')); }
+  else { score += 0; reasons.push(AL('dec_dd_too_high')); }
+
+  // ── 4. Échantillon statistique (15 pts) ──
+  if (tooFewTrades || nTrades < 30) { score += 3; reasons.push(AL('dec_sample_insufficient')); }
+  else if (nTrades < 100) { score += 10; positives.push(AL('dec_sample_ok')); }
+  else { score += 15; positives.push(AL('dec_sample_strong')); }
+
+  // ── 5. Monte Carlo (20 pts) — le facteur le plus déterminant ──
+  if (mc === null || mc === undefined) { score += 0; reasons.push(AL('dec_mc_unavailable')); }
+  else if (mc >= 75) { score += 20; positives.push(AL('dec_mc_favorable')); }
+  else if (mc >= 50) { score += 12; reasons.push(AL('dec_mc_moderate')); }
+  else { score += 0; reasons.push(AL('dec_mc_unfavorable')); }
+
+  score = Math.round(Math.max(0, Math.min(100, score)));
+
+  // ── Verdict final 🟢🟡🔴 ──
+  let verdictLevel, verdictLabel, verdictColor, verdictEmoji;
+  // Blocages immédiats : DD réel trop élevé, DD inconnu, ou échantillon trop faible pour décider
+  const hasBlockingIssue = (dd !== null && dd > 10) || dd === null || tooFewTrades || nTrades < 20;
+  if (hasBlockingIssue || score < 35) {
+    verdictLevel = "red"; verdictLabel = AL('dec_dont_launch'); verdictColor = "#ef4444"; verdictEmoji = "🔴";
+  } else if (score < 65) {
+    verdictLevel = "yellow"; verdictLabel = AL('dec_wait'); verdictColor = "#fbbf24"; verdictEmoji = "🟡";
+  } else {
+    verdictLevel = "green"; verdictLabel = AL('dec_launch'); verdictColor = "#6ee7b7"; verdictEmoji = "🟢";
+  }
+
+  return { score, verdictLevel, verdictLabel, verdictColor, verdictEmoji, reasons, positives, pf, wr, rr, dd, mc, nTrades };
+}
+
 function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTargetPct, model, finalRR, tradesPerDay, firm, effectiveRiskAmount, t = (k) => k, lang = "fr" }) {
   // ── Journal de trading (partagé avec l'accueil via useJournal) ──
   const { journalMonth: jMonth, setJournalMonth: setJMonth, saveJournalEntry: saveJEntry, monthData: jMonthData } = useJournal();
@@ -5607,6 +5739,8 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   const verdict = trades.length > 0 && stats
     ? computeVerdictSync(trades, effectiveInitBalance, !balanceReconstructed, manualDD)
     : null;
+  // ── "Puis-je lancer ce challenge ?" — décision finale 🟢🟡🔴 ──
+  const decision = verdict ? canLaunchChallenge(verdict) : null;
 
   const alertColor = (l) => l === "danger" ? "#ef4444" : l === "warning" ? "#fbbf24" : l === "ok" ? "#6ee7b7" : "rgba(255,255,255,0.55)";
   const alertBg = (l) => l === "danger" ? "rgba(239,68,68,0.08)" : l === "warning" ? "rgba(251,191,36,0.08)" : l === "ok" ? "rgba(255,255,255,0.05)" : "#0c1a3d";
@@ -5614,6 +5748,83 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
 
   return (
     <div>
+      {/* ══════════════════════════════════════════════════════════
+          🎯 "PUIS-JE LANCER CE CHALLENGE ?" — écran de décision
+          Synthèse PF/WR/RR/DD/Échantillon/Monte Carlo → verdict 🟢🟡🔴
+      ══════════════════════════════════════════════════════════ */}
+      <div className="card" style={{ border: decision ? `1.5px solid ${decision.verdictColor}55` : "1px solid rgba(255,255,255,0.08)", background: decision ? decision.verdictColor + "0c" : "rgba(255,255,255,0.03)" }}>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>🎯 {t("dec_title")}</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("dec_subtitle")}</div>
+        </div>
+
+        {!decision ? (
+          <div style={{ textAlign: "center", padding: "20px 10px", color: "rgba(255,255,255,0.35)", fontSize: 12 }}>
+            {t("dec_import_first")}
+          </div>
+        ) : (
+          <>
+            {/* Verdict principal */}
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
+              <div style={{ position: "relative", width: 72, height: 72, flexShrink: 0 }}>
+                <svg width="72" height="72" viewBox="0 0 72 72">
+                  <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="7" />
+                  <circle cx="36" cy="36" r="30" fill="none" stroke={decision.verdictColor} strokeWidth="7" strokeLinecap="round"
+                    strokeDasharray={`${2*Math.PI*30*(decision.score/100)} ${2*Math.PI*30}`}
+                    transform="rotate(-90 36 36)" />
+                </svg>
+                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontSize: 17, fontWeight: 800, color: decision.verdictColor }}>{decision.score}</span>
+                  <span style={{ fontSize: 7, color: "rgba(255,255,255,0.4)" }}>/100</span>
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5 }}>{t("dec_score_label")}</div>
+                <div style={{ fontSize: 19, fontWeight: 800, color: decision.verdictColor, display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                  <span style={{ fontSize: 22 }}>{decision.verdictEmoji}</span> {decision.verdictLabel}
+                </div>
+              </div>
+            </div>
+
+            {/* Métriques clés */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
+              {[
+                [t("dec_pf_metric"), decision.pf.toFixed(2)],
+                [t("dec_wr_metric"), decision.wr.toFixed(0) + "%"],
+                [t("dec_rr_metric"), "1:" + decision.rr.toFixed(2)],
+                [t("dec_dd_metric"), decision.dd !== null ? decision.dd.toFixed(1) + "%" : "?"],
+                [t("dec_sample_metric"), decision.nTrades + " " + t("dec_trades_unit")],
+                [t("dec_mc_metric"), decision.mc !== null && decision.mc !== undefined ? decision.mc + "%" : "N/A"],
+              ].map(([label, val], i) => (
+                <div key={i} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{val}</div>
+                  <div style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pourquoi ce verdict — raisons précises */}
+            {(decision.reasons.length > 0 || decision.positives.length > 0) && (
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>{t("dec_why")}</div>
+                {decision.positives.map((p, i) => (
+                  <div key={"p"+i} style={{ display: "flex", gap: 7, alignItems: "flex-start", padding: "4px 0" }}>
+                    <span style={{ color: "#6ee7b7", fontSize: 11, flexShrink: 0 }}>✓</span>
+                    <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.7)" }}>{p}</span>
+                  </div>
+                ))}
+                {decision.reasons.map((r, i) => (
+                  <div key={"r"+i} style={{ display: "flex", gap: 7, alignItems: "flex-start", padding: "4px 0" }}>
+                    <span style={{ color: decision.verdictColor, fontSize: 11, flexShrink: 0 }}>✗</span>
+                    <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.7)" }}>{r}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       {/* ── UPLOAD : CSV + HTML ── */}
       <div className="card">
         <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
