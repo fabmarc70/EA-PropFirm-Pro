@@ -126,6 +126,33 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    bench_title: "Benchmark Mondial des Traders",
+    bench_subtitle: "Ta performance comparée à la communauté",
+    bench_no_data: "Importe un backtest ou lance une simulation pour te comparer.",
+    bench_global_rank: "Classement mondial estimé",
+    bench_current_level: "Niveau actuel",
+    bench_next_step: "Prochaine étape",
+    bench_rank_of: "sur environ 50 000 traders",
+    bench_you: "Toi",
+    bench_average: "Moyenne",
+    bench_top50: "Top 50%",
+    bench_top25: "Top 25%",
+    bench_top10: "Top 10%",
+    bench_top1: "Top 1%",
+    bench_metric_winrate: "Winrate",
+    bench_metric_pf: "Profit Factor",
+    bench_metric_rr: "RR",
+    bench_metric_dd: "Drawdown",
+    bench_metric_discipline: "Discipline",
+    bench_metric_consistency: "Consistance",
+    bench_to_reach: "Pour atteindre",
+    bench_improve: "améliore ton",
+    bench_weakest_label: "Ton point faible relatif",
+    bench_motivation_top1: "Tu fais partie de l'élite mondiale. Continue ainsi.",
+    bench_motivation_top10: "Tu es dans le top 10% mondial. Encore un effort pour l'élite.",
+    bench_motivation_top25: "Solide ! Tu surperformes 3 traders sur 4.",
+    bench_motivation_top50: "Tu es au-dessus de la moyenne. La marge de progression est claire.",
+    bench_motivation_average: "Tu es dans la moyenne. Chaque amélioration te fait grimper rapidement.",
     heat_title: "Heatmap des Erreurs de Trading",
     heat_subtitle: "Où perds-tu réellement ton argent ?",
     heat_no_data: "Données temporelles insuffisantes pour générer la heatmap.",
@@ -762,6 +789,33 @@ const I18N = {
     prof_account: "Cuenta",
     prof_prefs: "Preferencias",
     prof_lang: "Idioma",
+    bench_title: "Benchmark Mundial de Traders",
+    bench_subtitle: "Tu rendimiento comparado con la comunidad",
+    bench_no_data: "Importa un backtest o lanza una simulación para compararte.",
+    bench_global_rank: "Clasificación mundial estimada",
+    bench_current_level: "Nivel actual",
+    bench_next_step: "Próximo paso",
+    bench_rank_of: "de unos 50.000 traders",
+    bench_you: "Tú",
+    bench_average: "Media",
+    bench_top50: "Top 50%",
+    bench_top25: "Top 25%",
+    bench_top10: "Top 10%",
+    bench_top1: "Top 1%",
+    bench_metric_winrate: "Win rate",
+    bench_metric_pf: "Factor de beneficio",
+    bench_metric_rr: "RR",
+    bench_metric_dd: "Drawdown",
+    bench_metric_discipline: "Disciplina",
+    bench_metric_consistency: "Consistencia",
+    bench_to_reach: "Para alcanzar",
+    bench_improve: "mejora tu",
+    bench_weakest_label: "Tu punto débil relativo",
+    bench_motivation_top1: "Formas parte de la élite mundial. Continúa así.",
+    bench_motivation_top10: "Estás en el top 10% mundial. Un esfuerzo más para la élite.",
+    bench_motivation_top25: "¡Sólido! Superas a 3 de cada 4 traders.",
+    bench_motivation_top50: "Estás por encima de la media. El margen de mejora es claro.",
+    bench_motivation_average: "Estás en la media. Cada mejora te hace subir rápido.",
     heat_title: "Mapa de Calor de Errores de Trading",
     heat_subtitle: "¿Dónde pierdes realmente tu dinero?",
     heat_no_data: "Datos temporales insuficientes para generar el mapa de calor.",
@@ -1397,6 +1451,33 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    bench_title: "World Trader Benchmark",
+    bench_subtitle: "Your performance vs the community",
+    bench_no_data: "Import a backtest or run a simulation to compare yourself.",
+    bench_global_rank: "Estimated world ranking",
+    bench_current_level: "Current level",
+    bench_next_step: "Next step",
+    bench_rank_of: "out of ~50,000 traders",
+    bench_you: "You",
+    bench_average: "Average",
+    bench_top50: "Top 50%",
+    bench_top25: "Top 25%",
+    bench_top10: "Top 10%",
+    bench_top1: "Top 1%",
+    bench_metric_winrate: "Win rate",
+    bench_metric_pf: "Profit Factor",
+    bench_metric_rr: "RR",
+    bench_metric_dd: "Drawdown",
+    bench_metric_discipline: "Discipline",
+    bench_metric_consistency: "Consistency",
+    bench_to_reach: "To reach",
+    bench_improve: "improve your",
+    bench_weakest_label: "Your relative weak point",
+    bench_motivation_top1: "You're part of the world elite. Keep it up.",
+    bench_motivation_top10: "You're in the world top 10%. One more push for the elite.",
+    bench_motivation_top25: "Solid! You outperform 3 out of 4 traders.",
+    bench_motivation_top50: "You're above average. The improvement margin is clear.",
+    bench_motivation_average: "You're at the average. Every improvement moves you up fast.",
     heat_title: "Trading Mistakes Heatmap",
     heat_subtitle: "Where are you really losing money?",
     heat_no_data: "Insufficient time data to generate the heatmap.",
@@ -2670,6 +2751,17 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
   } : null;
   const firmComparison = traderProfileForCompare ? compareAllFirms(traderProfileForCompare) : null;
 
+  // ── Benchmark Mondial des Traders : profil réel comparé aux distributions du secteur ──
+  const disciplineForBenchmark = disciplineAnalyze(journalRaw);
+  const worldBenchmarkData = traderProfileForCompare ? worldBenchmark({
+    winrate: traderProfileForCompare.winrate,
+    profitFactor: backtestStats ? backtestStats.pf : (simAnalysis ? simAnalysis.profitFactor : null),
+    rr: traderProfileForCompare.avgRR,
+    drawdown: traderProfileForCompare.avgDD,
+    discipline: disciplineForBenchmark ? disciplineForBenchmark.score : null,
+    consistency: journalStats ? journalStats.consistency : null,
+  }) : null;
+
   // Appel expert async selon le mode
   useEffect(() => {
     if (!mode || gemLoading) return;
@@ -2794,6 +2886,18 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         hasData: !!firmComparison,
         dataLabel: firmComparison ? `${firmComparison[0].firmName} ${firmComparison[0].score}% · ${firmComparison.length} firms` : t('cmp_no_data'),
         cta: t('cmp_card_cta'),
+        ctaGoto: 'trades',
+      },
+      {
+        key:'benchmark', accent:'#fbbf24', bg:'rgba(251,191,36,0.06)', border:'rgba(251,191,36,0.2)',
+        icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2l3 6 6.5 1-4.7 4.6L18 21l-6-3.5L6 21l1.2-7.4L2.5 9l6.5-1z" stroke="#fbbf24" strokeWidth="1.5" strokeLinejoin="round"/></svg>,
+        title: t('bench_title'),
+        subtitle: t('bench_subtitle'),
+        desc: t('bench_subtitle'),
+        chips: [t('bench_metric_pf'), t('bench_metric_dd'), t('bench_metric_discipline'), t('bench_metric_consistency')],
+        hasData: !!worldBenchmarkData,
+        dataLabel: worldBenchmarkData ? `${worldBenchmarkData.globalLevel.icon} ${worldBenchmarkData.globalLevel.label} · #${worldBenchmarkData.rankEstimate.toLocaleString()}` : t('bench_no_data'),
+        cta: t('bench_title'),
         ctaGoto: 'trades',
       },
     ];
@@ -3191,6 +3295,103 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         <div style={{fontSize:9,color:'rgba(255,255,255,0.3)',textAlign:'center',marginTop:10}}>
           {t('cmp_based_on')} {traderProfileForCompare.sampleSize} {t('mt5_trades_analyzed')}
         </div>
+      </div>
+    );
+  }
+
+  if (mode === 'benchmark') {
+    if (!worldBenchmarkData) return (
+      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+        <ReportHeader title={t('bench_title')} subtitle={t('bench_subtitle')} onBack={()=>setMode(null)}/>
+        <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
+          <div style={{fontSize:32,marginBottom:12}}>🏅</div>
+          <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>{t('bench_no_data')}</div>
+          <button onClick={()=>goto('trades')} style={{padding:'12px 24px',borderRadius:12,background:'#fbbf24',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>{t('an_import_bt')}</button>
+        </div>
+      </div>
+    );
+    const b = worldBenchmarkData;
+    const metricLabels = {
+      winrate: t('bench_metric_winrate'), profitFactor: t('bench_metric_pf'), rr: t('bench_metric_rr'),
+      drawdown: t('bench_metric_dd'), discipline: t('bench_metric_discipline'), consistency: t('bench_metric_consistency'),
+    };
+    const motivationText = b.globalLevel.key === 'top1' ? t('bench_motivation_top1')
+      : b.globalLevel.key === 'top10' ? t('bench_motivation_top10')
+      : b.globalLevel.key === 'top25' ? t('bench_motivation_top25')
+      : b.globalLevel.key === 'top50' ? t('bench_motivation_top50')
+      : t('bench_motivation_average');
+    // Niveau suivant à atteindre
+    const levelOrder = ['average','top50','top25','top10','top1'];
+    const curIdx = levelOrder.indexOf(b.globalLevel.key);
+    const nextLevelKey = curIdx < levelOrder.length - 1 ? levelOrder[curIdx+1] : null;
+    const nextLevelLabels = { top50: t('bench_top50'), top25: t('bench_top25'), top10: t('bench_top10'), top1: t('bench_top1') };
+
+    return (
+      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+        <ReportHeader title={t('bench_title')} subtitle={t('bench_subtitle')} onBack={()=>setMode(null)}/>
+
+        {/* 🏅 Classement mondial + niveau actuel */}
+        <div style={{background:`${b.globalLevel.color}12`,border:`1.5px solid ${b.globalLevel.color}50`,borderRadius:20,padding:'20px 18px',marginBottom:14,textAlign:'center'}}>
+          <div style={{fontSize:36,marginBottom:6}}>{b.globalLevel.icon}</div>
+          <div style={{fontSize:11,color:'rgba(255,255,255,0.5)',textTransform:'uppercase',letterSpacing:0.5,marginBottom:2}}>{t('bench_current_level')}</div>
+          <div style={{fontSize:22,fontWeight:900,color:b.globalLevel.color,marginBottom:10}}>{b.globalLevel.label}</div>
+          <div style={{display:'flex',justifyContent:'center',gap:20}}>
+            <div>
+              <div style={{fontSize:9,color:'rgba(255,255,255,0.4)'}}>{t('bench_global_rank')}</div>
+              <div style={{fontSize:15,fontWeight:800,color:'#fff'}}>#{b.rankEstimate.toLocaleString()}</div>
+              <div style={{fontSize:8,color:'rgba(255,255,255,0.3)'}}>{t('bench_rank_of')}</div>
+            </div>
+            <div style={{width:1,background:'rgba(255,255,255,0.1)'}} />
+            <div>
+              <div style={{fontSize:9,color:'rgba(255,255,255,0.4)'}}>Percentile</div>
+              <div style={{fontSize:15,fontWeight:800,color:b.globalLevel.color}}>{b.globalPercentile}%</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Message de motivation */}
+        <div style={{textAlign:'center',padding:'10px 16px',marginBottom:16,fontSize:12,color:'rgba(255,255,255,0.6)',lineHeight:1.5,fontStyle:'italic'}}>
+          {motivationText}
+        </div>
+
+        {/* Comparaison détaillée par métrique */}
+        {Object.entries(b.metrics).filter(([,v]) => v !== null).map(([key, m]) => {
+          const isDD = key === 'drawdown';
+          const fmtVal = (v) => isDD ? v.toFixed(1)+'%' : (key==='winrate' ? v.toFixed(0)+'%' : key==='profitFactor'||key==='rr' ? v.toFixed(2) : v.toFixed(0));
+          // Position relative sur la barre (0-100%), orientée selon higherIsBetter
+          const barPos = Math.min(100, Math.max(0, m.percentile));
+          return (
+            <div key={key} className="card" style={{marginBottom:10}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:8}}>
+                <span style={{fontSize:12,fontWeight:700,color:'#fff'}}>{metricLabels[key]}</span>
+                <span style={{fontSize:11,fontWeight:700,color:m.level.color}}>{m.level.icon} {m.level.label}</span>
+              </div>
+              {/* Barre de positionnement avec marqueurs */}
+              <div style={{position:'relative',height:8,borderRadius:4,background:'rgba(255,255,255,0.08)',marginBottom:8}}>
+                <div style={{position:'absolute',left:0,top:0,height:'100%',width:barPos+'%',borderRadius:4,background:m.level.color}} />
+                <div style={{position:'absolute',left:barPos+'%',top:-3,width:2,height:14,background:'#fff',transform:'translateX(-1px)'}} />
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'rgba(255,255,255,0.4)'}}>
+                <span>{t('bench_you')}: <b style={{color:'#fff'}}>{fmtVal(m.value)}</b></span>
+                <span>{t('bench_average')}: {fmtVal(m.average)}</span>
+                <span>{t('bench_top10')}: {fmtVal(m.top10)}</span>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* 🏅 Prochaine étape */}
+        {nextLevelKey && b.weakestMetric && (
+          <div className="card" style={{marginTop:6,border:'1px solid rgba(251,191,36,0.25)',background:'rgba(251,191,36,0.06)'}}>
+            <div style={{fontSize:10,fontWeight:700,color:'#fbbf24',textTransform:'uppercase',marginBottom:8}}>🏅 {t('bench_next_step')}</div>
+            <div style={{fontSize:12,color:'rgba(255,255,255,0.7)',lineHeight:1.5}}>
+              {t('bench_to_reach')} <b style={{color:'#fbbf24'}}>{nextLevelLabels[nextLevelKey]}</b>, {t('bench_improve')} <b style={{color:'#fff'}}>{metricLabels[b.weakestMetric[0]]}</b>.
+            </div>
+            <div style={{fontSize:10,color:'rgba(255,255,255,0.4)',marginTop:6}}>
+              {t('bench_weakest_label')}: {metricLabels[b.weakestMetric[0]]} ({b.weakestMetric[1].percentile}e percentile)
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -5880,6 +6081,107 @@ function getMarketSession(hourUTC) {
   return "asia"; // 22h-00h, début session Asie
 }
 const SESSION_LABELS = { asia: "Asie", london: "Londres", london_ny_overlap: "Londres/NY", newyork: "New York" };
+
+// ══════════════════════════════════════════════════════════════════
+// BENCHMARK MONDIAL DES TRADERS
+// Compare le profil réel du trader à des distributions de référence
+// du secteur (issues de données publiques sur la performance retail/
+// prop trading : la majorité des traders ont un PF proche de 1, DD
+// élevé et faible consistance ; l'élite a un edge statistique net).
+// Échelle : average (médiane) → top50 → top25 → top10 → top1.
+// Plus haut = meilleur, SAUF pour drawdown où plus bas = meilleur.
+// ══════════════════════════════════════════════════════════════════
+const BENCHMARK_DISTRIBUTIONS = {
+  winrate:    { higherIsBetter: true,  average: 42,   top50: 48,   top25: 55,   top10: 62,   top1: 70   }, // %
+  profitFactor:{ higherIsBetter: true, average: 1.05, top50: 1.18, top25: 1.42, top10: 1.85, top1: 2.6  },
+  rr:         { higherIsBetter: true,  average: 1.05, top50: 1.25, top25: 1.55, top10: 1.95, top1: 2.8  },
+  drawdown:   { higherIsBetter: false, average: 14,   top50: 9,    top25: 5.5,  top10: 2.3,  top1: 0.9  }, // %
+  discipline: { higherIsBetter: true,  average: 38,   top50: 50,   top25: 62,   top10: 78,   top1: 92   }, // score /100
+  consistency:{ higherIsBetter: true,  average: 35,   top50: 48,   top25: 60,   top10: 75,   top1: 90   }, // score /100
+};
+
+// Calcule le percentile estimé d'une valeur par interpolation entre les jalons connus.
+// Jalons toujours exprimés en (percentile, valeur) avec percentile croissant.
+// Pour higherIsBetter=true : la valeur croît avec le percentile.
+// Pour higherIsBetter=false (ex: drawdown) : la valeur DÉCROÎT quand le percentile croît.
+function estimatePercentile(value, dist) {
+  const { higherIsBetter, average, top50, top25, top10, top1 } = dist;
+  // Jalons (percentile, valeur) triés par percentile croissant — la valeur suit le sens de "higherIsBetter"
+  const milestones = [
+    [50, average], [75, top50], [90, top25], [97, top10], [99.5, top1],
+  ];
+  // Borne basse (percentile ~1) et haute (percentile ~100) extrapolées au-delà du top1
+  const worstVal = higherIsBetter ? average * 0.4 : average * 1.8;
+  const bestVal = higherIsBetter ? top1 * 1.3 : top1 * 0.5;
+  const points = [[1, worstVal], ...milestones, [100, bestVal]];
+
+  // Si meilleur que le meilleur jalon connu, percentile ≈ 99.5+
+  if (higherIsBetter && value >= bestVal) return 99;
+  if (!higherIsBetter && value <= bestVal) return 99;
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const [p1, v1] = points[i], [p2, v2] = points[i+1];
+    const lo = Math.min(v1, v2), hi = Math.max(v1, v2);
+    if (value >= lo && value <= hi) {
+      // Position de "value" dans le segment [v1, v2] (qui peut être croissant ou décroissant selon higherIsBetter)
+      const ratio = v2 === v1 ? 0.5 : (value - v1) / (v2 - v1);
+      return Math.round(Math.max(1, Math.min(99, p1 + ratio * (p2 - p1))));
+    }
+  }
+  // Hors bornes : pire que le pire jalon connu
+  return 1;
+}
+
+// Détermine le niveau de classement (badge) à partir du percentile
+function rankLevelFromPercentile(pct) {
+  if (pct >= 99) return { key: "top1", label: "Top 1%", color: "#fbbf24", icon: "👑" };
+  if (pct >= 90) return { key: "top10", label: "Top 10%", color: "#a78bfa", icon: "🏅" };
+  if (pct >= 75) return { key: "top25", label: "Top 25%", color: "#6ee7b7", icon: "🥈" };
+  if (pct >= 50) return { key: "top50", label: "Top 50%", color: "#60a5fa", icon: "🥉" };
+  return { key: "average", label: "Moyenne", color: "rgba(255,255,255,0.5)", icon: "📊" };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// worldBenchmark(metrics) — point d'entrée principal
+// metrics = { winrate, profitFactor, rr, drawdown, discipline, consistency } (valeurs réelles, certaines peuvent être null)
+// ══════════════════════════════════════════════════════════════════
+function worldBenchmark(metrics) {
+  if (!metrics) return null;
+  const results = {};
+  let validCount = 0, percentileSum = 0;
+
+  Object.keys(BENCHMARK_DISTRIBUTIONS).forEach(key => {
+    const value = metrics[key];
+    if (value === null || value === undefined || isNaN(value)) {
+      results[key] = null;
+      return;
+    }
+    const dist = BENCHMARK_DISTRIBUTIONS[key];
+    const percentile = estimatePercentile(value, dist);
+    const level = rankLevelFromPercentile(percentile);
+    results[key] = { value, percentile, level, ...dist };
+    validCount++; percentileSum += percentile;
+  });
+
+  if (validCount === 0) return null;
+
+  const globalPercentile = Math.round(percentileSum / validCount);
+  const globalLevel = rankLevelFromPercentile(globalPercentile);
+
+  // Prochaine étape : la métrique la plus faible (percentile le plus bas) = priorité d'amélioration
+  const validMetrics = Object.entries(results).filter(([,v]) => v !== null);
+  validMetrics.sort((a,b) => a[1].percentile - b[1].percentile);
+  const weakestMetric = validMetrics.length ? validMetrics[0] : null;
+
+  // Cible suivante : le prochain jalon au-dessus du niveau global actuel
+  const nextThresholds = { average: 50, top50: 75, top25: 90, top10: 99, top1: 100 };
+  const nextTarget = nextThresholds[globalLevel.key];
+
+  return {
+    metrics: results, globalPercentile, globalLevel, weakestMetric, nextTarget,
+    rankEstimate: Math.max(1, Math.round((100 - globalPercentile) / 100 * 50000) + 1), // estimation "classement mondial" sur base 50k traders
+  };
+}
 
 function heatmapAnalyze(trades) {
   if (!trades || trades.length < 10) return null;
