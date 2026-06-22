@@ -11057,6 +11057,47 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
           gradientSuffix="-journalpage"
         />
 
+        {/* Calendrier en mode journal (saisie + visualisation) */}
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, overflow: "hidden", marginBottom: 14 }}>
+          <CalendrierPnL t={t} lang={lang}
+            dailyLog={[]}
+            journalMode={true}
+            journalData={journalMonthData}
+            onJournalSave={saveJournalEntry}
+            journalMonthLabel={t("cal_click_day") + " · " + journalMonth}
+          />
+        </div>
+
+        {!journalStats && (
+          <div style={{ textAlign: "center", padding: "20px 10px", color: "rgba(255,255,255,0.35)", fontSize: 12 }}>
+            {t("journal_no_data")}
+          </div>
+        )}
+
+        {/* Forces / faiblesses (si données dispo) — réutilise journalAnalyze */}
+        {journalStats && journalStats.bestDay !== undefined && (
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 10 }}>{t("journal_overview")}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div style={{ background: "rgba(110,231,183,0.06)", borderRadius: 10, padding: "8px 10px" }}>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{t("journal_best_day")}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>+${Math.abs(Math.round(journalStats.bestDay))}</div>
+              </div>
+              <div style={{ background: "rgba(239,68,68,0.06)", borderRadius: 10, padding: "8px 10px" }}>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{t("journal_worst_day")}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#ef4444" }}>-${Math.abs(Math.round(journalStats.worstDay))}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════
+            HEATMAP DES ERREURS DE TRADING (variante journal)
+        ══════════════════════════════════════════════════════════ */}
+        <div style={{ marginTop: 14, marginBottom: 16 }}>
+          <HeatmapReport heat={journalHeatmap} t={t} />
+        </div>
+
         {/* ══════════════════════════════════════════════════════════
             CALENDRIER ÉCONOMIQUE INTELLIGENT
             NFP/CPI/FOMC/Taux/PMI/PIB → prochains événements critiques
@@ -11098,46 +11139,6 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
           );
         })()}
 
-        {/* Calendrier en mode journal (saisie + visualisation) */}
-        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, overflow: "hidden", marginBottom: 14 }}>
-          <CalendrierPnL t={t} lang={lang}
-            dailyLog={[]}
-            journalMode={true}
-            journalData={journalMonthData}
-            onJournalSave={saveJournalEntry}
-            journalMonthLabel={t("cal_click_day") + " · " + journalMonth}
-          />
-        </div>
-
-        {!journalStats && (
-          <div style={{ textAlign: "center", padding: "20px 10px", color: "rgba(255,255,255,0.35)", fontSize: 12 }}>
-            {t("journal_no_data")}
-          </div>
-        )}
-
-        {/* Forces / faiblesses (si données dispo) — réutilise journalAnalyze */}
-        {journalStats && journalStats.bestDay !== undefined && (
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 10 }}>{t("journal_overview")}</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              <div style={{ background: "rgba(110,231,183,0.06)", borderRadius: 10, padding: "8px 10px" }}>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{t("journal_best_day")}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>+${Math.abs(Math.round(journalStats.bestDay))}</div>
-              </div>
-              <div style={{ background: "rgba(239,68,68,0.06)", borderRadius: 10, padding: "8px 10px" }}>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{t("journal_worst_day")}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#ef4444" }}>-${Math.abs(Math.round(journalStats.worstDay))}</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════
-            HEATMAP DES ERREURS DE TRADING (variante journal)
-        ══════════════════════════════════════════════════════════ */}
-        <div style={{ marginTop: 14 }}>
-          <HeatmapReport heat={journalHeatmap} t={t} />
-        </div>
       </div>
     </div>
   );
