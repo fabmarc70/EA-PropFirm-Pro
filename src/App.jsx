@@ -3380,48 +3380,66 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
       },
     ];
     return (
-      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
-        <div style={{marginBottom:22}}>
-          <div style={{fontSize:11,fontWeight:800,color:'rgba(255,255,255,0.35)',textTransform:'uppercase',letterSpacing:1.5,marginBottom:4}}>{t('an_center')}</div>
-          <div style={{fontSize:22,fontWeight:900,color:'#fff',letterSpacing:-0.5,lineHeight:1.15}}>{t('an_select')}<br/><span style={{color:'#6ee7b7'}}>{t('an_your_analysis')}</span></div>
-          <div style={{fontSize:12,color:'rgba(255,255,255,0.45)',marginTop:6,lineHeight:1.5}}>{t('an_intro')}</div>
+      <div style={{padding:'14px 16px 18px',maxWidth:480,margin:'0 auto',minHeight:'100vh',display:'flex',flexDirection:'column'}}>
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.35)',textTransform:'uppercase',letterSpacing:1.5,marginBottom:3}}>{t('an_center')}</div>
+          <div style={{fontSize:19,fontWeight:900,color:'#fff',letterSpacing:-0.5,lineHeight:1.15}}>{t('an_select')} <span style={{color:'#6ee7b7'}}>{t('an_your_analysis')}</span></div>
         </div>
 
-        {cards.map((card, i) => (
-          <div key={card.key} style={{background:card.bg,border:`1px solid ${card.border}`,borderRadius:18,padding:'18px 16px',marginBottom:12}}>
-            <div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:14}}>
-              <div style={{width:44,height:44,borderRadius:12,background:`rgba(${card.accent==='#6ee7b7'?'110,231,183':card.accent==='#fbbf24'?'251,191,36':'224,82,82'},0.12)`,border:`1px solid ${card.border}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                {card.icon}
-              </div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:15,fontWeight:800,color:'#fff',marginBottom:1}}>{card.title}</div>
-                <div style={{fontSize:10,fontWeight:700,color:card.accent,textTransform:'uppercase',letterSpacing:0.8}}>{card.subtitle}</div>
-              </div>
-              {card.hasData && <div style={{padding:'3px 9px',borderRadius:10,background:'rgba(110,231,183,0.1)',border:'1px solid rgba(110,231,183,0.25)',fontSize:9,fontWeight:700,color:'#6ee7b7',whiteSpace:'nowrap'}}>{t('an_ready')}</div>}
-            </div>
-            <div style={{fontSize:12,color:'rgba(255,255,255,0.6)',lineHeight:1.55,marginBottom:12}}>{card.desc}</div>
-            <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:14}}>
-              {card.chips.map(c=>(
-                <div key={c} style={{padding:'3px 9px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.09)',fontSize:10,color:'rgba(255,255,255,0.5)'}}>{c}</div>
-              ))}
-            </div>
-            <div style={{fontSize:10,color:card.hasData?'rgba(255,255,255,0.55)':'rgba(255,255,255,0.3)',marginBottom:12,lineHeight:1.4}}>
-              {card.dataLabel}
-            </div>
-            <button
-              onClick={() => { if(!premiumAccess){requirePremium();return;} if(!card.hasData){goto(card.ctaGoto);return;} setMode(card.key); }}
-              style={{width:'100%',padding:'13px',borderRadius:13,border:'none',cursor:'pointer',fontSize:13,fontWeight:700,
-                background:card.hasData?(card.accent==='#6ee7b7'?'linear-gradient(135deg,#6ee7b7,#34d399)':card.accent==='#fbbf24'?'linear-gradient(135deg,#fbbf24,#f59e0b)':'linear-gradient(135deg,#e05252,#c93b3b)'):'rgba(255,255,255,0.07)',
-                color:card.hasData?'#000':'rgba(255,255,255,0.4)',
-              }}>
-              {!premiumAccess?t('an_premium_locked'):card.hasData?card.cta:t('an_get_data')}
-            </button>
-          </div>
-        ))}
+        {/* ── Grille Stream Deck : 2 colonnes, tuiles compactes, tient sur un écran ── */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9}}>
+          {cards.map((card, idx) => {
+            const scorePct = card.hasData && card.dataLabel ? (card.dataLabel.match(/Score (\d+)%/) || card.dataLabel.match(/(\d+)%/)) : null;
+            const scoreVal = scorePct ? parseInt(scorePct[1], 10) : null;
+            const isLastOdd = idx === cards.length - 1 && cards.length % 2 === 1;
+            return (
+              <button
+                key={card.key}
+                onClick={() => { if(!premiumAccess){requirePremium();return;} if(!card.hasData){goto(card.ctaGoto);return;} setMode(card.key); }}
+                style={{
+                  position:'relative', display:'flex', flexDirection: isLastOdd ? 'row' : 'column', alignItems:'center', justifyContent: isLastOdd ? 'flex-start' : 'center',
+                  gap: isLastOdd ? 12 : 6, aspectRatio: isLastOdd ? 'auto' : '1.15', padding: isLastOdd ? '14px 16px' : '10px 8px',
+                  gridColumn: isLastOdd ? '1 / -1' : 'auto',
+                  background:`linear-gradient(155deg, ${card.bg}, rgba(255,255,255,0.02))`,
+                  border:`1.5px solid ${card.hasData ? card.border : 'rgba(255,255,255,0.08)'}`,
+                  borderRadius:18, cursor:'pointer', textAlign:'center',
+                  boxShadow: card.hasData ? `0 4px 18px -6px ${card.accent}55` : 'none',
+                  transition:'transform .15s ease',
+                }}>
+                {/* Badge statut coin supérieur droit */}
+                <div style={{position:'absolute', top:7, right:7, width:6, height:6, borderRadius:3, background: card.hasData ? '#6ee7b7' : 'rgba(255,255,255,0.15)'}} />
 
-        <div style={{textAlign:'center',marginTop:8,padding:'12px 14px',background:'rgba(255,255,255,0.02)',borderRadius:12,border:'1px solid rgba(255,255,255,0.05)'}}>
-          <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',textTransform:'uppercase',letterSpacing:1}}>{t("an_quant_engine")}</div>
-          <div style={{fontSize:9,color:'rgba(255,255,255,0.2)',marginTop:3}}>{t("an_local_optional")}</div>
+                {/* Icône large */}
+                <div style={{width: isLastOdd ? 42 : 38, height: isLastOdd ? 42 : 38, borderRadius:12, background:`${card.accent}1f`, border:`1px solid ${card.border}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}>
+                  {card.icon}
+                </div>
+
+                <div style={{display:'flex', flexDirection:'column', gap:6, alignItems: isLastOdd ? 'flex-start' : 'center', flex: isLastOdd ? 1 : 'none', textAlign: isLastOdd ? 'left' : 'center'}}>
+                  {/* Titre court */}
+                  <div style={{fontSize:11.5, fontWeight:800, color:'#fff', lineHeight:1.15, padding: isLastOdd ? 0 : '0 2px'}}>{card.title}</div>
+
+                  {/* Mini score ou statut */}
+                  {scoreVal !== null ? (
+                    <div style={{display:'flex', alignItems:'center', gap:5, width: isLastOdd ? '160px' : '80%'}}>
+                      <div style={{flex:1, height:4, borderRadius:2, background:'rgba(255,255,255,0.08)', overflow:'hidden'}}>
+                        <div style={{height:'100%', width:scoreVal+'%', background:card.accent, borderRadius:2}} />
+                      </div>
+                      <span style={{fontSize:9.5, fontWeight:700, color:card.accent, flexShrink:0}}>{scoreVal}%</span>
+                    </div>
+                  ) : (
+                    <div style={{fontSize:9, fontWeight:700, color:'rgba(255,255,255,0.3)', textTransform:'uppercase', letterSpacing:0.5}}>
+                      {!premiumAccess ? t('an_premium_locked') : t('an_get_data')}
+                    </div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Mention discrète moteur quantitatif — hors grille, ne prend pas de place fonctionnelle */}
+        <div style={{textAlign:'center', marginTop:10, fontSize:8.5, color:'rgba(255,255,255,0.2)', lineHeight:1.4}}>
+          {t("an_quant_engine")} · {t("an_local_optional")}
         </div>
       </div>
     );
