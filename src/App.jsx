@@ -337,6 +337,18 @@ const I18N = {
     sim_recommended: "Recommandé : 35-50%.",
     sim_max_consec: "Max pertes consécutives EA",
     sim_lot_instrument: "Lot & Instrument",
+    acc_my_accounts: "Mes comptes",
+    acc_add: "Ajouter un compte",
+    acc_add_title: "Nouveau compte de trading",
+    acc_choose_firm: "Choisir une prop firm",
+    acc_or_custom: "ou nom personnalisé",
+    acc_custom_placeholder: "Ex : Mon compte FTMO #2",
+    acc_none_firm: "Aucune / autre",
+    acc_create: "Créer le compte",
+    acc_cancel: "Annuler",
+    acc_main: "Compte principal",
+    acc_remove_confirm: "Retirer ce compte ? Les entrées déjà saisies resteront dans le journal.",
+    acc_select_for_day: "Compte pour ce jour",
     cal_intraday_dd_label: "DD max du jour (%)",
     cal_intraday_dd_hint: "Optionnel — si tu connais le creux le plus bas atteint",
     journal_max_dd_today: "DD max",
@@ -1007,6 +1019,18 @@ const I18N = {
     sim_recommended: "Recomendado: 35-50%.",
     sim_max_consec: "Máx pérdidas consecutivas EA",
     sim_lot_instrument: "Lote e Instrumento",
+    acc_my_accounts: "Mis cuentas",
+    acc_add: "Añadir una cuenta",
+    acc_add_title: "Nueva cuenta de trading",
+    acc_choose_firm: "Elegir una prop firm",
+    acc_or_custom: "o nombre personalizado",
+    acc_custom_placeholder: "Ej: Mi cuenta FTMO #2",
+    acc_none_firm: "Ninguna / otra",
+    acc_create: "Crear cuenta",
+    acc_cancel: "Cancelar",
+    acc_main: "Cuenta principal",
+    acc_remove_confirm: "¿Quitar esta cuenta? Las entradas ya registradas permanecerán en el diario.",
+    acc_select_for_day: "Cuenta para este día",
     cal_intraday_dd_label: "DD máx del día (%)",
     cal_intraday_dd_hint: "Opcional — si conoces el punto más bajo alcanzado",
     journal_max_dd_today: "DD máx",
@@ -1679,6 +1703,18 @@ const I18N = {
     sim_recommended: "Recommended: 35-50%.",
     sim_max_consec: "Max consecutive EA losses",
     sim_lot_instrument: "Lot & Instrument",
+    acc_my_accounts: "My accounts",
+    acc_add: "Add an account",
+    acc_add_title: "New trading account",
+    acc_choose_firm: "Choose a prop firm",
+    acc_or_custom: "or custom name",
+    acc_custom_placeholder: "E.g.: My FTMO account #2",
+    acc_none_firm: "None / other",
+    acc_create: "Create account",
+    acc_cancel: "Cancel",
+    acc_main: "Main account",
+    acc_remove_confirm: "Remove this account? Already logged entries will stay in the journal.",
+    acc_select_for_day: "Account for this day",
     cal_intraday_dd_label: "Max DD of the day (%)",
     cal_intraday_dd_hint: "Optional — if you know the lowest point reached",
     journal_max_dd_today: "Max DD",
@@ -2761,17 +2797,22 @@ function buildJournalProfileForBenchmark(journalRaw, capital) {
   });
   allDays.sort((a,b) => a.date.localeCompare(b.date));
   let equity = startCapital, peak = startCapital, maxDD = 0;
-  let maxIntradayDD = 0; // DD intrajournalier max saisi manuellement par l'utilisateur (le + précis si renseigné)
+  let maxIntradayDD = 0; // DD intrajournalier max saisi manuellement par l'utilisateur
+  let hasIntradayDD = false;
   allDays.forEach(d => {
     equity += d.pnl;
     if (equity > peak) peak = equity;
     const dd = peak > 0 ? ((peak - equity) / peak) * 100 : 0;
     if (dd > maxDD) maxDD = dd;
-    if (d.intradayDD !== undefined && d.intradayDD !== null && d.intradayDD > maxIntradayDD) maxIntradayDD = d.intradayDD;
+    if (d.intradayDD !== undefined && d.intradayDD !== null) {
+      hasIntradayDD = true;
+      if (d.intradayDD > maxIntradayDD) maxIntradayDD = d.intradayDD;
+    }
   });
-  // Le DD intrajournalier saisi à la main (plus précis, capture les creux intra-day pas visibles
-  // sur la courbe de clôture) prime sur le DD reconstitué depuis les clôtures journalières s'il est plus élevé.
-  const finalDD = Math.max(maxDD, maxIntradayDD);
+  // Si tu as saisi au moins un DD intrajournalier précis, on s'y fie plutôt que de prendre le
+  // maximum avec le DD reconstitué automatiquement (qui n'est qu'une approximation depuis les
+  // clôtures de fin de journée, sur une échelle différente — comparer les deux n'a pas de sens).
+  const finalDD = hasIntradayDD ? maxIntradayDD : maxDD;
 
   // ── RR approximatif : ratio |meilleure journée| / |pire journée| (proxy faute de détail par trade) ──
   const rrApprox = stats.worstDay !== 0 ? Math.abs(stats.bestDay / stats.worstDay) : null;
@@ -8107,6 +8148,19 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
 // Données dans localStorage "eapropfirm_journal", clé par mois YYYY-MM
 // Entrée jour : { wins, losses, pnl, images?: [base64...] }
 // ══════════════════════════════════════════════════════════════════
+// Formate une clé mois "YYYY-MM" en libellé localisé lisible, ex: "2026-06" -> "Juin 2026"
+function formatMonthLabel(monthKey, lang = "fr") {
+  const [y, m] = (monthKey || "").split("-").map(Number);
+  if (!y || !m) return monthKey;
+  const names = {
+    fr: ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"],
+    en: ["January","February","March","April","May","June","July","August","September","October","November","December"],
+    es: ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
+  };
+  const list = names[lang] || names.fr;
+  return `${list[m-1]} ${y}`;
+}
+
 function useJournal() {
   const [journalMonth, setJournalMonth] = useState(() => {
     const now = new Date();
@@ -8139,6 +8193,51 @@ function useJournal() {
   return { journal, journalMonth, setJournalMonth, saveJournalEntry, monthData: journal[journalMonth] || {} };
 }
 
+// ══════════════════════════════════════════════════════════════════
+// Gestion des comptes multiples du Journal de Trading — un trader
+// performant peut avoir plusieurs comptes prop firm en parallèle.
+// Chaque compte = { id, firmKey (optionnel, parmi PROP_FIRMS) ou
+// customName (texte libre), color }. Stocké localement, indépendant
+// des entrées de jour (qui référencent juste un accountId).
+// ══════════════════════════════════════════════════════════════════
+function useJournalAccounts() {
+  const [accounts, setAccounts] = useState(() => {
+    try {
+      const r = localStorage.getItem("eapropfirm_journal_accounts");
+      const parsed = r ? JSON.parse(r) : [];
+      return parsed.length ? parsed : [{ id: "default", firmKey: null, customName: null, color: "#6ee7b7" }];
+    } catch (e) { return [{ id: "default", firmKey: null, customName: null, color: "#6ee7b7" }]; }
+  });
+
+  const persist = (next) => {
+    setAccounts(next);
+    try { localStorage.setItem("eapropfirm_journal_accounts", JSON.stringify(next)); } catch (e) {}
+  };
+
+  const addAccount = (firmKey, customName) => {
+    const id = "acc_" + Date.now();
+    const palette = ["#6ee7b7", "#fbbf24", "#a78bfa", "#60a5fa", "#f97316", "#ec4899"];
+    const color = palette[accounts.length % palette.length];
+    const next = [...accounts, { id, firmKey: firmKey || null, customName: customName || null, color }];
+    persist(next);
+    return id;
+  };
+
+  const removeAccount = (id) => {
+    if (accounts.length <= 1) return; // toujours garder au moins un compte
+    persist(accounts.filter(a => a.id !== id));
+  };
+
+  const accountLabel = (acc) => {
+    if (!acc) return "";
+    if (acc.customName) return acc.customName;
+    if (acc.firmKey && PROP_FIRMS[acc.firmKey]) return PROP_FIRMS[acc.firmKey].name;
+    return "Compte principal";
+  };
+
+  return { accounts, addAccount, removeAccount, accountLabel };
+}
+
 // Compresse une image (capture MT4/MT5) en JPEG base64 — max 900px, qualité 0.72
 function compressImage(file, maxDim = 900, quality = 0.72) {
   return new Promise((resolve, reject) => {
@@ -8165,7 +8264,7 @@ function compressImage(file, maxDim = 900, quality = 0.72) {
   });
 }
 
-function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, newsSkipDays = 0, activeDays = [1,2,3,4,5], t = (k) => k, lang = "fr", realMode = false }) {
+function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, newsSkipDays = 0, activeDays = [1,2,3,4,5], t = (k) => k, lang = "fr", realMode = false, accounts = null, accountLabel = null }) {
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [editingDay, setEditingDay] = useState(null); // jour en cours d'édition (mode journal)
   const [formWins, setFormWins] = useState(0);
@@ -8175,6 +8274,8 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
   const [formImages, setFormImages] = useState([]);
   // ── Drawdown max de la journée (saisi manuellement, optionnel — plus précis que la reconstitution depuis la clôture) ──
   const [formIntradayDD, setFormIntradayDD] = useState("");
+  // ── Compte de trading associé à ce jour (multi-comptes, calendrier unique) ──
+  const [formAccountId, setFormAccountId] = useState(null);
   // ── Coach de Discipline : signaux comportementaux saisis par le trader ──
   const [formRespectPlan, setFormRespectPlan] = useState(true);
   const [formRespectRisk, setFormRespectRisk] = useState(true);
@@ -8428,6 +8529,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 setFormLotIncreaseAfterLoss(existing ? !!existing.lotIncreaseAfterLoss : false);
                 setFormEmotionalTrading(existing ? !!existing.emotionalTrading : false);
                 setFormIntradayDD(existing && existing.intradayDD !== undefined && existing.intradayDD !== null ? String(existing.intradayDD) : "");
+                setFormAccountId(existing && existing.accountId ? existing.accountId : (accounts && accounts.length ? accounts[0].id : null));
                 setImgDateWarn(null);
               }}
               style={{
@@ -8633,6 +8735,31 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>{t("cal_intraday_dd_hint")}</div>
               </div>
 
+              {/* ── Compte de trading associé à ce jour (uniquement si plus d'un compte existe) ── */}
+              {accounts && accounts.length > 1 && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 6 }}>
+                    {t("acc_select_for_day")}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {accounts.map(acc => (
+                      <button
+                        key={acc.id}
+                        onClick={() => setFormAccountId(acc.id)}
+                        style={{
+                          padding: "7px 12px", borderRadius: 100, cursor: "pointer",
+                          background: formAccountId === acc.id ? acc.color + "22" : "rgba(255,255,255,0.04)",
+                          border: `1px solid ${formAccountId === acc.id ? acc.color : "rgba(255,255,255,0.1)"}`,
+                          color: formAccountId === acc.id ? acc.color : "rgba(255,255,255,0.55)",
+                          fontSize: 11.5, fontWeight: 600,
+                        }}>
+                        {accountLabel ? accountLabel(acc) : acc.id}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* ── Coach de Discipline : signaux comportementaux du jour ── */}
               <div style={{ marginTop: 4 }}>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 7 }}>
@@ -8746,6 +8873,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                     lotIncreaseAfterLoss: formLotIncreaseAfterLoss, emotionalTrading: formEmotionalTrading };
                   if (formImages.length > 0) entry.images = formImages;
                   if (formIntradayDD !== "" && !isNaN(parseFloat(formIntradayDD))) entry.intradayDD = Math.abs(parseFloat(formIntradayDD));
+                  if (formAccountId) entry.accountId = formAccountId;
                   if (onJournalSave) onJournalSave(editingDay, entry);
                   setEditingDay(null);
                 }}
@@ -10036,14 +10164,14 @@ function buildMonthlyEquityChart({ monthKey, journalAll, lastSim, capital, journ
 // Composant visuel — Carte "Équité" (Journal réel vs Simulation)
 // Réplique exacte du graphique de la Home, réutilisée dans JournalScreen.
 // ══════════════════════════════════════════════════════════════════
-function EquityChartCard({ t, monthKey, chartData, hasJournal, hasSim, primaryIsJournal, cap, todayDay, gradientSuffix = "" }) {
+function EquityChartCard({ t, lang = "fr", monthKey, chartData, hasJournal, hasSim, primaryIsJournal, cap, todayDay, gradientSuffix = "" }) {
   const gradJournal = "grad-journal-eq" + gradientSuffix;
   const gradSim = "grad-sim-eq" + gradientSuffix;
   return (
     <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, padding: 16, marginBottom: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>Équité — {monthKey}</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>Équité — {formatMonthLabel(monthKey, lang)}</div>
           <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
             {primaryIsJournal ? t("cal_journal_active") : t("cal_sim_active")} · J1 → J{todayDay}
           </div>
@@ -11035,6 +11163,8 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
 // ══════════════════════════════════════════════════════════════════
 function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
   const { journal: journalAll, journalMonth, setJournalMonth, saveJournalEntry, monthData: journalMonthData } = useJournal();
+  const { accounts, addAccount, removeAccount, accountLabel } = useJournalAccounts();
+  const [showAddAccount, setShowAddAccount] = useState(false);
   const journalStats = journalAnalyze(journalAll);
   const discipline = disciplineAnalyze(journalAll);
   const journalHeatmap = heatmapAnalyzeJournal(journalAll);
@@ -11072,6 +11202,39 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
       </div>
 
       <div style={{ padding: "14px 16px 100px", maxWidth: 480, margin: "0 auto" }}>
+        {/* ══════════════════════════════════════════════════════════
+            MES COMPTES — gestion multi-comptes prop firm (informatif,
+            les stats restent toujours cumulées sur tout le journal)
+        ══════════════════════════════════════════════════════════ */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 8 }}>
+            {t("acc_my_accounts")}
+          </div>
+          <div style={{ display: "flex", gap: 7, overflowX: "auto", paddingBottom: 2, WebkitOverflowScrolling: "touch" }}>
+            {accounts.map(acc => (
+              <div key={acc.id} style={{
+                display: "flex", alignItems: "center", gap: 5, flexShrink: 0,
+                padding: "6px 12px", borderRadius: 100,
+                background: acc.color + "14", border: `1px solid ${acc.color}40`,
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: 3, background: acc.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 11, fontWeight: 600, color: "#fff", whiteSpace: "nowrap" }}>{accountLabel(acc)}</span>
+              </div>
+            ))}
+            <button
+              onClick={() => setShowAddAccount(true)}
+              style={{
+                display: "flex", alignItems: "center", gap: 4, flexShrink: 0,
+                padding: "6px 12px", borderRadius: 100,
+                background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.18)",
+                color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600,
+                cursor: "pointer",
+              }}>
+              <span style={{ fontSize: 13, lineHeight: 1 }}>+</span> {t("acc_add")}
+            </button>
+          </div>
+        </div>
+
         {/* ══════════════════════════════════════════════════════════
             COACH DE DISCIPLINE — score comportemental façon jeu vidéo
         ══════════════════════════════════════════════════════════ */}
@@ -11175,7 +11338,7 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
         <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <button onClick={() => shiftMonth(-1)} aria-label={t("journal_prev_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>‹</button>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>{journalMonth}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>{formatMonthLabel(journalMonth, lang)}</div>
             <button onClick={() => shiftMonth(1)} aria-label={t("journal_next_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>›</button>
           </div>
 
@@ -11196,7 +11359,7 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
 
         {/* Courbe Équité du mois — copie de la Home (Journal réel vs Simulation) */}
         <EquityChartCard
-          t={t} monthKey={journalMonth}
+          t={t} lang={lang} monthKey={journalMonth}
           chartData={equityData.chartData} hasJournal={equityData.hasJournal} hasSim={equityData.hasSim}
           primaryIsJournal={equityData.primaryIsJournal} cap={equityData.cap} todayDay={equityData.todayDay}
           gradientSuffix="-journalpage"
@@ -11209,7 +11372,9 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
             journalMode={true}
             journalData={journalMonthData}
             onJournalSave={saveJournalEntry}
-            journalMonthLabel={t("cal_click_day") + " · " + journalMonth}
+            journalMonthLabel={t("cal_click_day") + " · " + formatMonthLabel(journalMonth, lang)}
+            accounts={accounts}
+            accountLabel={accountLabel}
           />
         </div>
 
@@ -11284,6 +11449,96 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
           );
         })()}
 
+      </div>
+
+      {/* ── Modal Ajouter un compte ── */}
+      {showAddAccount && (
+        <AddAccountModal
+          t={t}
+          onClose={() => setShowAddAccount(false)}
+          onCreate={(firmKey, customName) => { addAccount(firmKey, customName); setShowAddAccount(false); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Modal de création d'un nouveau compte de trading (firme existante OU nom libre)
+// ══════════════════════════════════════════════════════════════════
+function AddAccountModal({ t, onClose, onCreate }) {
+  const [selectedFirm, setSelectedFirm] = useState("");
+  const [customName, setCustomName] = useState("");
+  const firmList = Object.entries(PROP_FIRMS).map(([key, f]) => ({ key, name: f.name, color: f.color }));
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "flex-end", zIndex: 200 }} onClick={onClose}>
+      <div style={{ width: "100%", maxWidth: 480, margin: "0 auto", background: "#0d1117", borderRadius: "24px 24px 0 0", padding: "20px 18px 28px", maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 16px" }} />
+        <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 16 }}>{t("acc_add_title")}</div>
+
+        <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
+          {t("acc_choose_firm")}
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 18 }}>
+          {firmList.map(f => (
+            <button
+              key={f.key}
+              onClick={() => { setSelectedFirm(f.key); setCustomName(""); }}
+              style={{
+                padding: "8px 13px", borderRadius: 100, cursor: "pointer",
+                background: selectedFirm === f.key ? f.color + "22" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${selectedFirm === f.key ? f.color : "rgba(255,255,255,0.1)"}`,
+                color: selectedFirm === f.key ? f.color : "rgba(255,255,255,0.6)",
+                fontSize: 12, fontWeight: 600,
+              }}>
+              {f.name}
+            </button>
+          ))}
+          <button
+            onClick={() => setSelectedFirm("")}
+            style={{
+              padding: "8px 13px", borderRadius: 100, cursor: "pointer",
+              background: !selectedFirm && !customName ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)",
+              fontSize: 12, fontWeight: 600,
+            }}>
+            {t("acc_none_firm")}
+          </button>
+        </div>
+
+        <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
+          {t("acc_or_custom")}
+        </div>
+        <input
+          type="text"
+          value={customName}
+          onChange={e => { setCustomName(e.target.value); if (e.target.value) setSelectedFirm(""); }}
+          placeholder={t("acc_custom_placeholder")}
+          style={{
+            width: "100%", height: 46, background: "rgba(255,255,255,0.04)",
+            border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12,
+            padding: "0 14px", color: "#fff", fontSize: 14, outline: "none",
+            boxSizing: "border-box", marginBottom: 22,
+          }}
+        />
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "13px", borderRadius: 13, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            {t("acc_cancel")}
+          </button>
+          <button
+            onClick={() => { if (selectedFirm || customName.trim()) onCreate(selectedFirm || null, customName.trim() || null); }}
+            disabled={!selectedFirm && !customName.trim()}
+            style={{
+              flex: 1, padding: "13px", borderRadius: 13, border: "none",
+              background: (selectedFirm || customName.trim()) ? "linear-gradient(135deg,#6ee7b7,#34d399)" : "rgba(255,255,255,0.07)",
+              color: (selectedFirm || customName.trim()) ? "#000" : "rgba(255,255,255,0.3)",
+              fontSize: 13, fontWeight: 700, cursor: (selectedFirm || customName.trim()) ? "pointer" : "default",
+            }}>
+            {t("acc_create")}
+          </button>
+        </div>
       </div>
     </div>
   );
