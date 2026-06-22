@@ -5898,6 +5898,32 @@ function MonteCarloTab({ firmKey, modelKey, capital, p, fundedMonths, splitRate,
 // PARSE DATE — robuste multi-formats MT4/MT5 (best-effort, retourne null si échec)
 // Formats gérés : "2026.06.15 14:32:10", "2026-06-15 14:32", "15/06/2026 14:32", "06/15/2026"
 // ══════════════════════════════════════════════════════════════════
+// ── Parse robuste d'un nombre depuis un export CSV réel (gère les variantes courantes) ──
+// - tiret unicode "−" (U+2212) utilisé par certains exports au lieu du tiret ASCII "-"
+// - séparateurs de milliers (virgule ou espace) : "1,234.56" / "1 234.56"
+// - parenthèses comptables pour le négatif : "(45.30)" → -45.30
+// - symboles de devise : "$45.30", "€-12.50"
+function parseTradeNumber(raw) {
+  if (raw === null || raw === undefined) return NaN;
+  let s = String(raw).trim();
+  if (!s) return NaN;
+  let negative = false;
+  // Parenthèses comptables = négatif
+  if (/^\(.*\)$/.test(s)) { negative = true; s = s.slice(1, -1); }
+  // Normaliser le tiret unicode (minus sign, dash divers) vers le tiret ASCII
+  s = s.replace(/[\u2212\u2010-\u2015]/g, '-');
+  // Retirer les symboles de devise et espaces
+  s = s.replace(/[€$£¥\s]/g, '');
+  if (s.startsWith('-')) { negative = true; s = s.slice(1); }
+  // Retirer les séparateurs de milliers (virgule suivie de 3 chiffres groupés)
+  s = s.replace(/,(?=\d{3}(?:[.,]|$))/g, '');
+  // Si une virgule reste seule (format européen décimal), la convertir en point
+  if (/,\d+$/.test(s) && !s.includes('.')) s = s.replace(',', '.');
+  const v = parseFloat(s);
+  if (isNaN(v)) return NaN;
+  return negative ? -Math.abs(v) : v;
+}
+
 function parseTradeDate(raw) {
   if (!raw) return null;
   const s = raw.trim();
@@ -6869,16 +6895,16 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
     let hasRealBalance = false; // true si au moins une ligne a une vraie balance
     for (let i = 1; i < lines.length; i++) {
       const row = lines[i].replace(/"/g, '').split(/[,;\t]/); if (row.length < 2) continue;
-      const profitRaw = parseFloat(row[profitIdx]); if (isNaN(profitRaw)) continue;
-      const comm = commIdx >= 0 ? parseFloat(row[commIdx]) || 0 : 0; const swap = swapIdx >= 0 ? parseFloat(row[swapIdx]) || 0 : 0;
+      const profitRaw = parseTradeNumber(row[profitIdx]); if (isNaN(profitRaw)) continue;
+      const comm = commIdx >= 0 ? (parseTradeNumber(row[commIdx]) || 0) : 0; const swap = swapIdx >= 0 ? (parseTradeNumber(row[swapIdx]) || 0) : 0;
       const netProfit = profitRaw + comm + swap;
-      let balance = balanceIdx >= 0 ? parseFloat(row[balanceIdx]) : NaN;
+      let balance = balanceIdx >= 0 ? parseTradeNumber(row[balanceIdx]) : NaN;
       if (!isNaN(balance) && balance > 0) { hasRealBalance = true; }
       if (isNaN(balance)) { runningBalance += netProfit; balance = runningBalance; }
       if (initBalance === null) initBalance = balance - netProfit;
       const timeRaw = (timeIdx >= 0 ? row[timeIdx] : '').trim();
       const symbolRaw = (symbolIdx >= 0 ? row[symbolIdx] : '').trim().toUpperCase();
-      const volumeRaw = volumeIdx >= 0 ? parseFloat(row[volumeIdx]) : null;
+      const volumeRaw = volumeIdx >= 0 ? parseTradeNumber(row[volumeIdx]) : null;
       parsed.push({
         idx: i, time: timeRaw, type: (typeIdx >= 0 ? row[typeIdx] : '').trim(), profit: netProfit, balance,
         symbol: symbolRaw || null, volume: (volumeRaw && !isNaN(volumeRaw)) ? volumeRaw : null,
