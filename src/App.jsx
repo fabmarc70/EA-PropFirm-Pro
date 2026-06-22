@@ -11472,9 +11472,8 @@ function AddAccountModal({ t, onClose, onCreate }) {
   const firmList = Object.entries(PROP_FIRMS).map(([key, f]) => ({ key, name: f.name, color: f.color }));
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "flex-end", zIndex: 200 }} onClick={onClose}>
-      <div style={{ width: "100%", maxWidth: 480, margin: "0 auto", background: "#0d1117", borderRadius: "24px 24px 0 0", padding: "20px 18px 28px", maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 16px" }} />
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px", zIndex: 200 }} onClick={onClose}>
+      <div style={{ width: "100%", maxWidth: 440, maxHeight: "85vh", background: "#0d1117", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, padding: "24px 20px", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
         <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 16 }}>{t("acc_add_title")}</div>
 
         <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
