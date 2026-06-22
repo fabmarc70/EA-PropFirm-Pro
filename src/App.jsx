@@ -3379,7 +3379,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
     const cards = [
       {
         key:'simulation', accent:'#6ee7b7', bg:'rgba(110,231,183,0.06)', border:'rgba(110,231,183,0.2)',
-        icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="14" rx="3" stroke="#6ee7b7" strokeWidth="1.5"/><path d="M7 17l2.5-5 3 4 2-3 2.5 4" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+        icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="13" rx="2.5" stroke="#6ee7b7" strokeWidth="1.6"/><path d="M6.5 13.5l3-4 2.5 2.8 3-3.8 2.5 3" stroke="#6ee7b7" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M9 20.5h6" stroke="#6ee7b7" strokeWidth="1.6" strokeLinecap="round"/></svg>,
         title: t('an_sim_title'),
         subtitle: t('an_sim_sub'),
         desc: t('an_sim_desc'),
@@ -3391,7 +3391,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
       },
       {
         key:'journal', accent:'#fbbf24', bg:'rgba(251,191,36,0.06)', border:'rgba(251,191,36,0.2)',
-        icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="4" y="2" width="14" height="18" rx="2" stroke="#fbbf24" strokeWidth="1.5"/><path d="M8 7h8M8 10h8M8 13h5" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round"/><path d="M2 5v14a2 2 0 002 2h14" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+        icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 6.5c-1.6-1.3-4-2-6.5-2-1 0-1.5.2-1.5.7v12.6c0 .5.5.7 1.5.7 2.5 0 4.9.7 6.5 2 1.6-1.3 4-2 6.5-2 1 0 1.5-.2 1.5-.7V5.2c0-.5-.5-.7-1.5-.7-2.5 0-4.9.7-6.5 2z" stroke="#fbbf24" strokeWidth="1.6" strokeLinejoin="round"/><path d="M12 6.5v13" stroke="#fbbf24" strokeWidth="1.6"/></svg>,
         title: t('an_journal_title'),
         subtitle: t('an_journal_sub'),
         desc: t('an_journal_desc'),
@@ -3403,7 +3403,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
       },
       {
         key:'backtest', accent:'#e05252', bg:'rgba(224,82,82,0.06)', border:'rgba(224,82,82,0.2)',
-        icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 3H5a2 2 0 00-2 2v4M9 3h6M9 3v4M15 3h4a2 2 0 012 2v4M15 3v4M9 7h6M9 7v4M15 7v4M9 11h6M9 11v4M15 11v4M9 15h6M9 15v4M15 15v4M2 9h20" stroke="#e05252" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+        icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 4v3M6 7h0M6 7v9M6 16v4" stroke="#e05252" strokeWidth="1.6" strokeLinecap="round"/><rect x="4" y="7" width="4" height="6" rx="0.8" stroke="#e05252" strokeWidth="1.6"/><path d="M12 2v4M12 14v8M16 9v2M16 18v3" stroke="#e05252" strokeWidth="1.6" strokeLinecap="round"/><rect x="10" y="6" width="4" height="8" rx="0.8" stroke="#e05252" strokeWidth="1.6"/><rect x="14" y="11" width="4" height="7" rx="0.8" stroke="#e05252" strokeWidth="1.6"/></svg>,
         title: t('an_bt_title'),
         subtitle: t('an_bt_sub'),
         desc: t('an_bt_desc'),
@@ -3415,7 +3415,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
       },
       {
         key:'comparator', accent:'#a78bfa', bg:'rgba(167,139,250,0.06)', border:'rgba(167,139,250,0.2)',
-        icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 17V9M9 17V5M15 17v-7M21 17v-3" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+        icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="11" width="5" height="9" rx="1.2" stroke="#a78bfa" strokeWidth="1.6"/><rect x="10" y="6" width="5" height="14" rx="1.2" stroke="#a78bfa" strokeWidth="1.6"/><rect x="16.5" y="3" width="5" height="17" rx="1.2" stroke="#a78bfa" strokeWidth="1.6"/></svg>,
         title: t('cmp_card_title'),
         subtitle: t('cmp_card_sub'),
         desc: t('cmp_card_desc'),
@@ -3427,7 +3427,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
       },
       {
         key:'benchmark', accent:'#fbbf24', bg:'rgba(251,191,36,0.06)', border:'rgba(251,191,36,0.2)',
-        icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2l3 6 6.5 1-4.7 4.6L18 21l-6-3.5L6 21l1.2-7.4L2.5 9l6.5-1z" stroke="#fbbf24" strokeWidth="1.5" strokeLinejoin="round"/></svg>,
+        icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="9" r="6" stroke="#fbbf24" strokeWidth="1.6"/><path d="M9 14.2L7 21l5-2.5 5 2.5-2-6.8" stroke="#fbbf24" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round"/><path d="M9.5 9l1.3 1.3L14.5 7" stroke="#fbbf24" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
         title: t('bench_title'),
         subtitle: t('bench_subtitle'),
         desc: t('bench_subtitle'),
@@ -3445,7 +3445,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
           <div style={{fontSize:19,fontWeight:900,color:'#fff',letterSpacing:-0.5,lineHeight:1.15}}>{t('an_select')} <span style={{color:'#6ee7b7'}}>{t('an_your_analysis')}</span></div>
         </div>
 
-        {/* ── Grille Stream Deck : 2 colonnes, tuiles compactes, tient sur un écran ── */}
+        {/* ── Grille Stream Deck : 2 colonnes, tuiles uniformes (toutes carrées, même forme) ── */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9}}>
           {cards.map((card, idx) => {
             const scorePct = card.hasData && card.dataLabel ? (card.dataLabel.match(/Score (\d+)%/) || card.dataLabel.match(/(\d+)%/)) : null;
@@ -3456,9 +3456,11 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
                 key={card.key}
                 onClick={() => { if(!premiumAccess){requirePremium();return;} if(!card.hasData){goto(card.ctaGoto);return;} setMode(card.key); }}
                 style={{
-                  position:'relative', display:'flex', flexDirection: isLastOdd ? 'row' : 'column', alignItems:'center', justifyContent: isLastOdd ? 'flex-start' : 'center',
-                  gap: isLastOdd ? 12 : 6, aspectRatio: isLastOdd ? 'auto' : '1.15', padding: isLastOdd ? '14px 16px' : '10px 8px',
-                  gridColumn: isLastOdd ? '1 / -1' : 'auto',
+                  position:'relative', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+                  gap:6, aspectRatio:'1.15', padding:'10px 8px',
+                  gridColumn: isLastOdd ? '1 / span 1' : 'auto',
+                  justifySelf: isLastOdd ? 'center' : 'stretch',
+                  width: isLastOdd ? 'calc(50% - 5px)' : 'auto',
                   background:`linear-gradient(155deg, ${card.bg}, rgba(255,255,255,0.02))`,
                   border:`1.5px solid ${card.hasData ? card.border : 'rgba(255,255,255,0.08)'}`,
                   borderRadius:18, cursor:'pointer', textAlign:'center',
@@ -3469,17 +3471,17 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
                 <div style={{position:'absolute', top:7, right:7, width:6, height:6, borderRadius:3, background: card.hasData ? '#6ee7b7' : 'rgba(255,255,255,0.15)'}} />
 
                 {/* Icône large */}
-                <div style={{width: isLastOdd ? 42 : 38, height: isLastOdd ? 42 : 38, borderRadius:12, background:`${card.accent}1f`, border:`1px solid ${card.border}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}>
+                <div style={{width:38, height:38, borderRadius:12, background:`${card.accent}1f`, border:`1px solid ${card.border}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}>
                   {card.icon}
                 </div>
 
-                <div style={{display:'flex', flexDirection:'column', gap:6, alignItems: isLastOdd ? 'flex-start' : 'center', flex: isLastOdd ? 1 : 'none', textAlign: isLastOdd ? 'left' : 'center'}}>
+                <div style={{display:'flex', flexDirection:'column', gap:6, alignItems:'center', textAlign:'center'}}>
                   {/* Titre court */}
-                  <div style={{fontSize:11.5, fontWeight:800, color:'#fff', lineHeight:1.15, padding: isLastOdd ? 0 : '0 2px'}}>{card.title}</div>
+                  <div style={{fontSize:11.5, fontWeight:800, color:'#fff', lineHeight:1.15, padding:'0 2px'}}>{card.title}</div>
 
                   {/* Mini score ou statut */}
                   {scoreVal !== null ? (
-                    <div style={{display:'flex', alignItems:'center', gap:5, width: isLastOdd ? '160px' : '80%'}}>
+                    <div style={{display:'flex', alignItems:'center', gap:5, width:'80%'}}>
                       <div style={{flex:1, height:4, borderRadius:2, background:'rgba(255,255,255,0.08)', overflow:'hidden'}}>
                         <div style={{height:'100%', width:scoreVal+'%', background:card.accent, borderRadius:2}} />
                       </div>
