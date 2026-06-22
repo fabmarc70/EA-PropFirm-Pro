@@ -337,6 +337,9 @@ const I18N = {
     sim_recommended: "Recommandé : 35-50%.",
     sim_max_consec: "Max pertes consécutives EA",
     sim_lot_instrument: "Lot & Instrument",
+    cal_intraday_dd_label: "DD max du jour (%)",
+    cal_intraday_dd_hint: "Optionnel — si tu connais le creux le plus bas atteint",
+    journal_max_dd_today: "DD max",
     dash_journal_pnl: "P&L Journal",
     an_premium_locked: "Premium",
     cal_journal_active: "Journal actif",
@@ -1004,6 +1007,9 @@ const I18N = {
     sim_recommended: "Recomendado: 35-50%.",
     sim_max_consec: "Máx pérdidas consecutivas EA",
     sim_lot_instrument: "Lote e Instrumento",
+    cal_intraday_dd_label: "DD máx del día (%)",
+    cal_intraday_dd_hint: "Opcional — si conoces el punto más bajo alcanzado",
+    journal_max_dd_today: "DD máx",
     dash_journal_pnl: "P&L del Diario",
     an_premium_locked: "Premium",
     cal_journal_active: "Diario activo",
@@ -1673,6 +1679,9 @@ const I18N = {
     sim_recommended: "Recommended: 35-50%.",
     sim_max_consec: "Max consecutive EA losses",
     sim_lot_instrument: "Lot & Instrument",
+    cal_intraday_dd_label: "Max DD of the day (%)",
+    cal_intraday_dd_hint: "Optional — if you know the lowest point reached",
+    journal_max_dd_today: "Max DD",
     dash_journal_pnl: "Journal P&L",
     an_premium_locked: "Premium",
     cal_journal_active: "Journal active",
@@ -2735,25 +2744,34 @@ function journalAnalyze(journalRaw) {
 // par jour). Le Profit Factor n'est PAS calculable (pas de détail par
 // trade individuel dans le journal) → laissé null plutôt qu'estimé.
 // ══════════════════════════════════════════════════════════════════
-function buildJournalProfileForBenchmark(journalRaw) {
+function buildJournalProfileForBenchmark(journalRaw, capital) {
   const stats = journalAnalyze(journalRaw);
   if (!stats || stats.totalDays < 5) return null;
+  const startCapital = capital > 0 ? capital : 25000; // référentiel réel du compte, pas le profit cumulé
 
-  // ── Drawdown réel : reconstitué depuis la courbe d'équité cumulée jour par jour ──
+  // ── Drawdown réel : équité reconstituée à partir du CAPITAL RÉEL (pas juste le P&L cumulé) ──
+  // Bug précédent : le DD était calculé en % du profit cumulé au lieu du capital, ce qui gonflait
+  // artificiellement la valeur (ex: une perte de $300 sur un pic de profit de $1000 donnait 30%
+  // au lieu du ~1.2% réel rapporté à un capital de $25 000).
   const allDays = [];
   Object.entries(journalRaw || {}).forEach(([mk, days]) => {
     Object.entries(days || {}).forEach(([d, e]) => {
-      if (e && e.pnl !== undefined) allDays.push({ date: `${mk}-${d.padStart(2,'0')}`, pnl: e.pnl || 0 });
+      if (e && e.pnl !== undefined) allDays.push({ date: `${mk}-${d.padStart(2,'0')}`, pnl: e.pnl || 0, intradayDD: e.intradayDD });
     });
   });
   allDays.sort((a,b) => a.date.localeCompare(b.date));
-  let equity = 0, peak = 0, maxDD = 0;
+  let equity = startCapital, peak = startCapital, maxDD = 0;
+  let maxIntradayDD = 0; // DD intrajournalier max saisi manuellement par l'utilisateur (le + précis si renseigné)
   allDays.forEach(d => {
     equity += d.pnl;
     if (equity > peak) peak = equity;
     const dd = peak > 0 ? ((peak - equity) / peak) * 100 : 0;
     if (dd > maxDD) maxDD = dd;
+    if (d.intradayDD !== undefined && d.intradayDD !== null && d.intradayDD > maxIntradayDD) maxIntradayDD = d.intradayDD;
   });
+  // Le DD intrajournalier saisi à la main (plus précis, capture les creux intra-day pas visibles
+  // sur la courbe de clôture) prime sur le DD reconstitué depuis les clôtures journalières s'il est plus élevé.
+  const finalDD = Math.max(maxDD, maxIntradayDD);
 
   // ── RR approximatif : ratio |meilleure journée| / |pire journée| (proxy faute de détail par trade) ──
   const rrApprox = stats.worstDay !== 0 ? Math.abs(stats.bestDay / stats.worstDay) : null;
@@ -2761,7 +2779,7 @@ function buildJournalProfileForBenchmark(journalRaw) {
   return {
     winrate: stats.tradeWR,       // réel : winrate trade calculé sur tous les trades saisis
     avgRR: rrApprox,              // approximatif : proxy meilleure/pire journée, PAS un vrai RR par trade
-    avgDD: peak > 0 ? maxDD : null, // réel si on a une courbe d'équité positive à un moment
+    avgDD: finalDD,               // réel, rapporté au capital réel du compte (+ DD intrajournalier saisi si renseigné)
     profitFactor: null,           // non calculable : le journal n'a pas le détail gain/perte par trade
     sampleSize: stats.totalDays,
     totalPnl: stats.totalPnl,
@@ -3230,7 +3248,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
   // ── Benchmark Mondial des Traders : basé sur le JOURNAL DE TRADING réel ──
   // (PF non inclus : pas calculable depuis les données du journal — voir buildJournalProfileForBenchmark)
   const disciplineForBenchmark = disciplineAnalyze(journalRaw);
-  const journalProfileForBenchmark = buildJournalProfileForBenchmark(journalRaw);
+  const journalProfileForBenchmark = buildJournalProfileForBenchmark(journalRaw, profile.capital);
   const worldBenchmarkData = journalProfileForBenchmark ? worldBenchmark({
     winrate: journalProfileForBenchmark.winrate,
     profitFactor: journalProfileForBenchmark.profitFactor,
@@ -8155,6 +8173,8 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
   const [formGainAbs, setFormGainAbs] = useState(""); // valeur absolue (toujours positive)
   const [formGainSign, setFormGainSign] = useState(1); // +1 ou -1
   const [formImages, setFormImages] = useState([]);
+  // ── Drawdown max de la journée (saisi manuellement, optionnel — plus précis que la reconstitution depuis la clôture) ──
+  const [formIntradayDD, setFormIntradayDD] = useState("");
   // ── Coach de Discipline : signaux comportementaux saisis par le trader ──
   const [formRespectPlan, setFormRespectPlan] = useState(true);
   const [formRespectRisk, setFormRespectRisk] = useState(true);
@@ -8407,6 +8427,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 setFormRespectRisk(existing && existing.respectRisk !== undefined ? existing.respectRisk : true);
                 setFormLotIncreaseAfterLoss(existing ? !!existing.lotIncreaseAfterLoss : false);
                 setFormEmotionalTrading(existing ? !!existing.emotionalTrading : false);
+                setFormIntradayDD(existing && existing.intradayDD !== undefined && existing.intradayDD !== null ? String(existing.intradayDD) : "");
                 setImgDateWarn(null);
               }}
               style={{
@@ -8584,6 +8605,34 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 </div>
               </div>
 
+              {/* ── Drawdown max de la journée (optionnel, saisi manuellement) ── */}
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 5 }}>
+                  {t("cal_intraday_dd_label")}
+                </div>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.1"
+                  value={formIntradayDD}
+                  onChange={e => setFormIntradayDD(e.target.value.replace(/-/g, ""))}
+                  placeholder="0.0"
+                  style={{
+                    width: "100%", height: 42,
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1.5px solid rgba(255,255,255,0.1)",
+                    borderRadius: 12,
+                    padding: "0 14px",
+                    color: "#fff",
+                    fontSize: 15, fontWeight: 700,
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>{t("cal_intraday_dd_hint")}</div>
+              </div>
+
               {/* ── Coach de Discipline : signaux comportementaux du jour ── */}
               <div style={{ marginTop: 4 }}>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 7 }}>
@@ -8696,6 +8745,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                     respectPlan: formRespectPlan, respectRisk: formRespectRisk,
                     lotIncreaseAfterLoss: formLotIncreaseAfterLoss, emotionalTrading: formEmotionalTrading };
                   if (formImages.length > 0) entry.images = formImages;
+                  if (formIntradayDD !== "" && !isNaN(parseFloat(formIntradayDD))) entry.intradayDD = Math.abs(parseFloat(formIntradayDD));
                   if (onJournalSave) onJournalSave(editingDay, entry);
                   setEditingDay(null);
                 }}
@@ -11002,6 +11052,9 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
   const lossDays = daysArr.filter(d => (d.pnl || 0) < 0).length;
   const bestDay = daysArr.length ? Math.max(...daysArr.map(d => d.pnl || 0)) : 0;
   const worstDay = daysArr.length ? Math.min(...daysArr.map(d => d.pnl || 0)) : 0;
+  // ── DD max du mois : priorité aux valeurs saisies manuellement (intradayDD), sinon reconstitué depuis la courbe d'équité ──
+  const intradayDDValues = daysArr.map(d => d.intradayDD).filter(v => v !== undefined && v !== null && !isNaN(v));
+  const maxIntradayDDOfMonth = intradayDDValues.length ? Math.max(...intradayDDValues) : null;
 
   // ── Courbe Équité du mois affiché (Journal réel vs Simulation) — copie de la Home ──
   const equityData = buildMonthlyEquityChart({
@@ -11126,11 +11179,12 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
             <button onClick={() => shiftMonth(1)} aria-label={t("journal_next_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>›</button>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: maxIntradayDDOfMonth !== null ? "1fr 1fr 1fr 1fr" : "1fr 1fr 1fr", gap: 8 }}>
             {[
               [t("journal_total_pnl"), (monthPnl>=0?"+":"") + "$" + Math.abs(Math.round(monthPnl)), monthPnl>=0?"#6ee7b7":"#ef4444"],
               [t("journal_win_days"), winDays, "#6ee7b7"],
               [t("journal_loss_days"), lossDays, "#ef4444"],
+              ...(maxIntradayDDOfMonth !== null ? [[t("journal_max_dd_today"), maxIntradayDDOfMonth.toFixed(1) + "%", "#fbbf24"]] : []),
             ].map(([label, val, color], i) => (
               <div key={i} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color }}>{val}</div>
