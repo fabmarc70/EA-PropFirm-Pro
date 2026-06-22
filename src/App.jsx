@@ -2826,6 +2826,65 @@ function disciplineAnalyze(journalRaw) {
 }
 
 // ── Icône de statut neutre (puce colorée) — remplace les émojis dans les listes forces/risques ──
+// ══════════════════════════════════════════════════════════════════
+// Carte de validation Gemini réutilisable — affichée sous un module
+// pour donner une seconde opinion factuelle, jamais mentionnée comme IA.
+// ══════════════════════════════════════════════════════════════════
+function GeminiValidationCard({ t, loading, result, titleKey = "mt_indep_validation" }) {
+  if (!loading && !result) return null;
+  return (
+    <div style={{ marginTop: 10, padding: "13px 14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.12)", borderRadius: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <div style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>
+          {t(titleKey)}
+        </div>
+        {result?.confidenceLevel && (
+          <div style={{ padding: "2px 8px", borderRadius: 8, fontSize: 9, fontWeight: 700,
+            background: result.confidenceLevel === 'ÉLEVÉ' ? 'rgba(110,231,183,0.12)' : result.confidenceLevel === 'MODÉRÉ' ? 'rgba(251,191,36,0.12)' : 'rgba(239,68,68,0.12)',
+            color: result.confidenceLevel === 'ÉLEVÉ' ? '#6ee7b7' : result.confidenceLevel === 'MODÉRÉ' ? '#fbbf24' : '#ef4444',
+          }}>
+            {t('mt_confidence')} {result.confidenceLevel}
+          </div>
+        )}
+      </div>
+      {loading && !result ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {[85, 70, 55].map((w, i) => (
+            <div key={i} style={{ height: 9, borderRadius: 5, background: "rgba(255,255,255,0.06)", width: w + "%" }} />
+          ))}
+        </div>
+      ) : result ? (
+        <>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", lineHeight: 1.65, marginBottom: 10 }}>
+            {result.validationSummary}
+          </div>
+          {result.confidenceReason && (
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontStyle: "italic", marginBottom: 8 }}>
+              {result.confidenceReason}
+            </div>
+          )}
+          {result.actionableAdvice && (
+            <div style={{ display: "flex", gap: 6, alignItems: "flex-start", marginTop: 6 }}>
+              <StatusDot kind="ok" />
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}>{result.actionableAdvice}</span>
+            </div>
+          )}
+          {result.watchpoints?.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 6 }}>
+              {result.watchpoints.map((wp, i) => (
+                <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+                  <StatusDot kind="warn" />
+                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", lineHeight: 1.4 }}>{wp}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 function StatusDot({ kind }) {
   const color = kind === 'danger' ? '#ef4444' : kind === 'warn' ? '#fbbf24' : kind === 'star' ? '#a78bfa' : '#6ee7b7';
   return <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 4, background: color, flexShrink: 0 }} />;
@@ -2980,6 +3039,103 @@ Réponds UNIQUEMENT en JSON valide sans markdown :
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 500 } }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    const d = await res.json();
+    const raw = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const jsonClean = raw.split('```json').pop().split('```')[0].trim(); return JSON.parse(jsonClean || raw.trim());
+  } catch (e) { return null; }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Validation Gemini — Analyse Comportementale MT5 (horaires/jours/instruments)
+// Même pattern silencieux que callGeminiVerdict : seconde opinion factuelle,
+// jamais mentionnée comme IA, juste une "validation indépendante".
+// ══════════════════════════════════════════════════════════════════
+async function callGeminiMT5Validation(mt5Data, lang) {
+  const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY || '';
+  if (!GEMINI_KEY || !mt5Data) return null;
+  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
+  const langLabel = { fr:'français', en:'English', es:'español' }[lang] || 'français';
+
+  const prompt = `Tu es un analyste quantitatif expert en comportement de trading. Valide la cohérence de cette analyse d'historique MT5.
+
+Données de l'historique :
+- Trades analysés : ${mt5Data.n}
+- Meilleur jour : ${mt5Data.bestDay?.day || 'N/C'}
+- Pire jour : ${mt5Data.worstDay?.day || 'N/C'} (${mt5Data.worstDay?.pctOfLosses?.toFixed(0) || 0}% des pertes)
+- Meilleure heure : ${mt5Data.bestHour?.hour ?? 'N/C'}h
+- Pire heure : ${mt5Data.worstHour?.hour ?? 'N/C'}h
+- Meilleur instrument : ${mt5Data.bestSymbol?.symbol || 'N/C'}
+- Pire instrument : ${mt5Data.worstSymbol?.symbol || 'N/C'}
+- Données horaires disponibles : ${mt5Data.hasTimeData ? 'OUI' : 'NON'}
+- Données d'instrument disponibles : ${mt5Data.hasSymbolData ? 'OUI' : 'NON'}
+
+RÈGLES STRICTES :
+1. Ne jamais mentionner "IA", "intelligence artificielle", "Gemini", "algorithme" ou "modèle"
+2. Parler uniquement de faits observables et de chiffres
+3. Si les données horaires ou d'instrument sont absentes, le signaler clairement
+4. Donner 1 conseil concret et actionnable basé sur le pattern le plus fiable
+5. Être concis, factuel, professionnel
+
+Réponds UNIQUEMENT en JSON valide sans markdown :
+{"validationSummary":"2-3 phrases de validation indépendante en ${langLabel}, basées sur les chiffres réels disponibles.","actionableAdvice":"1 conseil concret et actionnable.","confidenceLevel":"ÉLEVÉ|MODÉRÉ|FAIBLE|INDÉTERMINÉ","confidenceReason":"1 phrase sur pourquoi ce niveau de confiance"}`;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(GEMINI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 400 } }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    const d = await res.json();
+    const raw = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const jsonClean = raw.split('```json').pop().split('```')[0].trim(); return JSON.parse(jsonClean || raw.trim());
+  } catch (e) { return null; }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Validation Gemini — Écran de décision "Puis-je lancer ce challenge ?"
+// ══════════════════════════════════════════════════════════════════
+async function callGeminiDecisionValidation(decision, lang) {
+  const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY || '';
+  if (!GEMINI_KEY || !decision) return null;
+  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
+  const langLabel = { fr:'français', en:'English', es:'español' }[lang] || 'français';
+
+  const prompt = `Tu es un analyste quantitatif expert en prop trading. Valide la cohérence de cette décision "peut-on lancer ce challenge ?".
+
+Données de la décision :
+- Verdict local : ${decision.verdictLabel} (score ${decision.score}/100)
+- Profit Factor : ${decision.pf?.toFixed(2)}
+- Winrate : ${decision.wr?.toFixed(0)}%
+- RR : 1:${decision.rr?.toFixed(2)}
+- Drawdown : ${decision.dd !== null ? decision.dd.toFixed(1) + '%' : 'INCONNU'}
+- Probabilité Monte Carlo : ${decision.mc !== null && decision.mc !== undefined ? decision.mc + '%' : 'N/C'}
+- Échantillon : ${decision.nTrades} trades
+- Raisons négatives identifiées : ${decision.reasons?.join('; ') || 'aucune'}
+- Points positifs identifiés : ${decision.positives?.join('; ') || 'aucun'}
+
+RÈGLES STRICTES :
+1. Ne jamais mentionner "IA", "intelligence artificielle", "Gemini", "algorithme" ou "modèle"
+2. Parler uniquement de chiffres et faits observables
+3. Confirmer ou nuancer le verdict local avec un angle complémentaire
+4. Être concis, factuel, professionnel
+
+Réponds UNIQUEMENT en JSON valide sans markdown :
+{"validationSummary":"2-3 phrases de validation indépendante en ${langLabel}, avec les chiffres réels.","watchpoints":["point de vigilance 1","point de vigilance 2"],"confidenceLevel":"ÉLEVÉ|MODÉRÉ|FAIBLE|INDÉTERMINÉ","confidenceReason":"1 phrase sur pourquoi ce niveau de confiance"}`;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(GEMINI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 400 } }),
       signal: controller.signal,
     });
     clearTimeout(timeout);
@@ -6858,6 +7014,14 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   const [geminiVerdict, setGeminiVerdict] = useState(null);
   const [geminiVerdictLoading, setGeminiVerdictLoading] = useState(false);
   const geminiVerdictRef = useRef(null); // évite les appels multiples
+  // ── Validation Gemini : Analyse Comportementale MT5 ──
+  const [geminiMT5, setGeminiMT5] = useState(null);
+  const [geminiMT5Loading, setGeminiMT5Loading] = useState(false);
+  const geminiMT5Ref = useRef(null);
+  // ── Validation Gemini : Écran de décision "Puis-je lancer ce challenge ?" ──
+  const [geminiDecision, setGeminiDecision] = useState(null);
+  const [geminiDecisionLoading, setGeminiDecisionLoading] = useState(false);
+  const geminiDecisionRef = useRef(null);
   const [alerts, setAlerts] = useState([]);
 
   useEffect(() => {
@@ -7282,7 +7446,36 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
       setGeminiVerdictLoading(false);
       if (r) setGeminiVerdict(r);
     });
+
+    // ── Validation Gemini : Écran de décision "Puis-je lancer ce challenge ?" ──
+    const d = canLaunchChallenge(v);
+    if (d) {
+      const dKey = `${d.verdictLevel}_${d.score}_${trades.length}`;
+      if (geminiDecisionRef.current !== dKey) {
+        geminiDecisionRef.current = dKey;
+        setGeminiDecision(null);
+        setGeminiDecisionLoading(true);
+        callGeminiDecisionValidation(d, lang).then(r => {
+          setGeminiDecisionLoading(false);
+          if (r) setGeminiDecision(r);
+        });
+      }
+    }
   }, [trades.length, balanceReconstructed, manualDD]);
+
+  // ── Validation Gemini : Analyse Comportementale MT5 ──
+  useEffect(() => {
+    if (!mt5Analysis) return;
+    const mKey = `${mt5Analysis.n}_${mt5Analysis.hasTimeData}_${mt5Analysis.hasSymbolData}_${mt5Analysis.bestDay?.day}_${mt5Analysis.bestSymbol?.symbol}`;
+    if (geminiMT5Ref.current === mKey) return;
+    geminiMT5Ref.current = mKey;
+    setGeminiMT5(null);
+    setGeminiMT5Loading(true);
+    callGeminiMT5Validation(mt5Analysis, lang).then(r => {
+      setGeminiMT5Loading(false);
+      if (r) setGeminiMT5(r);
+    });
+  }, [trades.length]);
 
   // ── Alertes ───────────────────────────────────────────────────
   const computeAlertsSync = (trds, initBal) => {
@@ -7525,6 +7718,9 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                 ))}
               </div>
             )}
+
+            {/* ── Validation indépendante (Gemini) ── */}
+            <GeminiValidationCard t={t} loading={geminiDecisionLoading} result={geminiDecision} />
           </>
         )}
       </div>
@@ -7679,48 +7875,11 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
           ══════════════════════════════════════════════════════ */}
           {mt5Analysis && (() => {
             const m = mt5Analysis;
-            const scoreColor = m.score >= 75 ? "#6ee7b7" : m.score >= 55 ? "#fbbf24" : m.score >= 35 ? "#f97316" : "#ef4444";
-            const scoreLabel = m.score >= 75 ? t("mt5_score_excellent") : m.score >= 55 ? t("mt5_score_good") : m.score >= 35 ? t("mt5_score_average") : t("mt5_score_weak");
             return (
               <div className="card" style={{ border: "1px solid rgba(110,231,183,0.12)" }}>
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>{t("mt5_title")}</div>
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("mt5_subtitle")} · {m.n} {t("mt5_trades_analyzed")}</div>
-                </div>
-
-                {/* Score global /100 */}
-                <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16, padding: "12px 14px", background: scoreColor + "12", borderRadius: 14, border: `1px solid ${scoreColor}33` }}>
-                  <div style={{ position: "relative", width: 64, height: 64, flexShrink: 0 }}>
-                    <svg width="64" height="64" viewBox="0 0 64 64">
-                      <circle cx="32" cy="32" r="27" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
-                      <circle cx="32" cy="32" r="27" fill="none" stroke={scoreColor} strokeWidth="6" strokeLinecap="round"
-                        strokeDasharray={`${2*Math.PI*27*(m.score/100)} ${2*Math.PI*27}`}
-                        transform="rotate(-90 32 32)" />
-                    </svg>
-                    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: scoreColor }}>{m.score}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5 }}>{t("mt5_score_title")}</div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: scoreColor }}>{scoreLabel}</div>
-                  </div>
-                </div>
-
-                {/* Stats globales */}
-                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>{t("mt5_global_stats")}</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
-                  {[
-                    [t("mt5_winrate"), m.winrate.toFixed(0) + "%"],
-                    [t("mt5_pf"), m.profitFactor.toFixed(2)],
-                    [t("mt5_avg_rr"), "1:" + m.avgRR.toFixed(2)],
-                    [t("mt5_max_dd"), m.maxDD.toFixed(1) + "%"],
-                    [t("mt5_win_streak"), m.maxWinStreak],
-                    [t("mt5_loss_streak"), m.maxLossStreak],
-                  ].map(([label, val], i) => (
-                    <div key={i} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{val}</div>
-                      <div style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{label}</div>
-                    </div>
-                  ))}
                 </div>
 
                 {/* Horaires & jours rentables */}
@@ -7762,47 +7921,11 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
                     </div>}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: 16, fontStyle: "italic" }}>{t("mt5_no_symbol_data")}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontStyle: "italic" }}>{t("mt5_no_symbol_data")}</div>
                 )}
 
-                {/* Forces */}
-                {m.forces.length > 0 && (
-                  <div style={{ marginBottom: 14 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", marginBottom: 6 }}>{t("mt5_forces")}</div>
-                    {m.forces.map((f, i) => (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: i < m.forces.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>{f.title}</span>
-                        <span style={{ fontSize: 11, color: "#6ee7b7", fontWeight: 700 }}>{f.detail}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Points faibles */}
-                {m.weaknesses.length > 0 && (
-                  <div style={{ marginBottom: 14 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24", textTransform: "uppercase", marginBottom: 6 }}>{t("mt5_weaknesses")}</div>
-                    {m.weaknesses.map((w, i) => (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: i < m.weaknesses.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>{w.title}</span>
-                        <span style={{ fontSize: 11, color: "#fbbf24", fontWeight: 700 }}>{w.detail}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Recommandations */}
-                {m.recommendations.length > 0 && (
-                  <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 6 }}>{t("mt5_recommendations")}</div>
-                    {m.recommendations.map((r, i) => (
-                      <div key={i} style={{ display: "flex", gap: 7, alignItems: "flex-start", padding: "5px 0" }}>
-                        <span style={{ color: "#6ee7b7", fontSize: 10, flexShrink: 0, marginTop: 2 }}>→</span>
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", lineHeight: 1.4 }}>{r}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {/* ── Validation indépendante (Gemini) ── */}
+                <GeminiValidationCard t={t} loading={geminiMT5Loading} result={geminiMT5} />
               </div>
             );
           })()}
