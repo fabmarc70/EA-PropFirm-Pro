@@ -3458,9 +3458,9 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
                 style={{
                   position:'relative', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
                   gap:6, aspectRatio:'1.15', padding:'10px 8px',
-                  gridColumn: isLastOdd ? '1 / span 1' : 'auto',
-                  justifySelf: isLastOdd ? 'center' : 'stretch',
-                  width: isLastOdd ? 'calc(50% - 5px)' : 'auto',
+                  gridColumn: isLastOdd ? '1 / -1' : 'auto',
+                  width: isLastOdd ? 'calc(50% - 4.5px)' : '100%',
+                  justifySelf: isLastOdd ? 'start' : 'stretch',
                   background:`linear-gradient(155deg, ${card.bg}, rgba(255,255,255,0.02))`,
                   border:`1.5px solid ${card.hasData ? card.border : 'rgba(255,255,255,0.08)'}`,
                   borderRadius:18, cursor:'pointer', textAlign:'center',
