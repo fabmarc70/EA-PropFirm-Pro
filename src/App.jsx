@@ -4699,20 +4699,6 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   };
   const dda = ddAnalysis();
 
-  // ── Daily Loss Guardian : notification si passage en zone danger ──
-  const guardZoneRef = useRef(null);
-  useEffect(() => {
-    if (!dda || !dda.guardZone) return;
-    if (guardZoneRef.current === "danger") { guardZoneRef.current = dda.guardZone; return; } // déjà alerté
-    if (dda.guardZone === "danger" && guardZoneRef.current !== "danger") {
-      fireNotification(
-        t("guard_title"),
-        t("guard_stop_recommended") + " — " + Math.round(Math.max(dda.dailyConsumedPct, dda.maxConsumedPct)) + "% " + t("guard_daily_consumed")
-      );
-    }
-    guardZoneRef.current = dda.guardZone;
-  }, [dda?.guardZone]);
-
   const globalStatus = () => {
     if (!sim) return null;
     for (let i = 0; i < sim.phaseResults.length; i++) {
@@ -5079,100 +5065,6 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════
-          DAILY LOSS GUARDIAN — garde-fou DD temps réel
-          Fonctionne avec toutes les Prop Firms (model.dailyDD/totalDD dynamiques)
-      ══════════════════════════════════════════════════════════ */}
-      {!isSimple && (() => {
-        const zoneColor = dda.guardZone === "danger" ? "#ef4444" : dda.guardZone === "warning" ? "#fbbf24" : "#6ee7b7";
-        const zoneBg = dda.guardZone === "danger" ? "rgba(239,68,68,0.08)" : dda.guardZone === "warning" ? "rgba(251,191,36,0.08)" : "rgba(110,231,183,0.06)";
-        const zoneLabel = dda.guardZone === "danger" ? t("guard_zone_danger") : dda.guardZone === "warning" ? t("guard_zone_warning") : t("guard_zone_safe");
-        const zoneEmoji = dda.guardZone === "danger" ? "danger" : dda.guardZone === "warning" ? "warn" : "ok";
-        const maxConsumed = Math.max(dda.dailyConsumedPct, dda.maxConsumedPct);
-        const recoText = dda.guardZone === "danger" ? t("guard_stop_recommended") : dda.guardZone === "warning" ? t("guard_stay_alert") : t("guard_all_clear");
-        const lossesLeftText = dda.lossesLeftDaily === 0 ? t("guard_zero_left")
-          : dda.lossesLeftDaily === 1 ? t("guard_one_loss_left")
-          : `${t("guard_n_losses_left").includes("Encore") ? "" : ""}${dda.lossesLeftDaily} ${t("guard_n_losses_left")}`;
-        return (
-          <div className="card" style={{ border: `1.5px solid ${zoneColor}40`, background: zoneBg }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 800, color: "#fff", display: "flex", alignItems: "center", gap: 6 }}>
-                  {t("guard_title")}
-                </div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("guard_subtitle")}</div>
-              </div>
-              <div style={{ padding: "6px 12px", borderRadius: 10, background: zoneColor + "22", border: `1px solid ${zoneColor}55`, display: "flex", alignItems: "center", gap: 6 }}>
-                <StatusDot kind={zoneEmoji} />
-                <span style={{ fontSize: 11, fontWeight: 800, color: zoneColor }}>{zoneLabel}</span>
-              </div>
-            </div>
-
-            {/* Jauge visuelle temps réel — 3 zones */}
-            <div style={{ position: "relative", height: 14, borderRadius: 8, overflow: "hidden", background: "rgba(255,255,255,0.06)", marginBottom: 4 }}>
-              <div style={{ position: "absolute", inset: 0, display: "flex" }}>
-                <div style={{ width: "50%", background: "rgba(110,231,183,0.25)" }} />
-                <div style={{ width: "30%", background: "rgba(251,191,36,0.25)" }} />
-                <div style={{ width: "20%", background: "rgba(239,68,68,0.25)" }} />
-              </div>
-              <div style={{
-                position: "absolute", top: 0, left: 0, height: "100%",
-                width: Math.min(100, maxConsumed) + "%",
-                background: zoneColor, transition: "width .4s ease, background .4s ease",
-                boxShadow: `0 0 8px ${zoneColor}99`,
-              }} />
-              <div style={{ position: "absolute", left: "50%", top: 0, height: "100%", width: 1, background: "rgba(0,0,0,0.3)" }} />
-              <div style={{ position: "absolute", left: "80%", top: 0, height: "100%", width: 1, background: "rgba(0,0,0,0.3)" }} />
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "rgba(255,255,255,0.35)", marginBottom: 14 }}>
-              <span>0%</span><span>50%</span><span>80%</span><span>100%</span>
-            </div>
-
-            {/* Message recommandation */}
-            <div style={{ padding: "9px 12px", borderRadius: 10, background: zoneColor + "15", marginBottom: 12, textAlign: "center" }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: zoneColor }}>{recoText}</span>
-            </div>
-
-            {/* Pertes restantes */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-              <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: "10px 12px" }}>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", marginBottom: 3 }}>{t("guard_daily_limit")}</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: dda.lossesLeftDaily <= 1 ? "#ef4444" : dda.lossesLeftDaily <= 2 ? "#fbbf24" : "#6ee7b7" }}>
-                  {dda.lossesLeftDaily}
-                </div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{t("guard_losses_left_daily")}</div>
-              </div>
-              <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: "10px 12px" }}>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", marginBottom: 3 }}>{t("guard_total_limit")}</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: dda.lossesLeftMax <= 1 ? "#ef4444" : dda.lossesLeftMax <= 3 ? "#fbbf24" : "#6ee7b7" }}>
-                  {dda.lossesLeftMax}
-                </div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{t("guard_losses_left_max")}</div>
-              </div>
-            </div>
-
-            {/* % consommé + marge + plancher capital */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
-                <span style={{ color: "rgba(255,255,255,0.55)" }}>{dda.dailyConsumedPct.toFixed(0)}% {t("guard_daily_consumed")}</span>
-                <span style={{ color: "rgba(255,255,255,0.55)" }}>{dda.maxConsumedPct.toFixed(0)}% {t("guard_max_consumed")}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 6, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{t("guard_margin_left")}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: zoneColor }}>{Math.max(0, dda.guardMarginPct).toFixed(0)}%</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{t("guard_min_capital")}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{fmt2(Math.max(0, dda.guardMinCapital))}</span>
-              </div>
-            </div>
-
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", textAlign: "center" }}>
-              {t("guard_based_on")} {effectiveRiskAmount ? fmt2(effectiveRiskAmount) : ""} · {tradesPerDay} {t("guard_trades_day")}
-            </div>
-          </div>
-        );
-      })()}
 
       <div className="card" style={{ border: "1px solid rgba(110,231,183,0.10)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
