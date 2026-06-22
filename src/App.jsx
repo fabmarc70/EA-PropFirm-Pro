@@ -126,9 +126,15 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
+    bench_rr_approx_note: "RR aproximado (ratio mejor/peor día — no es un cálculo por operación)",
+    bench_data_source: "Basado en tu Diario de Trading",
+    bench_disclaimer: "Los umbrales de comparación (media, Top 50/25/10/1%) son referencias indicativas del sector, no datos medidos de otros usuarios de la app.",
+    bench_rr_approx_note: "RR approximatif (ratio meilleure/pire journée — pas un calcul par trade)",
+    bench_data_source: "Basé sur ton Journal de Trading",
+    bench_disclaimer: "Les seuils de comparaison (moyenne, Top 50/25/10/1%) sont des repères indicatifs du secteur, pas des données mesurées auprès d'autres utilisateurs de l'app.",
     bench_title: "Benchmark Mondial des Traders",
     bench_subtitle: "Ta performance comparée à la communauté",
-    bench_no_data: "Importe un backtest ou lance une simulation pour te comparer.",
+    bench_no_data: "Saisis au moins 5 jours dans ton Journal de Trading pour te comparer.",
     bench_global_rank: "Classement mondial estimé",
     bench_current_level: "Niveau actuel",
     bench_next_step: "Prochaine étape",
@@ -795,7 +801,7 @@ const I18N = {
     prof_lang: "Idioma",
     bench_title: "Benchmark Mundial de Traders",
     bench_subtitle: "Tu rendimiento comparado con la comunidad",
-    bench_no_data: "Importa un backtest o lanza una simulación para compararte.",
+    bench_no_data: "Registra al menos 5 días en tu Diario de Trading para compararte.",
     bench_global_rank: "Clasificación mundial estimada",
     bench_current_level: "Nivel actual",
     bench_next_step: "Próximo paso",
@@ -1459,9 +1465,12 @@ const I18N = {
     prof_account: "Account",
     prof_prefs: "Preferences",
     prof_lang: "Language",
+    bench_rr_approx_note: "Approximate RR (best/worst day ratio — not a per-trade calculation)",
+    bench_data_source: "Based on your Trading Journal",
+    bench_disclaimer: "Comparison thresholds (average, Top 50/25/10/1%) are indicative industry benchmarks, not data measured from other app users.",
     bench_title: "World Trader Benchmark",
     bench_subtitle: "Your performance vs the community",
-    bench_no_data: "Import a backtest or run a simulation to compare yourself.",
+    bench_no_data: "Log at least 5 days in your Trading Journal to compare yourself.",
     bench_global_rank: "Estimated world ranking",
     bench_current_level: "Current level",
     bench_next_step: "Next step",
@@ -2720,6 +2729,46 @@ function journalAnalyze(journalRaw) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// Construit le profil de métriques RÉELLES du Journal de Trading pour
+// le Benchmark Mondial — par honnêteté, ne calcule QUE ce qui est
+// réellement mesurable depuis les données du journal (pnl/wins/losses
+// par jour). Le Profit Factor n'est PAS calculable (pas de détail par
+// trade individuel dans le journal) → laissé null plutôt qu'estimé.
+// ══════════════════════════════════════════════════════════════════
+function buildJournalProfileForBenchmark(journalRaw) {
+  const stats = journalAnalyze(journalRaw);
+  if (!stats || stats.totalDays < 5) return null;
+
+  // ── Drawdown réel : reconstitué depuis la courbe d'équité cumulée jour par jour ──
+  const allDays = [];
+  Object.entries(journalRaw || {}).forEach(([mk, days]) => {
+    Object.entries(days || {}).forEach(([d, e]) => {
+      if (e && e.pnl !== undefined) allDays.push({ date: `${mk}-${d.padStart(2,'0')}`, pnl: e.pnl || 0 });
+    });
+  });
+  allDays.sort((a,b) => a.date.localeCompare(b.date));
+  let equity = 0, peak = 0, maxDD = 0;
+  allDays.forEach(d => {
+    equity += d.pnl;
+    if (equity > peak) peak = equity;
+    const dd = peak > 0 ? ((peak - equity) / peak) * 100 : 0;
+    if (dd > maxDD) maxDD = dd;
+  });
+
+  // ── RR approximatif : ratio |meilleure journée| / |pire journée| (proxy faute de détail par trade) ──
+  const rrApprox = stats.worstDay !== 0 ? Math.abs(stats.bestDay / stats.worstDay) : null;
+
+  return {
+    winrate: stats.tradeWR,       // réel : winrate trade calculé sur tous les trades saisis
+    avgRR: rrApprox,              // approximatif : proxy meilleure/pire journée, PAS un vrai RR par trade
+    avgDD: peak > 0 ? maxDD : null, // réel si on a une courbe d'équité positive à un moment
+    profitFactor: null,           // non calculable : le journal n'a pas le détail gain/perte par trade
+    sampleSize: stats.totalDays,
+    totalPnl: stats.totalPnl,
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════
 // COACH DE DISCIPLINE — score comportemental /100 basé sur le journal
 // Points positifs : respect risque/plan, pas de sur-trading
 // Points négatifs : revenge trading, lot augmenté après perte, trading émotionnel, dépassement risque
@@ -3178,13 +3227,15 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
   } : null;
   const firmComparison = traderProfileForCompare ? compareAllFirms(traderProfileForCompare) : null;
 
-  // ── Benchmark Mondial des Traders : profil réel comparé aux distributions du secteur ──
+  // ── Benchmark Mondial des Traders : basé sur le JOURNAL DE TRADING réel ──
+  // (PF non inclus : pas calculable depuis les données du journal — voir buildJournalProfileForBenchmark)
   const disciplineForBenchmark = disciplineAnalyze(journalRaw);
-  const worldBenchmarkData = traderProfileForCompare ? worldBenchmark({
-    winrate: traderProfileForCompare.winrate,
-    profitFactor: backtestStats ? backtestStats.pf : (simAnalysis ? simAnalysis.profitFactor : null),
-    rr: traderProfileForCompare.avgRR,
-    drawdown: traderProfileForCompare.avgDD,
+  const journalProfileForBenchmark = buildJournalProfileForBenchmark(journalRaw);
+  const worldBenchmarkData = journalProfileForBenchmark ? worldBenchmark({
+    winrate: journalProfileForBenchmark.winrate,
+    profitFactor: journalProfileForBenchmark.profitFactor,
+    rr: journalProfileForBenchmark.avgRR,
+    drawdown: journalProfileForBenchmark.avgDD,
     discipline: disciplineForBenchmark ? disciplineForBenchmark.score : null,
     consistency: journalStats ? journalStats.consistency : null,
   }) : null;
@@ -3321,11 +3372,11 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         title: t('bench_title'),
         subtitle: t('bench_subtitle'),
         desc: t('bench_subtitle'),
-        chips: [t('bench_metric_pf'), t('bench_metric_dd'), t('bench_metric_discipline'), t('bench_metric_consistency')],
+        chips: [t('bench_metric_winrate'), t('bench_metric_dd'), t('bench_metric_discipline'), t('bench_metric_consistency')],
         hasData: !!worldBenchmarkData,
         dataLabel: worldBenchmarkData ? `${worldBenchmarkData.globalLevel.icon} ${worldBenchmarkData.globalLevel.label} · #${worldBenchmarkData.rankEstimate.toLocaleString()}` : t('bench_no_data'),
         cta: t('bench_title'),
-        ctaGoto: 'trades',
+        ctaGoto: 'journal',
       },
     ];
     return (
@@ -3733,7 +3784,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
           
           <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>{t('bench_no_data')}</div>
-          <button onClick={()=>goto('trades')} style={{padding:'12px 24px',borderRadius:12,background:'#fbbf24',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>{t('an_import_bt')}</button>
+          <button onClick={()=>goto('journal')} style={{padding:'12px 24px',borderRadius:12,background:'#fbbf24',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>{t('nav_journal')}</button>
         </div>
       </div>
     );
@@ -3756,6 +3807,10 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
     return (
       <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
         <ReportHeader title={t('bench_title')} subtitle={t('bench_subtitle')} onBack={()=>setMode(null)}/>
+
+        <div style={{fontSize:9.5,color:'rgba(255,255,255,0.35)',lineHeight:1.5,marginBottom:14,padding:'0 2px'}}>
+          {t('bench_data_source')} · {t('bench_disclaimer')}
+        </div>
 
         {/* Classement mondial + niveau actuel */}
         <div style={{background:`${b.globalLevel.color}12`,border:`1.5px solid ${b.globalLevel.color}50`,borderRadius:20,padding:'20px 18px',marginBottom:14,textAlign:'center'}}>
@@ -3803,6 +3858,9 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
                 <span>{t('bench_average')}: {fmtVal(m.average)}</span>
                 <span>{t('bench_top10')}: {fmtVal(m.top10)}</span>
               </div>
+              {key === 'rr' && (
+                <div style={{fontSize:8.5,color:'rgba(255,255,255,0.3)',fontStyle:'italic',marginTop:6}}>{t('bench_rr_approx_note')}</div>
+              )}
             </div>
           );
         })}
