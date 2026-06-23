@@ -96,6 +96,8 @@ const I18N = {
     nav_dashboard: "Accueil",
     nav_simulator: "Simulateur",
     nav_trades: "Mes Trades",
+    mt_page_title: "Mes Trades",
+    mt_page_subtitle: "Importe et analyse ton historique MT4/MT5",
     nav_montecarlo: "Monte Carlo",
     nav_profile: "Profil",
     // Dashboard
@@ -787,6 +789,8 @@ const I18N = {
     nav_dashboard: "Inicio",
     nav_simulator: "Simulador",
     nav_trades: "Mis Trades",
+    mt_page_title: "Mis Trades",
+    mt_page_subtitle: "Importa y analiza tu historial MT4/MT5",
     nav_montecarlo: "Monte Carlo",
     nav_profile: "Perfil",
     dash_welcome: "Bienvenido",
@@ -1469,6 +1473,8 @@ const I18N = {
     nav_dashboard: "Home",
     nav_simulator: "Simulator",
     nav_trades: "My Trades",
+    mt_page_title: "My Trades",
+    mt_page_subtitle: "Import and analyze your MT4/MT5 history",
     nav_montecarlo: "Monte Carlo",
     nav_profile: "Profile",
     dash_welcome: "Welcome",
@@ -7677,6 +7683,14 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
 
   return (
     <div>
+      {/* ── HEADER PAGE — même style que Journal de Trading ── */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700 }}>{t("mt_page_title")}</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("mt_page_subtitle")}</div>
+        </div>
+      </div>
+
       {/* ══════════════════════════════════════════════════════════
           "PUIS-JE LANCER CE CHALLENGE ?" — écran de décision
           Synthèse PF/WR/RR/DD/Échantillon/Monte Carlo → verdict 3 niveaux
