@@ -11356,13 +11356,13 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
               [t("journal_total_trades"), totalTradesMonth, "#a78bfa"],
               ...(maxIntradayDDOfMonth !== null ? [[t("journal_max_dd_today"), maxIntradayDDOfMonth.toFixed(1) + "%", "#fbbf24"]] : []),
             ];
-            const cols = indicators.length >= 5 ? 3 : indicators.length;
+            const cols = indicators.length;
             return (
-              <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 5 }}>
                 {indicators.map(([label, val, color], i) => (
-                  <div key={i} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color }}>{val}</div>
-                    <div style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{label}</div>
+                  <div key={i} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 3px", textAlign: "center", minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color, whiteSpace: "nowrap" }}>{val}</div>
+                    <div style={{ fontSize: 7, color: "rgba(255,255,255,0.4)", marginTop: 2, lineHeight: 1.2 }}>{label}</div>
                   </div>
                 ))}
               </div>
