@@ -8451,7 +8451,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
   };
 
   return (
-    <div className="card" style={{ padding: 14 }}>
+    <div className="card" style={{ padding: 16 }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <div>
@@ -11379,7 +11379,7 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
         />
 
         {/* Calendrier en mode journal (saisie + visualisation) */}
-        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, overflow: "hidden", marginBottom: 14 }}>
+        <div style={{ marginBottom: 16 }}>
           <CalendrierPnL t={t} lang={lang}
             dailyLog={[]}
             journalMode={true}
