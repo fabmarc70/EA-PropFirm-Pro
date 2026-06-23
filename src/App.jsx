@@ -3442,7 +3442,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
       },
     ];
     return (
-      <div style={{padding:'14px 16px 18px',maxWidth:480,margin:'0 auto',minHeight:'100vh',display:'flex',flexDirection:'column'}}>
+      <div style={{padding:'14px 16px 18px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px',minHeight:'100vh',display:'flex',flexDirection:'column'}}>
         <div style={{marginBottom:16}}>
           <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.35)',textTransform:'uppercase',letterSpacing:1.5,marginBottom:3}}>{t('an_center')}</div>
           <div style={{fontSize:19,fontWeight:900,color:'#fff',letterSpacing:-0.5,lineHeight:1.15}}>{t('an_select')} <span style={{color:'#6ee7b7'}}>{t('an_your_analysis')}</span></div>
@@ -3515,7 +3515,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
   if (mode==='simulation') {
     const a=simAnalysis;
     if(!a) return (
-      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+      <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
         <ReportHeader title="Simulation Challenge" subtitle="Rapport d'évaluation" onBack={()=>setMode(null)}/>
         <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
           
@@ -3528,7 +3528,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
     const localText=a.probability>=75?`Avec un score de ${a.probability}% et un Profit Factor de ${a.profitFactor}, votre stratégie présente les caractéristiques d'une approche solide pour ce challenge. ${a.risks[0]?'Le principal risque identifié est : '+a.risks[0].detail+'.':''} ${a.probability>=75?'La stratégie semble prête pour un challenge.':'Optimisez avant de lancer.'}`:
       `Votre score de ${a.probability}% révèle ${a.probability>=55?'une stratégie viable mais perfectible':'des fragilités importantes'}. PF ${a.profitFactor}, espérance ${a.expectancyR}R. ${a.risks[0]?a.risks[0].detail+'.':''} ${a.probability>=55?'Optimisez le risque/trade avant de lancer.':'Ne lancez pas de challenge avec ces métriques.'}`;
     return (
-      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+      <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
         <ReportHeader title="Simulation Challenge" subtitle={`${a.firmName} · Probabilité de réussite`} onBack={()=>setMode(null)}/>
 
         {/* Score */}
@@ -3608,7 +3608,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
   if (mode==='journal') {
     const j=journalStats;
     if(!j) return (
-      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+      <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
         <ReportHeader title="Journal de Trading" subtitle="Analyse comportementale" onBack={()=>setMode(null)}/>
         <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
           
@@ -3622,7 +3622,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
     const localText=j.consistency>=70?`Avec ${j.totalDays} jours de trading analysés, votre score de cohérence de ${j.consistency}% reflète une discipline solide. Votre winrate journalier de ${j.dayWR.toFixed(0)}% est supérieur à la moyenne, et votre série de pertes max de ${j.maxStreakL} jours reste dans des limites acceptables.`:
       `Votre score de cohérence de ${j.consistency}% sur ${j.totalDays} jours révèle ${j.consistency>=50?'quelques irrégularités':'des lacunes importantes'}. ${j.maxStreakL>=4?`La série de ${j.maxStreakL} jours perdants consécutifs suggère du revenge trading. `:''}Un winrate journalier de ${j.dayWR.toFixed(0)}% ${j.dayWR>=50?'est correct mais perfectible':'est insuffisant pour un challenge'}. Travaillez la régularité avant de vous lancer.`;
     return (
-      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+      <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
         <ReportHeader title="Journal de Trading" subtitle={`${j.monthsTracked} mois · ${j.totalDays} jours analysés`} onBack={()=>setMode(null)}/>
 
         {/* Score cohérence */}
@@ -3685,7 +3685,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
   if (mode==='backtest') {
     const b=backtestStats;
     if(!b) return (
-      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+      <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
         <ReportHeader title="Résultats Backtest" subtitle="Audit statistique" onBack={()=>setMode(null)}/>
         <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
           
@@ -3703,7 +3703,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         ? `Avec ${b.totalTrades} trades et un Profit Factor de ${b.pf}, ce backtest présente les caractéristiques d'une stratégie ${b.robustness>=75?'statistiquement robuste':'acceptable'}. Le drawdown de ${b.maxDD}% ${b.manualDD!=null?'(saisi manuellement)':'réel'} reste ${b.maxDD<10?'dans des limites raisonnables':'à surveiller'}. ${overfit?'Attention au risque de sur-optimisation.':''}`
         : `Ce backtest de ${b.totalTrades} trades montre des fragilités. PF ${b.pf}, DD ${b.maxDD!=null?b.maxDD+'%':'inconnu'}. ${b.totalTrades<50?'Échantillon insuffisant.':''} ${overfit?'Risque de sur-optimisation.':''}`;
     return (
-      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+      <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
         <ReportHeader title="Résultats Backtest" subtitle={`${b.filename||'Backtest'} · ${b.totalTrades} trades`} onBack={()=>setMode(null)}/>
 
         {/* Score robustesse */}
@@ -3780,7 +3780,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
   if (mode === 'comparator') {
     if (!firmComparison) return (
-      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+      <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
         <ReportHeader title={t('cmp_report_title')} subtitle={t('cmp_report_sub')} onBack={()=>setMode(null)}/>
         <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
           
@@ -3792,7 +3792,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
     const tierLabel = (tier) => tier==='excellent' ? t('cmp_tier_excellent') : tier==='good' ? t('cmp_tier_good') : tier==='moderate' ? t('cmp_tier_moderate') : t('cmp_tier_poor');
     const tierColor = (tier) => tier==='excellent' ? '#6ee7b7' : tier==='good' ? '#6ee7b7' : tier==='moderate' ? '#fbbf24' : '#ef4444';
     return (
-      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+      <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
         <ReportHeader title={t('cmp_report_title')} subtitle={t('cmp_report_sub')} onBack={()=>setMode(null)}/>
 
         {/* Classement complet — toutes les Prop Firms */}
@@ -3861,7 +3861,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
   if (mode === 'benchmark') {
     if (!worldBenchmarkData) return (
-      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+      <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
         <ReportHeader title={t('bench_title')} subtitle={t('bench_subtitle')} onBack={()=>setMode(null)}/>
         <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
           
@@ -3887,7 +3887,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
     const nextLevelLabels = { top50: t('bench_top50'), top25: t('bench_top25'), top10: t('bench_top10'), top1: t('bench_top1') };
 
     return (
-      <div style={{padding:'14px 16px 100px',maxWidth:480,margin:'0 auto'}}>
+      <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
         <ReportHeader title={t('bench_title')} subtitle={t('bench_subtitle')} onBack={()=>setMode(null)}/>
 
         <div style={{fontSize:9.5,color:'rgba(255,255,255,0.35)',lineHeight:1.5,marginBottom:14,padding:'0 2px'}}>
@@ -11198,7 +11198,7 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
   });
 
   return (
-    <div style={{ fontFamily: "-apple-system, sans-serif", color: "#fff" }}>
+    <div style={{ fontFamily: "-apple-system, sans-serif", color: "#fff", marginTop: "-16px", marginLeft: "-16px", marginRight: "-16px" }}>
       {/* ── HEADER ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         <div>
@@ -11207,7 +11207,7 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
         </div>
       </div>
 
-      <div style={{ padding: "14px 16px 100px", maxWidth: 480, margin: "0 auto" }}>
+      <div style={{ padding: "14px 16px 100px" }}>
         {/* ══════════════════════════════════════════════════════════
             MES COMPTES — gestion multi-comptes prop firm (informatif,
             les stats restent toujours cumulées sur tout le journal)
