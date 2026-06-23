@@ -337,6 +337,7 @@ const I18N = {
     sim_recommended: "Recommandé : 35-50%.",
     sim_max_consec: "Max pertes consécutives EA",
     sim_lot_instrument: "Lot & Instrument",
+    journal_total_trades: "Trades",
     acc_my_accounts: "Mes comptes",
     acc_add: "Ajouter un compte",
     acc_add_title: "Nouveau compte de trading",
@@ -1019,6 +1020,7 @@ const I18N = {
     sim_recommended: "Recomendado: 35-50%.",
     sim_max_consec: "Máx pérdidas consecutivas EA",
     sim_lot_instrument: "Lote e Instrumento",
+    journal_total_trades: "Operaciones",
     acc_my_accounts: "Mis cuentas",
     acc_add: "Añadir una cuenta",
     acc_add_title: "Nueva cuenta de trading",
@@ -1703,6 +1705,7 @@ const I18N = {
     sim_recommended: "Recommended: 35-50%.",
     sim_max_consec: "Max consecutive EA losses",
     sim_lot_instrument: "Lot & Instrument",
+    journal_total_trades: "Trades",
     acc_my_accounts: "My accounts",
     acc_add: "Add an account",
     acc_add_title: "New trading account",
@@ -11182,6 +11185,7 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
   const monthPnl = daysArr.reduce((s, d) => s + (d.pnl || 0), 0);
   const winDays = daysArr.filter(d => (d.pnl || 0) > 0).length;
   const lossDays = daysArr.filter(d => (d.pnl || 0) < 0).length;
+  const totalTradesMonth = daysArr.reduce((s, d) => s + (d.wins || 0) + (d.losses || 0), 0);
   const bestDay = daysArr.length ? Math.max(...daysArr.map(d => d.pnl || 0)) : 0;
   const worstDay = daysArr.length ? Math.min(...daysArr.map(d => d.pnl || 0)) : 0;
   // ── DD max du mois : priorité aux valeurs saisies manuellement (intradayDD), sinon reconstitué depuis la courbe d'équité ──
@@ -11344,19 +11348,26 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
             <button onClick={() => shiftMonth(1)} aria-label={t("journal_next_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>›</button>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: maxIntradayDDOfMonth !== null ? "1fr 1fr 1fr 1fr" : "1fr 1fr 1fr", gap: 8 }}>
-            {[
+          {(() => {
+            const indicators = [
               [t("journal_total_pnl"), (monthPnl>=0?"+":"") + "$" + Math.abs(Math.round(monthPnl)), monthPnl>=0?"#6ee7b7":"#ef4444"],
               [t("journal_win_days"), winDays, "#6ee7b7"],
               [t("journal_loss_days"), lossDays, "#ef4444"],
+              [t("journal_total_trades"), totalTradesMonth, "#a78bfa"],
               ...(maxIntradayDDOfMonth !== null ? [[t("journal_max_dd_today"), maxIntradayDDOfMonth.toFixed(1) + "%", "#fbbf24"]] : []),
-            ].map(([label, val, color], i) => (
-              <div key={i} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color }}>{val}</div>
-                <div style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{label}</div>
+            ];
+            const cols = indicators.length >= 5 ? 3 : indicators.length;
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 8 }}>
+                {indicators.map(([label, val, color], i) => (
+                  <div key={i} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color }}>{val}</div>
+                    <div style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{label}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            );
+          })()}
         </div>
 
         {/* Courbe Équité du mois — copie de la Home (Journal réel vs Simulation) */}
