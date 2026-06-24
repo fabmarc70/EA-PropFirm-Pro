@@ -11417,14 +11417,18 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
         {journalStats && journalStats.bestDay !== undefined && (
           <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 10 }}>{t("journal_overview")}</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              <div style={{ background: "rgba(110,231,183,0.06)", borderRadius: 10, padding: "8px 10px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+              <div style={{ background: "rgba(110,231,183,0.06)", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{t("journal_best_day")}</div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>+${Math.abs(Math.round(journalStats.bestDay))}</div>
               </div>
-              <div style={{ background: "rgba(239,68,68,0.06)", borderRadius: 10, padding: "8px 10px" }}>
+              <div style={{ background: "rgba(239,68,68,0.06)", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{t("journal_worst_day")}</div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#ef4444" }}>-${Math.abs(Math.round(journalStats.worstDay))}</div>
+              </div>
+              <div style={{ background: journalStats.tradeWR >= 50 ? "rgba(110,231,183,0.06)" : "rgba(239,68,68,0.06)", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{t("dec_wr_metric")}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: journalStats.tradeWR >= 50 ? "#6ee7b7" : "#ef4444" }}>{journalStats.tradeWR.toFixed(0)}%</div>
               </div>
             </div>
           </div>
