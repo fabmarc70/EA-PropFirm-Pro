@@ -5015,8 +5015,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
       )}
 
-      {/* Spacer pour compenser le toggle fixed */}
-      <div style={{ height: "calc(env(safe-area-inset-top, 8px) + 54px)" }} />
+      {/* Spacer pour compenser le toggle fixed — uniquement quand la barre est affichée */}
+      {(tab === "challenge" || tab === "funded" || tab === "montecarlo") && (
+        <div style={{ height: "calc(env(safe-area-inset-top, 8px) + 54px)" }} />
+      )}
 
       {/* ══ CARTES CONFIG — vue simulateur uniquement (Challenge/Funded) ══ */}
       {(tab === "challenge" || tab === "funded") && (<>
