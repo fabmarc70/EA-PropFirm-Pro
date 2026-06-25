@@ -366,6 +366,7 @@ const I18N = {
     acc_archived_singular: "compte archivé",
     acc_archived_plural: "comptes archivés",
     acc_archived_title: "Comptes archivés",
+    acc_manage_title: "Compte sélectionné",
     acc_reactivate: "Réactiver",
     cal_intraday_dd_label: "DD max du jour (%)",
     cal_intraday_dd_hint: "Optionnel — si tu connais le creux le plus bas atteint",
@@ -1066,6 +1067,7 @@ const I18N = {
     acc_archived_singular: "cuenta archivada",
     acc_archived_plural: "cuentas archivadas",
     acc_archived_title: "Cuentas archivadas",
+    acc_manage_title: "Cuenta seleccionada",
     acc_reactivate: "Reactivar",
     cal_intraday_dd_label: "DD máx del día (%)",
     cal_intraday_dd_hint: "Opcional — si conoces el punto más bajo alcanzado",
@@ -1768,6 +1770,7 @@ const I18N = {
     acc_archived_singular: "archived account",
     acc_archived_plural: "archived accounts",
     acc_archived_title: "Archived accounts",
+    acc_manage_title: "Selected account",
     acc_reactivate: "Reactivate",
     cal_intraday_dd_label: "Max DD of the day (%)",
     cal_intraday_dd_hint: "Optional — if you know the lowest point reached",
@@ -11394,41 +11397,6 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
               <span style={{ fontSize: 13, lineHeight: 1 }}>+</span> {t("acc_add")}
             </button>
           </div>
-
-          {/* ── Actions sur le compte sélectionné ── */}
-          <div style={{ display: "flex", gap: 7, marginTop: 9 }}>
-            <button onClick={handleDeleteAccount} disabled={activeAccounts.length <= 1}
-              style={{
-                flex: 1, padding: "9px 6px", borderRadius: 10, cursor: activeAccounts.length <= 1 ? "default" : "pointer",
-                background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)",
-                color: activeAccounts.length <= 1 ? "rgba(239,68,68,0.3)" : "#f87171", fontSize: 11, fontWeight: 700,
-              }}>
-              {t("acc_delete")}
-            </button>
-            <button onClick={handleArchiveAccount} disabled={activeAccounts.length <= 1}
-              style={{
-                flex: 1, padding: "9px 6px", borderRadius: 10, cursor: activeAccounts.length <= 1 ? "default" : "pointer",
-                background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)",
-                color: activeAccounts.length <= 1 ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.65)", fontSize: 11, fontWeight: 700,
-              }}>
-              {t("acc_archive")}
-            </button>
-            <button onClick={() => setShowEditAccount(true)}
-              style={{
-                flex: 1, padding: "9px 6px", borderRadius: 10, cursor: "pointer",
-                background: "rgba(110,231,183,0.08)", border: "1px solid rgba(110,231,183,0.25)",
-                color: "#6ee7b7", fontSize: 11, fontWeight: 700,
-              }}>
-              {t("acc_edit")}
-            </button>
-          </div>
-
-          {archivedAccounts.length > 0 && (
-            <button onClick={() => setShowArchivedList(true)}
-              style={{ marginTop: 8, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 10.5, color: "rgba(255,255,255,0.35)", textDecoration: "underline" }}>
-              {archivedAccounts.length} {t(archivedAccounts.length > 1 ? "acc_archived_plural" : "acc_archived_singular")}
-            </button>
-          )}
         </div>
 
         {/* ══════════════════════════════════════════════════════════
@@ -11656,6 +11624,51 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
             </div>
           );
         })()}
+
+        {/* ══════════════════════════════════════════════════════════
+            GESTION DU COMPTE SÉLECTIONNÉ — Supprimer / Archiver / Modifier
+        ══════════════════════════════════════════════════════════ */}
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+            <span style={{ width: 7, height: 7, borderRadius: 4, background: selectedAccount?.color || "#6ee7b7", flexShrink: 0 }} />
+            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>
+              {t("acc_manage_title")} : <span style={{ color: "#fff" }}>{accountLabel(selectedAccount)}</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 7 }}>
+            <button onClick={handleDeleteAccount} disabled={activeAccounts.length <= 1}
+              style={{
+                flex: 1, padding: "9px 6px", borderRadius: 10, cursor: activeAccounts.length <= 1 ? "default" : "pointer",
+                background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)",
+                color: activeAccounts.length <= 1 ? "rgba(239,68,68,0.3)" : "#f87171", fontSize: 11, fontWeight: 700,
+              }}>
+              {t("acc_delete")}
+            </button>
+            <button onClick={handleArchiveAccount} disabled={activeAccounts.length <= 1}
+              style={{
+                flex: 1, padding: "9px 6px", borderRadius: 10, cursor: activeAccounts.length <= 1 ? "default" : "pointer",
+                background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)",
+                color: activeAccounts.length <= 1 ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.65)", fontSize: 11, fontWeight: 700,
+              }}>
+              {t("acc_archive")}
+            </button>
+            <button onClick={() => setShowEditAccount(true)}
+              style={{
+                flex: 1, padding: "9px 6px", borderRadius: 10, cursor: "pointer",
+                background: "rgba(110,231,183,0.08)", border: "1px solid rgba(110,231,183,0.25)",
+                color: "#6ee7b7", fontSize: 11, fontWeight: 700,
+              }}>
+              {t("acc_edit")}
+            </button>
+          </div>
+
+          {archivedAccounts.length > 0 && (
+            <button onClick={() => setShowArchivedList(true)}
+              style={{ marginTop: 10, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 10.5, color: "rgba(255,255,255,0.35)", textDecoration: "underline" }}>
+              {archivedAccounts.length} {t(archivedAccounts.length > 1 ? "acc_archived_plural" : "acc_archived_singular")}
+            </button>
+          )}
+        </div>
 
       </div>
 
