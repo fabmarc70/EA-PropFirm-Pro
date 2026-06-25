@@ -352,21 +352,6 @@ const I18N = {
     acc_main: "Compte principal",
     acc_remove_confirm: "Retirer ce compte ? Les entrées déjà saisies resteront dans le journal.",
     acc_select_for_day: "Compte pour ce jour",
-    acc_capital: "Capital du compte",
-    acc_account_type: "Type de compte",
-    acc_type_challenge: "Challenge",
-    acc_type_funded: "Funded",
-    acc_type_perso: "Personnel",
-    acc_delete: "Supprimer",
-    acc_archive: "Archiver",
-    acc_edit: "Modifier",
-    acc_save: "Enregistrer",
-    acc_edit_title: "Modifier le compte",
-    acc_delete_confirm: "Supprimer définitivement ce compte ? Toutes ses entrées de journal seront effacées. Cette action est irréversible.",
-    acc_archived_singular: "compte archivé",
-    acc_archived_plural: "comptes archivés",
-    acc_archived_title: "Comptes archivés",
-    acc_reactivate: "Réactiver",
     cal_intraday_dd_label: "DD max du jour (%)",
     cal_intraday_dd_hint: "Optionnel — si tu connais le creux le plus bas atteint",
     journal_max_dd_today: "DD max",
@@ -1052,21 +1037,6 @@ const I18N = {
     acc_main: "Cuenta principal",
     acc_remove_confirm: "¿Quitar esta cuenta? Las entradas ya registradas permanecerán en el diario.",
     acc_select_for_day: "Cuenta para este día",
-    acc_capital: "Capital de la cuenta",
-    acc_account_type: "Tipo de cuenta",
-    acc_type_challenge: "Challenge",
-    acc_type_funded: "Funded",
-    acc_type_perso: "Personal",
-    acc_delete: "Eliminar",
-    acc_archive: "Archivar",
-    acc_edit: "Editar",
-    acc_save: "Guardar",
-    acc_edit_title: "Editar cuenta",
-    acc_delete_confirm: "¿Eliminar definitivamente esta cuenta? Todas sus entradas del diario se borrarán. Esta acción es irreversible.",
-    acc_archived_singular: "cuenta archivada",
-    acc_archived_plural: "cuentas archivadas",
-    acc_archived_title: "Cuentas archivadas",
-    acc_reactivate: "Reactivar",
     cal_intraday_dd_label: "DD máx del día (%)",
     cal_intraday_dd_hint: "Opcional — si conoces el punto más bajo alcanzado",
     journal_max_dd_today: "DD máx",
@@ -1754,21 +1724,6 @@ const I18N = {
     acc_main: "Main account",
     acc_remove_confirm: "Remove this account? Already logged entries will stay in the journal.",
     acc_select_for_day: "Account for this day",
-    acc_capital: "Account capital",
-    acc_account_type: "Account type",
-    acc_type_challenge: "Challenge",
-    acc_type_funded: "Funded",
-    acc_type_perso: "Personal",
-    acc_delete: "Delete",
-    acc_archive: "Archive",
-    acc_edit: "Edit",
-    acc_save: "Save",
-    acc_edit_title: "Edit account",
-    acc_delete_confirm: "Permanently delete this account? All its journal entries will be erased. This action cannot be undone.",
-    acc_archived_singular: "archived account",
-    acc_archived_plural: "archived accounts",
-    acc_archived_title: "Archived accounts",
-    acc_reactivate: "Reactivate",
     cal_intraday_dd_label: "Max DD of the day (%)",
     cal_intraday_dd_hint: "Optional — if you know the lowest point reached",
     journal_max_dd_today: "Max DD",
@@ -8256,24 +8211,7 @@ function useJournal() {
       return next;
     });
   };
-  // Purge toutes les entrées d'un compte donné (utilisé lors d'une suppression DÉFINITIVE de compte).
-  // Une entrée sans accountId est considérée comme appartenant au compte "default" (entrées historiques pré-multi-comptes).
-  const purgeAccountEntries = (accId) => {
-    setJournal(prev => {
-      const next = {};
-      Object.entries(prev).forEach(([month, days]) => {
-        const filteredDays = {};
-        Object.entries(days || {}).forEach(([day, entry]) => {
-          const entryAcc = entry.accountId || "default";
-          if (entryAcc !== accId) filteredDays[day] = entry;
-        });
-        if (Object.keys(filteredDays).length) next[month] = filteredDays;
-      });
-      try { localStorage.setItem("eapropfirm_journal", JSON.stringify(next)); } catch (e) {}
-      return next;
-    });
-  };
-  return { journal, journalMonth, setJournalMonth, saveJournalEntry, purgeAccountEntries, monthData: journal[journalMonth] || {} };
+  return { journal, journalMonth, setJournalMonth, saveJournalEntry, monthData: journal[journalMonth] || {} };
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -8288,8 +8226,8 @@ function useJournalAccounts() {
     try {
       const r = localStorage.getItem("eapropfirm_journal_accounts");
       const parsed = r ? JSON.parse(r) : [];
-      return parsed.length ? parsed : [{ id: "default", firmKey: null, customName: null, color: "#6ee7b7", capital: null, accountType: null, archived: false }];
-    } catch (e) { return [{ id: "default", firmKey: null, customName: null, color: "#6ee7b7", capital: null, accountType: null, archived: false }]; }
+      return parsed.length ? parsed : [{ id: "default", firmKey: null, customName: null, color: "#6ee7b7" }];
+    } catch (e) { return [{ id: "default", firmKey: null, customName: null, color: "#6ee7b7" }]; }
   });
 
   const persist = (next) => {
@@ -8297,36 +8235,18 @@ function useJournalAccounts() {
     try { localStorage.setItem("eapropfirm_journal_accounts", JSON.stringify(next)); } catch (e) {}
   };
 
-  const addAccount = (firmKey, customName, capital, accountType) => {
+  const addAccount = (firmKey, customName) => {
     const id = "acc_" + Date.now();
     const palette = ["#6ee7b7", "#fbbf24", "#a78bfa", "#60a5fa", "#f97316", "#ec4899"];
     const color = palette[accounts.length % palette.length];
-    const next = [...accounts, { id, firmKey: firmKey || null, customName: customName || null, color, capital: capital || null, accountType: accountType || null, archived: false }];
+    const next = [...accounts, { id, firmKey: firmKey || null, customName: customName || null, color }];
     persist(next);
     return id;
   };
 
-  // Suppression DÉFINITIVE — efface le compte ET ses entrées de journal (gérée côté JournalScreen via purgeAccountEntries)
   const removeAccount = (id) => {
-    const activeCount = accounts.filter(a => !a.archived).length;
-    const target = accounts.find(a => a.id === id);
-    if (target && !target.archived && activeCount <= 1) return; // toujours garder au moins un compte actif
+    if (accounts.length <= 1) return; // toujours garder au moins un compte
     persist(accounts.filter(a => a.id !== id));
-  };
-
-  // Modification générique (capital, type de compte, prop firm / nom)
-  const updateAccount = (id, patch) => {
-    persist(accounts.map(a => a.id === id ? { ...a, ...patch } : a));
-  };
-
-  // Archivage doux — conserve les données, masque le compte des comptes actifs
-  const archiveAccount = (id, archived = true) => {
-    if (archived) {
-      const activeCount = accounts.filter(a => !a.archived).length;
-      const target = accounts.find(a => a.id === id);
-      if (target && !target.archived && activeCount <= 1) return; // toujours garder au moins un compte actif
-    }
-    updateAccount(id, { archived });
   };
 
   const accountLabel = (acc) => {
@@ -8336,7 +8256,7 @@ function useJournalAccounts() {
     return "Compte principal";
   };
 
-  return { accounts, addAccount, removeAccount, updateAccount, archiveAccount, accountLabel };
+  return { accounts, addAccount, removeAccount, accountLabel };
 }
 
 // Compresse une image (capture MT4/MT5) en JPEG base64 — max 900px, qualité 0.72
@@ -8365,7 +8285,7 @@ function compressImage(file, maxDim = 900, quality = 0.72) {
   });
 }
 
-function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, newsSkipDays = 0, activeDays = [1,2,3,4,5], t = (k) => k, lang = "fr", realMode = false, accounts = null, accountLabel = null, activeAccountId = null }) {
+function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, newsSkipDays = 0, activeDays = [1,2,3,4,5], t = (k) => k, lang = "fr", realMode = false, accounts = null, accountLabel = null }) {
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [editingDay, setEditingDay] = useState(null); // jour en cours d'édition (mode journal)
   const [formWins, setFormWins] = useState(0);
@@ -8630,7 +8550,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 setFormLotIncreaseAfterLoss(existing ? !!existing.lotIncreaseAfterLoss : false);
                 setFormEmotionalTrading(existing ? !!existing.emotionalTrading : false);
                 setFormIntradayDD(existing && existing.intradayDD !== undefined && existing.intradayDD !== null ? String(existing.intradayDD) : "");
-                setFormAccountId(existing && existing.accountId ? existing.accountId : (activeAccountId || (accounts && accounts.length ? accounts[0].id : null)));
+                setFormAccountId(existing && existing.accountId ? existing.accountId : (accounts && accounts.length ? accounts[0].id : null));
                 setImgDateWarn(null);
               }}
               style={{
@@ -11260,55 +11180,15 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
 }
 
 // ══════════════════════════════════════════════════════════════════
-// Filtre la structure complète du journal { mois: { jour: entry } } pour
-// ne garder que les entrées d'un compte donné. Une entrée sans accountId
-// (saisie avant l'existence du multi-comptes) est rattachée au compte
-// "default" par convention, pour ne pas perdre l'historique existant.
-// ══════════════════════════════════════════════════════════════════
-function filterJournalByAccount(journalData, accountId) {
-  const out = {};
-  Object.entries(journalData || {}).forEach(([month, days]) => {
-    const filteredDays = {};
-    Object.entries(days || {}).forEach(([day, entry]) => {
-      const entryAcc = entry.accountId || "default";
-      if (entryAcc === accountId) filteredDays[day] = entry;
-    });
-    if (Object.keys(filteredDays).length) out[month] = filteredDays;
-  });
-  return out;
-}
-
-// ══════════════════════════════════════════════════════════════════
 // NAVBAR (bas d'écran)
 // ══════════════════════════════════════════════════════════════════
 function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
-  const { journal: journalAll, journalMonth, setJournalMonth, saveJournalEntry, purgeAccountEntries, monthData: journalMonthData } = useJournal();
-  const { accounts, addAccount, removeAccount, updateAccount, archiveAccount, accountLabel } = useJournalAccounts();
+  const { journal: journalAll, journalMonth, setJournalMonth, saveJournalEntry, monthData: journalMonthData } = useJournal();
+  const { accounts, addAccount, removeAccount, accountLabel } = useJournalAccounts();
   const [showAddAccount, setShowAddAccount] = useState(false);
-  const [showEditAccount, setShowEditAccount] = useState(false);
-  const [showArchivedList, setShowArchivedList] = useState(false);
-
-  // ── Compte actif du Journal — chaque compte = une session de journal totalement indépendante ──
-  const activeAccounts = accounts.filter(a => !a.archived);
-  const archivedAccounts = accounts.filter(a => a.archived);
-  const [selectedAccountId, setSelectedAccountId] = useState(() => (activeAccounts[0] || accounts[0])?.id || "default");
-  useEffect(() => {
-    // Si le compte sélectionné a été supprimé/archivé entre deux rendus, retomber sur le premier compte actif disponible
-    if (!activeAccounts.find(a => a.id === selectedAccountId)) {
-      setSelectedAccountId((activeAccounts[0] || accounts[0])?.id || "default");
-    }
-  }, [accounts]);
-  const selectedAccount = accounts.find(a => a.id === selectedAccountId) || activeAccounts[0] || accounts[0];
-
-  // ── Données du journal filtrées sur le SEUL compte sélectionné (isolation réelle entre comptes) ──
-  const journalAllFiltered = filterJournalByAccount(journalAll, selectedAccountId);
-  const journalMonthDataFiltered = journalAllFiltered[journalMonth] || {};
-  // Capital propre au compte (si défini), sinon capital global du profil par défaut
-  const effectiveCapital = (selectedAccount && selectedAccount.capital) ? selectedAccount.capital : capital;
-
-  const journalStats = journalAnalyze(journalAllFiltered);
-  const discipline = disciplineAnalyze(journalAllFiltered);
-  const journalHeatmap = heatmapAnalyzeJournal(journalAllFiltered);
+  const journalStats = journalAnalyze(journalAll);
+  const discipline = disciplineAnalyze(journalAll);
+  const journalHeatmap = heatmapAnalyzeJournal(journalAll);
 
   const shiftMonth = (delta) => {
     const [y, m] = journalMonth.split("-").map(Number);
@@ -11316,8 +11196,8 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
     setJournalMonth(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"));
   };
 
-  // Stats rapides du mois courant (compte sélectionné uniquement)
-  const daysArr = Object.values(journalMonthDataFiltered || {});
+  // Stats rapides du mois courant
+  const daysArr = Object.values(journalMonthData || {});
   const monthPnl = daysArr.reduce((s, d) => s + (d.pnl || 0), 0);
   const winDays = daysArr.filter(d => (d.pnl || 0) > 0).length;
   const lossDays = daysArr.filter(d => (d.pnl || 0) < 0).length;
@@ -11330,20 +11210,8 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
 
   // ── Courbe Équité du mois affiché (Journal réel vs Simulation) — copie de la Home ──
   const equityData = buildMonthlyEquityChart({
-    monthKey: journalMonth, journalAll: journalAllFiltered, lastSim, capital: effectiveCapital, journalMode: true,
+    monthKey: journalMonth, journalAll, lastSim, capital, journalMode: true,
   });
-
-  // ── Actions sur le compte sélectionné ──
-  const handleDeleteAccount = () => {
-    if (!selectedAccount) return;
-    if (!confirm(t("acc_delete_confirm"))) return;
-    purgeAccountEntries(selectedAccount.id);
-    removeAccount(selectedAccount.id);
-  };
-  const handleArchiveAccount = () => {
-    if (!selectedAccount) return;
-    archiveAccount(selectedAccount.id, true);
-  };
 
   return (
     <div style={{ fontFamily: "-apple-system, sans-serif", color: "#fff", marginTop: "-16px", marginLeft: "-16px", marginRight: "-16px" }}>
@@ -11357,31 +11225,24 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
 
       <div style={{ padding: "14px 16px 100px" }}>
         {/* ══════════════════════════════════════════════════════════
-            MES COMPTES — chaque compte est une session de journal
-            totalement isolée (entrées, stats, capital indépendants)
+            MES COMPTES — gestion multi-comptes prop firm (informatif,
+            les stats restent toujours cumulées sur tout le journal)
         ══════════════════════════════════════════════════════════ */}
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 8 }}>
             {t("acc_my_accounts")}
           </div>
           <div style={{ display: "flex", gap: 7, overflowX: "auto", paddingBottom: 2, WebkitOverflowScrolling: "touch" }}>
-            {activeAccounts.map(acc => {
-              const isSelected = acc.id === selectedAccountId;
-              return (
-                <button key={acc.id}
-                  onClick={() => setSelectedAccountId(acc.id)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 5, flexShrink: 0,
-                    padding: "6px 12px", borderRadius: 100, cursor: "pointer",
-                    background: isSelected ? acc.color + "22" : "rgba(255,255,255,0.03)",
-                    border: `1.5px solid ${isSelected ? acc.color : "rgba(255,255,255,0.1)"}`,
-                    opacity: isSelected ? 1 : 0.55,
-                  }}>
-                  <span style={{ width: 6, height: 6, borderRadius: 3, background: acc.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, fontWeight: 600, color: "#fff", whiteSpace: "nowrap" }}>{accountLabel(acc)}</span>
-                </button>
-              );
-            })}
+            {accounts.map(acc => (
+              <div key={acc.id} style={{
+                display: "flex", alignItems: "center", gap: 5, flexShrink: 0,
+                padding: "6px 12px", borderRadius: 100,
+                background: acc.color + "14", border: `1px solid ${acc.color}40`,
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: 3, background: acc.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 11, fontWeight: 600, color: "#fff", whiteSpace: "nowrap" }}>{accountLabel(acc)}</span>
+              </div>
+            ))}
             <button
               onClick={() => setShowAddAccount(true)}
               style={{
@@ -11394,41 +11255,6 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
               <span style={{ fontSize: 13, lineHeight: 1 }}>+</span> {t("acc_add")}
             </button>
           </div>
-
-          {/* ── Actions sur le compte sélectionné ── */}
-          <div style={{ display: "flex", gap: 7, marginTop: 9 }}>
-            <button onClick={handleDeleteAccount} disabled={activeAccounts.length <= 1}
-              style={{
-                flex: 1, padding: "9px 6px", borderRadius: 10, cursor: activeAccounts.length <= 1 ? "default" : "pointer",
-                background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)",
-                color: activeAccounts.length <= 1 ? "rgba(239,68,68,0.3)" : "#f87171", fontSize: 11, fontWeight: 700,
-              }}>
-              {t("acc_delete")}
-            </button>
-            <button onClick={handleArchiveAccount} disabled={activeAccounts.length <= 1}
-              style={{
-                flex: 1, padding: "9px 6px", borderRadius: 10, cursor: activeAccounts.length <= 1 ? "default" : "pointer",
-                background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)",
-                color: activeAccounts.length <= 1 ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.65)", fontSize: 11, fontWeight: 700,
-              }}>
-              {t("acc_archive")}
-            </button>
-            <button onClick={() => setShowEditAccount(true)}
-              style={{
-                flex: 1, padding: "9px 6px", borderRadius: 10, cursor: "pointer",
-                background: "rgba(110,231,183,0.08)", border: "1px solid rgba(110,231,183,0.25)",
-                color: "#6ee7b7", fontSize: 11, fontWeight: 700,
-              }}>
-              {t("acc_edit")}
-            </button>
-          </div>
-
-          {archivedAccounts.length > 0 && (
-            <button onClick={() => setShowArchivedList(true)}
-              style={{ marginTop: 8, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 10.5, color: "rgba(255,255,255,0.35)", textDecoration: "underline" }}>
-              {archivedAccounts.length} {t(archivedAccounts.length > 1 ? "acc_archived_plural" : "acc_archived_singular")}
-            </button>
-          )}
         </div>
 
         {/* ══════════════════════════════════════════════════════════
@@ -11573,12 +11399,11 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
           <CalendrierPnL t={t} lang={lang}
             dailyLog={[]}
             journalMode={true}
-            journalData={journalMonthDataFiltered}
+            journalData={journalMonthData}
             onJournalSave={saveJournalEntry}
             journalMonthLabel={t("cal_click_day") + " · " + formatMonthLabel(journalMonth, lang)}
-            accounts={activeAccounts}
+            accounts={accounts}
             accountLabel={accountLabel}
-            activeAccountId={selectedAccountId}
           />
         </div>
 
@@ -11663,40 +11488,8 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
       {showAddAccount && (
         <AddAccountModal
           t={t}
-          defaultCapital={capital}
           onClose={() => setShowAddAccount(false)}
-          onCreate={(firmKey, customName, accCapital, accountType) => {
-            const newId = addAccount(firmKey, customName, accCapital, accountType);
-            setSelectedAccountId(newId);
-            setShowAddAccount(false);
-          }}
-        />
-      )}
-
-      {/* ── Modal Modifier le compte sélectionné (capital / type / propfirm) ── */}
-      {showEditAccount && selectedAccount && (
-        <EditAccountModal
-          t={t}
-          account={selectedAccount}
-          defaultCapital={capital}
-          onClose={() => setShowEditAccount(false)}
-          onSave={(patch) => { updateAccount(selectedAccount.id, patch); setShowEditAccount(false); }}
-        />
-      )}
-
-      {/* ── Liste des comptes archivés (réactiver ou supprimer définitivement) ── */}
-      {showArchivedList && (
-        <ArchivedAccountsModal
-          t={t}
-          accounts={archivedAccounts}
-          accountLabel={accountLabel}
-          onClose={() => setShowArchivedList(false)}
-          onRestore={(id) => archiveAccount(id, false)}
-          onDeletePermanently={(id) => {
-            if (!confirm(t("acc_delete_confirm"))) return;
-            purgeAccountEntries(id);
-            removeAccount(id);
-          }}
+          onCreate={(firmKey, customName) => { addAccount(firmKey, customName); setShowAddAccount(false); }}
         />
       )}
     </div>
@@ -11706,17 +11499,10 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
 // ══════════════════════════════════════════════════════════════════
 // Modal de création d'un nouveau compte de trading (firme existante OU nom libre)
 // ══════════════════════════════════════════════════════════════════
-function AddAccountModal({ t, onClose, onCreate, defaultCapital = 25000 }) {
+function AddAccountModal({ t, onClose, onCreate }) {
   const [selectedFirm, setSelectedFirm] = useState("");
   const [customName, setCustomName] = useState("");
-  const [capitalInput, setCapitalInput] = useState(String(defaultCapital || ""));
-  const [accountType, setAccountType] = useState(null);
   const firmList = Object.entries(PROP_FIRMS).map(([key, f]) => ({ key, name: f.name, color: f.color }));
-  const typeOptions = [
-    { key: "challenge", label: t("acc_type_challenge") },
-    { key: "funded", label: t("acc_type_funded") },
-    { key: "perso", label: t("acc_type_perso") },
-  ];
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px", zIndex: 200 }} onClick={onClose}>
@@ -11765,52 +11551,16 @@ function AddAccountModal({ t, onClose, onCreate, defaultCapital = 25000 }) {
             width: "100%", height: 46, background: "rgba(255,255,255,0.04)",
             border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12,
             padding: "0 14px", color: "#fff", fontSize: 14, outline: "none",
-            boxSizing: "border-box", marginBottom: 18,
+            boxSizing: "border-box", marginBottom: 22,
           }}
         />
-
-        <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
-          {t("acc_capital")}
-        </div>
-        <input
-          type="number"
-          inputMode="decimal"
-          value={capitalInput}
-          onChange={e => setCapitalInput(e.target.value)}
-          placeholder="25000"
-          style={{
-            width: "100%", height: 46, background: "rgba(255,255,255,0.04)",
-            border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12,
-            padding: "0 14px", color: "#fff", fontSize: 14, outline: "none",
-            boxSizing: "border-box", marginBottom: 18,
-          }}
-        />
-
-        <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
-          {t("acc_account_type")}
-        </div>
-        <div style={{ display: "flex", gap: 7, marginBottom: 22 }}>
-          {typeOptions.map(opt => (
-            <button key={opt.key}
-              onClick={() => setAccountType(accountType === opt.key ? null : opt.key)}
-              style={{
-                flex: 1, padding: "9px 6px", borderRadius: 10, cursor: "pointer",
-                background: accountType === opt.key ? "#6ee7b722" : "rgba(255,255,255,0.04)",
-                border: `1px solid ${accountType === opt.key ? "#6ee7b7" : "rgba(255,255,255,0.1)"}`,
-                color: accountType === opt.key ? "#6ee7b7" : "rgba(255,255,255,0.6)",
-                fontSize: 11.5, fontWeight: 600,
-              }}>
-              {opt.label}
-            </button>
-          ))}
-        </div>
 
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={onClose} style={{ flex: 1, padding: "13px", borderRadius: 13, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
             {t("acc_cancel")}
           </button>
           <button
-            onClick={() => { if (selectedFirm || customName.trim()) onCreate(selectedFirm || null, customName.trim() || null, parseFloat(capitalInput) || null, accountType); }}
+            onClick={() => { if (selectedFirm || customName.trim()) onCreate(selectedFirm || null, customName.trim() || null); }}
             disabled={!selectedFirm && !customName.trim()}
             style={{
               flex: 1, padding: "13px", borderRadius: 13, border: "none",
@@ -11821,165 +11571,6 @@ function AddAccountModal({ t, onClose, onCreate, defaultCapital = 25000 }) {
             {t("acc_create")}
           </button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════
-// Modal de modification d'un compte existant — capital, type de
-// compte, prop firm / nom. Pré-rempli avec les valeurs actuelles.
-// ══════════════════════════════════════════════════════════════════
-function EditAccountModal({ t, account, onClose, onSave, defaultCapital = 25000 }) {
-  const [selectedFirm, setSelectedFirm] = useState(account.firmKey || "");
-  const [customName, setCustomName] = useState(account.customName || "");
-  const [capitalInput, setCapitalInput] = useState(String(account.capital || defaultCapital || ""));
-  const [accountType, setAccountType] = useState(account.accountType || null);
-  const firmList = Object.entries(PROP_FIRMS).map(([key, f]) => ({ key, name: f.name, color: f.color }));
-  const typeOptions = [
-    { key: "challenge", label: t("acc_type_challenge") },
-    { key: "funded", label: t("acc_type_funded") },
-    { key: "perso", label: t("acc_type_perso") },
-  ];
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px", zIndex: 200 }} onClick={onClose}>
-      <div style={{ width: "100%", maxWidth: 440, maxHeight: "85vh", background: "#0d1117", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, padding: "24px 20px", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-        <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 16 }}>{t("acc_edit_title")}</div>
-
-        <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
-          {t("acc_choose_firm")}
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 18 }}>
-          {firmList.map(f => (
-            <button
-              key={f.key}
-              onClick={() => { setSelectedFirm(f.key); setCustomName(""); }}
-              style={{
-                padding: "8px 13px", borderRadius: 100, cursor: "pointer",
-                background: selectedFirm === f.key ? f.color + "22" : "rgba(255,255,255,0.04)",
-                border: `1px solid ${selectedFirm === f.key ? f.color : "rgba(255,255,255,0.1)"}`,
-                color: selectedFirm === f.key ? f.color : "rgba(255,255,255,0.6)",
-                fontSize: 12, fontWeight: 600,
-              }}>
-              {f.name}
-            </button>
-          ))}
-          <button
-            onClick={() => setSelectedFirm("")}
-            style={{
-              padding: "8px 13px", borderRadius: 100, cursor: "pointer",
-              background: !selectedFirm && !customName ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)",
-              fontSize: 12, fontWeight: 600,
-            }}>
-            {t("acc_none_firm")}
-          </button>
-        </div>
-
-        <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
-          {t("acc_or_custom")}
-        </div>
-        <input
-          type="text"
-          value={customName}
-          onChange={e => { setCustomName(e.target.value); if (e.target.value) setSelectedFirm(""); }}
-          placeholder={t("acc_custom_placeholder")}
-          style={{
-            width: "100%", height: 46, background: "rgba(255,255,255,0.04)",
-            border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12,
-            padding: "0 14px", color: "#fff", fontSize: 14, outline: "none",
-            boxSizing: "border-box", marginBottom: 18,
-          }}
-        />
-
-        <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
-          {t("acc_capital")}
-        </div>
-        <input
-          type="number"
-          inputMode="decimal"
-          value={capitalInput}
-          onChange={e => setCapitalInput(e.target.value)}
-          placeholder="25000"
-          style={{
-            width: "100%", height: 46, background: "rgba(255,255,255,0.04)",
-            border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12,
-            padding: "0 14px", color: "#fff", fontSize: 14, outline: "none",
-            boxSizing: "border-box", marginBottom: 18,
-          }}
-        />
-
-        <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
-          {t("acc_account_type")}
-        </div>
-        <div style={{ display: "flex", gap: 7, marginBottom: 22 }}>
-          {typeOptions.map(opt => (
-            <button key={opt.key}
-              onClick={() => setAccountType(accountType === opt.key ? null : opt.key)}
-              style={{
-                flex: 1, padding: "9px 6px", borderRadius: 10, cursor: "pointer",
-                background: accountType === opt.key ? "#6ee7b722" : "rgba(255,255,255,0.04)",
-                border: `1px solid ${accountType === opt.key ? "#6ee7b7" : "rgba(255,255,255,0.1)"}`,
-                color: accountType === opt.key ? "#6ee7b7" : "rgba(255,255,255,0.6)",
-                fontSize: 11.5, fontWeight: 600,
-              }}>
-              {opt.label}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "13px", borderRadius: 13, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-            {t("acc_cancel")}
-          </button>
-          <button
-            onClick={() => onSave({
-              firmKey: selectedFirm || null,
-              customName: customName.trim() || null,
-              capital: parseFloat(capitalInput) || null,
-              accountType,
-            })}
-            style={{
-              flex: 1, padding: "13px", borderRadius: 13, border: "none",
-              background: "linear-gradient(135deg,#6ee7b7,#34d399)",
-              color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer",
-            }}>
-            {t("acc_save")}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════
-// Modal listant les comptes archivés — réactiver ou supprimer définitivement
-// ══════════════════════════════════════════════════════════════════
-function ArchivedAccountsModal({ t, accounts, accountLabel, onClose, onRestore, onDeletePermanently }) {
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px", zIndex: 200 }} onClick={onClose}>
-      <div style={{ width: "100%", maxWidth: 440, maxHeight: "85vh", background: "#0d1117", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, padding: "24px 20px", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-        <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 16 }}>{t("acc_archived_title")}</div>
-        {accounts.map(acc => (
-          <div key={acc.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <span style={{ width: 7, height: 7, borderRadius: 4, background: acc.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{accountLabel(acc)}</span>
-            </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={() => onRestore(acc.id)} style={{ padding: "6px 10px", borderRadius: 8, background: "rgba(110,231,183,0.1)", border: "1px solid rgba(110,231,183,0.3)", color: "#6ee7b7", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                {t("acc_reactivate")}
-              </button>
-              <button onClick={() => onDeletePermanently(acc.id)} style={{ padding: "6px 10px", borderRadius: 8, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                {t("acc_delete")}
-              </button>
-            </div>
-          </div>
-        ))}
-        <button onClick={onClose} style={{ width: "100%", marginTop: 18, padding: "13px", borderRadius: 13, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-          {t("acc_cancel")}
-        </button>
       </div>
     </div>
   );
