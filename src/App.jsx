@@ -10649,11 +10649,13 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
 
       {hasData && (<>
 
-      {/* ── SOLDE DU COMPTE — dynamique : compte principal du Journal si mode Journal actif, sinon simulation ── */}
+      {/* ── SOLDE DU COMPTE — dynamique : compte principal du Journal si mode Journal actif, sinon Mois 1 de la simulation (même scope que le Calendrier PnL ci-dessous) ── */}
       {(() => {
-        const simSeriesRaw = (ls.equityCurve || []).map(d => d.v).filter(v => v !== undefined && v !== null);
-        const simSeries = simSeriesRaw.length ? simSeriesRaw.map((v, i) => ({ x: i, y: v })) : [{ x: 0, y: cap }];
-        const simBalance = simSeriesRaw.length ? simSeriesRaw[simSeriesRaw.length - 1] : cap;
+        const simMonth1Sorted = [...simMonth1Days].sort((a, b) => a.dayOfMonth - b.dayOfMonth);
+        const simSeries = simMonth1Sorted.length
+          ? [{ x: 0, y: cap }, ...simMonth1Sorted.map((d, i) => ({ x: i + 1, y: d.equity }))]
+          : [{ x: 0, y: cap }];
+        const simBalance = simMonth1Sorted.length ? simMonth1Sorted[simMonth1Sorted.length - 1].equity : cap;
         const simAllTimePnl = simBalance - cap;
         const simChangePct = cap ? (simAllTimePnl / cap) * 100 : 0;
 
@@ -10666,7 +10668,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         const dPnl = journalMode ? principalData.allTimePnl : simAllTimePnl;
         const dPct = journalMode ? principalData.changePct : simChangePct;
         const dSeries = journalMode ? principalData.series : simSeries;
-        const dLabel = journalMode ? journalAccountLabel(principalAccount) : (firm.name + (fm?.name ? " · " + fm.name : ""));
+        const dLabel = journalMode ? journalAccountLabel(principalAccount) : (firm.name + (fm?.name ? " · " + fm.name : "") + " · Mois 1");
 
         return (
           <div style={{
