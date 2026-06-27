@@ -7073,7 +7073,8 @@ function HeatmapReport({ heat, t }) {
 
 function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTargetPct, model, finalRR, tradesPerDay, firm, effectiveRiskAmount, t = (k) => k, lang = "fr" }) {
   // ── Journal de trading (partagé avec l'accueil via useJournal) ──
-  const { journalMonth: jMonth, setJournalMonth: setJMonth, saveJournalEntry: saveJEntry, monthData: jMonthData } = useJournal();
+  const { journal: jAll, journalMonth: jMonth, setJournalMonth: setJMonth, saveJournalEntry: saveJEntry } = useJournal();
+  const jMonthData = filterJournalByAccount(jAll, "default")[jMonth] || {};
   const [showJournal, setShowJournal] = useState(false);
   const loadTrades = () => {
     try {
@@ -8246,25 +8247,74 @@ function formatMonthLabel(monthKey, lang = "fr") {
   return `${list[m-1]} ${y}`;
 }
 
+// ══════════════════════════════════════════════════════════════════
+// Migre l'ancien format de stockage { mois: { jour: entry } } vers le
+// nouveau { mois: { jour: { accountId: entry } } }, qui permet à
+// CHAQUE compte d'avoir sa propre entrée pour un même jour. L'ancien
+// format ne pouvait stocker qu'UNE SEULE entrée par jour, partagée
+// entre tous les comptes — d'où le bug où saisir sur un compte
+// effaçait les données d'un autre compte au même jour.
+// Une entrée détectée par la présence d'un champ .pnl au niveau du
+// jour est considérée comme l'ancien format et rattachée au compte
+// qu'elle référence (entry.accountId), ou "default" sinon.
+// ══════════════════════════════════════════════════════════════════
+function migrateJournalToMultiAccount(rawJournal) {
+  const out = {};
+  Object.entries(rawJournal || {}).forEach(([month, days]) => {
+    const newDays = {};
+    Object.entries(days || {}).forEach(([day, dayData]) => {
+      if (!dayData) return;
+      if (dayData.pnl !== undefined) {
+        // Ancien format : dayData est l'entrée elle-même
+        const accId = dayData.accountId || "default";
+        const cleanEntry = { ...dayData };
+        delete cleanEntry.accountId;
+        newDays[day] = { [accId]: cleanEntry };
+      } else {
+        // Déjà au nouveau format
+        newDays[day] = dayData;
+      }
+    });
+    if (Object.keys(newDays).length) out[month] = newDays;
+  });
+  return out;
+}
+
 function useJournal() {
   const [journalMonth, setJournalMonth] = useState(() => {
     const now = new Date();
     return now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
   });
   const [journal, setJournal] = useState(() => {
-    try { const r = localStorage.getItem("eapropfirm_journal"); return r ? JSON.parse(r) : {}; }
+    try {
+      const r = localStorage.getItem("eapropfirm_journal");
+      const parsed = r ? JSON.parse(r) : {};
+      const migrated = migrateJournalToMultiAccount(parsed);
+      // Persiste immédiatement le résultat migré pour que toutes les futures lectures soient cohérentes
+      try { localStorage.setItem("eapropfirm_journal", JSON.stringify(migrated)); } catch (e) {}
+      return migrated;
+    }
     catch (e) { return {}; }
   });
-  const saveJournalEntry = (day, entry) => {
+  // accountId : compte auquel rattacher cette entrée. "default" si non précisé
+  // (cas des écrans qui n'ont pas encore de sélecteur de compte, ex. mini-journal de Mes Trades).
+  const saveJournalEntry = (day, entry, accountId = "default") => {
     setJournal(prev => {
       const next = { ...prev };
-      if (!next[journalMonth]) next[journalMonth] = {};
-      else next[journalMonth] = { ...next[journalMonth] };
+      next[journalMonth] = { ...(next[journalMonth] || {}) };
+      const dayKey = String(day);
+      const dayAccounts = { ...(next[journalMonth][dayKey] || {}) };
       if (entry === null) {
-        delete next[journalMonth][String(day)];
+        delete dayAccounts[accountId];
       } else {
-        next[journalMonth][String(day)] = entry;
+        dayAccounts[accountId] = entry;
       }
+      if (Object.keys(dayAccounts).length) {
+        next[journalMonth][dayKey] = dayAccounts;
+      } else {
+        delete next[journalMonth][dayKey];
+      }
+      if (!Object.keys(next[journalMonth]).length) delete next[journalMonth];
       try {
         localStorage.setItem("eapropfirm_journal", JSON.stringify(next));
       } catch (e) {
@@ -8275,16 +8325,17 @@ function useJournal() {
       return next;
     });
   };
-  // Purge toutes les entrées d'un compte donné (utilisé lors d'une suppression DÉFINITIVE de compte).
-  // Une entrée sans accountId est considérée comme appartenant au compte "default" (entrées historiques pré-multi-comptes).
+  // Purge toutes les entrées d'un compte donné (utilisé lors d'une suppression DÉFINITIVE de compte) —
+  // ne touche QUE ce compte, les autres comptes gardent leurs entrées sur les mêmes jours.
   const purgeAccountEntries = (accId) => {
     setJournal(prev => {
       const next = {};
       Object.entries(prev).forEach(([month, days]) => {
         const filteredDays = {};
-        Object.entries(days || {}).forEach(([day, entry]) => {
-          const entryAcc = entry.accountId || "default";
-          if (entryAcc !== accId) filteredDays[day] = entry;
+        Object.entries(days || {}).forEach(([day, dayAccounts]) => {
+          const remaining = { ...dayAccounts };
+          delete remaining[accId];
+          if (Object.keys(remaining).length) filteredDays[day] = remaining;
         });
         if (Object.keys(filteredDays).length) next[month] = filteredDays;
       });
@@ -8649,7 +8700,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 setFormLotIncreaseAfterLoss(existing ? !!existing.lotIncreaseAfterLoss : false);
                 setFormEmotionalTrading(existing ? !!existing.emotionalTrading : false);
                 setFormIntradayDD(existing && existing.intradayDD !== undefined && existing.intradayDD !== null ? String(existing.intradayDD) : "");
-                setFormAccountId(existing && existing.accountId ? existing.accountId : (activeAccountId || (accounts && accounts.length ? accounts[0].id : null)));
+                setFormAccountId(activeAccountId || (accounts && accounts.length ? accounts[0].id : "default"));
                 setImgDateWarn(null);
               }}
               style={{
@@ -8747,7 +8798,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 </div>
                 {journalData[String(editingDay)] && (
                   <button
-                    onClick={() => { if (onJournalSave) onJournalSave(editingDay, null); setEditingDay(null); }}
+                    onClick={() => { if (onJournalSave) onJournalSave(editingDay, null, formAccountId || "default"); setEditingDay(null); }}
                     style={{ padding: "6px 11px", borderRadius: 9, background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 11, fontWeight: 700, border: "1px solid rgba(239,68,68,0.18)", cursor: "pointer" }}>
                     Effacer
                   </button>
@@ -8855,30 +8906,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>{t("cal_intraday_dd_hint")}</div>
               </div>
 
-              {/* ── Compte de trading associé à ce jour (uniquement si plus d'un compte existe) ── */}
-              {accounts && accounts.length > 1 && (
-                <div style={{ marginTop: 10 }}>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 6 }}>
-                    {t("acc_select_for_day")}
-                  </div>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {accounts.map(acc => (
-                      <button
-                        key={acc.id}
-                        onClick={() => setFormAccountId(acc.id)}
-                        style={{
-                          padding: "7px 12px", borderRadius: 100, cursor: "pointer",
-                          background: formAccountId === acc.id ? acc.color + "22" : "rgba(255,255,255,0.04)",
-                          border: `1px solid ${formAccountId === acc.id ? acc.color : "rgba(255,255,255,0.1)"}`,
-                          color: formAccountId === acc.id ? acc.color : "rgba(255,255,255,0.55)",
-                          fontSize: 11.5, fontWeight: 600,
-                        }}>
-                        {accountLabel ? accountLabel(acc) : acc.id}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Compte de trading associé à ce jour : déterminé automatiquement par le compte actif de la page (plus de sélecteur manuel ici, pour éviter qu'une saisie parte vers un autre compte que celui affiché) */}
 
               {/* ── Coach de Discipline : signaux comportementaux du jour ── */}
               <div style={{ marginTop: 4 }}>
@@ -8993,8 +9021,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                     lotIncreaseAfterLoss: formLotIncreaseAfterLoss, emotionalTrading: formEmotionalTrading };
                   if (formImages.length > 0) entry.images = formImages;
                   if (formIntradayDD !== "" && !isNaN(parseFloat(formIntradayDD))) entry.intradayDD = Math.abs(parseFloat(formIntradayDD));
-                  if (formAccountId) entry.accountId = formAccountId;
-                  if (onJournalSave) onJournalSave(editingDay, entry);
+                  if (onJournalSave) onJournalSave(editingDay, entry, formAccountId || "default");
                   setEditingDay(null);
                 }}
                 style={{ flex: 2, padding: "13px", borderRadius: 12, background: "linear-gradient(135deg,#6ee7b7,#34d399)", color: "#000", fontSize: 14, fontWeight: 800, border: "none", cursor: "pointer", boxShadow: "0 3px 12px rgba(110,231,183,0.2)" }}>
@@ -10442,15 +10469,16 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
   const ls = lastSim || {};
   const cap = ls.capital || profile.capital || 25000;
 
-  // ── Courbe equity journal : cumul mensuel depuis le capital de référence ──
+  // ── Courbe equity journal : cumul mensuel depuis le capital de référence (compte sélectionné uniquement) ──
   // DOIT être après cap — utilise cap comme point de départ
+  const journalAllForSelectedAccount = filterJournalByAccount(journalAll, dashSelectedAccountId);
   const journalEquityCurve = (() => {
-    if (!journalAll || Object.keys(journalAll).length === 0) return null;
-    const sortedMonths = Object.keys(journalAll).sort();
+    if (!journalAllForSelectedAccount || Object.keys(journalAllForSelectedAccount).length === 0) return null;
+    const sortedMonths = Object.keys(journalAllForSelectedAccount).sort();
     if (sortedMonths.length === 0) return null;
     let equity = cap;
     return sortedMonths.map((monthKey, idx) => {
-      const days = journalAll[monthKey] || {};
+      const days = journalAllForSelectedAccount[monthKey] || {};
       const monthPnl = Object.values(days).reduce((sum, d) => sum + (d.pnl || 0), 0);
       equity += monthPnl;
       return { journalMonthIdx: idx + 1, journalEquity: Math.round(equity) };
@@ -10467,8 +10495,8 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
   const simDailyLog = ls.funded?.dailyLog || [];
   const simMonth1Days = simDailyLog.filter(d => d.month === 1); // M1
 
-  // Source journal : mois courant uniquement
-  const journalCurrentMonth = journalAll?.[currentMonthKey] || {};
+  // Source journal : mois courant, compte sélectionné uniquement
+  const journalCurrentMonth = journalAllForSelectedAccount[currentMonthKey] || {};
   const journalCurrentDays = Object.entries(journalCurrentMonth)
     .map(([day, data]) => ({ day: parseInt(day), pnl: data?.pnl || 0, wins: data?.wins || 0, losses: data?.losses || 0 }))
     .sort((a, b) => a.day - b.day);
@@ -11371,18 +11399,34 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
 }
 
 // ══════════════════════════════════════════════════════════════════
-// Filtre la structure complète du journal { mois: { jour: entry } } pour
-// ne garder que les entrées d'un compte donné. Une entrée sans accountId
-// (saisie avant l'existence du multi-comptes) est rattachée au compte
-// "default" par convention, pour ne pas perdre l'historique existant.
+// Filtre la structure du journal pour ne garder que les entrées d'un
+// compte donné, et retourne la vue "plate" { mois: { jour: entry } }
+// attendue par CalendrierPnL/journalAnalyze/etc.
+//
+// Stockage réel (depuis le fix du 26/06) : { mois: { jour: { accountId: entry } } }
+// — chaque jour peut contenir une entrée DISTINCTE par compte, pour
+// éviter qu'un compte écrase les données d'un autre au même jour.
+//
+// Rétro-compatibilité : si une entrée de jour est encore à l'ANCIEN
+// format (mois: { jour: entry } directement, détecté par la présence
+// d'un champ .pnl au niveau du jour), elle est traitée comme une
+// entrée unique du compte "default".
 // ══════════════════════════════════════════════════════════════════
 function filterJournalByAccount(journalData, accountId) {
   const out = {};
   Object.entries(journalData || {}).forEach(([month, days]) => {
     const filteredDays = {};
-    Object.entries(days || {}).forEach(([day, entry]) => {
-      const entryAcc = entry.accountId || "default";
-      if (entryAcc === accountId) filteredDays[day] = entry;
+    Object.entries(days || {}).forEach(([day, dayData]) => {
+      if (!dayData) return;
+      if (dayData.pnl !== undefined) {
+        // Ancien format : dayData EST l'entrée (jamais migré, cas limite)
+        const entryAcc = dayData.accountId || "default";
+        if (entryAcc === accountId) filteredDays[day] = dayData;
+      } else {
+        // Nouveau format : dayData = { accountId: entry, ... }
+        const entry = dayData[accountId];
+        if (entry) filteredDays[day] = entry;
+      }
     });
     if (Object.keys(filteredDays).length) out[month] = filteredDays;
   });
