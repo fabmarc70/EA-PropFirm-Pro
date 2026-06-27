@@ -11674,47 +11674,6 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
         </div>
 
         {/* ══════════════════════════════════════════════════════════
-            CALENDRIER ÉCONOMIQUE INTELLIGENT
-            NFP/CPI/FOMC/Taux/PMI/PIB → prochains événements critiques
-        ══════════════════════════════════════════════════════════ */}
-        {(() => {
-          const ASSET_LIST = ["XAUUSD", "GBPUSD", "EURUSD", "US30", "NASDAQ"];
-          const upcoming = generateUpcomingEconEvents(new Date(), 5);
-          const now = new Date();
-          const fmtEventDelay = (date) => {
-            const diffH = (date - now) / 3600000;
-            if (diffH < 24) return t("econ_today");
-            return `${t("econ_in")} ${Math.floor(diffH / 24)}${t("econ_days")}`;
-          };
-          return (
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
-              <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>{t("econ_title")}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("econ_subtitle")}</div>
-              </div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>{t("econ_upcoming_title")}</div>
-              <div>
-                {upcoming.map((ev, i) => {
-                  const impacts = ECON_ASSET_IMPACT[ev.type] || {};
-                  const highImpactAssets = ASSET_LIST.filter(a => impacts[a] === "high");
-                  return (
-                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: i < upcoming.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
-                      <div>
-                        <div style={{ fontSize: 11.5, fontWeight: 700, color: "#fff" }}>{t('econ_' + ev.type.toLowerCase())}</div>
-                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
-                          {highImpactAssets.length > 0 ? `${t("econ_assets_impacted")}: ${highImpactAssets.join(", ")}` : ""}
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24", whiteSpace: "nowrap" }}>{fmtEventDelay(ev.date)}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* ══════════════════════════════════════════════════════════
             GESTION DU COMPTE SÉLECTIONNÉ — Supprimer / Archiver / Modifier
         ══════════════════════════════════════════════════════════ */}
         <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
