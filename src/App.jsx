@@ -10378,6 +10378,9 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
     catch (e) { return false; }
   });
   const { journal: journalAll, journalMonth, setJournalMonth, saveJournalEntry, monthData: journalMonthData } = useJournal();
+  const { accounts: journalAccounts, accountLabel: journalAccountLabel } = useJournalAccounts();
+  const principalAccount = journalAccounts.find(a => a.id === "default") || journalAccounts[0];
+  const principalCapital = (principalAccount && principalAccount.capital) ? principalAccount.capital : (profile.capital || 25000);
 
 
   // ── Notifications cloche ──
@@ -10646,43 +10649,86 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
 
       {hasData && (<>
 
-      {/* ── SIMULATION EN COURS ── */}
-      <div style={{marginBottom:"14px",background:"linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))",border:"1px solid rgba(255,255,255,0.09)",borderRadius:20,padding:16}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-          <div>
-            <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.3)",textTransform:"uppercase",letterSpacing: -0.2,marginBottom:4}}>{t("sim_my_simulation")}</div>
-            <div style={{fontSize:22,fontWeight:700,color:"#FFFFFF",fontFamily:"-apple-system, sans-serif",lineHeight:1}}>{firm.name}</div>
-            <div style={{fontSize:12,color:"rgba(255,255,255,0.4)",marginTop:2}}>{fm?.name}</div>
-          </div>
-          <div style={{textAlign:"right"}}>
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.3)",marginBottom:2}}>Capital</div>
-            <div style={{fontSize:22,fontWeight:900}}>{fmtMoney(cap)}</div>
-          </div>
-        </div>
-        {/* Barre progression */}
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-          <div style={{fontSize:11,color:"rgba(255,255,255,0.4)"}}>Progression globale</div>
-          <div style={{fontSize:13,fontWeight:700,color:"#6ee7b7"}}>{progression}%</div>
-        </div>
-        <div style={{height:6,background:"rgba(255,255,255,0.08)",borderRadius:3,marginBottom:14,overflow:"hidden"}}>
-          <div style={{height:"100%",width:progression+"%",background:"linear-gradient(90deg,#8B6010,#6ee7b7)",borderRadius:3,transition:"width .6s"}}/>
-        </div>
-        {/* 4 stat boxes */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6}}>
-          {[
-            {l:t("mt_obj_phase1"),v:phase1Target.toFixed(0)+"%",sub:"+"+phase1Pct+"% atteint",vc:"#6ee7b7"},
-            {l:"DD journalier",v:dailyDDLimit+"%",sub:ddDayPct+"% utilisé",vc:"#fbbf24"},
-            {l:"DD total",v:totalDDLimit+"%",sub:ddTotPct+"% utilisé",vc:"#f87171"},
-            {l:"Profit split",v:splitStart+"-"+splitMax+"%",sub:ls.allPassed?"Atteint":"Non atteint",vc:"#FFFFFF"},
-          ].map((s,i)=>(
-            <div key={i} style={{background:"rgba(255,255,255,0.05)",borderRadius:12,padding:"8px 6px",textAlign:"center"}}>
-              <div style={{fontSize:8,color:"rgba(255,255,255,0.35)",marginBottom:3,lineHeight:1.2}}>{s.l}</div>
-              <div style={{fontSize:15,fontWeight:700,color:s.vc}}>{s.v}</div>
-              <div style={{fontSize:8,color:"rgba(255,255,255,0.3)",marginTop:2}}>{s.sub}</div>
+      {/* ── SOLDE DU COMPTE — dynamique : compte principal du Journal si mode Journal actif, sinon simulation ── */}
+      {(() => {
+        const simSeriesRaw = (ls.equityCurve || []).map(d => d.v).filter(v => v !== undefined && v !== null);
+        const simSeries = simSeriesRaw.length ? simSeriesRaw.map((v, i) => ({ x: i, y: v })) : [{ x: 0, y: cap }];
+        const simBalance = simSeriesRaw.length ? simSeriesRaw[simSeriesRaw.length - 1] : cap;
+        const simAllTimePnl = simBalance - cap;
+        const simChangePct = cap ? (simAllTimePnl / cap) * 100 : 0;
+
+        const principalData = journalMode
+          ? computeAccountBalanceSeries(journalAll, principalAccount?.id || "default", principalCapital)
+          : null;
+
+        const dCapital = journalMode ? principalCapital : cap;
+        const dBalance = journalMode ? principalData.balance : simBalance;
+        const dPnl = journalMode ? principalData.allTimePnl : simAllTimePnl;
+        const dPct = journalMode ? principalData.changePct : simChangePct;
+        const dSeries = journalMode ? principalData.series : simSeries;
+        const dLabel = journalMode ? journalAccountLabel(principalAccount) : (firm.name + (fm?.name ? " · " + fm.name : ""));
+
+        return (
+          <div style={{
+            marginBottom: "14px",
+            background: "linear-gradient(135deg, rgba(110,231,183,0.09), rgba(110,231,183,0.015))",
+            border: "1px solid rgba(110,231,183,0.2)", borderRadius: 20, padding: "18px 18px 8px",
+            position: "relative", overflow: "hidden",
+          }}>
+            <style>{`@keyframes eapfp-livepulse { 0% { box-shadow: 0 0 0 0 rgba(110,231,183,0.55); } 70% { box-shadow: 0 0 0 5px rgba(110,231,183,0); } 100% { box-shadow: 0 0 0 0 rgba(110,231,183,0); } }`}</style>
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 0.7 }}>
+                {journalMode ? t("acc_balance_title") : t("sim_my_simulation")}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <span style={{
+                  width: 6, height: 6, borderRadius: 3, background: "#6ee7b7",
+                  animation: "eapfp-livepulse 1.8s ease-out infinite",
+                }} />
+                <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(110,231,183,0.7)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  {t("acc_live")}
+                </span>
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>{dLabel}</div>
+
+            <div style={{ fontSize: 30, fontWeight: 800, color: "#fff", letterSpacing: -0.5, lineHeight: 1 }}>
+              {fmt(dBalance)}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 7, flexWrap: "wrap" }}>
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 8px", borderRadius: 100,
+                background: dPnl >= 0 ? "rgba(110,231,183,0.12)" : "rgba(239,68,68,0.12)",
+                color: dPnl >= 0 ? "#6ee7b7" : "#ef4444", fontSize: 11, fontWeight: 700,
+              }}>
+                <span>{dPnl >= 0 ? "▲" : "▼"}</span>
+                <span>{dPnl >= 0 ? "+" : ""}{fmt(dPnl)} ({dPnl >= 0 ? "+" : ""}{dPct.toFixed(1)}%)</span>
+              </div>
+              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)" }}>
+                {t("acc_initial_capital")} {fmt(dCapital)}
+              </div>
+            </div>
+
+            {dSeries.length > 2 && (
+              <div style={{ height: 46, marginTop: 10, marginLeft: -18, marginRight: -18 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={dSeries} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="eapfp-dash-balance-grad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={dPnl >= 0 ? "#6ee7b7" : "#ef4444"} stopOpacity={0.35} />
+                        <stop offset="100%" stopColor={dPnl >= 0 ? "#6ee7b7" : "#ef4444"} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <Area type="monotone" dataKey="y" stroke={dPnl >= 0 ? "#6ee7b7" : "#ef4444"} strokeWidth={1.8} fill="url(#eapfp-dash-balance-grad)" isAnimationActive={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ══════════════════════════════════════════════════════════
           Prochains événements économiques — chips discrètes premium
@@ -11298,6 +11344,29 @@ function filterJournalByAccount(journalData, accountId) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// Calcule le solde d'un compte (capital + PnL cumulé jour par jour sur
+// TOUT son historique) et la série équivalente pour un sparkline.
+// Réutilisé par la carte "Solde du compte" du Journal ET par la carte
+// "compte principal" du Dashboard quand le mode Journal est actif.
+// ══════════════════════════════════════════════════════════════════
+function computeAccountBalanceSeries(journalAllData, accountId, baseCapital) {
+  const filtered = filterJournalByAccount(journalAllData, accountId);
+  const months = Object.keys(filtered).sort();
+  let running = baseCapital;
+  const series = [{ x: 0, y: running }];
+  months.forEach(mk => {
+    const daysSorted = Object.keys(filtered[mk]).map(Number).sort((a, b) => a - b);
+    daysSorted.forEach(d => {
+      running += (filtered[mk][String(d)].pnl || 0);
+      series.push({ x: series.length, y: running });
+    });
+  });
+  const allTimePnl = running - baseCapital;
+  const changePct = baseCapital ? (allTimePnl / baseCapital) * 100 : 0;
+  return { balance: running, series, allTimePnl, changePct };
+}
+
+// ══════════════════════════════════════════════════════════════════
 // NAVBAR (bas d'écran)
 // ══════════════════════════════════════════════════════════════════
 function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
@@ -11326,18 +11395,8 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
   const effectiveCapital = (selectedAccount && selectedAccount.capital) ? selectedAccount.capital : capital;
 
   // ── Solde du compte — capital + PnL cumulé sur TOUT l'historique du compte (tous mois confondus) ──
-  const allMonthsSorted = Object.keys(journalAllFiltered).sort();
-  let runningBalance = effectiveCapital;
-  const accountEquitySeries = [{ x: 0, y: runningBalance }];
-  allMonthsSorted.forEach(mk => {
-    const daysSorted = Object.keys(journalAllFiltered[mk]).map(Number).sort((a, b) => a - b);
-    daysSorted.forEach(d => {
-      runningBalance += (journalAllFiltered[mk][String(d)].pnl || 0);
-      accountEquitySeries.push({ x: accountEquitySeries.length, y: runningBalance });
-    });
-  });
-  const accountAllTimePnl = runningBalance - effectiveCapital;
-  const accountChangePct = effectiveCapital ? (accountAllTimePnl / effectiveCapital) * 100 : 0;
+  const { balance: runningBalance, series: accountEquitySeries, allTimePnl: accountAllTimePnl, changePct: accountChangePct } =
+    computeAccountBalanceSeries(journalAll, selectedAccountId, effectiveCapital);
 
   const journalStats = journalAnalyze(journalAllFiltered);
   const discipline = disciplineAnalyze(journalAllFiltered);
