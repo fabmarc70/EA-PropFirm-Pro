@@ -367,6 +367,9 @@ const I18N = {
     acc_archived_plural: "comptes archivés",
     acc_archived_title: "Comptes archivés",
     acc_manage_title: "Compte sélectionné",
+    acc_balance_title: "Solde du compte",
+    acc_live: "En direct",
+    acc_initial_capital: "Capital initial :",
     acc_reactivate: "Réactiver",
     cal_intraday_dd_label: "DD max du jour (%)",
     cal_intraday_dd_hint: "Optionnel — si tu connais le creux le plus bas atteint",
@@ -1068,6 +1071,9 @@ const I18N = {
     acc_archived_plural: "cuentas archivadas",
     acc_archived_title: "Cuentas archivadas",
     acc_manage_title: "Cuenta seleccionada",
+    acc_balance_title: "Saldo de la cuenta",
+    acc_live: "En vivo",
+    acc_initial_capital: "Capital inicial:",
     acc_reactivate: "Reactivar",
     cal_intraday_dd_label: "DD máx del día (%)",
     cal_intraday_dd_hint: "Opcional — si conoces el punto más bajo alcanzado",
@@ -1771,6 +1777,9 @@ const I18N = {
     acc_archived_plural: "archived accounts",
     acc_archived_title: "Archived accounts",
     acc_manage_title: "Selected account",
+    acc_balance_title: "Account balance",
+    acc_live: "Live",
+    acc_initial_capital: "Initial capital:",
     acc_reactivate: "Reactivate",
     cal_intraday_dd_label: "Max DD of the day (%)",
     cal_intraday_dd_hint: "Optional — if you know the lowest point reached",
@@ -2134,6 +2143,13 @@ function makeT(lang) {
 }
 
 // MODELES FUNDEDNEXT - paramètres indicatifs 2026 (Stellar) — à vérifier sur le site officiel
+// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// Montants de capital prédéfinis — choix rapide dans les formulaires
+// de création/modification d'un compte du Journal de Trading
+// ══════════════════════════════════════════════════════════════════
+const CAPITAL_PRESETS = [1000, 5000, 10000, 25000, 50000, 100000, 200000];
+
 // ══════════════════════════════════════════════════════════════════
 // PROP FIRMS — paramètres indicatifs basés sur les grilles publiques 2026
 // Les règles exactes peuvent changer : toujours vérifier sur le site de la firm
@@ -11309,6 +11325,20 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
   // Capital propre au compte (si défini), sinon capital global du profil par défaut
   const effectiveCapital = (selectedAccount && selectedAccount.capital) ? selectedAccount.capital : capital;
 
+  // ── Solde du compte — capital + PnL cumulé sur TOUT l'historique du compte (tous mois confondus) ──
+  const allMonthsSorted = Object.keys(journalAllFiltered).sort();
+  let runningBalance = effectiveCapital;
+  const accountEquitySeries = [{ x: 0, y: runningBalance }];
+  allMonthsSorted.forEach(mk => {
+    const daysSorted = Object.keys(journalAllFiltered[mk]).map(Number).sort((a, b) => a - b);
+    daysSorted.forEach(d => {
+      runningBalance += (journalAllFiltered[mk][String(d)].pnl || 0);
+      accountEquitySeries.push({ x: accountEquitySeries.length, y: runningBalance });
+    });
+  });
+  const accountAllTimePnl = runningBalance - effectiveCapital;
+  const accountChangePct = effectiveCapital ? (accountAllTimePnl / effectiveCapital) * 100 : 0;
+
   const journalStats = journalAnalyze(journalAllFiltered);
   const discipline = disciplineAnalyze(journalAllFiltered);
   const journalHeatmap = heatmapAnalyzeJournal(journalAllFiltered);
@@ -11397,6 +11427,65 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
               <span style={{ fontSize: 13, lineHeight: 1 }}>+</span> {t("acc_add")}
             </button>
           </div>
+        </div>
+
+        {/* ══════════════════════════════════════════════════════════
+            SOLDE DU COMPTE — capital + évolution cumulée en temps réel
+        ══════════════════════════════════════════════════════════ */}
+        <div style={{
+          background: "linear-gradient(135deg, rgba(110,231,183,0.09), rgba(110,231,183,0.015))",
+          border: "1px solid rgba(110,231,183,0.2)", borderRadius: 18, padding: "18px 18px 8px", marginBottom: 16,
+          position: "relative", overflow: "hidden",
+        }}>
+          <style>{`@keyframes eapfp-livepulse { 0% { box-shadow: 0 0 0 0 rgba(110,231,183,0.55); } 70% { box-shadow: 0 0 0 5px rgba(110,231,183,0); } 100% { box-shadow: 0 0 0 0 rgba(110,231,183,0); } }`}</style>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 0.7 }}>
+              {t("acc_balance_title")}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: 3, background: "#6ee7b7",
+                boxShadow: "0 0 0 0 rgba(110,231,183,0.6)", animation: "eapfp-livepulse 1.8s ease-out infinite",
+              }} />
+              <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(110,231,183,0.7)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                {t("acc_live")}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ fontSize: 30, fontWeight: 800, color: "#fff", letterSpacing: -0.5, lineHeight: 1 }}>
+            {fmt(runningBalance)}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 7 }}>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 8px", borderRadius: 100,
+              background: accountAllTimePnl >= 0 ? "rgba(110,231,183,0.12)" : "rgba(239,68,68,0.12)",
+              color: accountAllTimePnl >= 0 ? "#6ee7b7" : "#ef4444", fontSize: 11, fontWeight: 700,
+            }}>
+              <span>{accountAllTimePnl >= 0 ? "▲" : "▼"}</span>
+              <span>{accountAllTimePnl >= 0 ? "+" : ""}{fmt(accountAllTimePnl)} ({accountAllTimePnl >= 0 ? "+" : ""}{accountChangePct.toFixed(1)}%)</span>
+            </div>
+            <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)" }}>
+              {t("acc_initial_capital")} {fmt(effectiveCapital)}
+            </div>
+          </div>
+
+          {accountEquitySeries.length > 2 && (
+            <div style={{ height: 46, marginTop: 10, marginLeft: -18, marginRight: -18 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={accountEquitySeries} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="eapfp-balance-grad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={accountAllTimePnl >= 0 ? "#6ee7b7" : "#ef4444"} stopOpacity={0.35} />
+                      <stop offset="100%" stopColor={accountAllTimePnl >= 0 ? "#6ee7b7" : "#ef4444"} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <Area type="monotone" dataKey="y" stroke={accountAllTimePnl >= 0 ? "#6ee7b7" : "#ef4444"} strokeWidth={1.8} fill="url(#eapfp-balance-grad)" isAnimationActive={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
         {/* ══════════════════════════════════════════════════════════
@@ -11785,6 +11874,21 @@ function AddAccountModal({ t, onClose, onCreate, defaultCapital = 25000 }) {
         <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
           {t("acc_capital")}
         </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+          {CAPITAL_PRESETS.map(p => (
+            <button key={p}
+              onClick={() => setCapitalInput(String(p))}
+              style={{
+                padding: "6px 11px", borderRadius: 100, cursor: "pointer",
+                background: parseFloat(capitalInput) === p ? "#6ee7b722" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${parseFloat(capitalInput) === p ? "#6ee7b7" : "rgba(255,255,255,0.1)"}`,
+                color: parseFloat(capitalInput) === p ? "#6ee7b7" : "rgba(255,255,255,0.55)",
+                fontSize: 11, fontWeight: 600,
+              }}>
+              {p >= 1000 ? (p / 1000) + "K" : p}$
+            </button>
+          ))}
+        </div>
         <input
           type="number"
           inputMode="decimal"
@@ -11908,6 +12012,21 @@ function EditAccountModal({ t, account, onClose, onSave, defaultCapital = 25000 
 
         <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
           {t("acc_capital")}
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+          {CAPITAL_PRESETS.map(p => (
+            <button key={p}
+              onClick={() => setCapitalInput(String(p))}
+              style={{
+                padding: "6px 11px", borderRadius: 100, cursor: "pointer",
+                background: parseFloat(capitalInput) === p ? "#6ee7b722" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${parseFloat(capitalInput) === p ? "#6ee7b7" : "rgba(255,255,255,0.1)"}`,
+                color: parseFloat(capitalInput) === p ? "#6ee7b7" : "rgba(255,255,255,0.55)",
+                fontSize: 11, fontWeight: 600,
+              }}>
+              {p >= 1000 ? (p / 1000) + "K" : p}$
+            </button>
+          ))}
         </div>
         <input
           type="number"
