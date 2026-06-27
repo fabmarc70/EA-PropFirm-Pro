@@ -10379,8 +10379,23 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
   });
   const { journal: journalAll, journalMonth, setJournalMonth, saveJournalEntry, monthData: journalMonthData } = useJournal();
   const { accounts: journalAccounts, accountLabel: journalAccountLabel } = useJournalAccounts();
-  const principalAccount = journalAccounts.find(a => a.id === "default") || journalAccounts[0];
+  const activeJournalAccounts = journalAccounts.filter(a => !a.archived);
+  // ── Compte du Journal sélectionné depuis le Dashboard — partagé entre la carte "Solde du compte" et le Calendrier PnL ci-dessous ──
+  const [dashSelectedAccountId, setDashSelectedAccountId] = useState(() => {
+    try {
+      const saved = localStorage.getItem("eapropfirm_dash_selected_account");
+      if (saved && journalAccounts.find(a => a.id === saved)) return saved;
+    } catch (e) {}
+    return (activeJournalAccounts[0] || journalAccounts[0])?.id || "default";
+  });
+  useEffect(() => {
+    if (!activeJournalAccounts.find(a => a.id === dashSelectedAccountId)) {
+      setDashSelectedAccountId((activeJournalAccounts[0] || journalAccounts[0])?.id || "default");
+    }
+  }, [journalAccounts]);
+  const principalAccount = journalAccounts.find(a => a.id === dashSelectedAccountId) || activeJournalAccounts[0] || journalAccounts[0];
   const principalCapital = (principalAccount && principalAccount.capital) ? principalAccount.capital : (profile.capital || 25000);
+  const journalMonthDataForSelectedAccount = filterJournalByAccount(journalAll, dashSelectedAccountId)[journalMonth] || {};
 
 
   // ── Notifications cloche ──
@@ -10801,7 +10816,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
               style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(110,231,183,0.2)", borderRadius: 10, padding: "8px 12px", color: "#FFFFFF", fontSize: 13, fontWeight: 600, outline: "none", colorScheme: "dark" }}
             />
             <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-              {Object.keys(journalMonthData).length} {t("cal_days_entered")}
+              {Object.keys(journalMonthDataForSelectedAccount).length} {t("cal_days_entered")}
             </span>
           </div>
         )}
@@ -10812,9 +10827,12 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
             <CalendrierPnL t={t} lang={lang}
               dailyLog={[]}
               journalMode={true}
-              journalData={journalMonthData}
+              journalData={journalMonthDataForSelectedAccount}
               onJournalSave={saveJournalEntry}
               journalMonthLabel={t("cal_click_day") + " · " + journalMonth}
+              accounts={activeJournalAccounts}
+              accountLabel={journalAccountLabel}
+              activeAccountId={dashSelectedAccountId}
             />
           </div>
         ) : ls.funded ? (
@@ -10828,6 +10846,32 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         ) : (
           <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
             Lance une simulation pour voir le tableau PnL, ou active le mode journal pour saisir tes trades réels.
+          </div>
+        )}
+
+        {/* ── Sélecteur de compte du Journal — sous le calendrier, visible en mode journal ── */}
+        {journalMode && activeJournalAccounts.length > 0 && (
+          <div style={{ display: "flex", gap: 7, overflowX: "auto", paddingBottom: 2, marginTop: 12, WebkitOverflowScrolling: "touch" }}>
+            {activeJournalAccounts.map(acc => {
+              const isSelected = acc.id === dashSelectedAccountId;
+              return (
+                <button key={acc.id}
+                  onClick={() => {
+                    setDashSelectedAccountId(acc.id);
+                    try { localStorage.setItem("eapropfirm_dash_selected_account", acc.id); } catch (e) {}
+                  }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 5, flexShrink: 0,
+                    padding: "6px 12px", borderRadius: 100, cursor: "pointer",
+                    background: isSelected ? acc.color + "22" : "rgba(255,255,255,0.03)",
+                    border: `1.5px solid ${isSelected ? acc.color : "rgba(255,255,255,0.1)"}`,
+                    opacity: isSelected ? 1 : 0.55,
+                  }}>
+                  <span style={{ width: 6, height: 6, borderRadius: 3, background: acc.color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#fff", whiteSpace: "nowrap" }}>{journalAccountLabel(acc)}</span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
