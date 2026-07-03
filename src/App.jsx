@@ -66,7 +66,6 @@ const I18N = {
     login_tagline: "Valide ta stratégie avant de risquer un challenge.",
     login_google: "Continuer avec Google",
     login_apple: "Continuer avec Apple",
-    login_privacy: "Connexion sécurisée. Aucune donnée partagée sans ton accord.",
     login_trial_badge: "7 jours d'essai gratuit · sans engagement",
     login_email: "Email",
     login_password: "Mot de passe",
@@ -128,9 +127,6 @@ const I18N = {
     prof_account: "Compte",
     prof_prefs: "Preferences",
     prof_lang: "Langue",
-    bench_rr_approx_note: "RR aproximado (ratio mejor/peor día — no es un cálculo por operación)",
-    bench_data_source: "Basado en tu Diario de Trading",
-    bench_disclaimer: "Los umbrales de comparación (media, Top 50/25/10/1%) son referencias indicativas del sector, no datos medidos de otros usuarios de la app.",
     bench_rr_approx_note: "RR approximatif (ratio meilleure/pire journée — pas un calcul par trade)",
     bench_data_source: "Basé sur ton Journal de Trading",
     bench_disclaimer: "Les seuils de comparaison (moyenne, Top 50/25/10/1%) sont des repères indicatifs du secteur, pas des données mesurées auprès d'autres utilisateurs de l'app.",
@@ -349,6 +345,10 @@ const I18N = {
     acc_none_firm: "Aucune / autre",
     acc_create: "Créer le compte",
     acc_cancel: "Annuler",
+    dash_launch_sim_or_journal: "Lance une simulation pour voir le tableau PnL, ou active le mode journal pour saisir tes trades réels.",
+    cal_month1: "Mois 1",
+    journal_storage_full: "Stockage plein. Supprime quelques images du journal pour libérer de l'espace.",
+    journal_img_error: "Impossible de lire cette image.",
     acc_main: "Compte principal",
     acc_remove_confirm: "Retirer ce compte ? Les entrées déjà saisies resteront dans le journal.",
     acc_select_for_day: "Compte pour ce jour",
@@ -381,10 +381,8 @@ const I18N = {
     sim_enable: "Activer",
     sim_instrument: "Instrument",
     sim_of_capital: "% du capital",
-    sim_how_much_risk: "Combien risquez-vous par trade ?",
     sim_define_risk: "Définissez votre risque en % du capital. Tout le reste en découle automatiquement.",
     sim_capital_label: "Capital ($)",
-    sim_risk_per_trade: "Risque par trade (%)",
     sim_target_obj: "Objectif",
     sim_expected: "espéré",
     sim_new_sim: "Nouvelle simulation",
@@ -411,7 +409,6 @@ const I18N = {
     sim_split_funded: "Split Funded",
     sim_ea_algo: "EA/Algo",
     sim_authorized: "Autorisé",
-    sim_save_config: "Save this config",
     sim_calendar_pnl: "Calendrier PnL",
     sim_month_dayday: "Mois {n} - simulation jour par jour",
     sim_pl_month: "P&L month",
@@ -780,7 +777,6 @@ const I18N = {
     login_tagline: "Valida tu estrategia antes de arriesgar un challenge.",
     login_google: "Continuar con Google",
     login_apple: "Continuar con Apple",
-    login_privacy: "Conexión segura. Ningún dato compartido sin tu permiso.",
     login_trial_badge: "7 días de prueba gratis · sin compromiso",
     login_email: "Correo",
     login_password: "Contrasena",
@@ -832,7 +828,6 @@ const I18N = {
     dash_no_configs: "Sin config guardada. Crea una desde el simulador.",
     dash_load: "Cargar",
     dash_new_config: "Nueva config",
-    sim_save_config: "Guardar esta config",
     sim_config_saved: "Config guardada",
     prof_title: "Perfil",
     prof_account: "Cuenta",
@@ -851,6 +846,9 @@ const I18N = {
     bench_top25: "Top 25%",
     bench_top10: "Top 10%",
     bench_top1: "Top 1%",
+    bench_rr_approx_note: "RR aproximado (ratio mejor/peor día — no es un cálculo por operación)",
+    bench_data_source: "Basado en tu Diario de Trading",
+    bench_disclaimer: "Los umbrales de comparación (media, Top 50/25/10/1%) son referencias indicativas del sector, no datos medidos de otros usuarios de la app.",
     bench_metric_winrate: "Win rate",
     bench_metric_pf: "Factor de beneficio",
     bench_metric_rr: "RR",
@@ -1053,6 +1051,10 @@ const I18N = {
     acc_none_firm: "Ninguna / otra",
     acc_create: "Crear cuenta",
     acc_cancel: "Cancelar",
+    dash_launch_sim_or_journal: "Lanza una simulación para ver la tabla PnL, o activa el modo diario para registrar tus trades reales.",
+    cal_month1: "Mes 1",
+    journal_storage_full: "Almacenamiento lleno. Elimina algunas imágenes del diario para liberar espacio.",
+    journal_img_error: "No se pudo leer esta imagen.",
     acc_main: "Cuenta principal",
     acc_remove_confirm: "¿Quitar esta cuenta? Las entradas ya registradas permanecerán en el diario.",
     acc_select_for_day: "Cuenta para este día",
@@ -1085,10 +1087,8 @@ const I18N = {
     sim_enable: "Activar",
     sim_instrument: "Instrumento",
     sim_of_capital: "% del capital",
-    sim_how_much_risk: "¿Cuánto arriesgas por operación?",
     sim_define_risk: "Define tu riesgo en % del capital. Todo lo demás se calcula automáticamente.",
     sim_capital_label: "Capital ($)",
-    sim_risk_per_trade: "Riesgo por operación (%)",
     sim_target_obj: "Objetivo",
     sim_expected: "esperado",
     sim_new_sim: "Nueva simulación",
@@ -1483,7 +1483,6 @@ const I18N = {
     login_tagline: "Validate your strategy before risking a challenge.",
     login_google: "Continue with Google",
     login_apple: "Continue with Apple",
-    login_privacy: "Secure sign-in. No data shared without your consent.",
     login_trial_badge: "7-day free trial · no commitment",
     login_email: "Email",
     login_password: "Password",
@@ -1535,7 +1534,6 @@ const I18N = {
     dash_no_configs: "No saved config. Create one from the simulator.",
     dash_load: "Load",
     dash_new_config: "New config",
-    sim_save_config: "Save this config",
     sim_config_saved: "Config saved",
     prof_title: "Profile",
     prof_account: "Account",
@@ -1759,6 +1757,10 @@ const I18N = {
     acc_none_firm: "None / other",
     acc_create: "Create account",
     acc_cancel: "Cancel",
+    dash_launch_sim_or_journal: "Run a simulation to see the PnL table, or enable journal mode to log your real trades.",
+    cal_month1: "Month 1",
+    journal_storage_full: "Storage full. Delete some journal images to free up space.",
+    journal_img_error: "Could not read this image.",
     acc_main: "Main account",
     acc_remove_confirm: "Remove this account? Already logged entries will stay in the journal.",
     acc_select_for_day: "Account for this day",
@@ -1791,10 +1793,8 @@ const I18N = {
     sim_enable: "Enable",
     sim_instrument: "Instrument",
     sim_of_capital: "% of capital",
-    sim_how_much_risk: "How much do you risk per trade?",
     sim_define_risk: "Set your risk as % of capital. Everything else follows automatically.",
     sim_capital_label: "Capital ($)",
-    sim_risk_per_trade: "Risk per trade (%)",
     sim_target_obj: "Target",
     sim_expected: "expected",
     sim_new_sim: "New simulation",
@@ -3334,8 +3334,28 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
   // Scroll to top on mode change
   useEffect(() => { window.scrollTo({top:0,behavior:'instant'}); }, [mode]);
 
-  // Read journal data
-  const journalRaw = (() => { try { const r=localStorage.getItem('eapropfirm_journal'); return r?JSON.parse(r):{}; } catch(e){return{};} })();
+  // Read journal data — structure multi-comptes { mois: { jour: { accountId: entry } } } depuis le fix du 26/06.
+  // On migre à la volée (cas d'un vieux localStorage jamais migré) puis on aplatit sur le compte sélectionné
+  // du Dashboard (fallback "default"), pour redonner aux fonctions d'analyse la vue plate qu'elles attendent.
+  const journalRaw = (() => {
+    try {
+      const r = localStorage.getItem('eapropfirm_journal');
+      const parsed = r ? JSON.parse(r) : {};
+      const migrated = migrateJournalToMultiAccount(parsed);
+      let accId = "default";
+      try {
+        const savedAcc = localStorage.getItem("eapropfirm_dash_selected_account");
+        if (savedAcc) accId = savedAcc;
+      } catch (e) {}
+      const flat = filterJournalByAccount(migrated, accId);
+      // Si le compte sélectionné n'a aucune donnée mais que "default" en a, retomber sur "default"
+      // (évite un écran Analyse vide juste parce qu'un compte neuf est sélectionné sur la Home)
+      if (!Object.keys(flat).length && accId !== "default") {
+        return filterJournalByAccount(migrated, "default");
+      }
+      return flat;
+    } catch(e) { return {}; }
+  })();
   const journalStats = journalAnalyze(journalRaw);
 
   // Read backtest data
@@ -7902,7 +7922,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
             <button
               onClick={() => setShowBalanceInput(v => !v)}
               style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.75)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-              {showBalanceInput ? "Annuler" : "Modifier"}
+              {showBalanceInput ? t("acc_cancel") : t("acc_edit")}
             </button>
           </div>
 
@@ -8319,7 +8339,8 @@ function useJournal() {
         localStorage.setItem("eapropfirm_journal", JSON.stringify(next));
       } catch (e) {
         // Quota localStorage dépassé (souvent à cause des images)
-        alert("Stockage plein. Supprime quelques images du journal pour libérer de l'espace.");
+        const lsLang = (() => { try { return JSON.parse(localStorage.getItem("eapropfirm_app") || "{}")?.profile?.lang || "fr"; } catch(e){ return "fr"; } })();
+        alert(makeT(lsLang)("journal_storage_full"));
         return prev;
       }
       return next;
@@ -8998,7 +9019,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                           const compressed = await compressImage(file);
                           setFormImages(prev => prev.length < 3 ? [...prev, compressed] : prev);
                         } catch (err) {
-                          alert("Impossible de lire cette image.");
+                          alert(t("journal_img_error"));
                         }
                         setImgLoading(false);
                         }} />
@@ -10545,9 +10566,9 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
   const totalDDLimit = ls.totalDDLimit || (fm?.totalDD*100) || 10;
   const splitStart = ls.splitStart || fm?.splitStart || 80;
   const splitMax = ls.splitMax || fm?.splitMax || 90;
-  // ── Bloc STATISTIQUES de la Home : basé sur le JOURNAL DE TRADING réel (pas la simulation) ──
-  const journalGlobalStats = journalAnalyze(journalAll);
-  const allJournalDays = Object.values(journalAll || {}).flatMap(monthData => Object.values(monthData || {}));
+  // ── Bloc STATISTIQUES de la Home : basé sur le JOURNAL DE TRADING réel (pas la simulation), compte sélectionné ──
+  const journalGlobalStats = journalAnalyze(journalAllForSelectedAccount);
+  const allJournalDays = Object.values(journalAllForSelectedAccount || {}).flatMap(monthData => Object.values(monthData || {}));
   const journalWins = allJournalDays.reduce((s, d) => s + (d.wins || 0), 0);
   const journalLosses = allJournalDays.reduce((s, d) => s + (d.losses || 0), 0);
   const wins = journalWins;
@@ -10711,7 +10732,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         const dPnl = journalMode ? principalData.allTimePnl : simAllTimePnl;
         const dPct = journalMode ? principalData.changePct : simChangePct;
         const dSeries = journalMode ? principalData.series : simSeries;
-        const dLabel = journalMode ? journalAccountLabel(principalAccount) : (firm.name + (fm?.name ? " · " + fm.name : "") + " · Mois 1");
+        const dLabel = journalMode ? journalAccountLabel(principalAccount) : (firm.name + (fm?.name ? " · " + fm.name : "") + " · " + t("cal_month1"));
 
         return (
           <div style={{
@@ -10873,7 +10894,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           </div>
         ) : (
           <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
-            Lance une simulation pour voir le tableau PnL, ou active le mode journal pour saisir tes trades réels.
+            {t("dash_launch_sim_or_journal")}
           </div>
         )}
 
