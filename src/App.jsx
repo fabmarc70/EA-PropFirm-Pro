@@ -10523,29 +10523,35 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
     .sort((a, b) => a.day - b.day);
   const hasJournalCurrentMonth = journalCurrentDays.length > 0;
 
-  // Construire les données du graphique mensuel (J1 → jour actuel seulement)
+  // Construire les données du graphique mensuel :
+  // - Mode simulation → courbe COMPLÈTE du mois M1 simulé (tous les jours, pas juste jusqu'à aujourd'hui)
+  // - Mode journal → jusqu'à aujourd'hui (données réelles saisies)
   const todayDay = now.getDate();
+  const lastSimDay = simMonth1Days.length > 0
+    ? Math.max(...simMonth1Days.map(d => d.dayOfMonth))
+    : todayDay;
+  const chartEndDay = journalMode ? todayDay : Math.max(todayDay, lastSimDay);
+
   const monthlyChartData = (() => {
     const result = [];
     let simEquity = cap;
     let journalEquity = cap;
 
-    // S'arrêter au jour actuel, pas au dernier jour du mois
-    for (let day = 1; day <= todayDay; day++) {
+    for (let day = 1; day <= chartEndDay; day++) {
       // Simulation : trouver le jour correspondant (dayOfMonth)
       const simDay = simMonth1Days.find(d => d.dayOfMonth === day);
       if (simDay) simEquity = simDay.equity;
 
-      // Journal : cumuler le PnL jusqu'à ce jour
+      // Journal : cumuler le PnL jusqu'à ce jour (uniquement jours réels)
       const journalDay = journalCurrentDays.find(d => d.day === day);
       if (journalDay) journalEquity += journalDay.pnl;
 
       result.push({
         day,
         simEquity: simMonth1Days.length > 0 ? simEquity : null,
-        // Journal seulement pour les jours où il y a eu des saisies
         journalEquity: hasJournalCurrentMonth ? journalEquity : null,
         hasJournalEntry: !!journalDay,
+        isFuture: day > todayDay, // pour distinguer projection vs données réelles si besoin
       });
     }
     return result;
