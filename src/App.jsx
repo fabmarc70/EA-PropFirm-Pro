@@ -204,6 +204,10 @@ const I18N = {
     disc_form_title: "Discipline du jour",
     nav_journal: "Journal",
     nav_analyse: "Analyse",
+    dash_sims_left_singular: "simulation gratuite restante",
+    dash_sims_left_plural: "simulations gratuites restantes",
+    dash_sims_limit_reached: "Limite gratuite atteinte",
+    dash_go_pro: "Passer Pro",
     journal_title: "Journal de Trading",
     journal_subtitle: "Suis tes trades réels jour par jour",
     journal_month_stats: "Statistiques du mois",
@@ -912,6 +916,10 @@ const I18N = {
     disc_form_title: "Disciplina del día",
     nav_journal: "Diario",
     nav_analyse: "Análisis",
+    dash_sims_left_singular: "simulación gratis restante",
+    dash_sims_left_plural: "simulaciones gratis restantes",
+    dash_sims_limit_reached: "Límite gratis alcanzado",
+    dash_go_pro: "Pasar a Pro",
     journal_title: "Diario de Trading",
     journal_subtitle: "Sigue tus operaciones reales día a día",
     journal_month_stats: "Estadísticas del mes",
@@ -1619,7 +1627,11 @@ const I18N = {
     cal_emotional: "I traded emotionally",
     disc_form_title: "Today's discipline",
     nav_journal: "Journal",
-    nav_analyse: "Analyse",
+    nav_analyse: "Analysis",
+    dash_sims_left_singular: "free simulation left",
+    dash_sims_left_plural: "free simulations left",
+    dash_sims_limit_reached: "Free limit reached",
+    dash_go_pro: "Go Pro",
     journal_title: "Trading Journal",
     journal_subtitle: "Track your real trades day by day",
     journal_month_stats: "Monthly statistics",
@@ -4075,9 +4087,40 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
   return null;
 }
 
-function makeTradeStream(winrate, clustering, maxConsecLosses) {
+// ══════════════════════════════════════════════════════════════════
+// RNG SEEDÉ — rend la simulation Challenge/Funded DÉTERMINISTE et
+// PERSISTANTE : mêmes paramètres + même seed => résultat IDENTIQUE
+// à chaque rendu (remonter sur l'écran Simulateur ne régénère plus
+// une simulation différente). Seul un changement réel de paramètre
+// (ou un clic explicite sur "Relancer") produit un nouveau résultat.
+// Monte Carlo (200 runs) reste sur Math.random() natif — il a besoin
+// de vraie variance pour construire sa distribution de probabilité.
+// ══════════════════════════════════════════════════════════════════
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// Hash de chaîne déterministe (cyrb53) → seed numérique stable pour un jeu de paramètres donné
+function hashParamsToSeed(str) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)) >>> 0;
+}
+
+function makeTradeStream(winrate, clustering, maxConsecLosses, rng = Math.random) {
   const w = winrate / 100;
-  let lastWin = Math.random() < w;
+  let lastWin = rng() < w;
   let consecLosses = 0;
   const cap = (maxConsecLosses > 0 && maxConsecLosses < 100) ? maxConsecLosses : Infinity;
 
@@ -4088,13 +4131,13 @@ function makeTradeStream(winrate, clustering, maxConsecLosses) {
       return true;
     }
     if (clustering <= 0) {
-      lastWin = Math.random() < w;
+      lastWin = rng() < w;
     } else {
       const pull = clustering * 0.5;
       const adjW = lastWin
         ? w + (1 - w) * pull
         : w - w * pull;
-      lastWin = Math.random() < Math.max(0.02, Math.min(0.98, adjW));
+      lastWin = rng() < Math.max(0.02, Math.min(0.98, adjW));
     }
     if (!lastWin) consecLosses++;
     else consecLosses = 0;
@@ -4102,14 +4145,14 @@ function makeTradeStream(winrate, clustering, maxConsecLosses) {
   };
 }
 
-function simulateDay(equity, tradesPerDay, riskAmount, rr, nextTrade, dailyDDLimit) {
+function simulateDay(equity, tradesPerDay, riskAmount, rr, nextTrade, dailyDDLimit, rng = Math.random) {
   let dayEquity = equity;
   let dayLowPnl = 0;
   let dayPeakPnl = 0;
   let wins = 0, losses = 0;
   // Support fractionnel : 0.33 trade/jour = 1 trade avec P=0.33
   const nTrades = tradesPerDay < 1
-    ? (Math.random() < tradesPerDay ? 1 : 0)
+    ? (rng() < tradesPerDay ? 1 : 0)
     : Math.round(tradesPerDay);
   for (let t = 0; t < nTrades; t++) {
     const win = nextTrade();
@@ -4131,7 +4174,8 @@ function simulatePhase(capital, cfg, model, p) {
   const dailyDDLimit = capital * model.dailyDD;
   const floorEquity = capital * (1 - model.totalDD);
   const riskAmount = capital * p.riskPct;
-  const nextTrade = makeTradeStream(p.winrate, p.clustering, p.maxConsecLosses);
+  const rng = p.rng || Math.random;
+  const nextTrade = makeTradeStream(p.winrate, p.clustering, p.maxConsecLosses, rng);
   let equity = capital;
   const days = [];
   let status = "running";
@@ -4142,7 +4186,7 @@ function simulatePhase(capital, cfg, model, p) {
   let maxDailyDD = 0;     // pire DD intraday d'une journée (en fraction)
 
   for (let d = 1; d <= SIM_DAYS; d++) {
-    const res = simulateDay(equity, p.tradesPerDay, riskAmount, p.rr, nextTrade, dailyDDLimit);
+    const res = simulateDay(equity, p.tradesPerDay, riskAmount, p.rr, nextTrade, dailyDDLimit, rng);
     totalWins += res.wins;
     totalLosses += res.losses;
     equity = res.dayEquity;
@@ -4198,7 +4242,8 @@ function simulateFunded(capital, months, model, p, split) {
   const dailyDDLimit = capital * model.dailyDD;
   const floorEquity = capital * (1 - model.totalDD);
   const riskAmount = capital * p.riskPct;
-  const nextTrade = makeTradeStream(p.winrate, p.clustering, p.maxConsecLosses);
+  const rng = p.rng || Math.random;
+  const nextTrade = makeTradeStream(p.winrate, p.clustering, p.maxConsecLosses, rng);
   let equity = capital;
   let currentCapital = capital; // capital de reference (augmente apres scaling)
   let cumulPayout = 0, pendingPayout = 0;
@@ -4225,7 +4270,7 @@ function simulateFunded(capital, months, model, p, split) {
 
     for (let d = 0; d < TD_MONTH; d++) {
       const dayStart = equity;
-      const res = simulateDay(equity, p.tradesPerDay, riskAmount, p.rr, nextTrade, dailyDDLimit);
+      const res = simulateDay(equity, p.tradesPerDay, riskAmount, p.rr, nextTrade, dailyDDLimit, rng);
       equity = res.dayEquity;
       globalDay++;
       dailyLog.push({
@@ -4515,6 +4560,23 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       return sorted;
     });
   };
+  // ── Fix bug "Weekend inclus ne fonctionne pas" ──
+  // Sans cette synchro, activer le toggle ne suffisait pas : Sa/Di restaient absents
+  // d'activeDays tant que l'utilisateur ne les tapait pas manuellement, et le calcul
+  // de tdMonthRecurrence (ratio jours actifs / jours de base) s'auto-annulait quasi
+  // exactement (30*(5/7) ≈ 21*(5/5)) → le toggle semblait n'avoir aucun effet.
+  // Ici : toggle ON => Sa/Di ajoutés automatiquement. Toggle OFF => Sa/Di retirés
+  // (cohérent avec leur affichage grisé/désactivé quand includeWeekend est false).
+  useEffect(() => {
+    setActiveDays(prev => {
+      const next = includeWeekend
+        ? [...new Set([...prev, 6, 7])].sort((a, b) => a - b)
+        : prev.filter(d => d <= 5);
+      if (next.length === prev.length && next.every((v, i) => v === prev[i])) return prev; // no-op, évite un re-render inutile
+      try { localStorage.setItem("eapropfirm_activedays", JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
+  }, [includeWeekend]);
   // Jours d'annonces évités par mois (NFP, FOMC, CPI...)
   const [newsSkipDays, setNewsSkipDays] = useState(() => {
     try {
@@ -4734,6 +4796,16 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     newsSkipDays,
     tdMonthOverride: tdMonthRecurrence, // override TD_MONTH dans simulateFunded
   };
+  // RNG déterministe : dérivé d'un hash de TOUS les paramètres qui influencent le résultat + seed.
+  // Revenir sur cet écran (remount) sans rien changer => même hash => résultat IDENTIQUE (persistant).
+  // Changer un paramètre OU cliquer "Relancer"/changer de preset (seed++) => hash différent => nouveau résultat.
+  const simHash = hashParamsToSeed(JSON.stringify({
+    firmKey, modelKey, capital, riskPct: effectiveRisk, rr: finalRR, winrate,
+    tradesPerDay, clusteringPct, maxConsecLosses, split, fundedMonths,
+    instrument, lotSize, slPips, useFixedLot, includeWeekend,
+    activeDays, newsSkipDays, seed,
+  }));
+  p.rng = mulberry32(simHash);
 
   useEffect(() => {
     if (!finalRRValid) { setSim(null); return; }
@@ -10783,6 +10855,26 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
       )}
 
       {hasData && (<>
+
+      {/* ── Compteur simulations gratuites restantes (freemium, masqué si abonné) ── */}
+      {!premiumAccess && (
+        <button onClick={requirePremium} style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+          marginBottom: 12, padding: "10px 14px", borderRadius: 14, cursor: "pointer",
+          background: freeSimsLeft() > 0 ? "rgba(251,191,36,0.07)" : "rgba(239,68,68,0.09)",
+          border: "1px solid " + (freeSimsLeft() > 0 ? "rgba(251,191,36,0.25)" : "rgba(239,68,68,0.3)"),
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 15 }}>{freeSimsLeft() > 0 ? "⚡" : "🔒"}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: freeSimsLeft() > 0 ? "#fbbf24" : "#f87171" }}>
+              {freeSimsLeft() > 0
+                ? freeSimsLeft() + " " + (freeSimsLeft() > 1 ? t("dash_sims_left_plural") : t("dash_sims_left_singular"))
+                : t("dash_sims_limit_reached")}
+            </span>
+          </div>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)" }}>{t("dash_go_pro")} ›</span>
+        </button>
+      )}
 
       {/* ── SOLDE DU COMPTE — dynamique : compte principal du Journal si mode Journal actif, sinon Mois 1 de la simulation (même scope que le Calendrier PnL ci-dessous) ── */}
       {(() => {
