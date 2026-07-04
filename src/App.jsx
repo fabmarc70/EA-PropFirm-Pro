@@ -203,6 +203,7 @@ const I18N = {
     cal_emotional: "J'ai tradé sous le coup de l'émotion",
     disc_form_title: "Discipline du jour",
     nav_journal: "Journal",
+    nav_analyse: "Analyse",
     journal_title: "Journal de Trading",
     journal_subtitle: "Suis tes trades réels jour par jour",
     journal_month_stats: "Statistiques du mois",
@@ -909,6 +910,7 @@ const I18N = {
     cal_emotional: "Operé de forma emocional",
     disc_form_title: "Disciplina del día",
     nav_journal: "Diario",
+    nav_analyse: "Análisis",
     journal_title: "Diario de Trading",
     journal_subtitle: "Sigue tus operaciones reales día a día",
     journal_month_stats: "Estadísticas del mes",
@@ -1615,6 +1617,7 @@ const I18N = {
     cal_emotional: "I traded emotionally",
     disc_form_title: "Today's discipline",
     nav_journal: "Journal",
+    nav_analyse: "Analyse",
     journal_title: "Trading Journal",
     journal_subtitle: "Track your real trades day by day",
     journal_month_stats: "Monthly statistics",
@@ -6248,6 +6251,17 @@ const ECON_EVENT_LABELS = {
   RATE: "Taux directeurs", PMI: "PMI", GDP: "PIB",
 };
 
+
+// Drapeaux des pays émetteurs par type d'événement (emoji unicode — rendu natif sur iOS/Android)
+const ECON_FLAGS = {
+  NFP:  "🇺🇸",  // Etats-Unis
+  CPI:  "🇺🇸",  // Etats-Unis (Fed)
+  FOMC: "🇺🇸",  // Etats-Unis (Fed)
+  RATE: "🇪🇺",  // Zone Euro (BCE) / Banque d'Angleterre selon le mois
+  PMI:  "🌍",   // Multi-zones (US + EU + UK)
+  GDP:  "🇺🇸",  // Etats-Unis en priorité
+};
+
 // Génère les prochains événements économiques récurrents à partir d'aujourd'hui (best-effort, dates réalistes)
 function generateUpcomingEconEvents(fromDate, count = 8) {
   const events = [];
@@ -10815,17 +10829,17 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           return `${Math.floor(diffH / 24)}${t("econ_days")}`;
         };
         return (
-          <div style={{ display: "flex", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 2, WebkitOverflowScrolling: "touch" }}>
+          <div style={{ display: "flex", gap: 6, marginBottom: 16, justifyContent: "center", flexWrap: "wrap" }}>
             {upcoming.map((ev, i) => (
               <div key={i} style={{
                 display: "flex", alignItems: "center", gap: 5, flexShrink: 0,
-                padding: "5px 10px", borderRadius: 100,
+                padding: "5px 11px 5px 8px", borderRadius: 100,
                 background: "rgba(255,255,255,0.035)",
                 border: "1px solid rgba(255,255,255,0.07)",
               }}>
-                <span style={{ width: 4, height: 4, borderRadius: 2, background: "rgba(251,191,36,0.7)", flexShrink: 0 }} />
-                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontWeight: 500, whiteSpace: "nowrap" }}>{t('econ_' + ev.type.toLowerCase())}</span>
-                <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.3)", fontWeight: 600, whiteSpace: "nowrap" }}>· {fmtDelay(ev.date)}</span>
+                <span style={{ fontSize: 12, lineHeight: 1, flexShrink: 0 }}>{ECON_FLAGS[ev.type] || "🌐"}</span>
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", fontWeight: 500, whiteSpace: "nowrap" }}>{t('econ_' + ev.type.toLowerCase())}</span>
+                <span style={{ fontSize: 9.5, color: "rgba(251,191,36,0.65)", fontWeight: 600, whiteSpace: "nowrap" }}>· {fmtDelay(ev.date)}</span>
               </div>
             ))}
           </div>
@@ -12264,14 +12278,10 @@ function NavBar({ t, active, goto }) {
         <rect x="2" y="2" width="18" height="18" rx="4" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
         <path d="M6 16L9 11l3 3 2-4 2 6" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>},
-    { k:"coach", label:t("coach_title"),
+    { k:"journal", label:t("nav_journal"),
       icon:(on)=><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <rect x="6" y="6" width="10" height="10" rx="1.5" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.5"/>
-        <circle cx="8" cy="8" r="0.8" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
-        <circle cx="14" cy="8" r="0.8" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
-        <circle cx="8" cy="14" r="0.8" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
-        <circle cx="14" cy="14" r="0.8" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
-        <path d="M8 2v2M14 2v2M8 18v2M14 18v2M2 8h2M2 14h2M18 8h2M18 14h2" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.4" strokeLinecap="round"/>
+        <rect x="4" y="2" width="14" height="18" rx="2" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
+        <path d="M8 7h6M8 10.5h6M8 14h4" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.4" strokeLinecap="round"/>
       </svg>},
     { k:"trades", label:t("nav_trades"),
       icon:(on)=><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
@@ -12279,10 +12289,14 @@ function NavBar({ t, active, goto }) {
         <path d="M7 2h8" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6" strokeLinecap="round"/>
         <path d="M7 11h4M7 14.5h7" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.4" strokeLinecap="round"/>
       </svg>},
-    { k:"journal", label:t("nav_journal"),
+    { k:"coach", label:t("nav_analyse"),
       icon:(on)=><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <rect x="4" y="2" width="14" height="18" rx="2" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.6"/>
-        <path d="M8 7h6M8 10.5h6M8 14h4" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.4" strokeLinecap="round"/>
+        <rect x="6" y="6" width="10" height="10" rx="1.5" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.5"/>
+        <circle cx="8" cy="8" r="0.8" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
+        <circle cx="14" cy="8" r="0.8" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
+        <circle cx="8" cy="14" r="0.8" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
+        <circle cx="14" cy="14" r="0.8" fill={on?"#6ee7b7":"rgba(255,255,255,0.4)"}/>
+        <path d="M8 2v2M14 2v2M8 18v2M14 18v2M2 8h2M2 14h2M18 8h2M18 14h2" stroke={on?"#6ee7b7":"rgba(255,255,255,0.4)"} strokeWidth="1.4" strokeLinecap="round"/>
       </svg>},
   ];
 
