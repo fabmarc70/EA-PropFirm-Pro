@@ -14,8 +14,9 @@ import {
   onAuthStateChanged,
   signOut,
   updateProfile,
+  deleteUser,
 } from "firebase/auth";
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCYqMoWp-3BpU_yJZALoioSbTf1zb7HL3g",
@@ -105,5 +106,25 @@ export async function fbSaveUserProfile(uid, data) {
   } catch (e) {
     console.warn("Firestore save failed (offline?):", e.message);
     return false;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SUPPRESSION DE COMPTE (RGPD) — efface le document Firestore PUIS le
+// compte Auth. Ordre important : une fois le compte Auth supprimé,
+// les règles RLS empêcheraient d'effacer le document.
+// Retourne { ok } ou { ok:false, needsReauth:true } si Firebase exige
+// une reconnexion récente (auth/requires-recent-login).
+// ══════════════════════════════════════════════════════════════════
+export async function fbDeleteAccount() {
+  const user = auth.currentUser;
+  if (!user) return { ok: false, error: "not-signed-in" };
+  try {
+    try { await deleteDoc(doc(db, "users", user.uid)); } catch (e) { /* doc absent = OK */ }
+    await deleteUser(user);
+    return { ok: true };
+  } catch (e) {
+    if (e && e.code === "auth/requires-recent-login") return { ok: false, needsReauth: true };
+    return { ok: false, error: e?.message || "unknown" };
   }
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser, fbLoadUserProfile, fbSaveUserProfile } from "./firebase.js";
+import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser, fbLoadUserProfile, fbSaveUserProfile, fbDeleteAccount } from "./firebase.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -623,6 +623,7 @@ const I18N = {
     prof_firm: "Prop firm",
     prof_capital: "Capital",
     prof_logout: "Se deconnecter",
+    prof_delete_account: "Supprimer mon compte",
     prof_reset: "Reinitialiser l'app",
     prof_reset_confirm: "Tout effacer et recommencer ?",
     prof_guest: "Invite",
@@ -1331,6 +1332,7 @@ const I18N = {
     prof_firm: "Prop firm",
     prof_capital: "Capital",
     prof_logout: "Cerrar sesion",
+    prof_delete_account: "Eliminar mi cuenta",
     prof_reset: "Reiniciar la app",
     prof_reset_confirm: "Borrar todo y empezar de nuevo?",
     prof_guest: "Invitado",
@@ -2038,6 +2040,7 @@ const I18N = {
     prof_firm: "Prop firm",
     prof_capital: "Capital",
     prof_logout: "Log out",
+    prof_delete_account: "Delete my account",
     prof_reset: "Reset app",
     prof_reset_confirm: "Erase everything and start over?",
     prof_guest: "Guest",
@@ -3536,9 +3539,22 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
     ];
     return (
       <div style={{padding:'14px 16px 18px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px',minHeight:'100vh',display:'flex',flexDirection:'column'}}>
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.35)',textTransform:'uppercase',letterSpacing:1.5,marginBottom:3}}>{t('an_center')}</div>
-          <div style={{fontSize:19,fontWeight:900,color:'#fff',letterSpacing:-0.5,lineHeight:1.15}}>{t('an_select')} <span style={{color:'#6ee7b7'}}>{t('an_your_analysis')}</span></div>
+        <div style={{marginBottom:16, display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10}}>
+          <div>
+            <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.35)',textTransform:'uppercase',letterSpacing:1.5,marginBottom:3}}>{t('an_center')}</div>
+            <div style={{fontSize:19,fontWeight:900,color:'#fff',letterSpacing:-0.5,lineHeight:1.15}}>{t('an_select')} <span style={{color:'#6ee7b7'}}>{t('an_your_analysis')}</span></div>
+          </div>
+          {/* Accès profil depuis la page Analyse */}
+          <button onClick={() => goto('profile')} aria-label="Profil" style={{
+            width: 40, height: 40, borderRadius: 13, flexShrink: 0, cursor: 'pointer',
+            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="6.5" r="3.2" stroke="rgba(255,255,255,0.75)" strokeWidth="1.5"/>
+              <path d="M3.5 17c1-3.2 3.5-4.8 6.5-4.8s5.5 1.6 6.5 4.8" stroke="rgba(255,255,255,0.75)" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </button>
         </div>
 
         {/* ── Grille Stream Deck : 2 colonnes, tuiles uniformes (toutes carrées, même forme) ── */}
@@ -11265,7 +11281,7 @@ function VerdictIcon({ icon }) {
   return null;
 }
 
-function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, onReset, premium = {}, daysLeft = 0, onUpgrade = () => {} }) {
+function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, onReset, onDeleteAccount = () => {}, premium = {}, daysLeft = 0, onUpgrade = () => {} }) {
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const firm = PROP_FIRMS[profile.firmKey] || PROP_FIRMS.fundednext;
   const fmtMoney = (v) => "$" + Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 });
@@ -11469,9 +11485,15 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
       <button onClick={onLogout} style={{ width: "100%", padding: "14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer", background: "rgba(255,255,255,0.05)", color: "#FFFFFF", fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
         {t("prof_logout")}
       </button>
-      <button onClick={() => { if (confirm(t("prof_reset_confirm"))) onReset(); }} style={{ width: "100%", padding: "14px", borderRadius: 12, border: "1px solid rgba(239,68,68,0.25)", cursor: "pointer", background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 14, fontWeight: 700 }}>
+      <button onClick={() => { if (confirm(t("prof_reset_confirm"))) onReset(); }} style={{ width: "100%", padding: "14px", borderRadius: 12, border: "1px solid rgba(239,68,68,0.25)", cursor: "pointer", background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
         {t("prof_reset")}
       </button>
+      {/* Suppression DÉFINITIVE du compte (RGPD) — double confirmation, réservé aux comptes Firebase (pas invité) */}
+      {user && user.uid && (
+        <button onClick={onDeleteAccount} style={{ width: "100%", padding: "14px", borderRadius: 12, border: "1px solid rgba(239,68,68,0.45)", cursor: "pointer", background: "rgba(239,68,68,0.16)", color: "#ef4444", fontSize: 14, fontWeight: 800 }}>
+          {t("prof_delete_account")}
+        </button>
+      )}
     </div>
   );
 }
@@ -13282,6 +13304,27 @@ export default function App() {
   }
 
   // Handler d'abonnement — pour l'instant simule l'achat, plus tard RevenueCat
+  // Suppression DÉFINITIVE du compte : Firestore (users/{uid}) + compte Auth + purge locale.
+  const handleDeleteAccount = async () => {
+    const msg1 = lang === "en" ? "Permanently delete your account? All your cloud data will be erased. This cannot be undone."
+      : lang === "es" ? "¿Eliminar definitivamente tu cuenta? Todos tus datos en la nube se borrarán. Irreversible."
+      : "Supprimer définitivement ton compte ? Toutes tes données cloud seront effacées. Action irréversible.";
+    const msg2 = lang === "en" ? "Last confirmation: type-free final check. Delete everything?"
+      : lang === "es" ? "Última confirmación. ¿Borrar todo?"
+      : "Dernière confirmation. Tout effacer ?";
+    if (!confirm(msg1) || !confirm(msg2)) return;
+    const res = await fbDeleteAccount();
+    if (res.ok) {
+      try { localStorage.clear(); } catch (e) {}
+      window.location.reload();
+    } else if (res.needsReauth) {
+      alert(lang === "en" ? "For security, please log out, log back in, then retry deletion."
+        : lang === "es" ? "Por seguridad, cierra sesión, vuelve a entrar y reintenta."
+        : "Par sécurité, déconnecte-toi, reconnecte-toi, puis relance la suppression.");
+    } else {
+      alert((lang === "en" ? "Deletion failed: " : lang === "es" ? "Error al eliminar: " : "Échec de la suppression : ") + (res.error || ""));
+    }
+  };
   const handleSubscribe = (plan) => {
     if (plan === "restore") {
       // RevenueCat.restorePurchases() plus tard
@@ -13339,7 +13382,7 @@ export default function App() {
           <CoachScreen t={t} lang={lang} lastSim={lastSim} profile={profile} goto={navGoto} premiumAccess={premiumAccess} requirePremium={() => setShowPaywall(true)} />
         )}
         {screen === "profile" && (
-          <ProfileScreen t={t} lang={lang} setLang={setLang} user={user} profile={profile} setProfile={setProfile} onLogout={logout} onReset={reset} premium={premium} daysLeft={daysLeft} onUpgrade={() => setShowPaywall(true)} />
+          <ProfileScreen t={t} lang={lang} setLang={setLang} user={user} profile={profile} setProfile={setProfile} onLogout={logout} onReset={reset} onDeleteAccount={handleDeleteAccount} premium={premium} daysLeft={daysLeft} onUpgrade={() => setShowPaywall(true)} />
         )}
         {screen === "journal" && (
           <JournalScreen t={t} lang={lang} goto={navGoto} capital={profile.capital || 25000} lastSim={lastSim} premiumAccess={premiumAccess} requirePremium={() => setShowPaywall(true)} />
