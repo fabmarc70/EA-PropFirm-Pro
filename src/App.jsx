@@ -4721,6 +4721,13 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
   useEffect(() => {
     if (!finalRRValid) { setSim(null); return; }
+    // ── Quota freemium : 3 combinaisons firm+modèle explorées max en version gratuite.
+    // Les sliders (winrate, risque, RR...) restent libres sur une combinaison déjà consommée.
+    if (!premiumAccess && !consumeFreeSim(firmKey, modelKey)) {
+      setSim(null);
+      requirePremium();
+      return;
+    }
     const phaseResults = [];
     let allPassed = true;
     for (let i = 0; i < model.phases.length; i++) {
@@ -8470,7 +8477,7 @@ function compressImage(file, maxDim = 900, quality = 0.72) {
   });
 }
 
-function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, newsSkipDays = 0, activeDays = [1,2,3,4,5], t = (k) => k, lang = "fr", realMode = false, accounts = null, accountLabel = null, activeAccountId = null }) {
+function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, newsSkipDays = 0, activeDays = [1,2,3,4,5], t = (k) => k, lang = "fr", realMode = false, accounts = null, accountLabel = null, activeAccountId = null, journalLocked = false, onJournalLocked = null }) {
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [editingDay, setEditingDay] = useState(null); // jour en cours d'édition (mode journal)
   const [formWins, setFormWins] = useState(0);
@@ -8723,6 +8730,9 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
               onClick={() => {
                 if (!clickable) return;
                 const existing = journalData[String(cell.dayNum)];
+                // Quota freemium : au-delà de 7 jours saisis, ajouter un NOUVEAU jour est Pro.
+                // Modifier un jour déjà saisi reste toujours possible.
+                if (!existing && journalLocked) { if (onJournalLocked) onJournalLocked(); return; }
                 setEditingDay(cell.dayNum);
                 setFormWins(existing ? existing.wins : 0);
                 setFormLosses(existing ? existing.losses : 0);
@@ -9131,11 +9141,36 @@ function savePremium(patch) {
 }
 // Démarre le trial à la 1ère connexion (si pas déjà démarré)
 function startTrialIfNeeded() {
-  const p = loadPremium();
-  if (!p.trialStart && !p.subscribed) {
-    return savePremium({ trialStart: Date.now() });
-  }
-  return p;
+  // Modèle freemium à quotas (pas de trial temporel) : on ne démarre plus de compte à rebours.
+  // Gratuit à vie : profil + choix prop firm + 3 simulations (combinaisons firm+modèle) + 7 jours de journal.
+  // Pro : Analyse, Mes Trades, Monte Carlo, simulations et journal illimités.
+  return loadPremium();
+}
+
+// ── Quota simulations gratuites : 3 combinaisons firm+modèle distinctes ──
+const FREE_SIM_LIMIT = 3;
+const FREE_SIMS_KEY = "eapropfirm_free_sims";
+function loadFreeSims() {
+  try { return JSON.parse(localStorage.getItem(FREE_SIMS_KEY) || "[]"); } catch (e) { return []; }
+}
+// Retourne true si la simulation est autorisée (déjà connue ou quota dispo), false si quota atteint.
+function consumeFreeSim(firmKey, modelKey) {
+  const sig = firmKey + "|" + modelKey;
+  const used = loadFreeSims();
+  if (used.includes(sig)) return true;
+  if (used.length >= FREE_SIM_LIMIT) return false;
+  used.push(sig);
+  try { localStorage.setItem(FREE_SIMS_KEY, JSON.stringify(used)); } catch (e) {}
+  return true;
+}
+function freeSimsLeft() { return Math.max(0, FREE_SIM_LIMIT - loadFreeSims().length); }
+
+// ── Quota journal gratuit : 7 jours distincts de saisie (dérivé des données, tous comptes/mois) ──
+const FREE_JOURNAL_DAYS = 7;
+function countJournalDays(journalAll) {
+  let n = 0;
+  Object.values(journalAll || {}).forEach(days => { n += Object.keys(days || {}).length; });
+  return n;
 }
 // Jours restants de trial (0 si expiré)
 function trialDaysLeft() {
@@ -10902,6 +10937,8 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
               accounts={activeJournalAccounts}
               accountLabel={journalAccountLabel}
               activeAccountId={dashSelectedAccountId}
+              journalLocked={!premiumAccess && countJournalDays(journalAll) >= FREE_JOURNAL_DAYS}
+              onJournalLocked={requirePremium}
             />
           </div>
         ) : ls.funded ? (
@@ -11269,7 +11306,7 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
             </div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 3 }}>
               {premium.subscribed
-                ? (premium.plan === "year" ? "79,99 €/an" : "9,99 €/mois")
+                ? (premium.plan === "life" ? (lang === "en" ? "Lifetime" : "Lifetime · accès à vie") : premium.plan === "year" ? "79,99 €/an" : "9,99 €/mois")
                 : (daysLeft > 0
                     ? (lang === "en" ? daysLeft + " days left" : lang === "es" ? daysLeft + " días restantes" : daysLeft + " jours restants")
                     : (lang === "en" ? "Trial ended" : lang === "es" ? "Prueba terminada" : "Essai terminé"))}
@@ -11500,9 +11537,11 @@ function computeAccountBalanceSeries(journalAllData, accountId, baseCapital) {
 // ══════════════════════════════════════════════════════════════════
 // NAVBAR (bas d'écran)
 // ══════════════════════════════════════════════════════════════════
-function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
+function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premiumAccess = true, requirePremium = () => {} }) {
   const { journal: journalAll, journalMonth, setJournalMonth, saveJournalEntry, purgeAccountEntries, monthData: journalMonthData } = useJournal();
   const { accounts, addAccount, removeAccount, updateAccount, archiveAccount, accountLabel } = useJournalAccounts();
+  // Quota freemium journal : 7 jours distincts de saisie (tous comptes et mois confondus)
+  const journalQuotaReached = !premiumAccess && countJournalDays(journalAll) >= FREE_JOURNAL_DAYS;
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [showEditAccount, setShowEditAccount] = useState(false);
   const [showArchivedList, setShowArchivedList] = useState(false);
@@ -11826,6 +11865,8 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null }) {
             accounts={activeAccounts}
             accountLabel={accountLabel}
             activeAccountId={selectedAccountId}
+            journalLocked={journalQuotaReached}
+            onJournalLocked={requirePremium}
           />
         </div>
 
@@ -12540,12 +12581,13 @@ function LockOverlay({ onUnlock, label, compact = false }) {
 // Prêt pour RevenueCat (les boutons appelleront purchasePackage plus tard).
 // ══════════════════════════════════════════════════════════════════
 function PaywallScreen({ t, lang, daysLeft, onSubscribe, onClose, canClose = true }) {
-  const [plan, setPlan] = useState("month"); // mensuel populaire par défaut
-  const expired = daysLeft <= 0;
+  const [plan, setPlan] = useState("year"); // annuel mis en avant par défaut
+  const simsLeft = freeSimsLeft();
+  const expired = false; // freemium : jamais "expiré", quotas gratuits à vie
 
   const L = {
     fr: {
-      badge: expired ? "Essai terminé" : daysLeft + " jours d'essai restants",
+      badge: simsLeft > 0 ? "Version gratuite · " + simsLeft + " simulation" + (simsLeft > 1 ? "s" : "") + " restante" + (simsLeft > 1 ? "s" : "") : "Limite gratuite atteinte",
       title1: "Débloque ton",
       title2: "plein potentiel",
       sub: "Les traders qui valident leur stratégie AVANT le challenge évitent de perdre leurs frais d'inscription.",
@@ -12570,13 +12612,15 @@ function PaywallScreen({ t, lang, daysLeft, onSubscribe, onClose, canClose = tru
       monthLabel: "Mensuel", monthPrice: "9,99 €", monthPer: "/mois",
       yearLabel: "Annuel", yearPrice: "79,99 €", yearPer: "/an",
       yearSave: "ÉCONOMISE 33 %", yearSub: "soit 6,67 €/mois",
+      lifeLabel: "Lifetime", lifePrice: "199,99 €", lifePer: "une fois",
+      lifeBadge: "ACCÈS À VIE", lifeSub: "Payé une fois, à toi pour toujours",
       trust1: "Paiement 100 % sécurisé", trust2: "Annulation à tout moment", trust3: "Satisfait ou remboursé",
-      cta: expired ? "S'abonner maintenant" : "Continuer mon essai",
+      cta: "Passer en Pro",
       stars: "Rejoint par des milliers de traders prop firm",
       restore: "Restaurer mes achats",
     },
     en: {
-      badge: expired ? "Trial ended" : daysLeft + " trial days left",
+      badge: simsLeft > 0 ? "Free plan · " + simsLeft + " simulation" + (simsLeft > 1 ? "s" : "") + " left" : "Free limit reached",
       title1: "Unlock your", title2: "full potential",
       sub: "Traders who validate their strategy BEFORE the challenge avoid losing their entry fees.",
       riskTitle: "WHAT YOU RISK\nWITHOUT PREP",
@@ -12597,13 +12641,15 @@ function PaywallScreen({ t, lang, daysLeft, onSubscribe, onClose, canClose = tru
       monthLabel: "Monthly", monthPrice: "$9.99", monthPer: "/mo",
       yearLabel: "Annual", yearPrice: "$79.99", yearPer: "/yr",
       yearSave: "SAVE 33%", yearSub: "$6.67/month",
+      lifeLabel: "Lifetime", lifePrice: "$199.99", lifePer: "one-time",
+      lifeBadge: "LIFETIME ACCESS", lifeSub: "Pay once, yours forever",
       trust1: "100% secure payment", trust2: "Cancel anytime", trust3: "Satisfied or refunded",
-      cta: expired ? "Subscribe now" : "Continue my trial",
+      cta: "Go Pro",
       stars: "Joined by thousands of prop firm traders",
       restore: "Restore purchases",
     },
     es: {
-      badge: expired ? "Prueba terminada" : daysLeft + " días de prueba restantes",
+      badge: simsLeft > 0 ? "Plan gratis · " + simsLeft + " simulación" + (simsLeft > 1 ? "es" : "") + " restante" + (simsLeft > 1 ? "s" : "") : "Límite gratis alcanzado",
       title1: "Desbloquea tu", title2: "pleno potencial",
       sub: "Los traders que validan su estrategia ANTES del challenge evitan perder sus cuotas.",
       riskTitle: "LO QUE ARRIESGAS\nSIN PREPARACIÓN",
@@ -12624,8 +12670,10 @@ function PaywallScreen({ t, lang, daysLeft, onSubscribe, onClose, canClose = tru
       monthLabel: "Mensual", monthPrice: "9,99 €", monthPer: "/mes",
       yearLabel: "Anual", yearPrice: "79,99 €", yearPer: "/año",
       yearSave: "AHORRA 33%", yearSub: "6,67 €/mes",
+      lifeLabel: "Lifetime", lifePrice: "199,99 €", lifePer: "una vez",
+      lifeBadge: "ACCESO DE POR VIDA", lifeSub: "Paga una vez, tuyo para siempre",
       trust1: "Pago 100% seguro", trust2: "Cancela cuando quieras", trust3: "Satisfecho o reembolsado",
-      cta: expired ? "Suscribirse ahora" : "Continuar mi prueba",
+      cta: "Pasar a Pro",
       stars: "Miles de traders prop firm",
       restore: "Restaurar compras",
     },
@@ -12798,6 +12846,33 @@ function PaywallScreen({ t, lang, daysLeft, onSubscribe, onClose, canClose = tru
               </div>
             </div>
           </div>
+
+          {/* Lifetime */}
+          <div onClick={() => setPlan("life")} style={{
+            position:"relative", borderRadius:14, padding:"10px 14px", cursor:"pointer",
+            background: plan==="life" ? "rgba(251,191,36,0.07)" : "rgba(255,255,255,0.03)",
+            border:"1.5px solid "+(plan==="life" ? "#fbbf24" : "rgba(255,255,255,0.10)"),
+          }}>
+            <div style={{ position:"absolute", top:-9, right:12, background:"rgba(251,191,36,0.15)", color:"#fbbf24", fontSize:8, fontWeight:800, padding:"2px 8px", borderRadius:6, border:"1px solid rgba(251,191,36,0.3)", letterSpacing:0.5 }}>{x.lifeBadge}</div>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <div style={{ width:36, height:36, borderRadius:10, background:"rgba(251,191,36,0.10)", border:"1px solid rgba(251,191,36,0.2)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 6l3.5 3L9 3l3.5 6L16 6v7a1 1 0 01-1 1H3a1 1 0 01-1-1V6z" fill="rgba(251,191,36,0.85)"/></svg>
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:14, fontWeight:700, color:"#fff" }}>{x.lifeLabel}</div>
+                <div style={{ fontSize:10, color:"rgba(255,255,255,0.45)", marginTop:1 }}>{x.lifeSub}</div>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <div style={{ textAlign:"right" }}>
+                  <div style={{ fontSize:18, fontWeight:800, color:"#fff" }}>{x.lifePrice}</div>
+                  <div style={{ fontSize:9, color:"rgba(255,255,255,0.4)" }}>{x.lifePer}</div>
+                </div>
+                <div style={{ width:26, height:26, borderRadius:13, background: plan==="life"?"#fbbf24":"rgba(255,255,255,0.08)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3.5 2l3.5 3-3.5 3" stroke={plan==="life"?"#000":"rgba(255,255,255,0.5)"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* ── TRUST BADGES ── */}
@@ -12858,15 +12933,10 @@ export default function App() {
     setOnboardingPaywallDone(true);
     try { localStorage.setItem("eapropfirm_ob_paywall", "1"); } catch(e) {}
   };
-  // Recalcule l'accès premium (abonné ou trial actif)
-  const premiumAccess = premium.subscribed || (() => {
-    if (!premium.trialStart) return true; // trial pas encore démarré = accès le temps du setup
-    const elapsed = (Date.now() - premium.trialStart) / (1000*60*60*24);
-    return elapsed < TRIAL_DAYS;
-  })();
-  const daysLeft = premium.subscribed ? Infinity : (premium.trialStart
-    ? Math.max(0, Math.ceil(TRIAL_DAYS - (Date.now() - premium.trialStart)/(1000*60*60*24)))
-    : TRIAL_DAYS);
+  // Modèle freemium : premium = abonné uniquement (plus de trial temporel).
+  // Les quotas gratuits (3 simulations, 7 jours de journal) gèrent la découverte du produit.
+  const premiumAccess = !!premium.subscribed;
+  const daysLeft = premium.subscribed ? Infinity : 0;
   // Session Firebase : restaure/synchronise l'utilisateur connecté au démarrage.
   // Si Firebase a une session active → priorité à Firebase.
   // Si Firebase est déconnecté mais qu'un user local "guest" existe → on le garde.
@@ -13064,10 +13134,7 @@ export default function App() {
     setShowPaywall(false);
   };
 
-  // Paywall FORCÉ si le trial est expiré et pas abonné
-  if (!premium.subscribed && premium.trialStart && daysLeft <= 0) {
-    return <PaywallScreen t={t} lang={lang} daysLeft={0} onSubscribe={handleSubscribe} onClose={() => {}} canClose={false} />;
-  }
+  // Freemium : jamais de blocage total de l'app — les gates sont sur les features Pro et les quotas.
 
   // Paywall ouvert manuellement (clic sur feature verrouillée)
   if (showPaywall) {
@@ -13113,7 +13180,7 @@ export default function App() {
           <ProfileScreen t={t} lang={lang} setLang={setLang} user={user} profile={profile} setProfile={setProfile} onLogout={logout} onReset={reset} premium={premium} daysLeft={daysLeft} onUpgrade={() => setShowPaywall(true)} />
         )}
         {screen === "journal" && (
-          <JournalScreen t={t} lang={lang} goto={navGoto} capital={profile.capital || 25000} lastSim={lastSim} />
+          <JournalScreen t={t} lang={lang} goto={navGoto} capital={profile.capital || 25000} lastSim={lastSim} premiumAccess={premiumAccess} requirePremium={() => setShowPaywall(true)} />
         )}
       </div>
       <NavBar t={t} active={navActive} goto={navGoto} />
