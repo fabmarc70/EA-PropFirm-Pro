@@ -4920,6 +4920,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           pendingPayout: funded.pendingPayout || 0,
           status: funded.status || "active",
         } : null,
+        // ── Paramètres de trading nécessaires pour reconstruire le calendrier depuis le Dashboard ──
+        activeDays, newsSkipDays, includeWeekend,
       });
     } catch (e) {}
   // activeDays (array) : on utilise join pour que React détecte les changements
@@ -8660,14 +8662,16 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
         }
       } else {
         // Pas de vraies dates : placement séquentiel pur, sans scatter ni case vide artificielle
+        const eaDowsSeq = new Set((activeDays || [1,2,3,4,5]).map(d => d - 1));
         let tradingIdx = 0;
         for (let dayNum = 1; dayNum <= 28; dayNum++) {
           const dow = (dayNum - 1) % 7;
           const isWeekend = dow >= 5;
-          if (!isWeekend && tradingIdx < monthDays.length) {
+          const isActive = eaDowsSeq.has(dow);
+          if (isActive && tradingIdx < monthDays.length) {
             grid.push({ dayNum, trading: true, data: monthDays[tradingIdx++] });
           } else {
-            grid.push({ dayNum, trading: false, data: null, isEmptyWeekday: !isWeekend });
+            grid.push({ dayNum, trading: false, data: null, isEmptyWeekday: !isWeekend && !isActive });
           }
         }
       }
@@ -8686,8 +8690,9 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
       return x - Math.floor(x);
     };
 
-    // Jours actifs EA (0=Lun..4=Ven, exclure weekends)
-    const eaDows = new Set((activeDays || [1,2,3,4,5]).filter(d => d >= 1 && d <= 5).map(d => d - 1));
+    // Jours actifs EA (0=Lun..6=Dim), y compris Sa/Di si includeWeekend est actif
+    // AVANT: filter(d => d <= 5) excluait les jours 6 et 7 (Sa=6, Di=7) même quand activés
+    const eaDows = new Set((activeDays || [1,2,3,4,5]).map(d => d - 1)); // 0=Lun, 5=Sam, 6=Dim
 
     let tradingIdx = 0;
     for (let week = 0; week < 4; week++) {
@@ -8710,8 +8715,8 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
         const isEaActive = eaDows.has(d);
         const isNewsSkip = skipDowsThisWeek.has(d);
 
-        if (isWeekend) {
-          // Weekend : case très sombre (le calendrier affiche toujours Sam/Dim)
+        if (isWeekend && !isEaActive) {
+          // Weekend non tradé : case très sombre
           grid.push({ dayNum, trading: false, data: null, isEmptyWeekday: false });
         } else if (!isEaActive || isNewsSkip) {
           // Jour non tradé : EA ne trade pas ce jour OU c'est un jour d'annonce
