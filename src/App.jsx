@@ -5078,7 +5078,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
       {/* Toggle Challenge / Funded — fixed header bar (figé, immobile) */}
       {(tab === "challenge" || tab === "funded" || tab === "montecarlo") && (
-        <div style={{
+        <div data-coach="sim-toggle" style={{
           position: "fixed", top: 0, left: 0, right: 0, zIndex: 20,
           background: "rgba(6,9,15,0.98)",
           backdropFilter: "blur(10px)",
@@ -10790,7 +10790,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         const dLabel = journalMode ? journalAccountLabel(principalAccount) : (firm.name + (fm?.name ? " · " + fm.name : "") + " · " + t("cal_month1"));
 
         return (
-          <div style={{
+          <div data-coach="dash-balance" style={{
             marginBottom: "14px",
             background: "linear-gradient(135deg, rgba(110,231,183,0.09), rgba(110,231,183,0.015))",
             border: "1px solid rgba(110,231,183,0.2)", borderRadius: 20, padding: "18px 18px 8px",
@@ -10884,7 +10884,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
       {/* ── CALENDRIER PNL / JOURNAL DE TRADING ── */}
       <div style={{marginBottom:"14px"}}>
         {/* Toggle mode journal */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, padding: "0 2px" }}>
+        <div data-coach="dash-toggle" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, padding: "0 2px" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}>
             {journalMode ? t("cal_journal_title") : t("cal_title")}
           </div>
@@ -10927,7 +10927,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
 
         {/* Le calendrier : mode journal OU mode simulation */}
         {journalMode ? (
-          <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,overflow:"hidden"}}>
+          <div data-coach="dash-calendar" style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,overflow:"hidden"}}>
             <CalendrierPnL t={t} lang={lang}
               dailyLog={[]}
               journalMode={true}
@@ -10942,7 +10942,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
             />
           </div>
         ) : ls.funded ? (
-          <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,overflow:"hidden"}}>
+          <div data-coach="dash-calendar" style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,overflow:"hidden"}}>
             {/* Copie exacte du CalendrierPnL de la page Funded */}
             <CalendrierPnL t={t} lang={lang} dailyLog={ls.funded.dailyLog}
               newsSkipDays={ls.newsSkipDays || 0}
@@ -11622,7 +11622,7 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
             MES COMPTES — chaque compte est une session de journal
             totalement isolée (entrées, stats, capital indépendants)
         ══════════════════════════════════════════════════════════ */}
-        <div style={{ marginBottom: 16 }}>
+        <div data-coach="journal-accounts" style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 8 }}>
             {t("acc_my_accounts")}
           </div>
@@ -11855,7 +11855,7 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
         />
 
         {/* Calendrier en mode journal (saisie + visualisation) */}
-        <div style={{ marginBottom: 16 }}>
+        <div data-coach="journal-calendar" style={{ marginBottom: 16 }}>
           <CalendrierPnL t={t} lang={lang}
             dailyLog={[]}
             journalMode={true}
@@ -12348,7 +12348,7 @@ function NavBar({ t, active, goto }) {
   };
 
   return (
-    <div style={{
+    <div data-coach="nav-bar" style={{
       position:"fixed",bottom:0,left:0,right:0,zIndex:100,maxWidth:480,margin:"0 auto",
       background:"rgba(20,15,5,0.95)",
       borderTop:"1px solid rgba(110,231,183,0.12)",
@@ -12580,6 +12580,158 @@ function LockOverlay({ onUnlock, label, compact = false }) {
 // PAYWALL — premium, axé valeur + aversion à la perte.
 // Prêt pour RevenueCat (les boutons appelleront purchasePackage plus tard).
 // ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// COACH MARKS — tutoriel premium par bulles contextuelles.
+// Spotlight sur l'élément ciblé (data-coach="...") + bulle explicative.
+// Skippable à tout moment, 1 seule fois par tour (persisté localStorage).
+// ══════════════════════════════════════════════════════════════════
+const COACH_KEY = "eapropfirm_coach_done";
+function loadCoachDone() { try { return JSON.parse(localStorage.getItem(COACH_KEY) || "{}"); } catch (e) { return {}; } }
+function markCoachDone(tourId) {
+  const d = loadCoachDone(); d[tourId] = true;
+  try { localStorage.setItem(COACH_KEY, JSON.stringify(d)); } catch (e) {}
+}
+
+const COACH_TOURS = {
+  dashboard: [
+    { target: "dash-balance",
+      fr: ["Ton solde en direct", "Capital + P&L en temps réel. La courbe suit ta simulation ou ton journal selon le mode actif."],
+      en: ["Your live balance", "Capital + P&L in real time. The curve follows your simulation or journal depending on the active mode."],
+      es: ["Tu saldo en vivo", "Capital + P&L en tiempo real. La curva sigue tu simulación o tu diario según el modo activo."] },
+    { target: "dash-toggle",
+      fr: ["Simulation ou réel", "Bascule ici entre ta simulation et ton Journal de Trading réel."],
+      en: ["Simulation or real", "Switch here between your simulation and your real Trading Journal."],
+      es: ["Simulación o real", "Cambia aquí entre tu simulación y tu Diario de Trading real."] },
+    { target: "dash-calendar",
+      fr: ["Ton mois en un coup d'œil", "Chaque case = un jour. En mode journal, clique un jour pour saisir tes trades."],
+      en: ["Your month at a glance", "Each cell = one day. In journal mode, tap a day to log your trades."],
+      es: ["Tu mes de un vistazo", "Cada celda = un día. En modo diario, toca un día para registrar tus trades."] },
+    { target: "nav-bar",
+      fr: ["Tout est là", "Simulateur, Journal, Mes Trades et Analyse. Bonne route 🚀"],
+      en: ["Everything is here", "Simulator, Journal, My Trades and Analysis. Enjoy 🚀"],
+      es: ["Todo está aquí", "Simulador, Diario, Mis Trades y Análisis. Buen viaje 🚀"] },
+  ],
+  journal: [
+    { target: "journal-accounts",
+      fr: ["Tes comptes", "Crée plusieurs comptes — chaque journal est totalement isolé. Tape une pastille pour switcher."],
+      en: ["Your accounts", "Create multiple accounts — each journal is fully isolated. Tap a pill to switch."],
+      es: ["Tus cuentas", "Crea varias cuentas — cada diario está totalmente aislado. Toca una píldora para cambiar."] },
+    { target: "journal-calendar",
+      fr: ["Saisis tes journées", "Clique un jour pour enregistrer P&L, trades et discipline."],
+      en: ["Log your days", "Tap a day to record P&L, trades and discipline."],
+      es: ["Registra tus días", "Toca un día para registrar P&L, trades y disciplina."] },
+  ],
+  simulator: [
+    { target: "sim-toggle",
+      fr: ["3 modes de simulation", "Challenge, compte Funded et Monte Carlo — change de mode ici."],
+      en: ["3 simulation modes", "Challenge, Funded account and Monte Carlo — switch modes here."],
+      es: ["3 modos de simulación", "Challenge, cuenta Funded y Monte Carlo — cambia de modo aquí."] },
+  ],
+};
+
+function CoachMarks({ tourId, lang = "fr", onDone }) {
+  const steps = COACH_TOURS[tourId] || [];
+  const [idx, setIdx] = useState(0);
+  const [rect, setRect] = useState(null);
+  const skipLabel = lang === "en" ? "Skip" : lang === "es" ? "Omitir" : "Passer";
+  const nextLabel = lang === "en" ? "Next" : lang === "es" ? "Siguiente" : "Suivant";
+  const doneLabel = lang === "en" ? "Got it" : lang === "es" ? "Entendido" : "C'est parti";
+
+  const finish = () => { markCoachDone(tourId); onDone(); };
+
+  useEffect(() => {
+    const step = steps[idx];
+    if (!step) { finish(); return; }
+    const el = document.querySelector('[data-coach="' + step.target + '"]');
+    if (!el) {
+      // Cible absente de l'écran actuel → sauter l'étape plutôt que bloquer
+      if (idx < steps.length - 1) setIdx(idx + 1); else finish();
+      return;
+    }
+    setRect(null); // fondu entre étapes
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    const timer = setTimeout(() => {
+      const r = el.getBoundingClientRect();
+      setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+    }, 380);
+    return () => clearTimeout(timer);
+  }, [idx]);
+
+  if (!steps.length) return null;
+  const step = steps[idx];
+  const txt = step[lang] || step.fr;
+  const isLast = idx === steps.length - 1;
+
+  // Bulle au-dessus ou en dessous selon la place disponible
+  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+  const bubbleBelow = rect ? rect.top + rect.height / 2 < vh / 2 : true;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 500 }} onClick={(e) => e.stopPropagation()}>
+      <style>{"@keyframes eapfp-coach-in { from { opacity: 0; transform: translateY(6px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }"}</style>
+
+      {/* Spotlight — masque sombre autour de l'élément ciblé */}
+      {rect ? (
+        <div style={{
+          position: "fixed", top: rect.top - 6, left: rect.left - 6,
+          width: rect.width + 12, height: rect.height + 12,
+          borderRadius: 18, pointerEvents: "none",
+          boxShadow: "0 0 0 9999px rgba(3,6,10,0.82)",
+          border: "1.5px solid rgba(110,231,183,0.55)",
+          transition: "all 0.35s cubic-bezier(0.22,1,0.36,1)",
+        }} />
+      ) : (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(3,6,10,0.82)", pointerEvents: "none" }} />
+      )}
+
+      {/* Bulle */}
+      {rect && (
+        <div style={{
+          position: "fixed",
+          left: Math.max(14, Math.min(rect.left + rect.width / 2 - 140, (typeof window !== "undefined" ? window.innerWidth : 400) - 294)),
+          top: bubbleBelow ? rect.top + rect.height + 16 : undefined,
+          bottom: bubbleBelow ? undefined : vh - rect.top + 16,
+          width: 280, zIndex: 501,
+          background: "rgba(13,17,23,0.98)",
+          border: "1px solid rgba(110,231,183,0.25)",
+          borderRadius: 16, padding: "16px 16px 13px",
+          boxShadow: "0 12px 40px rgba(0,0,0,0.55)",
+          animation: "eapfp-coach-in 0.35s cubic-bezier(0.22,1,0.36,1)",
+          fontFamily: "-apple-system, sans-serif",
+        }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", marginBottom: 5 }}>{txt[0]}</div>
+          <div style={{ fontSize: 12, lineHeight: 1.5, color: "rgba(255,255,255,0.6)", marginBottom: 13 }}>{txt[1]}</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", gap: 5 }}>
+              {steps.map((_, i) => (
+                <span key={i} style={{
+                  width: i === idx ? 16 : 5, height: 5, borderRadius: 3,
+                  background: i === idx ? "#6ee7b7" : "rgba(255,255,255,0.2)",
+                  transition: "all 0.25s",
+                }} />
+              ))}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {!isLast && (
+                <button onClick={finish} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11.5, color: "rgba(255,255,255,0.4)", fontWeight: 600, padding: 0 }}>
+                  {skipLabel}
+                </button>
+              )}
+              <button onClick={() => (isLast ? finish() : setIdx(idx + 1))} style={{
+                padding: "8px 16px", borderRadius: 10, border: "none", cursor: "pointer",
+                background: "linear-gradient(135deg,#6ee7b7,#34d399)", color: "#000",
+                fontSize: 12, fontWeight: 800,
+              }}>
+                {isLast ? doneLabel : nextLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PaywallScreen({ t, lang, daysLeft, onSubscribe, onClose, canClose = true }) {
   const [plan, setPlan] = useState("year"); // annuel mis en avant par défaut
   const simsLeft = freeSimsLeft();
@@ -12933,10 +13085,20 @@ export default function App() {
     setOnboardingPaywallDone(true);
     try { localStorage.setItem("eapropfirm_ob_paywall", "1"); } catch(e) {}
   };
+  // ── Coach marks : tour contextuel à la 1re visite de chaque écran (après l'onboarding) ──
+  const [activeTour, setActiveTour] = useState(null);
   // Modèle freemium : premium = abonné uniquement (plus de trial temporel).
   // Les quotas gratuits (3 simulations, 7 jours de journal) gèrent la découverte du produit.
   const premiumAccess = !!premium.subscribed;
   const daysLeft = premium.subscribed ? Infinity : 0;
+  useEffect(() => {
+    if (!user || !onboardingPaywallDone || activeTour) return;
+    const tourFor = screen === "dashboard" ? "dashboard" : screen === "journal" ? "journal" : screen === "simulator" ? "simulator" : null;
+    if (tourFor && !loadCoachDone()[tourFor]) {
+      const timer = setTimeout(() => setActiveTour(tourFor), 650); // laisser l'écran se rendre
+      return () => clearTimeout(timer);
+    }
+  }, [screen, onboardingPaywallDone, user]);
   // Session Firebase : restaure/synchronise l'utilisateur connecté au démarrage.
   // Si Firebase a une session active → priorité à Firebase.
   // Si Firebase est déconnecté mais qu'un user local "guest" existe → on le garde.
@@ -13184,6 +13346,7 @@ export default function App() {
         )}
       </div>
       <NavBar t={t} active={navActive} goto={navGoto} />
+      {activeTour && <CoachMarks tourId={activeTour} lang={lang} onDone={() => setActiveTour(null)} />}
     </div>
   );
 }
