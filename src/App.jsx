@@ -4537,10 +4537,18 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   // ── Récurrence EA ──
   // Jours actifs : "1"=Lun, "2"=Mar, "3"=Mer, "4"=Jeu, "5"=Ven, "6"=Sam, "7"=Dim
   const [activeDays, setActiveDays] = useState(() => {
-    const saved = loadPremium(); // réutilise localStorage
     try {
       const r = localStorage.getItem("eapropfirm_activedays");
-      return r ? JSON.parse(r) : [1,2,3,4,5]; // Lun-Ven par défaut
+      const base = r ? JSON.parse(r) : [1,2,3,4,5];
+      // Sync avec includeWeekend DÈS l'init — évite le décalage entre le
+      // useState de includeWeekend (qui lit saved.includeWeekend) et le
+      // useEffect de sync qui s'exécute APRÈS le premier rendu.
+      const iwSaved = (() => {
+        try { return JSON.parse(localStorage.getItem("eapropfirm_config") || "{}").includeWeekend === true; }
+        catch (e) { return false; }
+      })();
+      if (iwSaved) return [...new Set([...base, 6, 7])].sort((a, b) => a - b);
+      return base.filter(d => d <= 5);
     } catch (e) { return [1,2,3,4,5]; }
   });
   const toggleDay = (d) => {
@@ -13063,7 +13071,7 @@ function PaywallScreen({ t, lang, daysLeft, onSubscribe, onClose, canClose = tru
             background: plan==="year" ? "rgba(110,231,183,0.08)" : "rgba(255,255,255,0.03)",
             border:"1.5px solid "+(plan==="year" ? "#6ee7b7" : "rgba(255,255,255,0.10)"),
           }}>
-            <div style={{ position:"absolute", top:-9, right:12, background:"rgba(110,231,183,0.15)", color:"#6ee7b7", fontSize:8, fontWeight:800, padding:"2px 8px", borderRadius:6, border:"1px solid rgba(110,231,183,0.3)", letterSpacing:0.5 }}>{x.bestValue}</div>
+            <div style={{ position:"absolute", top:-9, right:12, background:"#6ee7b7", color:"#000", fontSize:8, fontWeight:800, padding:"2px 8px", borderRadius:6, letterSpacing:0.5 }}>{x.popular}</div>
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
               <div style={{ width:36, height:36, borderRadius:10, background:"rgba(110,231,183,0.12)", border:"1px solid rgba(110,231,183,0.2)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2l2 4h5l-4 3 1.5 4.5L9 11l-4.5 2.5L6 9 2 6h5L9 2z" fill="#6ee7b7" opacity="0.9"/></svg>
@@ -13071,7 +13079,7 @@ function PaywallScreen({ t, lang, daysLeft, onSubscribe, onClose, canClose = tru
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:14, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", gap:6 }}>
                   {x.yearLabel}
-                  <span style={{ fontSize:8, fontWeight:800, background:"rgba(110,231,183,0.18)", color:"#6ee7b7", padding:"2px 6px", borderRadius:4 }}>{x.yearSave}</span>
+                  
                 </div>
                 <div style={{ fontSize:10, color:"rgba(255,255,255,0.45)", marginTop:1 }}>{x.yearSub}</div>
               </div>
@@ -13093,7 +13101,7 @@ function PaywallScreen({ t, lang, daysLeft, onSubscribe, onClose, canClose = tru
             background: plan==="month" ? "rgba(110,231,183,0.08)" : "rgba(255,255,255,0.03)",
             border:"1.5px solid "+(plan==="month" ? "#6ee7b7" : "rgba(255,255,255,0.10)"),
           }}>
-            <div style={{ position:"absolute", top:-9, right:12, background:"#6ee7b7", color:"#000", fontSize:8, fontWeight:800, padding:"2px 8px", borderRadius:6, letterSpacing:0.5 }}>{x.popular}</div>
+            
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
               <div style={{ width:36, height:36, borderRadius:10, background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="3" width="14" height="12" rx="2" stroke="rgba(255,255,255,0.6)" strokeWidth="1.3"/><path d="M2 7h14" stroke="rgba(255,255,255,0.6)" strokeWidth="1.3"/><circle cx="5.5" cy="11" r="1" fill="rgba(255,255,255,0.5)"/><circle cx="9" cy="11" r="1" fill="rgba(255,255,255,0.5)"/></svg>
@@ -13119,7 +13127,7 @@ function PaywallScreen({ t, lang, daysLeft, onSubscribe, onClose, canClose = tru
             background: plan==="life" ? "rgba(251,191,36,0.07)" : "rgba(255,255,255,0.03)",
             border:"1.5px solid "+(plan==="life" ? "#fbbf24" : "rgba(255,255,255,0.10)"),
           }}>
-            <div style={{ position:"absolute", top:-9, right:12, background:"rgba(251,191,36,0.15)", color:"#fbbf24", fontSize:8, fontWeight:800, padding:"2px 8px", borderRadius:6, border:"1px solid rgba(251,191,36,0.3)", letterSpacing:0.5 }}>{x.lifeBadge}</div>
+            
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
               <div style={{ width:36, height:36, borderRadius:10, background:"rgba(251,191,36,0.10)", border:"1px solid rgba(251,191,36,0.2)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 6l3.5 3L9 3l3.5 6L16 6v7a1 1 0 01-1 1H3a1 1 0 01-1-1V6z" fill="rgba(251,191,36,0.85)"/></svg>
