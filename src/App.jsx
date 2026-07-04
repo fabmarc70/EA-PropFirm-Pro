@@ -13091,14 +13091,6 @@ export default function App() {
   // Les quotas gratuits (3 simulations, 7 jours de journal) gèrent la découverte du produit.
   const premiumAccess = !!premium.subscribed;
   const daysLeft = premium.subscribed ? Infinity : 0;
-  useEffect(() => {
-    if (!user || !onboardingPaywallDone || activeTour) return;
-    const tourFor = screen === "dashboard" ? "dashboard" : screen === "journal" ? "journal" : screen === "simulator" ? "simulator" : null;
-    if (tourFor && !loadCoachDone()[tourFor]) {
-      const timer = setTimeout(() => setActiveTour(tourFor), 650); // laisser l'écran se rendre
-      return () => clearTimeout(timer);
-    }
-  }, [screen, onboardingPaywallDone, user]);
   // Session Firebase : restaure/synchronise l'utilisateur connecté au démarrage.
   // Si Firebase a une session active → priorité à Firebase.
   // Si Firebase est déconnecté mais qu'un user local "guest" existe → on le garde.
@@ -13129,6 +13121,14 @@ export default function App() {
     }
   };
   const [screen, setScreen] = useState("dashboard");
+  useEffect(() => {
+    if (!user || !onboardingPaywallDone || activeTour) return;
+    const tourFor = screen === "dashboard" ? "dashboard" : screen === "journal" ? "journal" : screen === "simulator" ? "simulator" : null;
+    if (tourFor && !loadCoachDone()[tourFor]) {
+      const timer = setTimeout(() => setActiveTour(tourFor), 650); // laisser l'écran se rendre
+      return () => clearTimeout(timer);
+    }
+  }, [screen, onboardingPaywallDone, user]);
   const [simTab, setSimTab] = useState("challenge");
   const [lastSim, setLastSim] = useState(app0.lastSim ?? null);
 
