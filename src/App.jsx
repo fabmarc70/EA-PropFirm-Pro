@@ -11906,39 +11906,6 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
                 </div>
               </div>
 
-              {/* Points positifs */}
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", marginBottom: 6 }}>{t("disc_positives_title")}</div>
-                {[
-                  [t("disc_respect_risk_count"), discipline.respectRiskDays],
-                  [t("disc_respect_plan_count"), discipline.respectPlanDays],
-                  [t("disc_clean_days_count"), discipline.cleanDays],
-                ].filter(([,v]) => v > 0).map(([label, val], i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
-                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{label}</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7" }}>{val}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Points négatifs */}
-              {(discipline.exceededRiskDays + discipline.brokePlanDays + discipline.lotIncreaseDays + discipline.emotionalDays + discipline.overtradingDays) > 0 && (
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#ef4444", textTransform: "uppercase", marginBottom: 6 }}>{t("disc_negatives_title")}</div>
-                  {[
-                    [t("disc_exceeded_risk_count"), discipline.exceededRiskDays],
-                    [t("disc_broke_plan_count"), discipline.brokePlanDays],
-                    [t("disc_lot_increase_count"), discipline.lotIncreaseDays],
-                    [t("disc_emotional_count"), discipline.emotionalDays],
-                    [t("disc_overtrading_count"), discipline.overtradingDays],
-                  ].filter(([,v]) => v > 0).map(([label, val], i) => (
-                    <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
-                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{label}</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "#ef4444" }}>{val}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           );
         })()}
