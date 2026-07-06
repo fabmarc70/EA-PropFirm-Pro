@@ -3508,6 +3508,20 @@ function labRunMonteCarlo(params, capital, firmKey, modelKey, runs = 60) {
 // ══════════════════════════════════════════════════════════════════
 // ÉCRAN LABORATOIRE — wizard de profil, analyse, roadmap, arbre de recherche
 // ══════════════════════════════════════════════════════════════════
+// Header commun des rapports (Analyse + Laboratoire) — niveau module car utilisé
+// par LabScreen (module-level) ET CoachScreen. `function` = hoisté, zéro risque TDZ.
+function ReportHeader({ title, subtitle, onBack }) {
+  return (
+    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:18}}>
+      <button onClick={onBack} style={{width:36,height:36,borderRadius:18,background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.7)',fontSize:16,cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>←</button>
+      <div>
+        <div style={{fontSize:17,fontWeight:800,color:'#fff',letterSpacing:-0.3}}>{title}</div>
+        <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{subtitle}</div>
+      </div>
+    </div>
+  );
+}
+
 function LabScreen({ t, lang, profile, onBack }) {
   const LAB_KEY = "eapropfirm_lab_profile";
   const [sel, setSel] = useState(() => {
@@ -3872,16 +3886,6 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
       </div>
     );
   };
-
-  const ReportHeader = ({ title, subtitle, onBack }) => (
-    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:18}}>
-      <button onClick={onBack} style={{width:36,height:36,borderRadius:18,background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.7)',fontSize:16,cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>←</button>
-      <div>
-        <div style={{fontSize:17,fontWeight:800,color:'#fff',letterSpacing:-0.3}}>{title}</div>
-        <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{subtitle}</div>
-      </div>
-    </div>
-  );
 
   const ExpertSection = ({ gemini, gemLoading, localText }) => {
     const narrative = gemini || (localText ? { recommendation:localText, expertQuote:null, readyForChallenge:null } : null);
