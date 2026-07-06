@@ -204,6 +204,12 @@ const I18N = {
     disc_form_title: "Discipline du jour",
     nav_journal: "Journal",
     nav_analyse: "Analyse",
+    an_lab_title: "Laboratoire de Recherche",
+    an_lab_sub: "Teste ta stratégie avant de risquer",
+    an_lab_desc: "Décris ta stratégie, obtiens son score, explore des variantes Monte Carlo et découvre ce qui maximise tes chances de passer un challenge.",
+    an_lab_saved: "Stratégie enregistrée · reprendre",
+    an_lab_new: "Nouvelle analyse stratégique",
+    an_lab_cta: "Ouvrir le Laboratoire",
     dash_sims_left_singular: "simulation gratuite restante",
     dash_sims_left_plural: "simulations gratuites restantes",
     dash_sims_limit_reached: "Limite gratuite atteinte",
@@ -916,6 +922,12 @@ const I18N = {
     disc_form_title: "Disciplina del día",
     nav_journal: "Diario",
     nav_analyse: "Análisis",
+    an_lab_title: "Laboratorio de Investigación",
+    an_lab_sub: "Prueba tu estrategia antes de arriesgar",
+    an_lab_desc: "Describe tu estrategia, obtén su puntuación, explora variantes Monte Carlo y descubre qué maximiza tus posibilidades de pasar un challenge.",
+    an_lab_saved: "Estrategia guardada · continuar",
+    an_lab_new: "Nuevo análisis estratégico",
+    an_lab_cta: "Abrir el Laboratorio",
     dash_sims_left_singular: "simulación gratis restante",
     dash_sims_left_plural: "simulaciones gratis restantes",
     dash_sims_limit_reached: "Límite gratis alcanzado",
@@ -1628,6 +1640,12 @@ const I18N = {
     disc_form_title: "Today's discipline",
     nav_journal: "Journal",
     nav_analyse: "Analysis",
+    an_lab_title: "Research Lab",
+    an_lab_sub: "Test your strategy before risking",
+    an_lab_desc: "Describe your strategy, get its score, explore Monte Carlo variants and discover what maximizes your chances of passing a challenge.",
+    an_lab_saved: "Saved strategy · resume",
+    an_lab_new: "New strategic analysis",
+    an_lab_cta: "Open the Lab",
     dash_sims_left_singular: "free simulation left",
     dash_sims_left_plural: "free simulations left",
     dash_sims_limit_reached: "Free limit reached",
@@ -3344,6 +3362,421 @@ Réponds UNIQUEMENT en JSON valide sans markdown :
   } catch (e) { return null; }
 }
 
+// ══════════════════════════════════════════════════════════════════
+// LABORATOIRE DE RECHERCHE — système expert de trading
+// Base de connaissances + moteur d'analyse + variantes Monte Carlo
+// ══════════════════════════════════════════════════════════════════
+const TRADING_KB = {
+  // Chaque item ajuste les paramètres estimés de simulation (deltas) et porte des métadonnées expertes.
+  // wr/rr/cl/risk = deltas sur la base (wr 50%, rr 1.5, clustering 20%, risk 0.5%)
+  // ruin = risque de ruine intrinsèque 0-10 · prop = compatibilité prop firm 0-10 · robust = robustesse 0-10
+  botTypes: [
+    { k:"manual",     label:"Trading manuel",        wr:0,   rr:0,    cl:0,   risk:0,    ruin:3, prop:8, robust:6, note:"Discipline = variable clé. Journal obligatoire." },
+    { k:"algo",       label:"EA / Algo classique",   wr:0,   rr:0,    cl:-5,  risk:0,    ruin:2, prop:9, robust:8, note:"Constance mécanique, idéal prop firm si backtesté 200+ trades." },
+    { k:"martingale", label:"Martingale",            wr:15,  rr:-0.7, cl:25,  risk:0.6,  ruin:9, prop:1, robust:2, note:"Winrate élevé trompeur : la perte terminale efface tout. DD explosif = incompatible règles prop firm." },
+    { k:"grid",       label:"Grille (Grid)",         wr:12,  rr:-0.5, cl:20,  risk:0.4,  ruin:8, prop:2, robust:3, note:"Accumule l'exposition en range. Tendance forte = drawdown catastrophique." },
+    { k:"dca",        label:"DCA / Moyennage",       wr:8,   rr:-0.3, cl:15,  risk:0.3,  ruin:7, prop:3, robust:4, note:"Version douce de la grille. Le DD reste le tueur silencieux." },
+    { k:"hedging",    label:"Hedging",               wr:3,   rr:-0.2, cl:5,   risk:0.1,  ruin:5, prop:4, robust:5, note:"Réduit la variance mais coûte du spread/swap. Interdit chez certaines firms." },
+    { k:"scalpbot",   label:"Bot scalping HF",       wr:5,   rr:-0.6, cl:-5,  risk:-0.1, ruin:5, prop:4, robust:4, note:"Ultra-sensible au spread/slippage réel. Backtest ≠ live. Vérifier règles HFT de la firm." },
+    { k:"trend",      label:"Suiveur de tendance",   wr:-10, rr:1.0,  cl:10,  risk:0,    ruin:2, prop:8, robust:8, note:"Winrate bas, gains asymétriques. Psychologiquement dur, statistiquement sain." },
+    { k:"meanrev",    label:"Retour à la moyenne",   wr:8,   rr:-0.4, cl:5,   risk:0,    ruin:5, prop:6, robust:6, note:"Marche en range, casse en breakout. Filtre de régime indispensable." },
+    { k:"newsbot",    label:"Bot news/événements",   wr:-5,  rr:0.6,  cl:15,  risk:0.2,  ruin:6, prop:2, robust:3, note:"Slippage massif sur annonces. La plupart des firms l'interdisent ou réduisent les gains." },
+  ],
+  entries: [
+    { k:"breakout",   label:"Breakout",              wr:-6, rr:0.5,  note:"Faux breakouts fréquents : filtre volume/ATR requis." },
+    { k:"macross",    label:"Croisement MM",         wr:-3, rr:0.2,  note:"Retard structurel. Bon en tendance, saigne en range." },
+    { k:"pullback",   label:"Pullback / retracement",wr:4,  rr:0.1,  note:"Meilleur prix d'entrée, rate les départs violents." },
+    { k:"srbounce",   label:"Rebond S/R",            wr:5,  rr:-0.1, note:"Zones objectives, mais tout le monde les voit." },
+    { k:"pattern",    label:"Patterns chartistes",   wr:2,  rr:0.1,  note:"Subjectif : backtest strict des règles nécessaire." },
+    { k:"orderblock", label:"Order blocks / SMC",    wr:1,  rr:0.3,  note:"Cadre séduisant, peu de preuves statistiques indépendantes." },
+    { k:"liquidity",  label:"Liquidity sweep",       wr:0,  rr:0.35, note:"Nécessite lecture fine. RR souvent excellent quand maîtrisé." },
+    { k:"rsidiv",     label:"Divergence RSI/MACD",   wr:3,  rr:0,    note:"Signal contrarien : dangereux contre tendance forte." },
+  ],
+  exits: [
+    { k:"tpfixed",    label:"TP fixe",               wr:2,  rr:-0.1, note:"Simple et backtestable. Laisse des gains sur la table." },
+    { k:"rrfixed",    label:"RR fixe (1:2, 1:3...)", wr:0,  rr:0.2,  note:"Discipline mathématique. Le standard prop firm." },
+    { k:"trailing",   label:"Trailing stop",         wr:-4, rr:0.6,  note:"Capture les grands mouvements, se fait sortir en range." },
+    { k:"partial",    label:"Sorties partielles",    wr:3,  rr:-0.15,note:"Lisse la courbe d'équité — psychologiquement précieux en challenge." },
+    { k:"timeexit",   label:"Sortie temporelle",     wr:0,  rr:-0.1, note:"Évite l'exposition overnight/weekend. Utile règles prop firm." },
+    { k:"betrail",    label:"BE + trailing",         wr:-2, rr:0.4,  note:"Protège le capital tôt, transforme des gagnants en BE." },
+  ],
+  indicators: [
+    { k:"ma",   label:"Moyennes mobiles" }, { k:"rsi",  label:"RSI" }, { k:"macd", label:"MACD" },
+    { k:"bb",   label:"Bollinger" },        { k:"atr",  label:"ATR" }, { k:"fibo", label:"Fibonacci" },
+    { k:"ichi", label:"Ichimoku" },         { k:"vol",  label:"Volume/OBV" }, { k:"vwap", label:"VWAP" },
+    { k:"none", label:"Price action pur" },
+  ],
+  approach: [
+    { k:"technical",   label:"Technique pur",        note:"Backtestable. La voie standard prop firm." },
+    { k:"fundamental", label:"Fondamental",          note:"Horizon long — peu adapté aux contraintes de temps des challenges." },
+    { k:"hybrid",      label:"Techno-fondamental",   note:"Le filtre macro évite de trader contre la Fed." },
+  ],
+  markets: [
+    { k:"majors",  label:"Forex majors",   spread:1, vol:5,  note:"Spreads minimes, comportement propre. Le terrain d'entraînement idéal." },
+    { k:"minors",  label:"Forex minors",   spread:3, vol:6,  note:"Spreads plus larges — vérifier l'impact sur le RR réel." },
+    { k:"exotics", label:"Exotiques",      spread:8, vol:8,  note:"Spreads destructeurs pour scalping. Gaps fréquents." },
+    { k:"gold",    label:"Or (XAUUSD)",    spread:4, vol:9,  note:"Volatilité extrême : diviser la taille de position par 2-3 vs forex." },
+    { k:"indices", label:"Indices (US30, NAS)", spread:3, vol:8, note:"Gaps d'ouverture violents. Sessions US décisives." },
+    { k:"crypto",  label:"Crypto",         spread:5, vol:10, note:"24/7 + volatilité max. Peu de firms crypto sérieuses." },
+  ],
+  sessions: [
+    { k:"asia",    label:"Asie",           note:"Range, faible volume — terrain du mean-reversion." },
+    { k:"london",  label:"Londres",        note:"Volume et directionnel : le breakout y respire." },
+    { k:"ny",      label:"New York",       note:"News US, volatilité — gérer NFP/FOMC/CPI." },
+    { k:"overlap", label:"Londres+NY",     note:"Le pic de liquidité mondiale. Fenêtre optimale du scalping pro." },
+    { k:"all",     label:"24h (bot)",      note:"Nécessite un bot robuste à TOUS les régimes de volatilité." },
+  ],
+};
+
+// Estime les paramètres de simulation à partir des sélections du laboratoire
+function labEstimateParams(sel) {
+  let wr = 50, rr = 1.5, cl = 20, risk = 0.5;
+  const bot = TRADING_KB.botTypes.find(b => b.k === sel.bot);
+  if (bot) { wr += bot.wr; rr += bot.rr; cl += bot.cl; risk += bot.risk; }
+  (sel.entries || []).forEach(k => { const e = TRADING_KB.entries.find(x => x.k === k); if (e) { wr += e.wr * 0.6; rr += e.rr * 0.6; } });
+  (sel.exits || []).forEach(k => { const e = TRADING_KB.exits.find(x => x.k === k); if (e) { wr += e.wr * 0.6; rr += e.rr * 0.6; } });
+  const mk = TRADING_KB.markets.find(m => m.k === sel.market);
+  if (mk) { cl += (mk.vol - 5) * 1.5; rr -= mk.spread * 0.02; }
+  if (sel.approach === "hybrid") wr += 2;
+  return {
+    winrate: Math.max(20, Math.min(85, Math.round(wr))),
+    rr: Math.max(0.4, Math.min(5, +rr.toFixed(2))),
+    clustering: Math.max(0, Math.min(70, Math.round(cl))),
+    riskPct: Math.max(0.1, Math.min(3, +risk.toFixed(2))),
+    tradesPerDay: sel.bot === "scalpbot" ? 8 : sel.bot === "algo" ? 3 : 2,
+  };
+}
+
+// Scores 0-100 sur 5 dimensions + forces/faiblesses
+function labAnalyzeProfile(sel) {
+  const bot = TRADING_KB.botTypes.find(b => b.k === sel.bot) || TRADING_KB.botTypes[0];
+  const params = labEstimateParams(sel);
+  const expectancy = (params.winrate / 100) * params.rr - (1 - params.winrate / 100);
+  const scores = {
+    robustesse: Math.round(bot.robust * 10),
+    survie: Math.round((10 - bot.ruin) * 10),
+    propfirm: Math.round(bot.prop * 10),
+    esperance: Math.max(0, Math.min(100, Math.round(50 + expectancy * 120))),
+    scalabilite: Math.round(((sel.bot === "algo" || sel.bot === "trend" ? 8 : sel.bot === "manual" ? 5 : 3) + (sel.market === "majors" ? 2 : 0)) * 10),
+  };
+  const global = Math.round((scores.robustesse + scores.survie * 1.5 + scores.propfirm * 1.5 + scores.esperance + scores.scalabilite) / 6);
+  const forces = [], faiblesses = [];
+  if (scores.survie >= 70) forces.push("Risque de ruine maîtrisé"); else if (scores.survie <= 40) faiblesses.push("Risque de ruine élevé — " + bot.note);
+  if (scores.propfirm >= 70) forces.push("Compatible règles prop firm"); else if (scores.propfirm <= 40) faiblesses.push("Structure incompatible avec les limites de drawdown prop firm");
+  if (expectancy > 0.15) forces.push("Espérance mathématique positive solide (" + expectancy.toFixed(2) + "R/trade)");
+  else if (expectancy < 0.03) faiblesses.push("Espérance quasi nulle (" + expectancy.toFixed(2) + "R) — le spread mangera l'edge");
+  if ((sel.exits || []).includes("partial")) forces.push("Sorties partielles = courbe d'équité lissée");
+  if (sel.market === "gold" || sel.market === "crypto") faiblesses.push("Marché haute volatilité : sizing à réduire de 50%+");
+  if ((sel.sessions || []).includes("overlap")) forces.push("Session overlap = liquidité et spreads optimaux");
+  if (sel.approach === "hybrid") forces.push("Filtre fondamental = évite de trader contre la macro");
+  return { scores, global, forces, faiblesses, params, bot, expectancy };
+}
+
+// Variantes dérivées pour le mode recherche
+function labGenerateVariants(sel, baseParams) {
+  const v = [];
+  v.push({ name: "Risque ÷2", desc: "Même stratégie, risque par trade divisé par 2", params: { ...baseParams, riskPct: +(baseParams.riskPct / 2).toFixed(2) } });
+  v.push({ name: "RR +0.5", desc: "Cibles plus ambitieuses (trailing/extension)", params: { ...baseParams, rr: +(baseParams.rr + 0.5).toFixed(2), winrate: Math.max(20, baseParams.winrate - 5) } });
+  v.push({ name: "WR +5 (filtre qualité)", desc: "Filtre d'entrée plus strict, moins de trades", params: { ...baseParams, winrate: Math.min(85, baseParams.winrate + 5), tradesPerDay: Math.max(0.5, baseParams.tradesPerDay * 0.6) } });
+  v.push({ name: "Stress -5% WR", desc: "Test de robustesse : conditions dégradées", params: { ...baseParams, winrate: Math.max(15, baseParams.winrate - 5) } });
+  if (!(sel.exits || []).includes("partial")) v.push({ name: "+ Sorties partielles", desc: "50% à 1R, reste en trailing", params: { ...baseParams, winrate: Math.min(85, baseParams.winrate + 3), rr: Math.max(0.4, +(baseParams.rr - 0.15).toFixed(2)) } });
+  if ((sel.bot === "martingale" || sel.bot === "grid" || sel.bot === "dca")) v.push({ name: "Conversion → risque fixe", desc: "Même logique d'entrée, SANS moyennage (1 position, SL dur)", params: { ...baseParams, winrate: Math.max(20, baseParams.winrate - 12), rr: +(baseParams.rr + 0.8).toFixed(2), clustering: Math.max(0, baseParams.clustering - 20), riskPct: 0.5 } });
+  v.push({ name: "Clustering -50%", desc: "Diversification horaire/paires pour casser les séries", params: { ...baseParams, clustering: Math.round(baseParams.clustering / 2) } });
+  return v;
+}
+
+// Monte Carlo compact : N runs de la phase 1+2 d'un challenge → % passage, DD moyen, ruine
+function labRunMonteCarlo(params, capital, firmKey, modelKey, runs = 60) {
+  const firm = PROP_FIRMS[firmKey] || PROP_FIRMS.fundednext;
+  const model = firm.models[modelKey] || firm.models[Object.keys(firm.models)[0]];
+  let passed = 0, ruined = 0, ddSum = 0;
+  for (let i = 0; i < runs; i++) {
+    const rng = mulberry32(hashParamsToSeed(JSON.stringify(params) + "|" + i));
+    const p = { tradesPerDay: params.tradesPerDay, riskPct: params.riskPct / 100, rr: params.rr, winrate: params.winrate, clustering: params.clustering / 100, maxConsecLosses: 0, rng };
+    let ok = true, maxDDRun = 0;
+    for (const phase of model.phases) {
+      const r = simulatePhase(capital, phase, model, p);
+      maxDDRun = Math.max(maxDDRun, (r.maxDD || 0) * 100);
+      if (r.status !== "passed") { ok = false; if (r.status && r.status.startsWith("failed")) ruined++; break; }
+    }
+    if (ok) passed++;
+    ddSum += maxDDRun;
+  }
+  return { passRate: Math.round((passed / runs) * 100), ruinRate: Math.round((ruined / runs) * 100), avgDD: +(ddSum / runs).toFixed(1) };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ÉCRAN LABORATOIRE — wizard de profil, analyse, roadmap, arbre de recherche
+// ══════════════════════════════════════════════════════════════════
+function LabScreen({ t, lang, profile, onBack }) {
+  const LAB_KEY = "eapropfirm_lab_profile";
+  const [sel, setSel] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(LAB_KEY)) || { bot: null, entries: [], exits: [], indicators: [], approach: null, market: null, sessions: [], freeDesc: "" }; }
+    catch (e) { return { bot: null, entries: [], exits: [], indicators: [], approach: null, market: null, sessions: [], freeDesc: "" }; }
+  });
+  const [step, setStep] = useState(sel.bot ? 99 : 0); // 99 = résultats si profil déjà rempli
+  const [research, setResearch] = useState(null);   // arbre de recherche { root, variants }
+  const [researching, setResearching] = useState(false);
+  const [gemini, setGemini] = useState(null);
+  const [geminiLoading, setGeminiLoading] = useState(false);
+
+  const save = (next) => { setSel(next); try { localStorage.setItem(LAB_KEY, JSON.stringify(next)); } catch (e) {} };
+  const toggleMulti = (field, k) => save({ ...sel, [field]: (sel[field] || []).includes(k) ? sel[field].filter(x => x !== k) : [...(sel[field] || []), k] });
+
+  const capital = profile?.capital || 25000;
+  const firmKey = profile?.firmKey || "fundednext";
+  const modelKey = Object.keys((PROP_FIRMS[firmKey] || PROP_FIRMS.fundednext).models)[0];
+
+  const analysis = sel.bot ? labAnalyzeProfile(sel) : null;
+
+  const runResearch = () => {
+    if (!analysis) return;
+    setResearching(true);
+    // setTimeout pour laisser le spinner se peindre avant le calcul lourd (60 runs x 8 variantes)
+    setTimeout(() => {
+      const rootMC = labRunMonteCarlo(analysis.params, capital, firmKey, modelKey);
+      const variants = labGenerateVariants(sel, analysis.params).map(v => ({ ...v, mc: labRunMonteCarlo(v.params, capital, firmKey, modelKey) }))
+        .sort((a, b) => b.mc.passRate - a.mc.passRate);
+      setResearch({ root: { name: "Ta stratégie actuelle", params: analysis.params, mc: rootMC }, variants });
+      setResearching(false);
+    }, 60);
+  };
+
+  const askGemini = async () => {
+    setGeminiLoading(true);
+    const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY || "";
+    if (!GEMINI_KEY) { setGemini({ error: true }); setGeminiLoading(false); return; }
+    const botLabel = (TRADING_KB.botTypes.find(b => b.k === sel.bot) || {}).label || sel.bot;
+    const prompt = `Tu es un expert quantitatif senior en prop trading (FTMO, FundedNext). Réponds UNIQUEMENT en JSON valide sans markdown, en ${lang === "en" ? "English" : lang === "es" ? "español" : "français"}.
+Profil stratégie: type=${botLabel}, entrées=${(sel.entries||[]).join(",")||"?"}, sorties=${(sel.exits||[]).join(",")||"?"}, indicateurs=${(sel.indicators||[]).join(",")||"?"}, approche=${sel.approach||"?"}, marché=${sel.market||"?"}, sessions=${(sel.sessions||[]).join(",")||"?"}. Description libre: "${(sel.freeDesc||"").slice(0,300)}".
+Paramètres estimés: WR=${analysis.params.winrate}%, RR=1:${analysis.params.rr}, risque=${analysis.params.riskPct}%/trade, clustering=${analysis.params.clustering}%. Espérance=${analysis.expectancy.toFixed(2)}R. Score global=${analysis.global}/100.
+JSON: {"verdict":"2-3 phrases directes et chiffrées sur la viabilité prop firm de ce profil précis.","risques":["risque principal 1","risque 2","risque 3"],"amelioration":"LA modification prioritaire à faire, concrète et actionnable.","expertQuote":"1 phrase percutante d'un trader institutionnel."}`;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.6, maxOutputTokens: 500 } }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      const d = await res.json();
+      const raw = d.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      setGemini(JSON.parse(raw.replace(/```json\n?|\n?```/g, "").trim()));
+    } catch (e) { setGemini({ error: true }); }
+    setGeminiLoading(false);
+  };
+
+  const STEPS = [
+    { title: "Type de trading / bot", field: "bot", single: true, items: TRADING_KB.botTypes },
+    { title: "Types d'entrée", field: "entries", items: TRADING_KB.entries },
+    { title: "Types de sortie", field: "exits", items: TRADING_KB.exits },
+    { title: "Indicateurs utilisés", field: "indicators", items: TRADING_KB.indicators },
+    { title: "Approche & marché", custom: true },
+  ];
+
+  const Pill = ({ active, onClick, children, accent = "#6ee7b7" }) => (
+    <button onClick={onClick} style={{
+      padding: "8px 13px", borderRadius: 100, cursor: "pointer", fontSize: 12, fontWeight: 600,
+      background: active ? accent + "22" : "rgba(255,255,255,0.04)",
+      border: `1.5px solid ${active ? accent : "rgba(255,255,255,0.1)"}`,
+      color: active ? accent : "rgba(255,255,255,0.6)",
+    }}>{children}</button>
+  );
+  const ScoreBar = ({ label, val }) => (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginBottom: 3 }}>
+        <span style={{ color: "rgba(255,255,255,0.55)" }}>{label}</span>
+        <span style={{ fontWeight: 700, color: val >= 65 ? "#6ee7b7" : val >= 40 ? "#fbbf24" : "#ef4444" }}>{val}</span>
+      </div>
+      <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
+        <div style={{ height: "100%", width: val + "%", borderRadius: 3, background: val >= 65 ? "#6ee7b7" : val >= 40 ? "#fbbf24" : "#ef4444", transition: "width .5s" }} />
+      </div>
+    </div>
+  );
+  const mcColor = (r) => r >= 55 ? "#6ee7b7" : r >= 30 ? "#fbbf24" : "#ef4444";
+
+  // ── WIZARD ──
+  if (step < STEPS.length) {
+    const s = STEPS[step];
+    return (
+      <div style={{ minHeight: "100vh", paddingBottom: 100 }}>
+        <ReportHeader title="Laboratoire de Recherche" subtitle={`Étape ${step + 1}/${STEPS.length} · Profil de ta stratégie`} onBack={step === 0 ? onBack : () => setStep(step - 1)} />
+        <div style={{ padding: "4px 2px" }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 12 }}>{s.title}</div>
+          {s.custom ? (<>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 8 }}>Approche</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 16 }}>
+              {TRADING_KB.approach.map(a => <Pill key={a.k} active={sel.approach === a.k} onClick={() => save({ ...sel, approach: a.k })}>{a.label}</Pill>)}
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 8 }}>Marché principal</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 16 }}>
+              {TRADING_KB.markets.map(m => <Pill key={m.k} active={sel.market === m.k} onClick={() => save({ ...sel, market: m.k })}>{m.label}</Pill>)}
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 8 }}>Sessions tradées</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 16 }}>
+              {TRADING_KB.sessions.map(sn => <Pill key={sn.k} active={(sel.sessions || []).includes(sn.k)} onClick={() => toggleMulti("sessions", sn.k)}>{sn.label}</Pill>)}
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 8 }}>Décris ta méthode (optionnel — utilisé par l'IA)</div>
+            <textarea value={sel.freeDesc} onChange={e => save({ ...sel, freeDesc: e.target.value })} rows={3} placeholder="Ex: j'entre sur retest de zone H4 après sweep de liquidité, TP au prochain OB..."
+              style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: 12, color: "#fff", fontSize: 13, outline: "none", resize: "vertical" }} />
+          </>) : (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+              {s.items.map(it => (
+                <Pill key={it.k} active={s.single ? sel[s.field] === it.k : (sel[s.field] || []).includes(it.k)}
+                  onClick={() => s.single ? save({ ...sel, [s.field]: it.k }) : toggleMulti(s.field, it.k)}>
+                  {it.label}
+                </Pill>
+              ))}
+            </div>
+          )}
+          <button onClick={() => setStep(step + 1 >= STEPS.length ? 99 : step + 1)}
+            disabled={step === 0 && !sel.bot}
+            style={{ marginTop: 22, width: "100%", padding: 14, borderRadius: 13, border: "none", cursor: "pointer",
+              background: (step === 0 && !sel.bot) ? "rgba(255,255,255,0.07)" : "linear-gradient(135deg,#6ee7b7,#34d399)",
+              color: (step === 0 && !sel.bot) ? "rgba(255,255,255,0.3)" : "#000", fontSize: 14, fontWeight: 800 }}>
+            {step + 1 >= STEPS.length ? "Analyser ma stratégie" : "Suivant"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── RÉSULTATS ──
+  if (!analysis) { setStep(0); return null; }
+  const roadmapSteps = [
+    { n: 1, title: "Backtest 200+ trades", desc: `Valide un WR ≥ ${Math.max(35, analysis.params.winrate - 5)}% et un RR ≥ 1:${analysis.params.rr} sur données réelles (${(TRADING_KB.markets.find(m=>m.k===sel.market)||{}).label || "ton marché"}).` },
+    { n: 2, title: "Validation Monte Carlo", desc: "Lance le mode Recherche ci-dessous : vise ≥ 55% de passage et une ruine < 15%." },
+    { n: 3, title: "30 jours en démo", desc: `Risque ${analysis.params.riskPct}%/trade max. Journal quotidien (onglet Journal) — discipline mesurée, pas ressentie.` },
+    { n: 4, title: "Challenge prop firm", desc: `${(PROP_FIRMS[firmKey]||PROP_FIRMS.fundednext).name} — capital $${capital.toLocaleString()}. Ne lance qu'avec un score global ≥ 60.` },
+    { n: 5, title: "Funded & premiers payouts", desc: "Risque ÷2 le premier mois funded. L'objectif n'est plus de gagner vite mais de DURER." },
+    { n: 6, title: "Scaling", desc: analysis.scores.scalabilite >= 60 ? "Profil scalable : ajoute des comptes/du capital progressivement." : "Scalabilité limitée — consolide avant de multiplier les comptes." },
+  ];
+
+  return (
+    <div style={{ minHeight: "100vh", paddingBottom: 100 }}>
+      <ReportHeader title="Laboratoire de Recherche" subtitle="Analyse experte de ta stratégie" onBack={onBack} />
+
+      {/* Profil résumé + bouton modifier */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>
+          {(TRADING_KB.botTypes.find(b => b.k === sel.bot) || {}).label} · {(TRADING_KB.markets.find(m => m.k === sel.market) || {}).label || "—"}
+        </div>
+        <button onClick={() => setStep(0)} style={{ background: "none", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: 700, padding: "5px 10px", cursor: "pointer" }}>Modifier</button>
+      </div>
+
+      {/* Score global + jauges */}
+      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 16, padding: 16, marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
+          <div style={{ width: 62, height: 62, borderRadius: 31, border: `3px solid ${mcColor(analysis.global)}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <span style={{ fontSize: 20, fontWeight: 900, color: mcColor(analysis.global) }}>{analysis.global}</span>
+            <span style={{ fontSize: 8, color: "rgba(255,255,255,0.4)" }}>/100</span>
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{analysis.global >= 65 ? "Profil viable prop firm" : analysis.global >= 40 ? "Profil à consolider" : "Profil à risque — restructuration nécessaire"}</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>WR estimé {analysis.params.winrate}% · RR 1:{analysis.params.rr} · Espérance {analysis.expectancy.toFixed(2)}R/trade</div>
+          </div>
+        </div>
+        <ScoreBar label="Robustesse statistique" val={analysis.scores.robustesse} />
+        <ScoreBar label="Survie (risque de ruine inversé)" val={analysis.scores.survie} />
+        <ScoreBar label="Compatibilité prop firm" val={analysis.scores.propfirm} />
+        <ScoreBar label="Espérance mathématique" val={analysis.scores.esperance} />
+        <ScoreBar label="Scalabilité" val={analysis.scores.scalabilite} />
+      </div>
+
+      {/* Forces / faiblesses */}
+      {(analysis.forces.length > 0 || analysis.faiblesses.length > 0) && (
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 16, marginBottom: 14 }}>
+          {analysis.forces.map((f, i) => <div key={"f"+i} style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", padding: "4px 0" }}><span style={{ color: "#6ee7b7", marginRight: 7 }}>✓</span>{f}</div>)}
+          {analysis.faiblesses.map((f, i) => <div key={"w"+i} style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", padding: "4px 0" }}><span style={{ color: "#ef4444", marginRight: 7 }}>✕</span>{f}</div>)}
+        </div>
+      )}
+
+      {/* Analyse Gemini */}
+      <div style={{ marginBottom: 14 }}>
+        {!gemini && !geminiLoading && (
+          <button onClick={askGemini} style={{ width: "100%", padding: 13, borderRadius: 13, border: "1px solid rgba(167,139,250,0.35)", background: "rgba(167,139,250,0.08)", color: "#a78bfa", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
+            ✦ Analyse approfondie par IA
+          </button>
+        )}
+        {geminiLoading && <div style={{ textAlign: "center", padding: 14, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Analyse experte en cours…</div>}
+        {gemini && !gemini.error && (
+          <div style={{ background: "rgba(167,139,250,0.06)", border: "1px solid rgba(167,139,250,0.25)", borderRadius: 16, padding: 16 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 8 }}>✦ Verdict IA</div>
+            <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.8)", lineHeight: 1.55, marginBottom: 10 }}>{gemini.verdict}</div>
+            {(gemini.risques || []).map((r, i) => <div key={i} style={{ fontSize: 11.5, color: "rgba(255,255,255,0.6)", padding: "3px 0" }}><span style={{ color: "#fbbf24", marginRight: 6 }}>⚠</span>{r}</div>)}
+            {gemini.amelioration && <div style={{ marginTop: 10, padding: 10, background: "rgba(110,231,183,0.07)", borderRadius: 10, fontSize: 12, color: "#6ee7b7" }}><b>Priorité :</b> {gemini.amelioration}</div>}
+            {gemini.expertQuote && <div style={{ marginTop: 10, fontSize: 11.5, fontStyle: "italic", color: "rgba(255,255,255,0.4)" }}>« {gemini.expertQuote} »</div>}
+          </div>
+        )}
+        {gemini && gemini.error && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "center", padding: 8 }}>IA momentanément indisponible.</div>}
+      </div>
+
+      {/* Roadmap visuelle */}
+      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 16, marginBottom: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "#fff", marginBottom: 14 }}>Roadmap personnalisée</div>
+        {roadmapSteps.map((r, i) => (
+          <div key={r.n} style={{ display: "flex", gap: 12 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div style={{ width: 26, height: 26, borderRadius: 13, background: "rgba(110,231,183,0.12)", border: "1.5px solid rgba(110,231,183,0.5)", color: "#6ee7b7", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{r.n}</div>
+              {i < roadmapSteps.length - 1 && <div style={{ width: 1.5, flex: 1, minHeight: 18, background: "linear-gradient(180deg, rgba(110,231,183,0.4), rgba(110,231,183,0.08))" }} />}
+            </div>
+            <div style={{ paddingBottom: i < roadmapSteps.length - 1 ? 16 : 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: "#fff" }}>{r.title}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 2, lineHeight: 1.45 }}>{r.desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Mode Recherche — arbre de variantes */}
+      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 16, padding: 16 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "#fbbf24", marginBottom: 4 }}>🔬 Mode Recherche</div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 12 }}>Simule des variantes de ta stratégie (Monte Carlo ×60 chacune) et compare les probabilités de passer le challenge.</div>
+        {!research && (
+          <button onClick={runResearch} disabled={researching} style={{ width: "100%", padding: 13, borderRadius: 13, border: "none", cursor: "pointer", background: researching ? "rgba(255,255,255,0.07)" : "linear-gradient(135deg,#fbbf24,#f59e0b)", color: researching ? "rgba(255,255,255,0.35)" : "#000", fontSize: 13, fontWeight: 800 }}>
+            {researching ? "Simulation des branches…" : "Lancer l'exploration"}
+          </button>
+        )}
+        {research && (
+          <div>
+            {/* Racine */}
+            <div style={{ border: `1.5px solid ${mcColor(research.root.mc.passRate)}`, borderRadius: 12, padding: "10px 12px", background: "rgba(255,255,255,0.03)", textAlign: "center" }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{research.root.name}</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: mcColor(research.root.mc.passRate), marginTop: 2 }}>{research.root.mc.passRate}%</div>
+              <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)" }}>passage challenge · DD moy {research.root.mc.avgDD}% · ruine {research.root.mc.ruinRate}%</div>
+            </div>
+            <div style={{ width: 1.5, height: 16, margin: "0 auto", background: "rgba(251,191,36,0.4)" }} />
+            {/* Branches */}
+            {research.variants.map((v, i) => {
+              const delta = v.mc.passRate - research.root.mc.passRate;
+              return (
+                <div key={i}>
+                  <div style={{ display: "flex", alignItems: "stretch", gap: 0 }}>
+                    <div style={{ width: 14, borderLeft: "1.5px solid rgba(251,191,36,0.3)", borderBottom: "1.5px solid rgba(251,191,36,0.3)", borderBottomLeftRadius: 8, marginBottom: 18, flexShrink: 0 }} />
+                    <div style={{ flex: 1, border: `1px solid ${mcColor(v.mc.passRate)}44`, borderLeft: `3px solid ${mcColor(v.mc.passRate)}`, borderRadius: 10, padding: "9px 11px", marginBottom: 8, background: "rgba(255,255,255,0.025)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{v.name}</div>
+                        <div style={{ textAlign: "right" }}>
+                          <span style={{ fontSize: 15, fontWeight: 900, color: mcColor(v.mc.passRate) }}>{v.mc.passRate}%</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, marginLeft: 5, color: delta >= 0 ? "#6ee7b7" : "#ef4444" }}>{delta >= 0 ? "+" : ""}{delta}</span>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{v.desc}</div>
+                      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", marginTop: 3 }}>DD moy {v.mc.avgDD}% · ruine {v.mc.ruinRate}% · WR {v.params.winrate}% · RR 1:{v.params.rr} · risque {v.params.riskPct}%</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <button onClick={() => setResearch(null)} style={{ width: "100%", marginTop: 4, padding: 10, borderRadius: 10, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>Relancer l'exploration</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, requirePremium = () => {} }) {
   const [mode, setMode] = useState(null); // null | 'simulation' | 'journal' | 'backtest' | 'comparator'
   const [gemini, setGemini] = useState(null);
@@ -3547,6 +3980,18 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         dataLabel: worldBenchmarkData ? `${worldBenchmarkData.globalLevel.icon} ${worldBenchmarkData.globalLevel.label} · #${worldBenchmarkData.rankEstimate.toLocaleString()}` : t('bench_no_data'),
         cta: t('bench_title'),
         ctaGoto: 'journal',
+      },
+      {
+        key:'lab', accent:'#22d3ee', bg:'rgba(34,211,238,0.06)', border:'rgba(34,211,238,0.2)',
+        icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M9 3h6M10 3v5.5L4.8 17.2A2 2 0 0 0 6.5 20h11a2 2 0 0 0 1.7-2.8L14 8.5V3" stroke="#22d3ee" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M7.5 14h9" stroke="#22d3ee" strokeWidth="1.6" strokeLinecap="round"/><circle cx="11" cy="16.5" r="0.9" fill="#22d3ee"/><circle cx="14" cy="17.8" r="0.7" fill="#22d3ee"/></svg>,
+        title: t('an_lab_title'),
+        subtitle: t('an_lab_sub'),
+        desc: t('an_lab_desc'),
+        chips: ['Monte Carlo', 'Variantes', 'Scoring', 'IA'],
+        hasData: true, // Le wizard EST le point d'entrée — toujours accessible
+        dataLabel: (() => { try { const p = JSON.parse(localStorage.getItem("eapropfirm_lab_profile") || "null"); return p && p.bot ? t('an_lab_saved') : t('an_lab_new'); } catch(e) { return t('an_lab_new'); } })(),
+        cta: t('an_lab_cta'),
+        ctaGoto: 'trades',
       },
     ];
     return (
@@ -3897,6 +4342,10 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         <ExpertSection gemini={gemini} gemLoading={gemLoading} localText={localText}/>
       </div>
     );
+  }
+
+  if (mode === 'lab') {
+    return <LabScreen t={t} lang={lang} profile={profile} onBack={() => setMode(null)} />;
   }
 
   if (mode === 'comparator') {
