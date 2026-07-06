@@ -3450,7 +3450,7 @@ function labEstimateParams(sel) {
 // Scores 0-100 sur 5 dimensions + forces/faiblesses
 function labAnalyzeProfile(sel) {
   const bot = TRADING_KB.botTypes.find(b => b.k === sel.bot) || TRADING_KB.botTypes[0];
-  const params = labEstimateParams(sel);
+  const params = labApplyUserOverrides(labEstimateParams(sel), sel);
   const expectancy = (params.winrate / 100) * params.rr - (1 - params.winrate / 100);
   const scores = {
     robustesse: Math.round(bot.robust * 10),
@@ -3458,6 +3458,13 @@ function labAnalyzeProfile(sel) {
     propfirm: Math.round(bot.prop * 10),
     esperance: Math.max(0, Math.min(100, Math.round(50 + expectancy * 120))),
     scalabilite: Math.round(((sel.bot === "algo" || sel.bot === "trend" ? 8 : sel.bot === "manual" ? 5 : 3) + (sel.market === "majors" ? 2 : 0)) * 10),
+    // Discipline : à quel point la stratégie est mécanique/exécutable sans dérive émotionnelle
+    discipline: Math.max(10, Math.min(95,
+      (sel.bot === "algo" || sel.bot === "scalpbot" || sel.bot === "newsbot" ? 85 : sel.bot === "manual" ? 55 : 70)
+      + ((sel.exits || []).includes("tp_fixed") ? 6 : 0)
+      + (sel.newsBehavior === "avoid" ? 5 : 0)
+      - (sel.bot === "martingale" || sel.bot === "dca" ? 20 : 0)
+    )),
   };
   const global = Math.round((scores.robustesse + scores.survie * 1.5 + scores.propfirm * 1.5 + scores.esperance + scores.scalabilite) / 6);
   const forces = [], faiblesses = [];
@@ -3472,37 +3479,77 @@ function labAnalyzeProfile(sel) {
   return { scores, global, forces, faiblesses, params, bot, expectancy };
 }
 
-// Variantes dérivées pour le mode recherche
+// Variantes dérivées pour le mode recherche.
+// Chaque variante expose apply(p) — un transformateur COMPOSABLE de paramètres —
+// pour pouvoir générer le NIVEAU 2 de l'arbre (combinaisons de deux modifications).
 function labGenerateVariants(sel, baseParams) {
   const v = [];
-  v.push({ name: "Risque ÷2", desc: "Même stratégie, risque par trade divisé par 2", params: { ...baseParams, riskPct: +(baseParams.riskPct / 2).toFixed(2) } });
-  v.push({ name: "RR +0.5", desc: "Cibles plus ambitieuses (trailing/extension)", params: { ...baseParams, rr: +(baseParams.rr + 0.5).toFixed(2), winrate: Math.max(20, baseParams.winrate - 5) } });
-  v.push({ name: "WR +5 (filtre qualité)", desc: "Filtre d'entrée plus strict, moins de trades", params: { ...baseParams, winrate: Math.min(85, baseParams.winrate + 5), tradesPerDay: Math.max(0.5, baseParams.tradesPerDay * 0.6) } });
-  v.push({ name: "Stress -5% WR", desc: "Test de robustesse : conditions dégradées", params: { ...baseParams, winrate: Math.max(15, baseParams.winrate - 5) } });
-  if (!(sel.exits || []).includes("partial")) v.push({ name: "+ Sorties partielles", desc: "50% à 1R, reste en trailing", params: { ...baseParams, winrate: Math.min(85, baseParams.winrate + 3), rr: Math.max(0.4, +(baseParams.rr - 0.15).toFixed(2)) } });
-  if ((sel.bot === "martingale" || sel.bot === "grid" || sel.bot === "dca")) v.push({ name: "Conversion → risque fixe", desc: "Même logique d'entrée, SANS moyennage (1 position, SL dur)", params: { ...baseParams, winrate: Math.max(20, baseParams.winrate - 12), rr: +(baseParams.rr + 0.8).toFixed(2), clustering: Math.max(0, baseParams.clustering - 20), riskPct: 0.5 } });
-  v.push({ name: "Clustering -50%", desc: "Diversification horaire/paires pour casser les séries", params: { ...baseParams, clustering: Math.round(baseParams.clustering / 2) } });
-  return v;
+  v.push({ key: "risk2", name: "Réduire le risque", short: "Risque ÷2", desc: "Même stratégie, risque par trade divisé par 2",
+    apply: (p) => ({ ...p, riskPct: +(p.riskPct / 2).toFixed(2) }) });
+  v.push({ key: "rr", name: "Améliorer le RR", short: "RR +0.5", desc: "Cibles plus ambitieuses (trailing/extension) — coûte du winrate",
+    apply: (p) => ({ ...p, rr: +(p.rr + 0.5).toFixed(2), winrate: Math.max(20, p.winrate - 5) }) });
+  v.push({ key: "quality", name: "Filtre qualité", short: "WR +5, trades -40%", desc: "Filtre d'entrée plus strict, moins de trades/jour",
+    apply: (p) => ({ ...p, winrate: Math.min(85, p.winrate + 5), tradesPerDay: Math.max(0.5, +(p.tradesPerDay * 0.6).toFixed(1)) }) });
+  v.push({ key: "stress", name: "Stress test", short: "WR -5 (dégradé)", desc: "Robustesse en conditions dégradées — AUCUNE amélioration, juste la vérité",
+    apply: (p) => ({ ...p, winrate: Math.max(15, p.winrate - 5) }) });
+  if (!(sel.exits || []).includes("partial")) v.push({ key: "partial", name: "Sorties partielles", short: "50% à 1R + trailing", desc: "Courbe d'équité lissée, RR moyen légèrement réduit",
+    apply: (p) => ({ ...p, winrate: Math.min(85, p.winrate + 3), rr: Math.max(0.4, +(p.rr - 0.15).toFixed(2)) }) });
+  if ((sel.bot === "martingale" || sel.bot === "grid" || sel.bot === "dca")) v.push({ key: "fixrisk", name: "Conversion risque fixe", short: "Sans moyennage, SL dur", desc: "Même logique d'entrée, 1 position, stop dur — winrate chute mais la ruine disparaît",
+    apply: (p) => ({ ...p, winrate: Math.max(20, p.winrate - 12), rr: +(p.rr + 0.8).toFixed(2), clustering: Math.max(0, p.clustering - 20), riskPct: 0.5 }) });
+  v.push({ key: "declust", name: "Casser les séries", short: "Clustering -50%", desc: "Diversification horaire/paires — réduit les séries de pertes",
+    apply: (p) => ({ ...p, clustering: Math.round(p.clustering / 2) }) });
+  // Rétro-compat : params précalculés depuis la base
+  return v.map(x => ({ ...x, params: x.apply(baseParams) }));
 }
 
-// Monte Carlo compact : N runs de la phase 1+2 d'un challenge → % passage, DD moyen, ruine
+// Overrides explicites saisis au wizard (risque/trade, trades/jour, comportement news)
+// — appliqués APRÈS l'estimation KB : la saisie utilisateur prime toujours sur l'estimation.
+function labApplyUserOverrides(params, sel) {
+  const p = { ...params };
+  if (sel.riskChoice) p.riskPct = sel.riskChoice;
+  if (sel.tpdChoice) p.tradesPerDay = sel.tpdChoice;
+  if (sel.newsBehavior === "avoid") { p.winrate = Math.min(85, p.winrate + 1); p.clustering = Math.max(0, p.clustering - 5); }
+  else if (sel.newsBehavior === "trade") { p.clustering = Math.min(90, p.clustering + 8); }
+  return p;
+}
+
+// Monte Carlo compact : N runs de la phase 1+2 d'un challenge.
+// 100% RÉALISTE, zéro optimisme : le gain attendu est moyenné sur TOUS les runs
+// (un run échoué compte sa perte réelle au moment du breach, pas zéro), et la
+// stabilité est dérivée de la dispersion réelle (coefficient de variation) des
+// équités finales — une stratégie qui gagne "parfois beaucoup" score mal.
 function labRunMonteCarlo(params, capital, firmKey, modelKey, runs = 60) {
   const firm = PROP_FIRMS[firmKey] || PROP_FIRMS.fundednext;
   const model = firm.models[modelKey] || firm.models[Object.keys(firm.models)[0]];
   let passed = 0, ruined = 0, ddSum = 0;
+  const gains = []; // profit % de CHAQUE run, échecs inclus (perte réelle au moment du breach)
   for (let i = 0; i < runs; i++) {
     const rng = mulberry32(hashParamsToSeed(JSON.stringify(params) + "|" + i));
     const p = { tradesPerDay: params.tradesPerDay, riskPct: params.riskPct / 100, rr: params.rr, winrate: params.winrate, clustering: params.clustering / 100, maxConsecLosses: 0, rng };
-    let ok = true, maxDDRun = 0;
+    let ok = true, maxDDRun = 0, runProfitPct = 0;
     for (const phase of model.phases) {
       const r = simulatePhase(capital, phase, model, p);
       maxDDRun = Math.max(maxDDRun, (r.maxDD || 0) * 100);
+      runProfitPct = (r.profit || 0) * 100; // dernier état connu, y compris négatif si breach
       if (r.status !== "passed") { ok = false; if (r.status && r.status.startsWith("failed")) ruined++; break; }
     }
     if (ok) passed++;
     ddSum += maxDDRun;
+    gains.push(runProfitPct);
   }
-  return { passRate: Math.round((passed / runs) * 100), ruinRate: Math.round((ruined / runs) * 100), avgDD: +(ddSum / runs).toFixed(1) };
+  const avgGain = gains.reduce((s, g) => s + g, 0) / runs;
+  const variance = gains.reduce((s, g) => s + Math.pow(g - avgGain, 2), 0) / runs;
+  const stdev = Math.sqrt(variance);
+  // Coefficient de variation → étoiles de stabilité (1-5). CV élevé = résultats erratiques.
+  const cv = Math.abs(avgGain) > 0.5 ? stdev / Math.abs(avgGain) : 9;
+  const stability = cv < 0.6 ? 5 : cv < 1.1 ? 4 : cv < 1.8 ? 3 : cv < 3 ? 2 : 1;
+  const passRate = Math.round((passed / runs) * 100);
+  const ruinRate = Math.round((ruined / runs) * 100);
+  const riskLabel = ruinRate >= 35 ? "eleve" : ruinRate >= 15 ? "moyen" : "faible";
+  const reco = (passRate >= 60 && riskLabel === "faible") ? "tresbon"
+    : (passRate >= 45 && riskLabel !== "eleve") ? "bon"
+    : (passRate >= 30) ? "moyen" : "faible";
+  return { passRate, ruinRate, avgDD: +(ddSum / runs).toFixed(1), avgGain: +avgGain.toFixed(1), stdev: +stdev.toFixed(1), stability, riskLabel, reco };
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -3546,12 +3593,25 @@ function LabScreen({ t, lang, profile, onBack }) {
   const runResearch = () => {
     if (!analysis) return;
     setResearching(true);
-    // setTimeout pour laisser le spinner se peindre avant le calcul lourd (60 runs x 8 variantes)
+    // setTimeout pour laisser le spinner se peindre avant le calcul lourd (~640 simulations)
     setTimeout(() => {
       const rootMC = labRunMonteCarlo(analysis.params, capital, firmKey, modelKey);
-      const variants = labGenerateVariants(sel, analysis.params).map(v => ({ ...v, mc: labRunMonteCarlo(v.params, capital, firmKey, modelKey) }))
+      const all = labGenerateVariants(sel, analysis.params)
+        .map(v => ({ ...v, mc: labRunMonteCarlo(v.params, capital, firmKey, modelKey) }))
         .sort((a, b) => b.mc.passRate - a.mc.passRate);
-      setResearch({ root: { name: "Ta stratégie actuelle", params: analysis.params, mc: rootMC }, variants });
+      const branches = all.slice(0, 5); // 5 colonnes de l'organigramme
+      // NIVEAU 2 : les 2 meilleures branches sont combinées avec les 2 meilleures AUTRES modifications
+      branches.slice(0, 2).forEach(parent => {
+        parent.children = all
+          .filter(o => o.key !== parent.key && o.key !== "stress") // le stress test ne se "combine" pas
+          .slice(0, 2)
+          .map(o => {
+            const comboParams = o.apply(parent.params); // composition réelle des deux transformations
+            return { name: parent.short + " + " + o.short, mc: labRunMonteCarlo(comboParams, capital, firmKey, modelKey, 40), params: comboParams };
+          })
+          .sort((a, b) => b.mc.passRate - a.mc.passRate);
+      });
+      setResearch({ root: { name: "Stratégie initiale", label: (TRADING_KB.botTypes.find(b => b.k === sel.bot) || {}).label + " " + ((TRADING_KB.markets.find(m => m.k === sel.market) || {}).label || ""), params: analysis.params, mc: rootMC }, branches });
       setResearching(false);
     }, 60);
   };
@@ -3581,77 +3641,232 @@ JSON: {"verdict":"2-3 phrases directes et chiffrées sur la viabilité prop firm
     setGeminiLoading(false);
   };
 
-  const STEPS = [
-    { title: "Type de trading / bot", field: "bot", single: true, items: TRADING_KB.botTypes },
-    { title: "Types d'entrée", field: "entries", items: TRADING_KB.entries },
-    { title: "Types de sortie", field: "exits", items: TRADING_KB.exits },
-    { title: "Indicateurs utilisés", field: "indicators", items: TRADING_KB.indicators },
-    { title: "Approche & marché", custom: true },
-  ];
-
   const Pill = ({ active, onClick, children, accent = "#6ee7b7" }) => (
     <button onClick={onClick} style={{
-      padding: "8px 13px", borderRadius: 100, cursor: "pointer", fontSize: 12, fontWeight: 600,
+      padding: "9px 14px", borderRadius: 100, cursor: "pointer", fontSize: 12.5, fontWeight: 600,
       background: active ? accent + "22" : "rgba(255,255,255,0.04)",
       border: `1.5px solid ${active ? accent : "rgba(255,255,255,0.1)"}`,
       color: active ? accent : "rgba(255,255,255,0.6)",
+      transition: "all .15s",
     }}>{children}</button>
-  );
-  const ScoreBar = ({ label, val }) => (
-    <div style={{ marginBottom: 8 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginBottom: 3 }}>
-        <span style={{ color: "rgba(255,255,255,0.55)" }}>{label}</span>
-        <span style={{ fontWeight: 700, color: val >= 65 ? "#6ee7b7" : val >= 40 ? "#fbbf24" : "#ef4444" }}>{val}</span>
-      </div>
-      <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
-        <div style={{ height: "100%", width: val + "%", borderRadius: 3, background: val >= 65 ? "#6ee7b7" : val >= 40 ? "#fbbf24" : "#ef4444", transition: "width .5s" }} />
-      </div>
-    </div>
   );
   const mcColor = (r) => r >= 55 ? "#6ee7b7" : r >= 30 ? "#fbbf24" : "#ef4444";
 
-  // ── WIZARD ──
-  if (step < STEPS.length) {
-    const s = STEPS[step];
+  // ── Radar chart 6 axes (SVG pur, style toile d'araignée) ──
+  const LabRadar = ({ scores }) => {
+    const AXES = [
+      { label: "Rentabilité", val: scores.esperance },
+      { label: "Stabilité", val: scores.robustesse },
+      { label: "Discipline", val: scores.discipline ?? 60 },
+      { label: "DD Control", val: scores.survie },
+      { label: "Robustesse", val: scores.propfirm },
+      { label: "Adaptabilité", val: scores.scalabilite },
+    ];
+    const CX = 150, CY = 122, R = 82;
+    const pt = (i, r) => {
+      const a = (Math.PI * 2 * i) / 6 - Math.PI / 2;
+      return [CX + Math.cos(a) * r, CY + Math.sin(a) * r];
+    };
+    const poly = (r) => AXES.map((_, i) => pt(i, r).join(",")).join(" ");
+    const dataPoly = AXES.map((ax, i) => pt(i, (Math.max(8, ax.val) / 100) * R).join(",")).join(" ");
     return (
-      <div style={{ minHeight: "100vh", paddingBottom: 100 }}>
-        <ReportHeader title="Laboratoire de Recherche" subtitle={`Étape ${step + 1}/${STEPS.length} · Profil de ta stratégie`} onBack={step === 0 ? onBack : () => setStep(step - 1)} />
-        <div style={{ padding: "4px 2px" }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 12 }}>{s.title}</div>
-          {s.custom ? (<>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 8 }}>Approche</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 16 }}>
-              {TRADING_KB.approach.map(a => <Pill key={a.k} active={sel.approach === a.k} onClick={() => save({ ...sel, approach: a.k })}>{a.label}</Pill>)}
+      <svg viewBox="0 0 300 250" style={{ width: "100%", maxWidth: 320, margin: "0 auto", display: "block" }}>
+        <defs>
+          <linearGradient id="labRadarFill" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.32" />
+            <stop offset="100%" stopColor="#a78bfa" stopOpacity="0.32" />
+          </linearGradient>
+          <linearGradient id="labRadarStroke" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#22d3ee" />
+            <stop offset="100%" stopColor="#a78bfa" />
+          </linearGradient>
+        </defs>
+        {[1, 2 / 3, 1 / 3].map((f, i) => (
+          <polygon key={i} points={poly(R * f)} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="1" />
+        ))}
+        {AXES.map((_, i) => {
+          const [x, y] = pt(i, R);
+          return <line key={i} x1={CX} y1={CY} x2={x} y2={y} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />;
+        })}
+        <circle cx={CX} cy={CY} r="26" fill="rgba(110,231,183,0.10)" style={{ filter: "blur(10px)" }} />
+        <polygon points={dataPoly} fill="url(#labRadarFill)" stroke="url(#labRadarStroke)" strokeWidth="2" strokeLinejoin="round" />
+        {AXES.map((ax, i) => {
+          const [x, y] = pt(i, (Math.max(8, ax.val) / 100) * R);
+          return <circle key={i} cx={x} cy={y} r="3.4" fill={i < 3 ? "#22d3ee" : "#a78bfa"} stroke="#0a0e14" strokeWidth="1.5" />;
+        })}
+        {AXES.map((ax, i) => {
+          const [x, y] = pt(i, R + 20);
+          return <text key={i} x={x} y={y + 3} textAnchor="middle" fontSize="10.5" fontWeight="600" fill="rgba(255,255,255,0.75)">{ax.label}</text>;
+        })}
+      </svg>
+    );
+  };
+
+  // ── 6 étapes structurées (stepper visuel) ──
+  const STEPS = [
+    { key: "style",   label: "Style",        sub: "Type de trading" },
+    { key: "method",  label: "Méthode",      sub: "Indicateurs" },
+    { key: "inout",   label: "Entrées /",    sub: "Sorties" },
+    { key: "risk",    label: "Gestion du",   sub: "risque" },
+    { key: "news",    label: "News &",       sub: "Sessions" },
+    { key: "firm",    label: "Prop firm",    sub: "visée" },
+  ];
+  const RISK_CHOICES = [0.25, 0.35, 0.5, 1, 2];
+  const TPD_CHOICES = [{ k: 1.5, l: "1-2" }, { k: 3, l: "3-4" }, { k: 6, l: "5-8" }, { k: 12, l: "9+" }];
+  const NEWS_CHOICES = [
+    { k: "avoid", l: "J'évite les fenêtres news" },
+    { k: "reduce", l: "Je réduis le risque pendant" },
+    { k: "trade", l: "Je trade les news" },
+  ];
+  const FIRM_CHOICES = Object.keys(PROP_FIRMS).map(k => ({ k, l: PROP_FIRMS[k].name }));
+
+  // Étape complète ? (conditionne l'auto-advance et le bouton)
+  const stepDone = (i) => {
+    if (i === 0) return !!sel.bot;
+    if (i === 1) return !!sel.approach; // indicateurs optionnels, approche requise
+    if (i === 2) return (sel.entries || []).length > 0 && (sel.exits || []).length > 0;
+    if (i === 3) return !!sel.riskChoice && !!sel.tpdChoice;
+    if (i === 4) return !!sel.newsBehavior && (sel.sessions || []).length > 0;
+    if (i === 5) return !!sel.firmTarget && !!sel.market;
+    return false;
+  };
+  // Auto-advance : après un choix SINGLE, si l'étape est complète → étape suivante (petit délai pour le feedback visuel)
+  const advanceRef = useRef(null);
+  const autoNext = (nextSel, stepIdx) => {
+    save(nextSel);
+    if (advanceRef.current) clearTimeout(advanceRef.current);
+    advanceRef.current = setTimeout(() => {
+      const done = (() => {
+        const s = nextSel;
+        if (stepIdx === 0) return !!s.bot;
+        if (stepIdx === 1) return !!s.approach;
+        if (stepIdx === 3) return !!s.riskChoice && !!s.tpdChoice;
+        if (stepIdx === 4) return !!s.newsBehavior && (s.sessions || []).length > 0;
+        if (stepIdx === 5) return !!s.firmTarget && !!s.market;
+        return false;
+      })();
+      if (done) setStep(stepIdx + 1 >= STEPS.length ? 99 : stepIdx + 1);
+    }, 320);
+  };
+
+  // ── Stepper visuel (cercles + ligne de progression, scrollable) ──
+  const LabStepper = () => (
+    <div style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "14px 10px 12px", marginBottom: 8 }}>
+      <div style={{ fontSize: 12, fontWeight: 800, color: "#fff", margin: "0 0 12px 8px" }}>Parcours de création</div>
+      <div style={{ display: "flex", alignItems: "flex-start", overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 2 }}>
+        {STEPS.map((s, i) => {
+          const done = i < step, active = i === step;
+          return (
+            <div key={s.key} style={{ display: "flex", alignItems: "flex-start", flexShrink: 0 }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 74 }}>
+                <div style={{
+                  width: 34, height: 34, borderRadius: 17, display: "flex", alignItems: "center", justifyContent: "center",
+                  background: done ? "#6ee7b7" : active ? "rgba(110,231,183,0.12)" : "rgba(255,255,255,0.05)",
+                  border: `2px solid ${done || active ? "#6ee7b7" : "rgba(255,255,255,0.15)"}`,
+                  fontSize: 13, fontWeight: 800, color: done ? "#000" : active ? "#6ee7b7" : "rgba(255,255,255,0.4)",
+                  transition: "all .25s",
+                }}>{done ? "✓" : i + 1}</div>
+                <div style={{ fontSize: 9.5, fontWeight: 700, color: active ? "#6ee7b7" : "rgba(255,255,255,0.65)", marginTop: 6, textAlign: "center", lineHeight: 1.25 }}>{s.label}</div>
+                <div style={{ fontSize: 8.5, color: active ? "rgba(110,231,183,0.7)" : "rgba(255,255,255,0.35)", textAlign: "center", lineHeight: 1.2 }}>{s.sub}</div>
+              </div>
+              {i < STEPS.length - 1 && (
+                <div style={{ width: 22, height: 2, borderRadius: 1, marginTop: 16, flexShrink: 0, background: done ? "#6ee7b7" : "rgba(255,255,255,0.12)", transition: "background .25s" }} />
+              )}
             </div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 8 }}>Marché principal</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 16 }}>
-              {TRADING_KB.markets.map(m => <Pill key={m.k} active={sel.market === m.k} onClick={() => save({ ...sel, market: m.k })}>{m.label}</Pill>)}
-            </div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 8 }}>Sessions tradées</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 16 }}>
-              {TRADING_KB.sessions.map(sn => <Pill key={sn.k} active={(sel.sessions || []).includes(sn.k)} onClick={() => toggleMulti("sessions", sn.k)}>{sn.label}</Pill>)}
-            </div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 8 }}>Décris ta méthode (optionnel — utilisé par l'IA)</div>
-            <textarea value={sel.freeDesc} onChange={e => save({ ...sel, freeDesc: e.target.value })} rows={3} placeholder="Ex: j'entre sur retest de zone H4 après sweep de liquidité, TP au prochain OB..."
-              style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: 12, color: "#fff", fontSize: 13, outline: "none", resize: "vertical" }} />
-          </>) : (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-              {s.items.map(it => (
-                <Pill key={it.k} active={s.single ? sel[s.field] === it.k : (sel[s.field] || []).includes(it.k)}
-                  onClick={() => s.single ? save({ ...sel, [s.field]: it.k }) : toggleMulti(s.field, it.k)}>
-                  {it.label}
-                </Pill>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const SectionLabel = ({ children }) => (
+    <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>{children}</div>
+  );
+
+  // ── WIZARD (contenu centré verticalement, auto-advance sur choix unique) ──
+  if (step < STEPS.length) {
+    return (
+      <div style={{ minHeight: "100vh", paddingBottom: 100, display: "flex", flexDirection: "column" }}>
+        <ReportHeader title="Laboratoire de Recherche" subtitle={`Étape ${step + 1}/${STEPS.length} · ${STEPS[step].label} ${STEPS[step].sub}`} onBack={step === 0 ? onBack : () => setStep(step - 1)} />
+        <LabStepper />
+        {/* Zone de question CENTRÉE verticalement dans l'espace restant */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", minHeight: "46vh", padding: "18px 2px" }}>
+          {step === 0 && (<>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 4, textAlign: "center" }}>Quel est ton style de trading ?</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 16, textAlign: "center" }}>Sélectionne — on passe automatiquement à la suite</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
+              {TRADING_KB.botTypes.map(it => (
+                <Pill key={it.k} active={sel.bot === it.k} onClick={() => autoNext({ ...sel, bot: it.k }, 0)}>{it.label}</Pill>
               ))}
             </div>
-          )}
-          <button onClick={() => setStep(step + 1 >= STEPS.length ? 99 : step + 1)}
-            disabled={step === 0 && !sel.bot}
-            style={{ marginTop: 22, width: "100%", padding: 14, borderRadius: 13, border: "none", cursor: "pointer",
-              background: (step === 0 && !sel.bot) ? "rgba(255,255,255,0.07)" : "linear-gradient(135deg,#6ee7b7,#34d399)",
-              color: (step === 0 && !sel.bot) ? "rgba(255,255,255,0.3)" : "#000", fontSize: 14, fontWeight: 800 }}>
-            {step + 1 >= STEPS.length ? "Analyser ma stratégie" : "Suivant"}
-          </button>
+          </>)}
+          {step === 1 && (<>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 16, textAlign: "center" }}>Ta méthode d'analyse</div>
+            <SectionLabel>Indicateurs / concepts (plusieurs choix)</SectionLabel>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 18 }}>
+              {TRADING_KB.indicators.map(it => <Pill key={it.k} active={(sel.indicators || []).includes(it.k)} onClick={() => toggleMulti("indicators", it.k)}>{it.label}</Pill>)}
+            </div>
+            <SectionLabel>Approche (un choix — avance automatiquement)</SectionLabel>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+              {TRADING_KB.approach.map(a => <Pill key={a.k} active={sel.approach === a.k} onClick={() => autoNext({ ...sel, approach: a.k }, 1)}>{a.label}</Pill>)}
+            </div>
+          </>)}
+          {step === 2 && (<>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 16, textAlign: "center" }}>Entrées & sorties</div>
+            <SectionLabel>Types d'entrée (plusieurs choix)</SectionLabel>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 18 }}>
+              {TRADING_KB.entries.map(it => <Pill key={it.k} active={(sel.entries || []).includes(it.k)} onClick={() => toggleMulti("entries", it.k)}>{it.label}</Pill>)}
+            </div>
+            <SectionLabel>Types de sortie (plusieurs choix)</SectionLabel>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+              {TRADING_KB.exits.map(it => <Pill key={it.k} active={(sel.exits || []).includes(it.k)} onClick={() => toggleMulti("exits", it.k)}>{it.label}</Pill>)}
+            </div>
+          </>)}
+          {step === 3 && (<>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 16, textAlign: "center" }}>Gestion du risque</div>
+            <SectionLabel>Risque par trade (% du capital)</SectionLabel>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 18 }}>
+              {RISK_CHOICES.map(r => <Pill key={r} active={sel.riskChoice === r} onClick={() => autoNext({ ...sel, riskChoice: r }, 3)}>{r}%</Pill>)}
+            </div>
+            <SectionLabel>Trades par jour (moyenne)</SectionLabel>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+              {TPD_CHOICES.map(x => <Pill key={x.k} active={sel.tpdChoice === x.k} onClick={() => autoNext({ ...sel, tpdChoice: x.k }, 3)}>{x.l}</Pill>)}
+            </div>
+          </>)}
+          {step === 4 && (<>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 16, textAlign: "center" }}>News & sessions</div>
+            <SectionLabel>Annonces économiques (NFP, FOMC, CPI…)</SectionLabel>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 18 }}>
+              {NEWS_CHOICES.map(n => <Pill key={n.k} active={sel.newsBehavior === n.k} onClick={() => autoNext({ ...sel, newsBehavior: n.k }, 4)}>{n.l}</Pill>)}
+            </div>
+            <SectionLabel>Sessions tradées (plusieurs choix)</SectionLabel>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+              {TRADING_KB.sessions.map(sn => <Pill key={sn.k} active={(sel.sessions || []).includes(sn.k)} onClick={() => autoNext({ ...sel, sessions: (sel.sessions || []).includes(sn.k) ? sel.sessions.filter(x => x !== sn.k) : [...(sel.sessions || []), sn.k] }, 4)}>{sn.label}</Pill>)}
+            </div>
+          </>)}
+          {step === 5 && (<>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 16, textAlign: "center" }}>Marché & prop firm visée</div>
+            <SectionLabel>Marché principal</SectionLabel>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 18 }}>
+              {TRADING_KB.markets.map(m => <Pill key={m.k} active={sel.market === m.k} onClick={() => autoNext({ ...sel, market: m.k }, 5)}>{m.label}</Pill>)}
+            </div>
+            <SectionLabel>Prop firm visée</SectionLabel>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 18 }}>
+              {FIRM_CHOICES.map(f => <Pill key={f.k} active={sel.firmTarget === f.k} onClick={() => autoNext({ ...sel, firmTarget: f.k }, 5)}>{f.l}</Pill>)}
+            </div>
+            <SectionLabel>Décris ta méthode (optionnel — utilisé par l'IA)</SectionLabel>
+            <textarea value={sel.freeDesc} onChange={e => save({ ...sel, freeDesc: e.target.value })} rows={2} placeholder="Ex: j'entre sur retest de zone H4 après sweep de liquidité…"
+              style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: 12, color: "#fff", fontSize: 13, outline: "none", resize: "vertical" }} />
+          </>)}
         </div>
+        {/* Bouton bas : requis pour les étapes multi-sélection, sinon secours si l'auto-advance a été raté */}
+        <button onClick={() => setStep(step + 1 >= STEPS.length ? 99 : step + 1)}
+          disabled={!stepDone(step)}
+          style={{ width: "100%", padding: 14, borderRadius: 13, border: "none", cursor: "pointer",
+            background: !stepDone(step) ? "rgba(255,255,255,0.07)" : "linear-gradient(135deg,#6ee7b7,#34d399)",
+            color: !stepDone(step) ? "rgba(255,255,255,0.3)" : "#000", fontSize: 14, fontWeight: 800 }}>
+          {step + 1 >= STEPS.length ? "⚗ Analyser ma stratégie" : "Suivant"}
+        </button>
       </div>
     );
   }
@@ -3691,11 +3906,8 @@ JSON: {"verdict":"2-3 phrases directes et chiffrées sur la viabilité prop firm
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>WR estimé {analysis.params.winrate}% · RR 1:{analysis.params.rr} · Espérance {analysis.expectancy.toFixed(2)}R/trade</div>
           </div>
         </div>
-        <ScoreBar label="Robustesse statistique" val={analysis.scores.robustesse} />
-        <ScoreBar label="Survie (risque de ruine inversé)" val={analysis.scores.survie} />
-        <ScoreBar label="Compatibilité prop firm" val={analysis.scores.propfirm} />
-        <ScoreBar label="Espérance mathématique" val={analysis.scores.esperance} />
-        <ScoreBar label="Scalabilité" val={analysis.scores.scalabilite} />
+        {/* Radar 6 axes — vision instantanée du profil */}
+        <LabRadar scores={analysis.scores} />
       </div>
 
       {/* Forces / faiblesses */}
@@ -3752,40 +3964,109 @@ JSON: {"verdict":"2-3 phrases directes et chiffrées sur la viabilité prop firm
             {researching ? "Simulation des branches…" : "Lancer l'exploration"}
           </button>
         )}
-        {research && (
-          <div>
-            {/* Racine */}
-            <div style={{ border: `1.5px solid ${mcColor(research.root.mc.passRate)}`, borderRadius: 12, padding: "10px 12px", background: "rgba(255,255,255,0.03)", textAlign: "center" }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{research.root.name}</div>
-              <div style={{ fontSize: 18, fontWeight: 900, color: mcColor(research.root.mc.passRate), marginTop: 2 }}>{research.root.mc.passRate}%</div>
-              <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)" }}>passage challenge · DD moy {research.root.mc.avgDD}% · ruine {research.root.mc.ruinRate}%</div>
-            </div>
-            <div style={{ width: 1.5, height: 16, margin: "0 auto", background: "rgba(251,191,36,0.4)" }} />
-            {/* Branches */}
-            {research.variants.map((v, i) => {
-              const delta = v.mc.passRate - research.root.mc.passRate;
-              return (
-                <div key={i}>
-                  <div style={{ display: "flex", alignItems: "stretch", gap: 0 }}>
-                    <div style={{ width: 14, borderLeft: "1.5px solid rgba(251,191,36,0.3)", borderBottom: "1.5px solid rgba(251,191,36,0.3)", borderBottomLeftRadius: 8, marginBottom: 18, flexShrink: 0 }} />
-                    <div style={{ flex: 1, border: `1px solid ${mcColor(v.mc.passRate)}44`, borderLeft: `3px solid ${mcColor(v.mc.passRate)}`, borderRadius: 10, padding: "9px 11px", marginBottom: 8, background: "rgba(255,255,255,0.025)" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{v.name}</div>
-                        <div style={{ textAlign: "right" }}>
-                          <span style={{ fontSize: 15, fontWeight: 900, color: mcColor(v.mc.passRate) }}>{v.mc.passRate}%</span>
-                          <span style={{ fontSize: 10, fontWeight: 700, marginLeft: 5, color: delta >= 0 ? "#6ee7b7" : "#ef4444" }}>{delta >= 0 ? "+" : ""}{delta}</span>
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{v.desc}</div>
-                      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", marginTop: 3 }}>DD moy {v.mc.avgDD}% · ruine {v.mc.ruinRate}% · WR {v.params.winrate}% · RR 1:{v.params.rr} · risque {v.params.riskPct}%</div>
+        {research && (() => {
+          const B = research.branches;
+          const COL_W = 112, GAP = 8, LABEL_W = 76;
+          const treeW = B.length * COL_W + (B.length - 1) * GAP;
+          const riskTxt = { faible: ["Faible", "#6ee7b7"], moyen: ["Moyen", "#fbbf24"], eleve: ["Élevé", "#ef4444"] };
+          const recoTxt = { tresbon: ["Très bon", "#6ee7b7"], bon: ["Bon", "#a3e635"], moyen: ["Moyen", "#fbbf24"], faible: ["Faible", "#ef4444"] };
+          const recoColor = (r) => (recoTxt[r.mc.reco] || recoTxt.moyen)[1];
+          const Stars = ({ n, color }) => (
+            <span style={{ fontSize: 10, letterSpacing: 1, color }}>{"★".repeat(n)}<span style={{ opacity: 0.25 }}>{"★".repeat(5 - n)}</span></span>
+          );
+          const rows = [
+            { l: "Réussite", f: (b) => <span style={{ fontWeight: 800, color: mcColor(b.mc.passRate) }}>{b.mc.passRate}%</span> },
+            { l: "DD estimé", f: (b) => <span style={{ color: b.mc.avgDD <= 5 ? "#6ee7b7" : b.mc.avgDD <= 8 ? "#fbbf24" : "#ef4444" }}>{b.mc.avgDD}%</span> },
+            { l: "Gain attendu", f: (b) => <span style={{ color: b.mc.avgGain >= 0 ? "#6ee7b7" : "#ef4444" }}>{b.mc.avgGain >= 0 ? "+" : ""}{b.mc.avgGain}%</span> },
+            { l: "Ruine", f: (b) => <span style={{ color: b.mc.ruinRate < 15 ? "#6ee7b7" : b.mc.ruinRate < 35 ? "#fbbf24" : "#ef4444" }}>{b.mc.ruinRate}%</span> },
+            { l: "Stabilité", f: (b) => <Stars n={b.mc.stability} color={recoColor(b)} /> },
+            { l: "Risque", f: (b) => { const [txt, col] = riskTxt[b.mc.riskLabel] || riskTxt.moyen; return <span style={{ fontWeight: 700, color: col }}>{txt}</span>; } },
+            { l: "Reco", f: (b) => { const [txt, col] = recoTxt[b.mc.reco] || recoTxt.moyen; return <span style={{ fontWeight: 800, color: col }}>{txt}</span>; } },
+          ];
+          return (
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#fff", marginBottom: 10 }}>Arbre de décision stratégique</div>
+              {/* ── Conteneur scrollable : racine + connecteurs + branches + tableau (alignés) ── */}
+              <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", margin: "0 -16px", padding: "0 16px 4px" }}>
+                <div style={{ minWidth: LABEL_W + treeW + 10 }}>
+                  {/* Racine centrée au-dessus des colonnes */}
+                  <div style={{ marginLeft: LABEL_W + 10, width: treeW, display: "flex", justifyContent: "center" }}>
+                    <div style={{ border: "1.5px solid rgba(167,139,250,0.55)", background: "linear-gradient(135deg, rgba(167,139,250,0.10), rgba(34,211,238,0.06))", borderRadius: 13, padding: "9px 16px", textAlign: "center", boxShadow: "0 6px 22px -8px rgba(167,139,250,0.5)" }}>
+                      <div style={{ fontSize: 11.5, fontWeight: 800, color: "#fff" }}>✦ {research.root.name}</div>
+                      <div style={{ fontSize: 10, color: "#a78bfa", fontWeight: 700, marginTop: 1 }}>{research.root.label}</div>
+                      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>Passage {research.root.mc.passRate}% · DD {research.root.mc.avgDD}% · gain {research.root.mc.avgGain >= 0 ? "+" : ""}{research.root.mc.avgGain}%</div>
                     </div>
                   </div>
+                  {/* Connecteurs SVG : courbes de Bézier du centre vers chaque colonne, colorées par reco */}
+                  <svg width={treeW} height="42" style={{ display: "block", marginLeft: LABEL_W + 10 }}>
+                    {B.map((b, i) => {
+                      const x = i * (COL_W + GAP) + COL_W / 2;
+                      return <path key={i} d={`M ${treeW / 2} 2 C ${treeW / 2} 24, ${x} 14, ${x} 40`} fill="none" stroke={recoColor(b)} strokeWidth="1.8" opacity="0.85" />;
+                    })}
+                  </svg>
+                  {/* Rangée des cartes branches */}
+                  <div style={{ display: "flex", gap: GAP, marginLeft: LABEL_W + 10 }}>
+                    {B.map((b, i) => (
+                      <div key={i} style={{ width: COL_W, flexShrink: 0, border: `1.5px solid ${recoColor(b)}55`, borderTop: `2.5px solid ${recoColor(b)}`, borderRadius: 11, padding: "8px 7px", background: "rgba(255,255,255,0.025)", textAlign: "center" }}>
+                        <div style={{ fontSize: 10.5, fontWeight: 800, color: "#fff", lineHeight: 1.25, minHeight: 27 }}>{b.name}</div>
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{b.short}</div>
+                        <div style={{ fontSize: 9.5, fontWeight: 800, color: recoColor(b), marginTop: 4 }}>Score {b.mc.passRate}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Flèches vers le tableau */}
+                  <div style={{ display: "flex", gap: GAP, marginLeft: LABEL_W + 10, margin: `2px 0 2px ${LABEL_W + 10}px` }}>
+                    {B.map((b, i) => <div key={i} style={{ width: COL_W, textAlign: "center", color: recoColor(b), fontSize: 11 }}>↓</div>)}
+                  </div>
+                  {/* Tableau comparatif complet */}
+                  <div style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, overflow: "hidden" }}>
+                    {rows.map((row, ri) => (
+                      <div key={ri} style={{ display: "flex", alignItems: "center", background: ri % 2 ? "rgba(255,255,255,0.015)" : "transparent", borderTop: ri > 0 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                        <div style={{ width: LABEL_W + 10, flexShrink: 0, padding: "7px 8px", fontSize: 10, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{row.l}</div>
+                        {B.map((b, i) => (
+                          <div key={i} style={{ width: COL_W, flexShrink: 0, marginRight: i < B.length - 1 ? GAP : 0, textAlign: "center", fontSize: 11, padding: "7px 0" }}>{row.f(b)}</div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              );
-            })}
-            <button onClick={() => setResearch(null)} style={{ width: "100%", marginTop: 4, padding: 10, borderRadius: 10, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>Relancer l'exploration</button>
-          </div>
-        )}
+              </div>
+
+              {/* ── NIVEAU 2 : combinaisons dérivées des 2 meilleures branches ── */}
+              {B.some(b => b.children && b.children.length) && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>Niveau 2 — combinaisons explorées <span style={{ fontWeight: 600, color: "rgba(255,255,255,0.35)" }}>(Monte Carlo ×40 chacune)</span></div>
+                  {B.filter(b => b.children && b.children.length).map((parent, pi) => (
+                    <div key={pi} style={{ marginBottom: 10 }}>
+                      <div style={{ fontSize: 10.5, fontWeight: 700, color: recoColor(parent), marginBottom: 5 }}>{parent.name} ({parent.mc.passRate}%) →</div>
+                      {parent.children.map((ch, ci) => {
+                        const better = ch.mc.passRate > parent.mc.passRate;
+                        return (
+                          <div key={ci} style={{ display: "flex", alignItems: "stretch" }}>
+                            <div style={{ width: 16, borderLeft: `1.5px solid ${recoColor(parent)}55`, borderBottom: `1.5px solid ${recoColor(parent)}55`, borderBottomLeftRadius: 8, marginBottom: 14, marginLeft: 6, flexShrink: 0 }} />
+                            <div style={{ flex: 1, border: `1px solid ${mcColor(ch.mc.passRate)}44`, borderLeft: `3px solid ${mcColor(ch.mc.passRate)}`, borderRadius: 10, padding: "8px 10px", marginBottom: 7, background: "rgba(255,255,255,0.02)" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", lineHeight: 1.3 }}>{ch.name}</div>
+                                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                                  <span style={{ fontSize: 14, fontWeight: 900, color: mcColor(ch.mc.passRate) }}>{ch.mc.passRate}%</span>
+                                  <span style={{ fontSize: 9.5, fontWeight: 800, marginLeft: 4, color: better ? "#6ee7b7" : "#ef4444" }}>{better ? "▲" : "▼"}{Math.abs(ch.mc.passRate - parent.mc.passRate)}</span>
+                                </div>
+                              </div>
+                              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>DD {ch.mc.avgDD}% · gain {ch.mc.avgGain >= 0 ? "+" : ""}{ch.mc.avgGain}% · ruine {ch.mc.ruinRate}% · <Stars n={ch.mc.stability} color={mcColor(ch.mc.passRate)} /></div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 6, lineHeight: 1.4 }}>Probabilités issues de simulations Monte Carlo sur le moteur réel du Simulateur (mêmes règles DD/objectifs que la prop firm visée). Le gain attendu inclut les runs échoués — aucun biais optimiste.</div>
+              <button onClick={() => setResearch(null)} style={{ width: "100%", marginTop: 10, padding: 10, borderRadius: 10, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>Relancer l'exploration</button>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
