@@ -3828,12 +3828,14 @@ function LabScreen({ t, lang, profile, onBack }) {
               style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: 12, color: "#fff", fontSize: 13, outline: "none", resize: "vertical" }} />
           </>)}
         </div>
-        <button onClick={() => setStep(step + 1 >= 6 ? 99 : step + 1)} disabled={!stepDone(step)}
-          style={{ width: "100%", padding: 14, borderRadius: 13, border: "none", cursor: "pointer",
-            background: !stepDone(step) ? "rgba(255,255,255,0.07)" : "linear-gradient(135deg,#6ee7b7,#34d399)",
-            color: !stepDone(step) ? "rgba(255,255,255,0.3)" : "#000", fontSize: 14, fontWeight: 800 }}>
-          {step + 1 >= 6 ? "⚗ Analyser" : "Suivant"}
-        </button>
+        <div style={{ position: "fixed", bottom: 70, left: 0, right: 0, padding: "0 16px 8px", zIndex: 50, background: "linear-gradient(0deg, rgba(6,9,15,1) 80%, rgba(6,9,15,0) 100%)" }}>
+          <button onClick={() => setStep(step + 1 >= 6 ? 99 : step + 1)} disabled={!stepDone(step)}
+            style={{ width: "100%", padding: 14, borderRadius: 13, border: "none", cursor: "pointer",
+              background: !stepDone(step) ? "rgba(255,255,255,0.07)" : "linear-gradient(135deg,#6ee7b7,#34d399)",
+              color: !stepDone(step) ? "rgba(255,255,255,0.3)" : "#000", fontSize: 14, fontWeight: 800 }}>
+            {step + 1 >= 6 ? "⚗ Analyser" : "Suivant →"}
+          </button>
+        </div>
       </div>
     );
   }
@@ -3868,9 +3870,30 @@ function LabScreen({ t, lang, profile, onBack }) {
             <stop offset="0%" stopColor="#22d3ee"/><stop offset="100%" stopColor="#a78bfa"/>
           </linearGradient>
         </defs>
-        {[1, 2/3, 1/3].map((f, i) => <polygon key={i} points={poly(R * f)} fill="none" stroke="rgba(255,255,255,0.09)" strokeWidth="1"/>)}
+        {[1, 2/3, 1/3].map((f, j) => {
+          // Grille en cercles doux (approximation hexagonale lissée) via bezier
+          const gPts = AXES.map((_, i) => pt(i, R * f));
+          const gd = gPts.map((p, i) => {
+            const prev = gPts[(i + AXES.length - 1) % AXES.length];
+            const next = gPts[(i + 1) % AXES.length];
+            const cp1 = [p[0] + (next[0] - prev[0]) * 0.15, p[1] + (next[1] - prev[1]) * 0.15];
+            const cp2 = [next[0] - (gPts[(i + 2) % AXES.length][0] - p[0]) * 0.15, next[1] - (gPts[(i + 2) % AXES.length][1] - p[1]) * 0.15];
+            return i === 0 ? `M ${p[0]} ${p[1]}` : `C ${cp1[0]} ${cp1[1]}, ${cp2[0]} ${cp2[1]}, ${next[0]} ${next[1]}`;
+          }).join(' ') + ' Z';
+          return <path key={j} d={gd} fill="none" stroke="rgba(255,255,255,0.09)" strokeWidth="1"/>;
+        })}
         {AXES.map((_, i) => { const [x, y] = pt(i, R); return <line key={i} x1={CX} y1={CY} x2={x} y2={y} stroke="rgba(255,255,255,0.07)" strokeWidth="1"/>; })}
-        <polygon points={dataPoly} fill="url(#rFill)" stroke="url(#rStroke)" strokeWidth="2" strokeLinejoin="round"/>
+        {(() => {
+          const dPts = AXES.map((ax, i) => pt(i, (Math.max(5, ax.val) / 100) * R));
+          const dd = dPts.map((p, i) => {
+            const prev = dPts[(i + dPts.length - 1) % dPts.length];
+            const next = dPts[(i + 1) % dPts.length];
+            const cp1 = [p[0] + (next[0] - prev[0]) * 0.2, p[1] + (next[1] - prev[1]) * 0.2];
+            const cp2 = [next[0] - (dPts[(i + 2) % dPts.length][0] - p[0]) * 0.2, next[1] - (dPts[(i + 2) % dPts.length][1] - p[1]) * 0.2];
+            return i === 0 ? `M ${p[0]} ${p[1]}` : `C ${cp1[0]} ${cp1[1]}, ${cp2[0]} ${cp2[1]}, ${next[0]} ${next[1]}`;
+          }).join(' ') + ' Z';
+          return <><path d={dd} fill="url(#rFill)" strokeWidth="0"/><path d={dd} fill="none" stroke="url(#rStroke)" strokeWidth="2"/></>;
+        })()}
         {AXES.map((ax, i) => { const [x, y] = pt(i, (Math.max(5, ax.val) / 100) * R); return <circle key={i} cx={x} cy={y} r="3" fill={i < 3 ? "#22d3ee" : "#a78bfa"} stroke="#0a0e14" strokeWidth="1.4"/>; })}
         {AXES.map((ax, i) => { const [x, y] = pt(i, R + 14); return <text key={i} x={x} y={y + 3} textAnchor="middle" fontSize="8.5" fontWeight="600" fill="rgba(255,255,255,0.65)">{ax.label}</text>; })}
       </svg>
@@ -3897,9 +3920,11 @@ function LabScreen({ t, lang, profile, onBack }) {
         <span style={{ color: "rgba(255,255,255,0.55)" }}>{label}</span>
         <span style={{ fontWeight: 800, color: "#6ee7b7" }}>{format(val)}</span>
       </div>
+      <style>{`input[type=range]{-webkit-appearance:none;appearance:none;height:26px;background:transparent;cursor:pointer;touch-action:none}input[type=range]::-webkit-slider-runnable-track{height:4px;background:rgba(255,255,255,0.12);border-radius:2px}input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:11px;background:#6ee7b7;margin-top:-9px;box-shadow:0 0 0 3px rgba(110,231,183,0.25)}input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:11px;background:#6ee7b7;border:none;box-shadow:0 0 0 3px rgba(110,231,183,0.25)}`}</style>
       <input type="range" min={min} max={max} step={s} value={val}
         onChange={e => setVal(parseFloat(e.target.value))}
-        style={{ width: "100%", accentColor: "#6ee7b7", height: 4 }} />
+        onTouchMove={e => { e.stopPropagation(); }}
+        style={{ width: "100%", display: "block", cursor: "pointer" }} />
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "rgba(255,255,255,0.25)", marginTop: 1 }}>
         <span>{format(min)}</span><span>{format(max)}</span>
       </div>
@@ -3985,23 +4010,23 @@ function LabScreen({ t, lang, profile, onBack }) {
         {/* Infos gauche + Radar droite */}
         <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
           <div style={{ flex: 1 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
               {[
                 ["Type", (TRADING_KB.botTypes.find(b => b.k === sel.bot) || {}).label || "—"],
                 ["Marché", (TRADING_KB.markets.find(m => m.k === sel.market) || {}).label || "—"],
                 ["Sessions", (sel.sessions || []).map(s => TRADING_KB.sessions.find(x => x.k === s)?.label || s).join(", ") || "—"],
                 ["Entrée", (sel.entries || []).slice(0, 2).map(k => TRADING_KB.entries.find(x => x.k === k)?.label || k).join(" + ") || "—"],
                 ["Sortie", (sel.exits || []).slice(0, 2).map(k => TRADING_KB.exits.find(x => x.k === k)?.label || k).join(" + ") || "—"],
-                ["Risque/trade", displayRisk + "%"],
-                ["Trades/j (moy.)", analysis.params.tradesPerDay],
+                ["Risque/t", displayRisk + "%"],
+                ["Trades/j", analysis.params.tradesPerDay],
                 ["Prop firm", (PROP_FIRMS[firmKey] || PROP_FIRMS.fundednext).name],
               ].map(([k, v]) => (
-                <tr key={k} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                  <td style={{ padding: "4px 0", color: "rgba(255,255,255,0.45)", fontWeight: 600 }}>{k}</td>
-                  <td style={{ padding: "4px 0 4px 8px", color: "#fff", fontWeight: 600, textAlign: "right" }}>{v}</td>
-                </tr>
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.04)", paddingBottom: 2, paddingTop: 2 }}>
+                  <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.42)", fontWeight: 600, flexShrink: 0 }}>{k}</span>
+                  <span style={{ fontSize: 9.5, color: "#fff", fontWeight: 700, textAlign: "right", marginLeft: 6, lineHeight: 1.2 }}>{v}</span>
+                </div>
               ))}
-            </table>
+            </div>
           </div>
           <div style={{ flexShrink: 0 }}>
             <LabRadar scores={analysis.scores} />
@@ -4096,84 +4121,140 @@ function LabScreen({ t, lang, profile, onBack }) {
             </div>
           )}
 
-          {/* Organigramme scrollable */}
-          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", margin: "0 -14px", padding: "0 14px 4px" }}>
+          {/* ── ARBRE HORIZONTAL (gauche→droite) avec scroll ── */}
+          <div style={{ overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch", margin: "0 -14px", padding: "0 14px 8px" }}>
             {(() => {
               const B = research.branches;
-              const COL_W = 108, GAP = 8, LW = 68;
-              const tw = B.length * COL_W + (B.length - 1) * GAP;
+              // Dimensions des colonnes horizontales
+              const ROOT_W = 100, COL_H = 72, BRANCH_W = 88, L2_W = 84;
+              const GAP_V = 8, GAP_H = 28;
               const recoColor = (b) => (recoColors[b.mc.reco] || "#fbbf24");
-              const NodeCard = ({ node, id, compact = false }) => {
+
+              // Nœud cliquable horizontal (titre + cercle)
+              const HNode = ({ node, id, w = BRANCH_W, accent }) => {
                 const sel2 = treeSelected === id;
+                const col = accent || recoColor(node);
                 return (
                   <div onClick={() => setTreeSelected(sel2 ? null : id)}
-                    style={{ width: compact ? 100 : COL_W, border: `1.5px solid ${sel2 ? "#fff" : recoColor(node) + "88"}`, borderTop: compact ? undefined : `3px solid ${recoColor(node)}`,
-                      borderRadius: 10, padding: compact ? "6px 8px" : "8px 7px", background: sel2 ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.025)", cursor: "pointer", textAlign: "center", transition: "all .2s" }}>
-                    <div style={{ fontSize: compact ? 9 : 10, fontWeight: 800, color: "#fff", lineHeight: 1.2, marginBottom: 4 }}>{node.name}</div>
-                    <ScoreCircle val={node.mc.passRate} size={36} />
-                    <div style={{ fontSize: 8.5, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>DD {node.mc.avgDD}%</div>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: recoColor(node), marginTop: 2 }}>{recoLabels[node.mc.reco] || "—"}</div>
+                    style={{ width: w, border: `1.5px solid ${sel2 ? "#fff" : col + "90"}`, borderLeft: `3px solid ${col}`,
+                      borderRadius: 9, padding: "6px 8px", background: sel2 ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.025)",
+                      cursor: "pointer", transition: "all .18s", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                    <div style={{ fontSize: 8.5, fontWeight: 800, color: "#fff", lineHeight: 1.25, textAlign: "center", width: "100%" }}>{node.name}</div>
+                    <ScoreCircle val={node.mc.passRate} size={34} />
+                    <div style={{ fontSize: 7.5, color: "rgba(255,255,255,0.4)" }}>DD {node.mc.avgDD}%</div>
+                    <div style={{ fontSize: 8, fontWeight: 700, color: col }}>{recoLabels[node.mc.reco] || "—"}</div>
                   </div>
                 );
               };
+
+              // Calcul dynamique de la hauteur totale de chaque branche (avec enfants)
+              const branchHeight = (b) => (b.children?.length ? b.children.length * (COL_H + GAP_V) - GAP_V : COL_H);
+              const totalH = B.reduce((s, b) => s + branchHeight(b) + GAP_V, -GAP_V);
+
+              // Positions Y centrées de chaque branche
+              let yAcc = 0;
+              const bY = B.map(b => { const h = branchHeight(b); const cy = yAcc + h / 2; yAcc += h + GAP_V; return cy; });
+
+              const rootCY = totalH / 2;
+              const svgW = ROOT_W + GAP_H + BRANCH_W + GAP_H + L2_W;
+              const hasL2 = B.some(b => b.children?.length);
+
               return (
-                <div style={{ minWidth: LW + tw + 10 }}>
-                  {/* Racine */}
-                  <div style={{ display: "flex", justifyContent: "center", marginLeft: LW + 10, width: tw, marginBottom: 0 }}>
+                <div style={{ display: "inline-flex", alignItems: "flex-start", gap: 0, minWidth: svgW + 20 }}>
+                  {/* Colonne RACINE centrée verticalement */}
+                  <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", height: totalH, flexShrink: 0 }}>
                     <div onClick={() => setTreeSelected(treeSelected === "root" ? null : "root")}
-                      style={{ border: `1.5px solid ${treeSelected === "root" ? "#fff" : "rgba(167,139,250,0.55)"}`, background: "linear-gradient(135deg,rgba(167,139,250,0.10),rgba(34,211,238,0.06))",
-                        borderRadius: 12, padding: "9px 16px", textAlign: "center", cursor: "pointer", transition: "all .2s" }}>
-                      <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>✦ {research.root.name}</div>
-                      <div style={{ fontSize: 10, color: "#a78bfa", fontWeight: 700 }}>{research.root.label}</div>
-                      <ScoreCircle val={research.root.mc.passRate} size={40} />
+                      style={{ width: ROOT_W, border: `1.5px solid ${treeSelected === "root" ? "#fff" : "rgba(167,139,250,0.7)"}`, borderLeft: "3px solid #a78bfa",
+                        borderRadius: 10, padding: "8px", background: "linear-gradient(135deg,rgba(167,139,250,0.10),rgba(34,211,238,0.05))",
+                        cursor: "pointer", transition: "all .2s", textAlign: "center" }}>
+                      <div style={{ fontSize: 9, fontWeight: 800, color: "#fff" }}>✦ {research.root.name}</div>
+                      <div style={{ fontSize: 8, color: "#a78bfa", marginTop: 1 }}>{research.root.label}</div>
+                      <ScoreCircle val={research.root.mc.passRate} size={36} />
                     </div>
                   </div>
-                  {/* Connecteurs SVG Bézier */}
-                  <svg width={tw} height="42" style={{ display: "block", marginLeft: LW + 10 }}>
-                    {B.map((b, i) => { const x = i * (COL_W + GAP) + COL_W / 2;
-                      return <path key={i} d={`M ${tw/2} 2 C ${tw/2} 24, ${x} 14, ${x} 40`} fill="none" stroke={recoColors[b.mc.reco] || "#fbbf24"} strokeWidth="1.8" opacity="0.85"/>; })}
+
+                  {/* SVG connecteurs racine→branches */}
+                  <svg width={GAP_H} height={totalH} style={{ flexShrink: 0, overflow: "visible" }}>
+                    {B.map((b, i) => {
+                      const y1 = rootCY, y2 = bY[i];
+                      return <path key={i} d={`M 0 ${y1} C ${GAP_H * 0.5} ${y1}, ${GAP_H * 0.5} ${y2}, ${GAP_H} ${y2}`}
+                        fill="none" stroke={recoColor(b)} strokeWidth="1.6" opacity="0.8"/>;
+                    })}
                   </svg>
-                  {/* Branches niveau 1 */}
-                  <div style={{ display: "flex", gap: GAP, marginLeft: LW + 10 }}>
-                    {B.map((b, i) => <NodeCard key={i} node={b} id={String(i)} />)}
-                  </div>
-                  {/* Connecteurs niveau 2 */}
-                  {B.some(b => b.children?.length) && (<>
-                    <div style={{ display: "flex", gap: GAP, marginLeft: LW + 10, margin: `2px 0 2px ${LW + 10}px` }}>
-                      {B.map((b, i) => <div key={i} style={{ width: COL_W, textAlign: "center", color: b.children?.length ? recoColors[b.mc.reco] || "#fbbf24" : "transparent", fontSize: 10 }}>{b.children?.length ? "↓" : " "}</div>)}
-                    </div>
-                    <div style={{ display: "flex", gap: GAP, marginLeft: LW + 10 }}>
-                      {B.map((b, i) => (
-                        <div key={i} style={{ width: COL_W }}>
-                          {(b.children || []).map((ch, ci) => (
-                            <div key={ci} style={{ marginBottom: 4 }}>
-                              <NodeCard node={ch} id={`${i}-${ci}`} compact />
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  </>)}
-                  {/* Tableau comparatif */}
-                  <div style={{ border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", marginTop: 10 }}>
-                    {[
-                      { l: "Réussite", f: (b) => <span style={{ fontWeight: 800, color: mcColor(b.mc.passRate) }}>{b.mc.passRate}%</span> },
-                      { l: "DD estimé", f: (b) => <span style={{ color: b.mc.avgDD <= 5 ? "#6ee7b7" : b.mc.avgDD <= 8 ? "#fbbf24" : "#ef4444" }}>{b.mc.avgDD}%</span> },
-                      { l: "Gain moy", f: (b) => <span style={{ color: b.mc.avgGain >= 0 ? "#6ee7b7" : "#ef4444" }}>{b.mc.avgGain >= 0 ? "+" : ""}{b.mc.avgGain}%</span> },
-                      { l: "Ruine", f: (b) => <span style={{ color: b.mc.ruinRate < 15 ? "#6ee7b7" : "#ef4444" }}>{b.mc.ruinRate}%</span> },
-                      { l: "Reco", f: (b) => <span style={{ fontWeight: 800, color: recoColors[b.mc.reco] || "#fff" }}>{recoLabels[b.mc.reco] || "—"}</span> },
-                    ].map((row, ri) => (
-                      <div key={ri} style={{ display: "flex", alignItems: "center", background: ri % 2 ? "rgba(255,255,255,0.015)" : "transparent", borderTop: ri > 0 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
-                        <div style={{ width: LW + 10, flexShrink: 0, padding: "6px 8px", fontSize: 10, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{row.l}</div>
-                        {B.map((b, i) => <div key={i} style={{ width: COL_W, flexShrink: 0, marginRight: i < B.length - 1 ? GAP : 0, textAlign: "center", fontSize: 11, padding: "6px 0" }}>{row.f(b)}</div>)}
+
+                  {/* Colonne BRANCHES niveau 1 */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: GAP_V, flexShrink: 0 }}>
+                    {B.map((b, i) => (
+                      <div key={i} style={{ display: "flex", flexDirection: "column", justifyContent: "center", height: branchHeight(b) }}>
+                        <HNode node={b} id={String(i)} />
                       </div>
                     ))}
                   </div>
-                  <div style={{ fontSize: 8.5, color: "rgba(255,255,255,0.25)", marginTop: 6, lineHeight: 1.4 }}>MC = Monte Carlo × 60 runs (moteur réel, rules {(PROP_FIRMS[firmKey]||PROP_FIRMS.fundednext).name}). Gain = moyenne tous runs incluant les échecs. Aucun biais optimiste.</div>
+
+                  {/* SVG connecteurs branches→niveau 2 */}
+                  {hasL2 && <svg width={GAP_H} height={totalH} style={{ flexShrink: 0, overflow: "visible" }}>
+                    {B.map((b, i) => (b.children || []).map((ch, ci) => {
+                      const childH = COL_H, parentCY = bY[i];
+                      let childYAcc = bY[i] - branchHeight(b) / 2;
+                      for (let x = 0; x < ci; x++) childYAcc += COL_H + GAP_V;
+                      const childCY = childYAcc + childH / 2;
+                      return <path key={`${i}-${ci}`} d={`M 0 ${parentCY} C ${GAP_H * 0.5} ${parentCY}, ${GAP_H * 0.5} ${childCY}, ${GAP_H} ${childCY}`}
+                        fill="none" stroke={recoColor(b)} strokeWidth="1.3" opacity="0.55" strokeDasharray="3 2"/>;
+                    }))}
+                  </svg>}
+
+                  {/* Colonne NIVEAU 2 */}
+                  {hasL2 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: GAP_V, flexShrink: 0 }}>
+                      {B.map((b, i) => (b.children || []).map((ch, ci) => (
+                        <HNode key={`${i}-${ci}`} node={{ ...ch, name: ch.name }} id={`${i}-${ci}`} w={L2_W} accent={recoColor(b)} />
+                      )))}
+                    </div>
+                  )}
                 </div>
               );
             })()}
           </div>
+
+          {/* ── BARRE DE CONCLUSION BACKTESTING ── */}
+          {(() => {
+            const pr = research.root.mc.passRate;
+            const verdict = pr >= 65 ? { icon: "✅", color: "#6ee7b7", txt: "Stratégie viable", action: "Commence par un forward test de 30 jours minimum avec un capital fictif avant de payer le moindre challenge." }
+              : pr >= 40 ? { icon: "⚠️", color: "#fbbf24", txt: "Améliorations requises", action: "Tu dois accumuler au moins 200 trades réels ou démo pour valider la statistique, puis relancer cette simulation." }
+              : { icon: "🛑", color: "#ef4444", txt: "Non viable en l'état", action: "Stop. Cette stratégie ne peut pas passer un challenge dans l'état actuel. Retravaille le RR ou le winrate, puis recommence." };
+            const checklist = [
+              { ok: research.root.mc.passRate >= 50, txt: `Passage MC ≥ 50% (tu as ${research.root.mc.passRate}%)` },
+              { ok: research.root.mc.ruinRate < 20, txt: `Ruine < 20% (tu as ${research.root.mc.ruinRate}%)` },
+              { ok: analysis.kpis.profitFactor >= 1.3, txt: `Profit Factor ≥ 1.3 (tu as ${analysis.kpis.profitFactor})` },
+              { ok: analysis.kpis.maxConsecLoss <= 8, txt: `Série pertes max ≤ 8 (tu as ${analysis.kpis.maxConsecLoss})` },
+              { ok: Math.round(analysis.kpis.tradesForSig) <= 500, txt: `Échantillon atteignable (${Math.round(analysis.kpis.tradesForSig)} trades requis pour validité)` },
+            ];
+            const passCount = checklist.filter(c => c.ok).length;
+            return (
+              <div style={{ marginTop: 14, border: `1.5px solid ${verdict.color}44`, borderLeft: `4px solid ${verdict.color}`, borderRadius: 12, padding: 14, background: `${verdict.color}07` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 18 }}>{verdict.icon}</span>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: verdict.color }}>{verdict.txt} · {passCount}/5 critères</div>
+                    <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.55)", marginTop: 1, lineHeight: 1.35 }}>{verdict.action}</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 8 }}>
+                  {checklist.map((item, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5 }}>
+                      <span style={{ color: item.ok ? "#6ee7b7" : "#ef4444", flexShrink: 0, fontWeight: 800 }}>{item.ok ? "✓" : "✕"}</span>
+                      <span style={{ color: item.ok ? "rgba(255,255,255,0.65)" : "rgba(239,68,68,0.8)" }}>{item.txt}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 8, background: "rgba(255,255,255,0.03)", fontSize: 10, color: "rgba(255,255,255,0.45)", lineHeight: 1.45 }}>
+                  <span style={{ fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>Protocole de validation :</span> Backtest sur données historiques 12+ mois → Forward test 30 jours démo → Seulement APRÈS ces deux étapes, lance le challenge.
+                  Un backtest positif ne suffit pas — le marché évolue. La sur-optimisation (overfit) est le principal ennemi : si ta stratégie fonctionne UNIQUEMENT sur la période backtestée, elle est fragile.
+                </div>
+              </div>
+            );
+          })()}
+
           <button onClick={() => { setResearch(null); setTreeSelected(null); }} style={{ width: "100%", marginTop: 10, padding: 10, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Relancer l'exploration</button>
         </>)}
       </div>
