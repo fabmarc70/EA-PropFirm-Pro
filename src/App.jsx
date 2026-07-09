@@ -6995,7 +6995,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             </div>
 
             {/* CALENDRIER PnL — jours skippés répartis aléatoirement selon la récurrence EA */}
-            <CalendrierPnL t={t} lang={lang} dailyLog={sim.funded.dailyLog} newsSkipDays={newsSkipDays} activeDays={activeDays} />
+            <CalendrierPnL t={t} lang={lang} dailyLog={sim.funded.dailyLog} newsSkipDays={newsSkipDays} activeDays={activeDays} journalMonthLabel={(() => { const n = new Date(); return n.getFullYear() + "-" + String(n.getMonth()+1).padStart(2,"0"); })()} />
 
             <div className="card">
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: "#fbbf24" }}>{t("sim_detail_monthly")}</div>
@@ -9196,7 +9196,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
 
           {/* ── CALENDRIER PnL — AU-DESSUS du tableau mensuel (100% trades importés) ── */}
           {dailyLogReel.length > 0 && (
-            <CalendrierPnL t={t} lang={lang} dailyLog={dailyLogReel} realMode={true} />
+            <CalendrierPnL t={t} lang={lang} dailyLog={dailyLogReel} realMode={true} journalMonthLabel={(() => { const n = new Date(); return n.getFullYear() + "-" + String(n.getMonth()+1).padStart(2,"0"); })()} />
           )}
 
           {/* ── TABLEAU MENSUEL — 100% calculé depuis trades importés ── */}
@@ -9545,57 +9545,67 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
   const bestDay = statsSource.length ? Math.max(...statsSource.map(d => d.pnl || 0)) : 0;
   const worstDay = statsSource.length ? Math.min(...statsSource.map(d => d.pnl || 0)) : 0;
 
+  // ── Vrai positionnement calendaire ──
+  // Extrait année/mois via regex YYYY-MM présente dans journalMonthLabel (ou la prop moisStr des modes simulation/backtest)
+  const calDateMatch = (journalMonthLabel || "").match(/(\d{4})-(\d{2})/);
+  const calYear = calDateMatch ? parseInt(calDateMatch[1]) : new Date().getFullYear();
+  const calMonth = calDateMatch ? parseInt(calDateMatch[2]) : new Date().getMonth() + 1;
+  // Nombre réel de jours dans le mois (28/29/30/31)
+  const daysInMonth = new Date(calYear, calMonth, 0).getDate();
+  // Jour de la semaine du 1er : 0=Sun..6=Sat → convertir en Lun=0..Dim=6
+  const firstDowJS = new Date(calYear, calMonth - 1, 1).getDay(); // 0=Sun
+  const firstDowMon = (firstDowJS + 6) % 7; // Lun=0, Mar=1, ..., Dim=6
+
   const buildCalendarGrid = () => {
     const grid = [];
     if (journalMode) {
-      // Mode journal : grille complète du mois (30 jours), TOUS les jours cliquables
-      // (y compris weekend — l'utilisateur décide de saisir ou non)
-      for (let dayNum = 1; dayNum <= 30; dayNum++) {
-        const dow = (dayNum - 1) % 7;
-        const isWeekend = dow >= 5;
+      // Mode journal : grille calendaire réelle — le 1er tombe sur son vrai jour de la semaine.
+      // Cellules vides avant le 1er (padding de début) + tous les jours du mois.
+      for (let pad = 0; pad < firstDowMon; pad++) {
+        grid.push({ dayNum: null, trading: false, data: null, isPadding: true });
+      }
+      for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
         const entry = journalData[String(dayNum)];
         grid.push({
           dayNum,
-          trading: true, // tous les jours saisissables en mode journal
-          isWeekendDay: isWeekend, // pour le style visuel
+          trading: true,
+          isWeekendDay: (() => {
+            const dow = (firstDowMon + dayNum - 1) % 7; // 0=Lun..6=Dim
+            return dow >= 5;
+          })(),
           journalEntry: entry || null,
           data: entry ? { pnl: entry.pnl, wins: entry.wins, losses: entry.losses } : null,
         });
       }
       return grid;
     }
-    // ── Mode backtest RÉEL : les vrais jours du fichier, sans scatter ──
-    // Chaque trade est placé à sa vraie date calendaire (si disponible).
-    // Les cases vides = vrais jours sans trade dans le backtest.
-    // AUCUN algo aléatoire — on n'invente pas de jours non tradés.
+    // ── Mode backtest RÉEL : les vrais jours du fichier, avec positionnement calendaire ──
     if (realMode) {
+      // Cellules de padding avant le 1er
+      for (let pad = 0; pad < firstDowMon; pad++) {
+        grid.push({ dayNum: null, trading: false, data: null, isPadding: true });
+      }
       const hasDates = monthDays.some(d => d.hasRealDate);
       if (hasDates) {
-        // Placement par vraie date : chaque case = jour réel du mois
         const dayMap = {};
         monthDays.forEach(d => { dayMap[d.dayOfMonth] = d; });
-        for (let dayNum = 1; dayNum <= 28; dayNum++) {
-          const dow = (dayNum - 1) % 7;
+        for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
+          const dow = (firstDowMon + dayNum - 1) % 7;
           const isWeekend = dow >= 5;
           const data = dayMap[dayNum];
-          if (data) {
-            grid.push({ dayNum, trading: true, data });
-          } else {
-            grid.push({ dayNum, trading: false, data: null, isEmptyWeekday: !isWeekend });
-          }
+          if (data) { grid.push({ dayNum, trading: true, data }); }
+          else { grid.push({ dayNum, trading: false, data: null, isEmptyWeekday: !isWeekend }); }
         }
       } else {
-        // Pas de vraies dates : placement séquentiel pur, sans scatter ni case vide artificielle
         const eaDowsSeq = new Set((activeDays || [1,2,3,4,5]).map(d => d - 1));
         let tradingIdx = 0;
-        for (let dayNum = 1; dayNum <= 28; dayNum++) {
-          const dow = (dayNum - 1) % 7;
-          const isWeekend = dow >= 5;
+        for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
+          const dow = (firstDowMon + dayNum - 1) % 7;
           const isActive = eaDowsSeq.has(dow);
           if (isActive && tradingIdx < monthDays.length) {
             grid.push({ dayNum, trading: true, data: monthDays[tradingIdx++] });
           } else {
-            grid.push({ dayNum, trading: false, data: null, isEmptyWeekday: !isWeekend && !isActive });
+            grid.push({ dayNum, trading: false, data: null, isEmptyWeekday: !eaDowsSeq.has(dow) });
           }
         }
       }
@@ -9618,13 +9628,18 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
     // AVANT: filter(d => d <= 5) excluait les jours 6 et 7 (Sa=6, Di=7) même quand activés
     const eaDows = new Set((activeDays || [1,2,3,4,5]).map(d => d - 1)); // 0=Lun, 5=Sam, 6=Dim
 
-    let tradingIdx = 0;
-    for (let week = 0; week < 4; week++) {
-      // Pour cette semaine : choisir aléatoirement quels jours actifs sont des "news days"
-      const eaActiveArr = Array.from(eaDows); // [0,1,2,3,4] par défaut
-      const skipCount = Math.min(newsSkipDays, eaActiveArr.length);
+    // Padding de début (jours vides avant le 1er)
+    for (let pad = 0; pad < firstDowMon; pad++) {
+      grid.push({ dayNum: null, trading: false, data: null, isPadding: true });
+    }
 
-      // Fisher-Yates shuffle seedé → résultat différent par semaine ET par mois
+    let tradingIdx = 0;
+    // Le mois s'étend sur ceil((firstDowMon + daysInMonth) / 7) semaines
+    const totalCells = firstDowMon + daysInMonth;
+    const weeks = Math.ceil(totalCells / 7);
+    for (let week = 0; week < weeks; week++) {
+      const eaActiveArr = Array.from(eaDows);
+      const skipCount = Math.min(newsSkipDays, eaActiveArr.length);
       const shuffled = [...eaActiveArr];
       for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(prng(selectedMonth * 1000 + week * 100 + i) * (i + 1));
@@ -9632,25 +9647,23 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
       }
       const skipDowsThisWeek = new Set(shuffled.slice(0, skipCount));
 
-      // Construire les 7 cases de la semaine
       for (let d = 0; d < 7; d++) {
-        const dayNum = week * 7 + d + 1;
+        // dayNum réel = position dans le mois (1-based), en tenant compte du padding
+        const cellIdx = week * 7 + d; // index dans la grille totale (padding inclu)
+        const dayNum = cellIdx - firstDowMon + 1;
+        if (dayNum < 1 || dayNum > daysInMonth) continue; // ne pas re-générer le padding
         const isWeekend = d >= 5;
         const isEaActive = eaDows.has(d);
         const isNewsSkip = skipDowsThisWeek.has(d);
 
         if (isWeekend && !isEaActive) {
-          // Weekend non tradé : case très sombre
           grid.push({ dayNum, trading: false, data: null, isEmptyWeekday: false });
         } else if (!isEaActive || isNewsSkip) {
-          // Jour non tradé : EA ne trade pas ce jour OU c'est un jour d'annonce
           grid.push({ dayNum, trading: false, data: null, isEmptyWeekday: true });
         } else if (tradingIdx < monthDays.length) {
-          // Jour tradé avec données de simulation
           grid.push({ dayNum, trading: true, data: monthDays[tradingIdx] });
           tradingIdx++;
         } else {
-          // Fin des données de simulation → case vide (fin de mois)
           grid.push({ dayNum, trading: false, data: null, isEmptyWeekday: true });
         }
       }
@@ -9739,6 +9752,10 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
       {/* Grille calendrier */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
         {grid.map((cell, i) => {
+          // Cellule de padding : vide invisible avant le 1er du mois
+          if (cell.isPadding) {
+            return <div key={`pad-${i}`} style={{ background: "transparent", border: "none", borderRadius: 8, padding: "5px 4px", minHeight: 52 }} />;
+          }
           const hasData = cell.data && (cell.data.pnl !== undefined && cell.data.pnl !== null);
           // Style : jour tradé (données) | jour vide ouvrable | weekend
           const c = (cell.trading && hasData)
@@ -11992,6 +12009,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
             <CalendrierPnL t={t} lang={lang} dailyLog={ls.funded.dailyLog}
               newsSkipDays={ls.newsSkipDays || 0}
               activeDays={ls.activeDays || [1,2,3,4,5]}
+              journalMonthLabel={currentMonthKey}
             />
           </div>
         ) : (
