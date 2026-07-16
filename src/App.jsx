@@ -6113,8 +6113,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           {/* saveStatus silencieux — pas d'affichage visuel */}
           <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, border: "1px solid rgba(255,255,255,0.08)" }}>
             {[
-              { id: "challenge", label: "Challenge" },
-              { id: "bilan",     label: "Bilan" },
+              { id: "challenge", label: "Configuration" },
+              { id: "bilan",     label: "Challenge" },
               { id: "funded",    label: "Funded" },
             ].map(tg => (
               <button key={tg.id} onClick={() => {
