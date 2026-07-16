@@ -6715,28 +6715,6 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
       </div>
 
-      {/* REGLES */}
-      <div className="card">
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Regles {model.name}</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
-          {[
-            ...model.phases.map(ph => [ph.label + " objectif", "+" + (ph.target * 100) + "%"]),
-            ["DD Journalier", (model.dailyDD * 100) + "% (intraday)"],
-            ["DD Total", (model.totalDD * 100) + "% max"],
-            ["Limite de temps", "Aucune"],
-            ["Min jours/phase", model.phases[0].minDays + " jours"],
-            ["Reward challenge", (model.challengeReward * 100) + "%"],
-            ["1er payout", "apres " + model.firstPayoutDays + "j"],
-            ["Split Funded", "80-90%"],
-            ["EA/Algo", "Autorise"],
-          ].map((kv) => (
-            <div key={kv[0]} className="row">
-              <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>{kv[0]}</span>
-              <span style={{ color: "#FFFFFF", fontWeight: 700, fontSize: 11 }}>{kv[1]}</span>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Bouton sauvegarder la config */}
       <button onClick={() => { if (!premiumAccess) { requirePremium(); return; } saveCurrentConfig(); }} disabled={!premiumAccess ? false : !configChanged} style={{
@@ -6854,141 +6832,178 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               </div>
             </div>
 
-            {/* ── Progression par phase ── */}
+            {/* ── Phases détaillées (avec courbes d'équité) ── */}
             {model.phases.map((ph, i) => {
               const data = sim.phaseResults[i];
-              if (!data) return null;
-              const pctGain = ((data.profit || 0) * 100).toFixed(2);
-              const passed = data.status === "passed";
+              const color = i === 0 ? "#6ee7b7" : "rgba(255,255,255,0.55)";
               return (
-                <div key={i} className="card" style={{ border: `1px solid ${passed ? "rgba(110,231,183,0.2)" : "rgba(239,68,68,0.2)"}` }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                    <span style={{ fontWeight: 700, fontSize: 13 }}>{ph.label}</span>
-                    <span style={{ fontWeight: 800, fontSize: 12, color: passed ? "#6ee7b7" : "#ef4444",
-                      background: passed ? "rgba(110,231,183,0.12)" : "rgba(239,68,68,0.12)",
-                      padding: "2px 8px", borderRadius: 6 }}>
-                      {passed ? "✓ Passé" : "✕ Échoué"}
-                    </span>
+                <div className="card" key={i} style={{ position: "relative", border: data?.status === "passed" ? "1px solid rgba(110,231,183,0.2)" : "1px solid rgba(239,68,68,0.15)" }}>
+                  {!premiumAccess && data && (
+                    <LockOverlay onUnlock={requirePremium} label={lang === "en" ? "Unlock your real success rate" : lang === "es" ? "Desbloquea tu tasa de éxito real" : "Débloque ton taux de réussite réel"} />
+                  )}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{ph.label} - Objectif +{(ph.target * 100)}%</div>
+                    {data ? (
+                      !premiumAccess ? (
+                        <span className="tag" style={{ background: "rgba(110,231,183,0.1)", color: "#6ee7b7", border: "1px solid rgba(110,231,183,0.3)" }}>Premium</span>
+                      ) : (
+                        <span className="tag" style={{ background: phaseIcon(data.status).bg, color: phaseIcon(data.status).color }}>
+                          {phaseIcon(data.status).icon} {phaseIcon(data.status).label}
+                        </span>
+                      )
+                    ) : (
+                      <span className="tag" style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.65)", border: "1px solid rgba(255,255,255,0.08)" }}>VERROUILLE</span>
+                    )}
                   </div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    {[
-                      { l: "Objectif", v: "+" + (ph.target * 100) + "%" },
-                      { l: "Résultat", v: (pctGain >= 0 ? "+" : "") + pctGain + "%", c: passed ? "#6ee7b7" : "#ef4444" },
-                      { l: "Jours", v: (data.days || "—") + "j" },
-                    ].map(it => (
-                      <div key={it.l} style={{ flex: 1, background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "6px 8px", textAlign: "center" }}>
-                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 2 }}>{it.l}</div>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: it.c || "#fff" }}>{it.v}</div>
+                  {data ? (
+                    <>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 10 }}>
+                        <div className="kpi">
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("sim_days")}</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color }}>{data.tradingDays}</div>
+                        </div>
+                        <div className="kpi">
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Profit</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: data.profit >= ph.target ? "#6ee7b7" : data.profit >= 0 ? "#fbbf24" : "#ef4444" }}>
+                            {fmtPn(data.profit)}
+                          </div>
+                        </div>
+                        <div className="kpi">
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>WR trades</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.55)" }}>{data.tradeWinrate.toFixed(0)}%</div>
+                        </div>
+                        <div className="kpi">
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Equity</div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "#FFFFFF" }}>{fmt(data.finalEquity)}</div>
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 8 }}>
+                        {data.totalWins} gagnants / {data.totalLosses} perdants - WR jours {data.dayWinrate.toFixed(0)}%
+                      </div>
+                      {failReason(data.status) && (
+                        <div style={{ background: data.status === "running_ok" ? "rgba(251,191,36,0.08)" : "rgba(239,68,68,0.08)", border: "1px solid " + (data.status === "running_ok" ? "#fbbf2440" : "#ef444440"), borderRadius: 8, padding: 10, fontSize: 12, color: data.status === "running_ok" ? "#fbbf24" : "#fca5a5", marginBottom: 10 }}>
+                          {failReason(data.status)}
+                        </div>
+                      )}
+                      <ResponsiveContainer width="100%" height={150}>
+                        <AreaChart data={data.days}>
+                          <defs>
+                            <linearGradient id={"gbp" + i} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={color} stopOpacity={0.25} />
+                              <stop offset="100%" stopColor={color} stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#1a1a28" />
+                          <XAxis dataKey="day" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "J" + v} />
+                          <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v / 1000).toFixed(1) + "k"} domain={["auto", "auto"]} />
+                          <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, fontSize: 11 }} />
+                          <ReferenceLine y={capital * (1 + ph.target)} stroke={color} strokeDasharray="4 2" />
+                          <ReferenceLine y={capital * (1 - model.totalDD)} stroke="#ef4444" strokeDasharray="4 2" />
+                          <Area type="monotone" dataKey="equity" stroke={color} strokeWidth={2} fill={"url(#gbp" + i + ")"} dot={false} name="Equity" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </>
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "20px 0", color: "rgba(255,255,255,0.65)", fontSize: 13 }}>
+                      Passe la phase précédente pour débloquer
+                    </div>
+                  )}
                 </div>
               );
             })}
+
+            {/* ── Règles du modèle ── */}
+            <div className="card">
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Règles {model.name}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+                {[
+                  ...model.phases.map(ph => [ph.label + " objectif", "+" + (ph.target * 100) + "%"]),
+                  ["DD Journalier", (model.dailyDD * 100) + "% (intraday)"],
+                  ["DD Total", (model.totalDD * 100) + "% max"],
+                  ["Limite de temps", "Aucune"],
+                  ["Min jours/phase", model.phases[0].minDays + " jours"],
+                  ["Reward challenge", (model.challengeReward * 100) + "%"],
+                  ["1er payout", "après " + model.firstPayoutDays + "j"],
+                  ["Split Funded", "80-90%"],
+                  ["EA/Algo", "Autorisé"],
+                ].map((kv) => (
+                  <div key={kv[0]} className="row">
+                    <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>{kv[0]}</span>
+                    <span style={{ color: "#FFFFFF", fontWeight: 700, fontSize: 11 }}>{kv[1]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </>)}
         </div>
       )}
 
       {/* ════════ TAB CHALLENGE ════════ */}
-      {tab === "challenge" && sim && (
+      {tab === "challenge" && (
         <div>
-          {model.phases.map((ph, i) => {
-            const data = sim.phaseResults[i];
-            const color = i === 0 ? "#6ee7b7" : "rgba(255,255,255,0.55)";
-            return (
-              <div className="card" key={i} style={{ position: "relative" }}>
-                {/* Lock premium sur les résultats détaillés (winrate, taux de réussite) */}
-                {!premiumAccess && data && (
-                  <LockOverlay onUnlock={requirePremium} label={lang === "en" ? "Unlock your real success rate" : lang === "es" ? "Desbloquea tu tasa de éxito real" : "Débloque ton taux de réussite réel"} />
-                )}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{ph.label} - Objectif +{(ph.target * 100)}%</div>
-                  {data ? (
-                    !premiumAccess ? (
-                      <span className="tag" style={{ background: "rgba(110,231,183,0.1)", color: "#6ee7b7", border: "1px solid rgba(110,231,183,0.3)" }}>Premium</span>
-                    ) : (
-                    <span className="tag" style={{ background: phaseIcon(data.status).bg, color: phaseIcon(data.status).color }}>
-                      {phaseIcon(data.status).icon} {phaseIcon(data.status).label}
-                    </span>
-                    )
-                  ) : (
-                    <span className="tag" style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.65)", border: "1px solid rgba(255,255,255,0.08)" }}>VERROUILLE</span>
-                  )}
-                </div>
-                {data ? (
-                  <>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 10 }}>
-                      <div className="kpi">
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("sim_days")}</div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color }}>{data.tradingDays}</div>
-                      </div>
-                      <div className="kpi">
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Profit</div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: data.profit >= ph.target ? "#6ee7b7" : data.profit >= 0 ? "#fbbf24" : "#ef4444" }}>
-                          {fmtPn(data.profit)}
-                        </div>
-                      </div>
-                      <div className="kpi">
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>WR trades</div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.55)" }}>{data.tradeWinrate.toFixed(0)}%</div>
-                      </div>
-                      <div className="kpi">
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Equity</div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "#FFFFFF" }}>{fmt(data.finalEquity)}</div>
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 8 }}>
-                      {data.totalWins} gagnants / {data.totalLosses} perdants - WR jours {data.dayWinrate.toFixed(0)}%
-                    </div>
-                    {failReason(data.status) && (
-                      <div style={{ background: data.status === "running_ok" ? "rgba(251,191,36,0.08)" : "rgba(239,68,68,0.08)", border: "1px solid " + (data.status === "running_ok" ? "#fbbf2440" : "#ef444440"), borderRadius: 8, padding: 10, fontSize: 12, color: data.status === "running_ok" ? "#fbbf24" : "#fca5a5", marginBottom: 10 }}>
-                        {failReason(data.status)}
-                      </div>
-                    )}
-                    <ResponsiveContainer width="100%" height={150}>
-                      <AreaChart data={data.days}>
-                        <defs>
-                          <linearGradient id={"gp" + i} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={color} stopOpacity={0.25} />
-                            <stop offset="100%" stopColor={color} stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1a1a28" />
-                        <XAxis dataKey="day" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "J" + v} />
-                        <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v / 1000).toFixed(1) + "k"} domain={["auto", "auto"]} />
-                        <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, fontSize: 11 }} />
-                        <ReferenceLine y={capital * (1 + ph.target)} stroke={color} strokeDasharray="4 2" />
-                        <ReferenceLine y={capital * (1 - model.totalDD)} stroke="#ef4444" strokeDasharray="4 2" />
-                        <Area type="monotone" dataKey="equity" stroke={color} strokeWidth={2} fill={"url(#gp" + i + ")"} dot={false} name="Equity" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </>
-                ) : (
-                  <div style={{ textAlign: "center", padding: "20px 0", color: "rgba(255,255,255,0.65)", fontSize: 13 }}>
-                    Passe la phase precedente pour debloquer
-                  </div>
-                )}
+          {!sim ? (
+            <div className="card" style={{ textAlign: "center", padding: 28 }}>
+              <div style={{ fontSize: 16, marginBottom: 6 }}>⚙️</div>
+              <div style={{ fontWeight: 700, color: "rgba(255,255,255,0.75)", marginBottom: 4 }}>
+                Configure tes paramètres ci-dessus
               </div>
-            );
-          })}
-          {/* Bouton accès direct au Funded — uniquement si challenge réussi */}
-          {sim?.allPassed && sim?.funded ? (
-            <button onClick={() => { if (!premiumAccess) { requirePremium(); return; } setTab("montecarlo"); }} style={{
-              width: "100%", padding: 15, marginTop: 4, borderRadius: 12, cursor: "pointer",
-              background: "#6ee7b7", color: "#000000", fontSize: 15, fontWeight: 600,
-              border: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              boxShadow: "0 4px 20px rgba(110,231,183,0.25)",
-            }}>
-              {t("sim_view_funded")}
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path d="M7 4l5 5-5 5" stroke="#000000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          ) : sim && !sim.allPassed ? (
-            <div style={{ marginTop: 4, padding: "12px 14px", background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.20)", borderRadius: 12, fontSize: 12, color: "rgba(255,255,255,0.55)", textAlign: "center" }}>
-              Passe toutes les phases du challenge pour accéder au compte Funded
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>
+                Winrate, risque, RR… puis clique sur <strong style={{ color: "#6ee7b7" }}>Nouvelle simulation</strong>.
+              </div>
             </div>
-          ) : null}
+          ) : (<>
+            {/* Résumé rapide : état du challenge */}
+            <div className="card" style={{ border: sim.allPassed ? "1px solid rgba(110,231,183,0.2)" : "1px solid rgba(239,68,68,0.2)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: sim.allPassed ? "#6ee7b7" : "#ef4444" }}>
+                    {sim.allPassed ? "✓ Challenge réussi" : "✕ Challenge échoué"}
+                  </div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>
+                    {model.phases.length} phases · capital ${capital.toLocaleString()}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  {model.phases.map((ph, i) => {
+                    const data = sim.phaseResults[i];
+                    return (
+                      <div key={i} style={{ fontSize: 11, color: data?.status === "passed" ? "#6ee7b7" : "rgba(255,255,255,0.4)", marginBottom: 2 }}>
+                        {ph.label} {data ? (data.status === "passed" ? "✓" : "✕") + " " + fmtPn(data.profit) : "—"}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Invitation Bilan */}
+            <button onClick={() => setTab("bilan")} style={{
+              width: "100%", padding: 13, marginTop: 4, borderRadius: 12, cursor: "pointer",
+              background: "rgba(110,231,183,0.08)", color: "#6ee7b7",
+              border: "1.5px solid rgba(110,231,183,0.3)",
+              fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M2 4h12M2 8h12M2 12h8" stroke="#6ee7b7" strokeWidth="1.6" strokeLinecap="round"/>
+              </svg>
+              Voir le Bilan détaillé →
+            </button>
+
+            {/* Bouton Funded si réussi */}
+            {sim?.allPassed && sim?.funded && (
+              <button onClick={() => { if (!premiumAccess) { requirePremium(); return; } setTab("montecarlo"); }} style={{
+                width: "100%", padding: 15, marginTop: 6, borderRadius: 12, cursor: "pointer",
+                background: "#6ee7b7", color: "#000000", fontSize: 15, fontWeight: 600,
+                border: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                boxShadow: "0 4px 20px rgba(110,231,183,0.25)",
+              }}>
+                {t("sim_view_funded")}
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M7 4l5 5-5 5" stroke="#000000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            )}
+          </>)}
         </div>
       )}
 
