@@ -6148,8 +6148,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         <div style={{ height: "calc(env(safe-area-inset-top, 8px) + 54px)" }} />
       )}
 
-      {/* ══ CARTES CONFIG — vue simulateur uniquement (Challenge/Funded) ══ */}
-      {(tab === "challenge" || tab === "bilan" || tab === "funded") && (<>
+      {/* ══ CARTES CONFIG — vue Configuration + Funded uniquement (PAS sur l'onglet Challenge/bilan, qui est un rapport de résultats) ══ */}
+      {(tab === "challenge" || tab === "funded") && (<>
 
       {/* MODELE */}
       <div className="card">
