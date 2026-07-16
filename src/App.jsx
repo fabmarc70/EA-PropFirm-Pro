@@ -14221,6 +14221,18 @@ export default function App() {
   const app0 = loadApp();
   const [lang, setLangState] = useState(app0.profile?.lang ?? null);
 
+  // ── Hors ligne : bannière discrète. L'app (journal, simulateur, laboratoire,
+  // analyse) fonctionne intégralement en localStorage — seul le login initial
+  // et la synchro cloud du profil nécessitent le réseau. ──
+  const [isOffline, setIsOffline] = useState(() => typeof navigator !== "undefined" && !navigator.onLine);
+  useEffect(() => {
+    const goOffline = () => setIsOffline(true);
+    const goOnline = () => setIsOffline(false);
+    window.addEventListener("offline", goOffline);
+    window.addEventListener("online", goOnline);
+    return () => { window.removeEventListener("offline", goOffline); window.removeEventListener("online", goOnline); };
+  }, []);
+
   const [onboarded, setOnboarded] = useState(app0.onboarded ?? false);
   const [user, setUser] = useState(app0.user ?? null);
   // ── Premium / trial ──
@@ -14515,6 +14527,19 @@ export default function App() {
           <JournalScreen t={t} lang={lang} goto={navGoto} capital={profile.capital || 25000} lastSim={lastSim} premiumAccess={premiumAccess} requirePremium={() => setShowPaywall(true)} />
         )}
       </div>
+      {isOffline && (
+        <div style={{
+          position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: 76, zIndex: 90,
+          display: "flex", alignItems: "center", gap: 6,
+          background: "rgba(251,191,36,0.14)", border: "1px solid rgba(251,191,36,0.35)",
+          borderRadius: 100, padding: "6px 12px", backdropFilter: "blur(6px)",
+        }}>
+          <span style={{ width: 6, height: 6, borderRadius: 3, background: "#fbbf24" }} />
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#fbbf24" }}>
+            {lang === "en" ? "Offline — your data stays local" : lang === "es" ? "Sin conexión — tus datos siguen locales" : "Hors ligne — tes données restent disponibles"}
+          </span>
+        </div>
+      )}
       <NavBar t={t} active={navActive} goto={navGoto} />
       {activeTour && <CoachMarks tourId={activeTour} lang={lang} onDone={() => setActiveTour(null)} />}
     </div>

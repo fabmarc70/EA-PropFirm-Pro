@@ -47,6 +47,16 @@ export default defineConfig({
           '**/E8C1C187*.jpeg',
         ],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+        // ── Hors ligne réel ──
+        // Sans navigateFallback, relancer l'app depuis l'icône d'accueil sans
+        // réseau peut échouer si la requête de navigation ne matche pas
+        // exactement une entrée du precache. On force TOUTE navigation vers
+        // l'app shell mis en cache.
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/__/],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
