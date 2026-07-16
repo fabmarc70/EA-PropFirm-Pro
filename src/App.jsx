@@ -6099,7 +6099,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       `}</style>
 
       {/* Toggle Challenge / Funded — fixed header bar (figé, immobile) */}
-      {(tab === "challenge" || tab === "funded" || tab === "montecarlo") && (
+      {(tab === "challenge" || tab === "bilan" || tab === "funded" || tab === "montecarlo") && (
         <div data-coach="sim-toggle" style={{
           position: "fixed", top: 0, left: 0, right: 0, zIndex: 20,
           background: "rgba(6,9,15,0.98)",
@@ -6112,7 +6112,11 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         }}>
           {/* saveStatus silencieux — pas d'affichage visuel */}
           <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, border: "1px solid rgba(255,255,255,0.08)" }}>
-            {[{ id: "challenge", label: "Challenge" }, { id: "funded", label: "Funded" }].map(tg => (
+            {[
+              { id: "challenge", label: "Challenge" },
+              { id: "bilan",     label: "Bilan" },
+              { id: "funded",    label: "Funded" },
+            ].map(tg => (
               <button key={tg.id} onClick={() => {
                 if (tg.id === "funded") {
                   setTab("montecarlo");
@@ -6121,9 +6125,17 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                   window.scrollTo({ top: 0, behavior: "instant" });
                 }
               }} style={{
-                flex: 1, padding: "12px 14px", borderRadius: 9, cursor: "pointer", fontSize: 14, fontWeight: 600,
-                background: (tab === tg.id || (tg.id === "funded" && tab === "montecarlo")) ? "#6ee7b7" : "transparent",
-                color: (tab === tg.id || (tg.id === "funded" && tab === "montecarlo")) ? "#000000" : "rgba(255,255,255,0.65)",
+                flex: 1, padding: "12px 8px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700,
+                background: (
+                  (tg.id === "challenge" && tab === "challenge") ||
+                  (tg.id === "bilan"     && tab === "bilan") ||
+                  (tg.id === "funded"    && (tab === "funded" || tab === "montecarlo"))
+                ) ? "#6ee7b7" : "transparent",
+                color: (
+                  (tg.id === "challenge" && tab === "challenge") ||
+                  (tg.id === "bilan"     && tab === "bilan") ||
+                  (tg.id === "funded"    && (tab === "funded" || tab === "montecarlo"))
+                ) ? "#000000" : "rgba(255,255,255,0.65)",
                 border: "none", transition: "all .2s", userSelect: "none",
               }}>{tg.label}</button>
             ))}
@@ -6132,12 +6144,12 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       )}
 
       {/* Spacer pour compenser le toggle fixed — uniquement quand la barre est affichée */}
-      {(tab === "challenge" || tab === "funded" || tab === "montecarlo") && (
+      {(tab === "challenge" || tab === "bilan" || tab === "funded" || tab === "montecarlo") && (
         <div style={{ height: "calc(env(safe-area-inset-top, 8px) + 54px)" }} />
       )}
 
       {/* ══ CARTES CONFIG — vue simulateur uniquement (Challenge/Funded) ══ */}
-      {(tab === "challenge" || tab === "funded") && (<>
+      {(tab === "challenge" || tab === "bilan" || tab === "funded") && (<>
 
       {/* MODELE */}
       <div className="card">
@@ -6703,28 +6715,6 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
       </div>
 
-      {/* BILAN FINANCIER NET */}
-      {bilan && (
-        <div className="card" style={{ border: "1px solid rgba(110,231,183,0.10)" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>{t("sim_balance_net")}</div>
-          {[
-            { label: t("sim_reward_challenge") + " (" + (model.rewardPct||15) + "%)", val: "+" + fmt2(bilan.reward), color: "#6ee7b7" },
-            { label: t("sim_payouts_paid"), val: "+" + fmt2(bilan.payout), color: "#6ee7b7" },
-            { label: t("sim_pending_unpaid"), val: "+" + fmt2(bilan.pending), color: "rgba(255,255,255,0.55)" },
-            { label: t("sim_challenge_fees"), val: "-" + fmt2(bilan.fee), color: "#ef4444" },
-          ].map(k => (
-            <div key={k.label} className="row">
-              <span style={{ color: "rgba(255,255,255,0.65)" }}>{k.label}</span>
-              <span style={{ color: k.color, fontWeight: 700 }}>{k.val}</span>
-            </div>
-          ))}
-          <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, marginTop: 4, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-            <span style={{ fontWeight: 700, fontSize: 13 }}>RESULTAT NET</span>
-            <span style={{ fontWeight: 700, fontSize: 16, color: bilan.net >= 0 ? "#6ee7b7" : "#ef4444" }}>{fmt2(bilan.net)}</span>
-          </div>
-        </div>
-      )}
-
       {/* REGLES */}
       <div className="card">
         <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Regles {model.name}</div>
@@ -6791,7 +6781,115 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
       )}
 
-      {/* TAB CHALLENGE */}
+      {/* ════════ TAB BILAN ════════ */}
+      {tab === "bilan" && (
+        <div style={{ paddingBottom: 24 }}>
+          {!sim || !bilan ? (
+            <div className="card" style={{ textAlign: "center", padding: 28 }}>
+              <div style={{ fontSize: 16, marginBottom: 6 }}>📊</div>
+              <div style={{ fontWeight: 700, color: "rgba(255,255,255,0.75)", marginBottom: 4 }}>Lance une simulation</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
+                Configure tes paramètres dans l'onglet Challenge, puis reviens ici.
+              </div>
+            </div>
+          ) : (<>
+            {/* ── Score global passe/échoue ── */}
+            <div className="card" style={{ border: "1px solid rgba(110,231,183,0.15)", background: "linear-gradient(135deg, rgba(110,231,183,0.06), rgba(110,231,183,0.01))", textAlign: "center", padding: "20px 16px" }}>
+              <div style={{ fontSize: 32, fontWeight: 900, color: sim.allPassed ? "#6ee7b7" : "#ef4444", marginBottom: 4 }}>
+                {sim.allPassed ? "✓" : "✕"}
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 3 }}>
+                {sim.allPassed ? "Challenge réussi" : "Challenge échoué"}
+              </div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+                {sim.allPassed
+                  ? `Toutes les ${model.phases.length} phases passées — compte Funded débloqué`
+                  : `Simulation stoppée — revoir winrate ou gestion du risque`}
+              </div>
+            </div>
+
+            {/* ── BILAN FINANCIER NET (déplacé ici depuis Challenge) ── */}
+            <div className="card" style={{ border: "1px solid rgba(110,231,183,0.12)" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", marginBottom: 12, textTransform: "uppercase", letterSpacing: 1 }}>
+                {t("sim_balance_net")}
+              </div>
+              {[
+                { label: t("sim_reward_challenge") + " (" + (model.rewardPct||15) + "%)", val: "+" + fmt2(bilan.reward), color: "#6ee7b7", icon: "🏆" },
+                { label: t("sim_payouts_paid"), val: "+" + fmt2(bilan.payout), color: "#6ee7b7", icon: "💸" },
+                { label: t("sim_pending_unpaid"), val: "+" + fmt2(bilan.pending), color: "rgba(255,255,255,0.55)", icon: "⏳" },
+                { label: t("sim_challenge_fees"), val: "-" + fmt2(bilan.fee), color: "#ef4444", icon: "💳" },
+              ].map(k => (
+                <div key={k.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                  <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>{k.icon} {k.label}</span>
+                  <span style={{ color: k.color, fontWeight: 800, fontSize: 13 }}>{k.val}</span>
+                </div>
+              ))}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, marginTop: 6, borderTop: "2px solid rgba(255,255,255,0.1)" }}>
+                <span style={{ fontWeight: 800, fontSize: 14, color: "#fff" }}>RÉSULTAT NET</span>
+                <span style={{ fontWeight: 900, fontSize: 22, color: bilan.net >= 0 ? "#6ee7b7" : "#ef4444" }}>{fmt2(bilan.net)}</span>
+              </div>
+            </div>
+
+            {/* ── Métriques clés de la simulation ── */}
+            <div className="card" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", marginBottom: 12, textTransform: "uppercase", letterSpacing: 1 }}>
+                Synthèse de performance
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {[
+                  { l: "Capital de départ", v: fmt(capital), c: "#fff" },
+                  { l: "Prop firm", v: firm.name, c: "#fff" },
+                  { l: "Winrate simulé", v: sim.tradeWR ? (sim.tradeWR * 100).toFixed(1) + "%" : "—", c: "rgba(255,255,255,0.85)" },
+                  { l: "Trades simulés", v: sim.totalTrades || "—", c: "rgba(255,255,255,0.85)" },
+                  { l: "Jours de trading", v: sim.tradingDays || "—", c: "rgba(255,255,255,0.85)" },
+                  { l: "Frais challenge", v: "-" + fmt2(bilan.fee), c: "#ef4444" },
+                  { l: "ROI brut", v: bilan.reward > 0 ? "+" + ((bilan.reward / capital) * 100).toFixed(1) + "%" : "—", c: "#6ee7b7" },
+                  { l: "ROI net", v: "+" + ((bilan.net / capital) * 100).toFixed(1) + "%", c: bilan.net >= 0 ? "#6ee7b7" : "#ef4444" },
+                ].map(item => (
+                  <div key={item.l} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 9, padding: "8px 10px" }}>
+                    <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>{item.l}</div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: item.c }}>{item.v}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Progression par phase ── */}
+            {model.phases.map((ph, i) => {
+              const data = sim.phaseResults[i];
+              if (!data) return null;
+              const pctGain = ((data.profit || 0) * 100).toFixed(2);
+              const passed = data.status === "passed";
+              return (
+                <div key={i} className="card" style={{ border: `1px solid ${passed ? "rgba(110,231,183,0.2)" : "rgba(239,68,68,0.2)"}` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <span style={{ fontWeight: 700, fontSize: 13 }}>{ph.label}</span>
+                    <span style={{ fontWeight: 800, fontSize: 12, color: passed ? "#6ee7b7" : "#ef4444",
+                      background: passed ? "rgba(110,231,183,0.12)" : "rgba(239,68,68,0.12)",
+                      padding: "2px 8px", borderRadius: 6 }}>
+                      {passed ? "✓ Passé" : "✕ Échoué"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {[
+                      { l: "Objectif", v: "+" + (ph.target * 100) + "%" },
+                      { l: "Résultat", v: (pctGain >= 0 ? "+" : "") + pctGain + "%", c: passed ? "#6ee7b7" : "#ef4444" },
+                      { l: "Jours", v: (data.days || "—") + "j" },
+                    ].map(it => (
+                      <div key={it.l} style={{ flex: 1, background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "6px 8px", textAlign: "center" }}>
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 2 }}>{it.l}</div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: it.c || "#fff" }}>{it.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </>)}
+        </div>
+      )}
+
+      {/* ════════ TAB CHALLENGE ════════ */}
       {tab === "challenge" && sim && (
         <div>
           {model.phases.map((ph, i) => {
