@@ -6199,6 +6199,106 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         )}
       </div>
 
+      {/* PARAMETRES */}
+      <div className="card">
+        {/* C7 — Question principale (raisonnement gestionnaire de risque) */}
+        <div style={{ marginBottom: 12, paddingBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#FFFFFF", marginBottom: 3 }}>
+            Combien risquez-vous par trade ?
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.4 }}>
+            {t("sim_define_risk")}
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {/* Capital */}
+          <div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700 }}>{t("sim_capital_label")}</div>
+            <input type="number" value={capital} min={6000} max={200000} step={1000} onChange={e => setCapital(parseFloat(e.target.value) || 0)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#FFFFFF", padding: "5px 8px", width: "100%", fontSize: 13 }} />
+            <input type="range" min={6000} max={200000} step={1000} value={capital} onChange={e => setCapital(parseFloat(e.target.value))} />
+          </div>
+
+          {/* Risque/trade - C7 débutant + C2 hiérarchie */}
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: 700, display: "flex", alignItems: "center" }}>Risque par trade (%)<InfoTip text="% de ton capital perdu si le trade touche ton stop-loss. Règle d'or : ne jamais dépasser 1-2%. Ex : 0.5% sur 10 000$ = 50$ max perdu par trade." /></span>
+
+            </div>
+            <input
+              type="number"
+              value={useFixedLot ? +effectiveRiskPct.toFixed(2) : riskPct}
+              min={0.05} max={5} step={0.05}
+              readOnly={useFixedLot}
+              onChange={e => !useFixedLot && setRiskPct(parseFloat(e.target.value) || 0)}
+              style={{
+                background: useFixedLot ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.05)",
+                border: "1px solid " + (useFixedLot ? "#6ee7b780" : "rgba(255,255,255,0.08)"),
+                borderRadius: 6,
+                color: useFixedLot ? "#6ee7b7" : "#FFFFFF",
+                padding: "5px 8px", width: "100%", fontSize: 13,
+                cursor: useFixedLot ? "not-allowed" : "text",
+                fontWeight: useFixedLot ? 800 : 400,
+              }} />
+            {useFixedLot
+              ? <div style={{ fontSize: 11, color: "#6ee7b7", marginTop: 3, lineHeight: 1.4 }}>
+                  Lot {lotSize} × {slPips} pips × ${pipVal}/pip = <b>{fmt2(effectiveRiskAmount)}</b>
+                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginLeft: 4 }}>
+                    ({(slPips * instInfo.pipSize).toFixed(instInfo.decimals > 2 ? 4 : 1)} pts)
+                  </span>
+                </div>
+              : <input type="range" min={0.05} max={2} step={0.05} value={riskPct} onChange={e => setRiskPct(parseFloat(e.target.value))} />
+            }
+          </div>
+
+          {[
+            { label: t("sim_trades_day"), tip: t("tip_tradesday"), val: tradesPerDay, set: (v) => setTradesPerDay(Math.round(v)), min: 1, max: 15, step: 1 },
+            { label: t("sim_target_day"), tip: t("tip_targetday"), val: dailyTargetPct, set: setDailyTargetPct, min: 0.05, max: 1.5, step: 0.05 },
+            { label: t("sim_split"), tip: t("tip_split"), val: split, set: setSplit, min: 80, max: 95, step: 5 },
+            { label: t("sim_funded_months"), tip: t("tip_fundedmonths"), val: fundedMonths, set: setFundedMonths, min: 1, max: 60, step: 1 },
+          ].map((f) => (
+            <div key={f.label}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700, display: "flex", alignItems: "center" }}>{f.label}{f.tip && <InfoTip text={f.tip} />}</div>
+              <input type="number" value={f.val} min={f.min} max={f.max} step={f.step} onChange={e => f.set(parseFloat(e.target.value) || 0)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#FFFFFF", padding: "5px 8px", width: "100%", fontSize: 13 }} />
+              <input type="range" min={f.min} max={f.max} step={f.step} value={f.val} onChange={e => f.set(parseFloat(e.target.value))} />
+            </div>
+          ))}
+        </div>
+
+        {/* Résumé paramètres */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
+          <div style={{ background: useFixedLot ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.05)", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: useFixedLot ? "#6ee7b7" : "#fbbf24", border: useFixedLot ? "1px solid rgba(110,231,183,0.15)" : "none" }}>
+            Risque : <b>{fmt2(effectiveRiskAmount)}</b>/trade = <b>{effectiveRiskPct.toFixed(2)}%</b>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "8px 10px", fontSize: 11, color: "#6ee7b7" }}>
+            Objectif : <b>{fmt2(capital * dailyTarget)}</b>/jour
+            <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 11, marginLeft: 4 }}>
+              (E espéré : {fmt2(Math.max(0, expectedDailyPnL))}/j)
+            </span>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "8px 10px", fontSize: 11, color: "rgba(255,255,255,0.55)", gridColumn: "1 / 3" }}>
+            Profit equiv. : <b>{(monthlyTarget * 100).toFixed(1)}% / mois</b> - frais : <b>{fmt(fee)}</b> - RR : <b style={{ color: finalRR < 1.5 ? "#6ee7b7" : finalRR < 2.5 ? "#fbbf24" : "#ef4444" }}>1:{finalRR.toFixed(2)}</b>
+          </div>
+        </div>
+        <button onClick={() => setSeed(s => s + 1)}
+          style={{ marginTop: 10, width: "100%", padding: 9, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 12, color: "#FFFFFF", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          Nouvelle simulation
+        </button>
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <button onClick={copyReport}
+            style={{ flex: 1, padding: 9, background: copied ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.07)", border: copied ? "1px solid #6ee7b7" : "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: copied ? "#6ee7b7" : "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            {copied ? t("sim_copied") : t("sim_copy_report")}
+          </button>
+          <button onClick={printReport}
+            style={{ flex: 1, padding: 9, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, color: "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            Imprimer / PDF
+          </button>
+        </div>
+        {/* C4 — Estimation de réalisme */}
+        <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 10, fontSize: 10, color: "rgba(255,255,255,0.35)", lineHeight: 1.6, textAlign: "center" }}>
+          {t("sim_real_results")}
+        </div>
+      </div>
+
       {/* STATUT */}
       {gs && (
         <div style={{ background: gs.bg, border: "1px solid " + gs.color + "30", borderRadius: 16, padding: "14px 16px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -6212,89 +6312,6 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
       )}
 
-      {/* CARTE DRAWDOWN ESTIME — mode avancé uniquement */}
-      {!isSimple && dda && (
-        <div className="card" >
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>
-            {t("sim_dd_analysis")}
-          </div>
-
-          {/* Jauge DD */}
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
-              <span style={{ color: "rgba(255,255,255,0.65)" }}>{t("sim_dd_reached")}</span>
-              <span style={{ fontWeight: 700, color: dda.simMaxDD < model.totalDD * 100 * 0.5 ? "#6ee7b7" : dda.simMaxDD < model.totalDD * 100 * 0.75 ? "#fbbf24" : "#ef4444" }}>
-                {dda.simMaxDD.toFixed(2)}% ({fmt2(dda.simMaxDDAmount)})
-              </span>
-            </div>
-            <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: 8, height: 18, overflow: "hidden", position: "relative" }}>
-              {/* Zone verte 0-50% de la limite */}
-              <div style={{ position: "absolute", left: 0, top: 0, width: "50%", height: "100%", background: "#06231820", borderRight: "1px dashed #6ee7b730" }} />
-              {/* Zone orange 50-80% */}
-              <div style={{ position: "absolute", left: "50%", top: 0, width: "30%", height: "100%", background: "#2d1f0820", borderRight: "1px dashed #fbbf2430" }} />
-              {/* Zone rouge 80-100% */}
-              <div style={{ position: "absolute", left: "80%", top: 0, width: "20%", height: "100%", background: "#2d080820" }} />
-              {/* Barre DD actuel */}
-              <div style={{
-                position: "absolute", left: 0, top: 0, height: "100%",
-                width: Math.min(100, (dda.simMaxDD / (model.totalDD * 100)) * 100) + "%",
-                background: dda.simMaxDD < model.totalDD * 100 * 0.5 ? "#6ee7b7" : dda.simMaxDD < model.totalDD * 100 * 0.75 ? "#fbbf24" : "#ef4444",
-                borderRadius: 8, transition: "width 0.5s"
-              }} />
-              {/* Label limite */}
-              <div style={{ position: "absolute", right: 4, top: 1, fontSize: 11, color: "#ef4444", fontWeight: 700 }}>
-                {(model.totalDD * 100)}% = LIMITE
-              </div>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
-              <span>0%</span>
-              <span style={{ color: "rgba(255,255,255,0.55)" }}>{t("sim_zone_safe")}</span>
-              <span style={{ color: "#fbbf24" }}>{t("sim_attention")}</span>
-              <span style={{ color: "#ef4444" }}>{t("sim_danger")}</span>
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <div className="kpi">
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("sim_max_loss_day")}</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24" }}>{dda.maxDayLossPct.toFixed(2)}%</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{fmt2(dda.maxDayLoss)}</div>
-            </div>
-            <div className="kpi">
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("sim_days_full_dd")}</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#ef4444" }}>{dda.daysToTotalDD}j</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>avant limite {(model.totalDD*100)}%</div>
-            </div>
-            <div className="kpi">
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("sim_dd_breachable")}</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: dda.canBreachDaily ? "#ef4444" : "#6ee7b7" }}>
-                {dda.canBreachDaily ? "OUI - RISQUE" : "NON - SAFE"}
-              </div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
-                {dda.canBreachDaily
-                  ? "perte max " + dda.maxDayLossPct.toFixed(2) + "% > " + (model.dailyDD*100) + "%"
-                  : "perte max " + dda.maxDayLossPct.toFixed(2) + "% < " + (model.dailyDD*100) + "%"}
-              </div>
-            </div>
-            <div className="kpi">
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("sim_margin_left")}</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: dda.distancePct > 5 ? "#6ee7b7" : "#ef4444" }}>
-                {dda.distancePct > 0 ? dda.distancePct.toFixed(2) + "%" : t("sim_exceeded")}
-              </div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{dda.distancePct > 0 ? fmt2(dda.distanceAmt) + " " + t("sim_remaining") : t("sim_account_closed")}</div>
-            </div>
-          </div>
-
-          <div style={{ marginTop: 10, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "8px 10px", fontSize: 11, lineHeight: 1.5 }}>
-            <span style={{ color: "rgba(255,255,255,0.65)" }}>Lecture : </span>
-            {dda.canBreachDaily
-              ? <span style={{ color: "#ef4444" }}>{t("sim_dd_warn_pre")} {tradesPerDay} {t("sim_dd_warn_mid")} {riskPct}% {t("sim_dd_warn_end")}</span>
-              : <span style={{ color: "#6ee7b7" }}>{t("sim_dd_safe_pre")} {(model.dailyDD*100)}% {t("sim_dd_safe_mid")} ({dda.maxDayLossPct.toFixed(2)}% {t("sim_dd_safe_end")} {dda.daysToTotalDD}{t("sim_dd_safe_end2")}</span>
-            }
-          </div>
-        </div>
-      )}
 
 
       <div className="card" style={{ border: "1px solid rgba(110,231,183,0.10)" }}>
@@ -6615,6 +6632,90 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
       </div>}
 
+      {/* CARTE DRAWDOWN ESTIME — mode avancé uniquement */}
+      {!isSimple && dda && (
+        <div className="card" >
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>
+            {t("sim_dd_analysis")}
+          </div>
+
+          {/* Jauge DD */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
+              <span style={{ color: "rgba(255,255,255,0.65)" }}>{t("sim_dd_reached")}</span>
+              <span style={{ fontWeight: 700, color: dda.simMaxDD < model.totalDD * 100 * 0.5 ? "#6ee7b7" : dda.simMaxDD < model.totalDD * 100 * 0.75 ? "#fbbf24" : "#ef4444" }}>
+                {dda.simMaxDD.toFixed(2)}% ({fmt2(dda.simMaxDDAmount)})
+              </span>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: 8, height: 18, overflow: "hidden", position: "relative" }}>
+              {/* Zone verte 0-50% de la limite */}
+              <div style={{ position: "absolute", left: 0, top: 0, width: "50%", height: "100%", background: "#06231820", borderRight: "1px dashed #6ee7b730" }} />
+              {/* Zone orange 50-80% */}
+              <div style={{ position: "absolute", left: "50%", top: 0, width: "30%", height: "100%", background: "#2d1f0820", borderRight: "1px dashed #fbbf2430" }} />
+              {/* Zone rouge 80-100% */}
+              <div style={{ position: "absolute", left: "80%", top: 0, width: "20%", height: "100%", background: "#2d080820" }} />
+              {/* Barre DD actuel */}
+              <div style={{
+                position: "absolute", left: 0, top: 0, height: "100%",
+                width: Math.min(100, (dda.simMaxDD / (model.totalDD * 100)) * 100) + "%",
+                background: dda.simMaxDD < model.totalDD * 100 * 0.5 ? "#6ee7b7" : dda.simMaxDD < model.totalDD * 100 * 0.75 ? "#fbbf24" : "#ef4444",
+                borderRadius: 8, transition: "width 0.5s"
+              }} />
+              {/* Label limite */}
+              <div style={{ position: "absolute", right: 4, top: 1, fontSize: 11, color: "#ef4444", fontWeight: 700 }}>
+                {(model.totalDD * 100)}% = LIMITE
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
+              <span>0%</span>
+              <span style={{ color: "rgba(255,255,255,0.55)" }}>{t("sim_zone_safe")}</span>
+              <span style={{ color: "#fbbf24" }}>{t("sim_attention")}</span>
+              <span style={{ color: "#ef4444" }}>{t("sim_danger")}</span>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div className="kpi">
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("sim_max_loss_day")}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24" }}>{dda.maxDayLossPct.toFixed(2)}%</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{fmt2(dda.maxDayLoss)}</div>
+            </div>
+            <div className="kpi">
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("sim_days_full_dd")}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#ef4444" }}>{dda.daysToTotalDD}j</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>avant limite {(model.totalDD*100)}%</div>
+            </div>
+            <div className="kpi">
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("sim_dd_breachable")}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: dda.canBreachDaily ? "#ef4444" : "#6ee7b7" }}>
+                {dda.canBreachDaily ? "OUI - RISQUE" : "NON - SAFE"}
+              </div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
+                {dda.canBreachDaily
+                  ? "perte max " + dda.maxDayLossPct.toFixed(2) + "% > " + (model.dailyDD*100) + "%"
+                  : "perte max " + dda.maxDayLossPct.toFixed(2) + "% < " + (model.dailyDD*100) + "%"}
+              </div>
+            </div>
+            <div className="kpi">
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("sim_margin_left")}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: dda.distancePct > 5 ? "#6ee7b7" : "#ef4444" }}>
+                {dda.distancePct > 0 ? dda.distancePct.toFixed(2) + "%" : t("sim_exceeded")}
+              </div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{dda.distancePct > 0 ? fmt2(dda.distanceAmt) + " " + t("sim_remaining") : t("sim_account_closed")}</div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 10, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "8px 10px", fontSize: 11, lineHeight: 1.5 }}>
+            <span style={{ color: "rgba(255,255,255,0.65)" }}>Lecture : </span>
+            {dda.canBreachDaily
+              ? <span style={{ color: "#ef4444" }}>{t("sim_dd_warn_pre")} {tradesPerDay} {t("sim_dd_warn_mid")} {riskPct}% {t("sim_dd_warn_end")}</span>
+              : <span style={{ color: "#6ee7b7" }}>{t("sim_dd_safe_pre")} {(model.dailyDD*100)}% {t("sim_dd_safe_mid")} ({dda.maxDayLossPct.toFixed(2)}% {t("sim_dd_safe_end")} {dda.daysToTotalDD}{t("sim_dd_safe_end2")}</span>
+            }
+          </div>
+        </div>
+      )}
+
       {/* Bandeau mode débutant — affiché uniquement en mode simple */}
       {isSimple && (
         <div style={{ background:"rgba(110,231,183,0.06)", border:"1px solid rgba(110,231,183,0.15)", borderRadius:14, padding:"12px 14px", marginBottom:12, display:"flex", alignItems:"center", gap:10 }}>
@@ -6628,105 +6729,6 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
       )}
 
-      {/* PARAMETRES */}
-      <div className="card">
-        {/* C7 — Question principale (raisonnement gestionnaire de risque) */}
-        <div style={{ marginBottom: 12, paddingBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "#FFFFFF", marginBottom: 3 }}>
-            Combien risquez-vous par trade ?
-          </div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.4 }}>
-            {t("sim_define_risk")}
-          </div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          {/* Capital */}
-          <div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700 }}>{t("sim_capital_label")}</div>
-            <input type="number" value={capital} min={6000} max={200000} step={1000} onChange={e => setCapital(parseFloat(e.target.value) || 0)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#FFFFFF", padding: "5px 8px", width: "100%", fontSize: 13 }} />
-            <input type="range" min={6000} max={200000} step={1000} value={capital} onChange={e => setCapital(parseFloat(e.target.value))} />
-          </div>
-
-          {/* Risque/trade - C7 débutant + C2 hiérarchie */}
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: 700, display: "flex", alignItems: "center" }}>Risque par trade (%)<InfoTip text="% de ton capital perdu si le trade touche ton stop-loss. Règle d'or : ne jamais dépasser 1-2%. Ex : 0.5% sur 10 000$ = 50$ max perdu par trade." /></span>
-
-            </div>
-            <input
-              type="number"
-              value={useFixedLot ? +effectiveRiskPct.toFixed(2) : riskPct}
-              min={0.05} max={5} step={0.05}
-              readOnly={useFixedLot}
-              onChange={e => !useFixedLot && setRiskPct(parseFloat(e.target.value) || 0)}
-              style={{
-                background: useFixedLot ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.05)",
-                border: "1px solid " + (useFixedLot ? "#6ee7b780" : "rgba(255,255,255,0.08)"),
-                borderRadius: 6,
-                color: useFixedLot ? "#6ee7b7" : "#FFFFFF",
-                padding: "5px 8px", width: "100%", fontSize: 13,
-                cursor: useFixedLot ? "not-allowed" : "text",
-                fontWeight: useFixedLot ? 800 : 400,
-              }} />
-            {useFixedLot
-              ? <div style={{ fontSize: 11, color: "#6ee7b7", marginTop: 3, lineHeight: 1.4 }}>
-                  Lot {lotSize} × {slPips} pips × ${pipVal}/pip = <b>{fmt2(effectiveRiskAmount)}</b>
-                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginLeft: 4 }}>
-                    ({(slPips * instInfo.pipSize).toFixed(instInfo.decimals > 2 ? 4 : 1)} pts)
-                  </span>
-                </div>
-              : <input type="range" min={0.05} max={2} step={0.05} value={riskPct} onChange={e => setRiskPct(parseFloat(e.target.value))} />
-            }
-          </div>
-
-          {[
-            { label: t("sim_trades_day"), tip: t("tip_tradesday"), val: tradesPerDay, set: (v) => setTradesPerDay(Math.round(v)), min: 1, max: 15, step: 1 },
-            { label: t("sim_target_day"), tip: t("tip_targetday"), val: dailyTargetPct, set: setDailyTargetPct, min: 0.05, max: 1.5, step: 0.05 },
-            { label: t("sim_split"), tip: t("tip_split"), val: split, set: setSplit, min: 80, max: 95, step: 5 },
-            { label: t("sim_funded_months"), tip: t("tip_fundedmonths"), val: fundedMonths, set: setFundedMonths, min: 1, max: 60, step: 1 },
-          ].map((f) => (
-            <div key={f.label}>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700, display: "flex", alignItems: "center" }}>{f.label}{f.tip && <InfoTip text={f.tip} />}</div>
-              <input type="number" value={f.val} min={f.min} max={f.max} step={f.step} onChange={e => f.set(parseFloat(e.target.value) || 0)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#FFFFFF", padding: "5px 8px", width: "100%", fontSize: 13 }} />
-              <input type="range" min={f.min} max={f.max} step={f.step} value={f.val} onChange={e => f.set(parseFloat(e.target.value))} />
-            </div>
-          ))}
-        </div>
-
-        {/* Résumé paramètres */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
-          <div style={{ background: useFixedLot ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.05)", borderRadius: 8, padding: "8px 10px", fontSize: 11, color: useFixedLot ? "#6ee7b7" : "#fbbf24", border: useFixedLot ? "1px solid rgba(110,231,183,0.15)" : "none" }}>
-            Risque : <b>{fmt2(effectiveRiskAmount)}</b>/trade = <b>{effectiveRiskPct.toFixed(2)}%</b>
-          </div>
-          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "8px 10px", fontSize: 11, color: "#6ee7b7" }}>
-            Objectif : <b>{fmt2(capital * dailyTarget)}</b>/jour
-            <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 11, marginLeft: 4 }}>
-              (E espéré : {fmt2(Math.max(0, expectedDailyPnL))}/j)
-            </span>
-          </div>
-          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "8px 10px", fontSize: 11, color: "rgba(255,255,255,0.55)", gridColumn: "1 / 3" }}>
-            Profit equiv. : <b>{(monthlyTarget * 100).toFixed(1)}% / mois</b> - frais : <b>{fmt(fee)}</b> - RR : <b style={{ color: finalRR < 1.5 ? "#6ee7b7" : finalRR < 2.5 ? "#fbbf24" : "#ef4444" }}>1:{finalRR.toFixed(2)}</b>
-          </div>
-        </div>
-        <button onClick={() => setSeed(s => s + 1)}
-          style={{ marginTop: 10, width: "100%", padding: 9, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 12, color: "#FFFFFF", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-          Nouvelle simulation
-        </button>
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-          <button onClick={copyReport}
-            style={{ flex: 1, padding: 9, background: copied ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.07)", border: copied ? "1px solid #6ee7b7" : "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: copied ? "#6ee7b7" : "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-            {copied ? t("sim_copied") : t("sim_copy_report")}
-          </button>
-          <button onClick={printReport}
-            style={{ flex: 1, padding: 9, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, color: "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-            Imprimer / PDF
-          </button>
-        </div>
-        {/* C4 — Estimation de réalisme */}
-        <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 10, fontSize: 10, color: "rgba(255,255,255,0.35)", lineHeight: 1.6, textAlign: "center" }}>
-          {t("sim_real_results")}
-        </div>
-      </div>
 
 
       {/* Bouton sauvegarder la config */}
