@@ -3675,7 +3675,11 @@ function BacktestScreen({ t, lang, onBack }) {
     listAvailableDatasets(true).then(d => {
       if (done) return; done = true; clearTimeout(timeoutId);
       setDatasets(d); setManifestLoading(false);
-      if (d.assets.length) { setSelectedPair(d.assets[0].pair); setSelectedPeriod(d.assets[0].period); }
+      if (d.assets.length) {
+        const p0 = d.assets[0].pair, per0 = d.assets[0].period;
+        setSelectedPair(p0); setSelectedPeriod(per0);
+        handleDownload(p0, per0);
+      }
     }).catch(e => {
       if (done) return; done = true; clearTimeout(timeoutId);
       setLoadError(e.message); setManifestLoading(false);
@@ -3711,7 +3715,11 @@ function BacktestScreen({ t, lang, onBack }) {
     setSessionKey("24h"); setNewsFilterOn(false);
     setMmMode("fixed"); setMartingaleMultiplier(2); setMartingaleMaxSteps(5);
     setGridSpacingPips(20); setGridLevels(5); setGridDirection("both");
-    if (datasets?.assets?.length) { setSelectedPair(datasets.assets[0].pair); setSelectedPeriod(datasets.assets[0].period); }
+    if (datasets?.assets?.length) {
+      const p0 = datasets.assets[0].pair, per0 = datasets.assets[0].period;
+      setSelectedPair(p0); setSelectedPeriod(per0);
+      handleDownload(p0, per0);
+    }
     setOpenDropdown(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -3739,17 +3747,16 @@ function BacktestScreen({ t, lang, onBack }) {
     try { localStorage.setItem("eapropfirm_backtest_history", JSON.stringify(next)); } catch (e) {}
   };
 
-  const handleDownload = async () => {
-    if (!selectedPair || !selectedPeriod) return;
+  const handleDownload = async (pairArg, periodArg) => {
+    const p = pairArg ?? selectedPair, per = periodArg ?? selectedPeriod;
+    if (!p || !per) return;
     setDlProgress(0); setDlError(null); setCandles(null); setResult(null);
     try {
-      const data = await downloadCandles(selectedPair, selectedPeriod, { onProgress: setDlProgress });
+      const data = await downloadCandles(p, per, { onProgress: setDlProgress });
       setCandles(data.candles);
       setDlProgress(null);
     } catch (e) { setDlError(e.message); setDlProgress(null); }
   };
-
-  useEffect(() => { if (selectedPair && selectedPeriod) handleDownload(); }, [selectedPair, selectedPeriod]);
 
   const currentStrategyDefEarly = strategies.find(s => s.key === strategyKey);
   const isGridStrategy = !!currentStrategyDefEarly?.isGrid;
@@ -3951,14 +3958,18 @@ function BacktestScreen({ t, lang, onBack }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
           <Select id="capital" label="Solde du challenge" value={capital} onChange={v => setCapital(parseInt(v))}
             options={CAPITAL_OPTIONS.map(c => ({ value: c, label: "$" + c.toLocaleString() }))} />
-          <Select id="pair" label="Actif" value={selectedPair || ""} onChange={v => { setSelectedPair(v); setSelectedPeriod(datasets.assets.find(a => a.pair === v)?.period || null); }}
+          <Select id="pair" label="Actif" value={selectedPair || ""} onChange={v => {
+              const newPeriod = datasets.assets.find(a => a.pair === v)?.period || null;
+              setSelectedPair(v); setSelectedPeriod(newPeriod);
+              handleDownload(v, newPeriod);
+            }}
             options={pairs.map(p => ({ value: p, label: p }))} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: periodsForPair.length > 1 ? "1fr 1fr" : "1fr", gap: 8, marginBottom: 8 }}>
           <Select id="timeframe" label="Timeframe" value={timeframeKey} onChange={setTimeframeKey}
             options={TIMEFRAMES.map(tf => ({ value: tf.key, label: tf.label }))} />
           {periodsForPair.length > 1 && (
-            <Select id="period" label="Période" value={selectedPeriod || ""} onChange={setSelectedPeriod}
+            <Select id="period" label="Période" value={selectedPeriod || ""} onChange={v => { setSelectedPeriod(v); handleDownload(selectedPair, v); }}
               options={periodsForPair.map(p => ({ value: p, label: p }))} />
           )}
         </div>
