@@ -12735,6 +12735,74 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
           {t("prof_delete_account")}
         </button>
       )}
+
+      {/* ── TEST INTERNE — Proxy Twelve Data (données historiques réelles) ──
+          Panneau temporaire de validation du pipeline avant intégration au
+          Laboratoire. À retirer une fois le vrai module de backtest branché. */}
+      <TwelveDataTestPanel />
+    </div>
+  );
+}
+
+function TwelveDataTestPanel() {
+  const [symbol, setSymbol] = useState("EUR/USD");
+  const [status, setStatus] = useState("idle"); // idle | loading | ok | error
+  const [result, setResult] = useState(null);
+
+  const runTest = async () => {
+    setStatus("loading"); setResult(null);
+    try {
+      const r = await fetch(`/api/twelvedata?symbol=${encodeURIComponent(symbol)}&interval=1day&outputsize=10`);
+      const data = await r.json();
+      if (!r.ok || data.error) { setStatus("error"); setResult(data); return; }
+      setStatus("ok"); setResult(data);
+    } catch (e) {
+      setStatus("error"); setResult({ error: "Requête échouée côté client", detail: String(e) });
+    }
+  };
+
+  const candles = result?.values || [];
+
+  return (
+    <div style={{ marginTop: 24, padding: 14, borderRadius: 14, border: "1px dashed rgba(251,191,36,0.35)", background: "rgba(251,191,36,0.04)" }}>
+      <div style={{ fontSize: 10, fontWeight: 800, color: "#fbbf24", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 }}>
+        🧪 Test interne · Proxy données historiques
+      </div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        <select value={symbol} onChange={e => setSymbol(e.target.value)} style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", padding: "8px 10px", fontSize: 12 }}>
+          <option value="EUR/USD">EUR/USD</option>
+          <option value="XAU/USD">XAU/USD (Or)</option>
+          <option value="GBP/USD">GBP/USD</option>
+          <option value="USD/JPY">USD/JPY</option>
+        </select>
+        <button onClick={runTest} disabled={status === "loading"} style={{
+          padding: "8px 16px", borderRadius: 10, border: "none", cursor: "pointer",
+          background: status === "loading" ? "rgba(255,255,255,0.1)" : "#fbbf24",
+          color: status === "loading" ? "rgba(255,255,255,0.4)" : "#000", fontSize: 12, fontWeight: 800,
+        }}>
+          {status === "loading" ? "..." : "Tester"}
+        </button>
+      </div>
+
+      {status === "ok" && candles.length > 0 && (
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.6 }}>
+          <div style={{ color: "#6ee7b7", fontWeight: 700, marginBottom: 4 }}>✓ {candles.length} bougies reçues</div>
+          <div>Dernière : {candles[0].datetime} · clôture {candles[0].close}</div>
+          <div>Plus ancienne : {candles[candles.length - 1].datetime} · clôture {candles[candles.length - 1].close}</div>
+        </div>
+      )}
+      {status === "error" && (
+        <div style={{ fontSize: 11, color: "#ef4444", lineHeight: 1.6, wordBreak: "break-word" }}>
+          ✕ {result?.error || "Erreur inconnue"}
+          {result?.fix && <div style={{ color: "rgba(255,255,255,0.5)", marginTop: 4 }}>{result.fix}</div>}
+          {result?.detail?.message && <div style={{ color: "rgba(255,255,255,0.5)", marginTop: 4 }}>{result.detail.message}</div>}
+        </div>
+      )}
+      {status === "idle" && (
+        <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)" }}>
+          Vérifie que la clé Twelve Data (TWELVE_DATA_API_KEY) est configurée sur Vercel, puis clique Tester.
+        </div>
+      )}
     </div>
   );
 }
