@@ -83,9 +83,9 @@ function signalsRSI(candles, period = 14, oversold = 30, overbought = 70) {
   return signals;
 }
 
-function signalsMACD(candles) {
+function signalsMACD(candles, fast = 12, slow = 26, signalP = 9) {
   const closes = candles.map(c => c[4]);
-  const { macdLine, signalLine } = computeMACD(closes);
+  const { macdLine, signalLine } = computeMACD(closes, fast, slow, signalP);
   const signals = new Array(candles.length).fill(null);
   for (let i = 1; i < candles.length; i++) {
     if (macdLine[i - 1] == null || signalLine[i - 1] == null || macdLine[i] == null || signalLine[i] == null) continue;
@@ -98,25 +98,48 @@ function signalsMACD(candles) {
 }
 
 const STRATEGIES = {
-  breakout: { label: "Breakout (20 périodes)", fn: (c) => signalsBreakout(c, 20) },
-  rsi: { label: "RSI (survente/surachat 30/70)", fn: (c) => signalsRSI(c, 14, 30, 70) },
-  macd: { label: "Croisement MACD", fn: (c) => signalsMACD(c) },
+  breakout: {
+    label: "Breakout",
+    defaultParams: { period: 20 },
+    paramDefs: [{ key: "period", label: "Périodes de référence", min: 5, max: 60, step: 1 }],
+    fn: (c, p) => signalsBreakout(c, p.period),
+  },
+  rsi: {
+    label: "RSI (survente/surachat)",
+    defaultParams: { period: 14, oversold: 30, overbought: 70 },
+    paramDefs: [
+      { key: "period", label: "Période RSI", min: 5, max: 30, step: 1 },
+      { key: "oversold", label: "Seuil survente", min: 10, max: 40, step: 1 },
+      { key: "overbought", label: "Seuil surachat", min: 60, max: 90, step: 1 },
+    ],
+    fn: (c, p) => signalsRSI(c, p.period, p.oversold, p.overbought),
+  },
+  macd: {
+    label: "Croisement MACD",
+    defaultParams: { fast: 12, slow: 26, signal: 9 },
+    paramDefs: [
+      { key: "fast", label: "EMA rapide", min: 5, max: 20, step: 1 },
+      { key: "slow", label: "EMA lente", min: 15, max: 50, step: 1 },
+      { key: "signal", label: "Ligne signal", min: 5, max: 15, step: 1 },
+    ],
+    fn: (c, p) => signalsMACD(c, p.fast, p.slow, p.signal),
+  },
 };
 
 // ── Simulateur de trades : un signal ouvre un trade (si aucun en cours),
 //    sorti sur TP/SL fixe en pips. SL vérifié en priorité (biais conservateur
 //    si TP et SL sont touchés dans la même bougie). ──
-export function runBacktest({ candles, pair, strategyKey, tpPips = 15, slPips = 10 }) {
+export function runBacktest({ candles, pair, strategyKey, tpPips = 15, slPips = 10, strategyParams = null }) {
   const strategy = STRATEGIES[strategyKey];
   if (!strategy) throw new Error("Stratégie inconnue: " + strategyKey);
   if (!candles || candles.length < 50) throw new Error("Pas assez de données (minimum 50 bougies).");
 
   const pip = PIP_SIZE[pair] || 0.0001;
-  const signals = strategy.fn(candles);
+  const params = { ...strategy.defaultParams, ...(strategyParams || {}) };
+  const signals = strategy.fn(candles, params);
 
   const trades = [];
   let inTrade = null;
-  let equity = 0; // en pips cumulés
 
   for (let i = 0; i < candles.length; i++) {
     const [, , high, low, close] = candles[i];
@@ -128,8 +151,7 @@ export function runBacktest({ candles, pair, strategyKey, tpPips = 15, slPips = 
       if (hitSL || hitTP) {
         const win = hitTP && !hitSL;
         const pips = win ? tpPips : -slPips;
-        equity += pips;
-        trades.push({ entryIdx, exitIdx: i, dir, entryPrice, exitPrice: win ? tp : sl, pips, win });
+        trades.push({ entryIdx, exitIdx: i, dir, entryPrice, exitPrice: win ? tp : sl, pips, win, duration: i - entryIdx });
         inTrade = null;
       }
     }
@@ -150,22 +172,42 @@ export function runBacktest({ candles, pair, strategyKey, tpPips = 15, slPips = 
   const grossWin = trades.filter(t => t.win).reduce((s, t) => s + t.pips, 0);
   const grossLoss = Math.abs(trades.filter(t => !t.win).reduce((s, t) => s + t.pips, 0));
   const profitFactor = grossLoss > 0 ? +(grossWin / grossLoss).toFixed(2) : (grossWin > 0 ? Infinity : 0);
+  const expectancy = trades.length ? +(totalPips / trades.length).toFixed(2) : 0;
+  const avgWinPips = wins ? +(grossWin / wins).toFixed(1) : 0;
+  const avgLossPips = losses ? +(grossLoss / losses).toFixed(1) : 0;
+  const avgDuration = trades.length ? Math.round(trades.reduce((s, t) => s + t.duration, 0) / trades.length) : 0;
 
   // Courbe d'équité (cumul en pips, un point par trade clôturé)
   let running = 0;
   const equityCurve = [{ x: 0, y: 0 }, ...trades.map((t, i) => { running += t.pips; return { x: i + 1, y: +running.toFixed(1) }; })];
 
-  // Plus longue série de pertes consécutives (réalisme, pas d'angle mort)
-  let maxLossStreak = 0, curStreak = 0;
-  trades.forEach(t => { if (!t.win) { curStreak++; maxLossStreak = Math.max(maxLossStreak, curStreak); } else curStreak = 0; });
+  // Séries consécutives (pertes ET gains — réalisme, pas d'angle mort)
+  let maxLossStreak = 0, curLossStreak = 0, maxWinStreak = 0, curWinStreak = 0;
+  trades.forEach(t => {
+    if (t.win) { curWinStreak++; curLossStreak = 0; maxWinStreak = Math.max(maxWinStreak, curWinStreak); }
+    else { curLossStreak++; curWinStreak = 0; maxLossStreak = Math.max(maxLossStreak, curLossStreak); }
+  });
+
+  // Drawdown max de la courbe d'équité (pire creux depuis un sommet), en pips
+  let peak = 0, maxDD = 0;
+  equityCurve.forEach(pt => { peak = Math.max(peak, pt.y); maxDD = Math.max(maxDD, peak - pt.y); });
+
+  // Répartition long/short (une stratégie qui ne fonctionne que dans un sens est une info clé)
+  const longs = trades.filter(t => t.dir === "long");
+  const shorts = trades.filter(t => t.dir === "short");
+  const longWinrate = longs.length ? +((longs.filter(t => t.win).length / longs.length) * 100).toFixed(1) : null;
+  const shortWinrate = shorts.length ? +((shorts.filter(t => t.win).length / shorts.length) * 100).toFixed(1) : null;
 
   return {
     strategyLabel: strategy.label,
+    paramsUsed: params,
     totalTrades: trades.length,
     wins, losses, winrate: +winrate.toFixed(1),
     totalPips: +totalPips.toFixed(1),
     profitFactor,
-    maxLossStreak,
+    expectancy, avgWinPips, avgLossPips, avgDuration,
+    maxLossStreak, maxWinStreak, maxDrawdownPips: +maxDD.toFixed(1),
+    longCount: longs.length, shortCount: shorts.length, longWinrate, shortWinrate,
     equityCurve,
     trades,
     candleCount: candles.length,
@@ -174,5 +216,5 @@ export function runBacktest({ candles, pair, strategyKey, tpPips = 15, slPips = 
 }
 
 export function listStrategies() {
-  return Object.entries(STRATEGIES).map(([key, v]) => ({ key, label: v.label }));
+  return Object.entries(STRATEGIES).map(([key, v]) => ({ key, label: v.label, defaultParams: v.defaultParams, paramDefs: v.paramDefs }));
 }

@@ -3628,32 +3628,48 @@ function ReportHeader({ title, subtitle, onBack }) {
 // GitHub Releases (fabmarc70/HISTDATA-), backtest déterministe local.
 // ══════════════════════════════════════════════════════════════════
 function BacktestScreen({ t, lang, onBack }) {
-  const [datasets, setDatasets] = useState(null);      // liste des fichiers dispo (release GitHub)
+  const [datasets, setDatasets] = useState(null);
   const [loadError, setLoadError] = useState(null);
+  const [step, setStep] = useState(0); // 0=paire, 1=periode, 2=strategie+params, 99=resultats
   const [selectedPair, setSelectedPair] = useState(null);
   const [selectedPeriod, setSelectedPeriod] = useState(null);
-  const [dlProgress, setDlProgress] = useState(null);   // null = pas en cours, 0-100 = %
-  const [candles, setCandles] = useState(null);         // dataset téléchargé/en cache
+  const [dlProgress, setDlProgress] = useState(null);
+  const [candles, setCandles] = useState(null);
   const [dlError, setDlError] = useState(null);
-  const [strategyKey, setStrategyKey] = useState("breakout");
+  const [strategyKey, setStrategyKey] = useState(null);
+  const [strategyParams, setStrategyParams] = useState({});
   const [tpPips, setTpPips] = useState(15);
   const [slPips, setSlPips] = useState(10);
   const [result, setResult] = useState(null);
+  const advanceRef = useRef(null);
 
   useEffect(() => {
-    listAvailableDatasets()
-      .then(setDatasets)
-      .catch(e => setLoadError(e.message));
+    listAvailableDatasets().then(setDatasets).catch(e => setLoadError(e.message));
   }, []);
 
   const pairs = datasets ? [...new Set(datasets.assets.map(a => a.pair))] : [];
   const periodsForPair = selectedPair && datasets ? datasets.assets.filter(a => a.pair === selectedPair).map(a => a.period) : [];
+  const strategies = listStrategies();
+  // Vert mint standard de l'app — cohérent avec Simulateur/Journal/Laboratoire (pas de couleur d'accent isolée)
+  const ACCENT = "#6ee7b7";
 
-  const handleDownload = async () => {
-    if (!selectedPair || !selectedPeriod) return;
-    setDlProgress(0); setDlError(null); setCandles(null); setResult(null);
+  // Auto-advance : sélection unique -> étape suivante après un court feedback visuel (comme le Laboratoire)
+  const autoNext = (nextStep, delay = 300) => {
+    if (advanceRef.current) clearTimeout(advanceRef.current);
+    advanceRef.current = setTimeout(() => setStep(nextStep), delay);
+  };
+
+  const selectPair = (p) => {
+    setSelectedPair(p); setSelectedPeriod(null); setCandles(null); setResult(null);
+    autoNext(1);
+  };
+  const selectPeriod = async (p) => {
+    setSelectedPeriod(p); setResult(null);
+    autoNext(2);
+    // Téléchargement lancé immédiatement en tâche de fond pendant la transition
+    setDlProgress(0); setDlError(null); setCandles(null);
     try {
-      const data = await downloadCandles(selectedPair, selectedPeriod, { onProgress: setDlProgress });
+      const data = await downloadCandles(selectedPair, p, { onProgress: setDlProgress });
       setCandles(data.candles);
       setDlProgress(null);
     } catch (e) {
@@ -3661,170 +3677,232 @@ function BacktestScreen({ t, lang, onBack }) {
       setDlProgress(null);
     }
   };
+  const selectStrategy = (key) => {
+    setStrategyKey(key);
+    const def = strategies.find(s => s.key === key);
+    setStrategyParams(def ? { ...def.defaultParams } : {});
+    setResult(null);
+  };
 
   const handleRunBacktest = () => {
-    if (!candles) return;
+    if (!candles || !strategyKey) return;
     try {
-      const r = runBacktest({ candles, pair: selectedPair, strategyKey, tpPips, slPips });
+      const r = runBacktest({ candles, pair: selectedPair, strategyKey, tpPips, slPips, strategyParams });
       setResult(r);
+      setStep(99);
     } catch (e) {
       setResult({ error: e.message });
+      setStep(99);
     }
   };
 
-  const strategies = listStrategies();
-  const mcColor = (r) => r >= 55 ? "#6ee7b7" : r >= 30 ? "#fbbf24" : "#ef4444";
+  const restart = () => {
+    setStep(0); setSelectedPair(null); setSelectedPeriod(null); setCandles(null);
+    setStrategyKey(null); setStrategyParams({}); setResult(null);
+  };
 
-  return (
-    <div style={{ minHeight: "100vh", paddingBottom: 100 }}>
-      <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles · zéro estimation" onBack={onBack} />
+  // 3 paliers (vert/ambre/rouge) — cohérent avec le reste de l'app (Simulateur, Laboratoire)
+  const tier = (val, good, mid) => val >= good ? "#6ee7b7" : val >= mid ? "#fbbf24" : "#ef4444";
 
-      {/* ── Avertissement réalisme (cohérent avec le reste de l'app) ── */}
-      <div style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 12, padding: "10px 12px", marginBottom: 14, fontSize: 10.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
-        ⚠️ Backtest sur données historiques réelles (M1), stratégies déterministes simples (breakout, RSI, MACD). Ne remplace pas un forward test — la performance passée ne garantit rien.
+  const Pill = ({ active, onClick, children }) => (
+    <button onClick={onClick} style={{
+      padding: "10px 16px", borderRadius: 100, cursor: "pointer", fontSize: 13, fontWeight: 700,
+      background: active ? ACCENT + "22" : "rgba(255,255,255,0.04)",
+      color: active ? ACCENT : "rgba(255,255,255,0.65)",
+      border: "1.5px solid " + (active ? ACCENT : "rgba(255,255,255,0.1)"),
+      transition: "all .15s",
+    }}>{children}</button>
+  );
+
+  const Stepper = () => {
+    const labels = ["Paire", "Période", "Stratégie"];
+    return (
+      <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 4 }}>
+        {labels.map((l, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{
+              width: 26, height: 26, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center",
+              background: i < step || step === 99 ? ACCENT : i === step ? ACCENT + "22" : "rgba(255,255,255,0.05)",
+              border: "1.5px solid " + (i <= step || step === 99 ? ACCENT : "rgba(255,255,255,0.15)"),
+              fontSize: 11, fontWeight: 800, color: (i < step || step === 99) ? "#000" : i === step ? ACCENT : "rgba(255,255,255,0.35)",
+            }}>{(i < step || step === 99) ? "✓" : i + 1}</div>
+            {i < labels.length - 1 && <div style={{ width: 16, height: 1.5, background: i < step || step === 99 ? ACCENT : "rgba(255,255,255,0.15)" }} />}
+          </div>
+        ))}
       </div>
+    );
+  };
 
-      {loadError && (
+  if (loadError) {
+    return (
+      <div style={{ minHeight: "100vh", paddingBottom: 100 }}>
+        <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles · zéro estimation" onBack={onBack} />
         <div className="card" style={{ textAlign: "center", padding: 20, border: "1px solid rgba(239,68,68,0.2)" }}>
           <div style={{ color: "#ef4444", fontWeight: 700, fontSize: 12, marginBottom: 4 }}>Aucune donnée disponible</div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{loadError}</div>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {datasets && !loadError && (
+  if (!datasets) return null;
+
+  // ══ WIZARD (étapes centrées, une catégorie à la fois, disparaît une fois choisie) ══
+  if (step < 3) {
+    return (
+      <div style={{ minHeight: "100vh", paddingBottom: 100, display: "flex", flexDirection: "column" }}>
+        <ReportHeader title={t("an_backtest_title")} subtitle={`Étape ${step + 1}/3`} onBack={step === 0 ? onBack : () => setStep(step - 1)} />
+        <Stepper />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", minHeight: "50vh", padding: "18px 2px" }}>
+          {step === 0 && (<>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 4, textAlign: "center" }}>Quelle paire veux-tu tester ?</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 18, textAlign: "center" }}>Données réelles publiées par Fab</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 9, justifyContent: "center" }}>
+              {pairs.map(p => <Pill key={p} active={selectedPair === p} onClick={() => selectPair(p)}>{p}</Pill>)}
+            </div>
+          </>)}
+          {step === 1 && (<>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 4, textAlign: "center" }}>Quelle période ?</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 18, textAlign: "center" }}>{selectedPair}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 9, justifyContent: "center" }}>
+              {periodsForPair.map(p => <Pill key={p} active={selectedPeriod === p} onClick={() => selectPeriod(p)}>{p}</Pill>)}
+            </div>
+          </>)}
+          {step === 2 && (<>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 4, textAlign: "center" }}>Style de stratégie</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4, textAlign: "center" }}>
+              {dlProgress !== null ? `Téléchargement… ${dlProgress}%` : candles ? `✓ ${candles.length.toLocaleString()} bougies chargées` : dlError ? <span style={{ color: "#ef4444" }}>{dlError}</span> : "…"}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 9, justifyContent: "center", marginBottom: 20 }}>
+              {strategies.map(s => <Pill key={s.key} active={strategyKey === s.key} onClick={() => selectStrategy(s.key)}>{s.label}</Pill>)}
+            </div>
+
+            {strategyKey && (() => {
+              const def = strategies.find(s => s.key === strategyKey);
+              return (
+                <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 14, marginBottom: 14 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 10 }}>Paramètres de la stratégie</div>
+                  {def.paramDefs.map(pd => (
+                    <div key={pd.key} style={{ marginBottom: 10 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
+                        <span style={{ color: "rgba(255,255,255,0.6)" }}>{pd.label}</span>
+                        <span style={{ fontWeight: 800, color: ACCENT }}>{strategyParams[pd.key]}</span>
+                      </div>
+                      <input type="range" min={pd.min} max={pd.max} step={pd.step} value={strategyParams[pd.key] ?? pd.min}
+                        onChange={e => setStrategyParams(sp => ({ ...sp, [pd.key]: parseFloat(e.target.value) }))}
+                        style={{ width: "100%", accentColor: ACCENT }} />
+                    </div>
+                  ))}
+                  <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>Take Profit (pips)</div>
+                      <input type="number" value={tpPips} min={1} max={200} onChange={e => setTpPips(parseFloat(e.target.value) || 1)}
+                        style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "6px 8px", fontSize: 13, boxSizing: "border-box" }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>Stop Loss (pips)</div>
+                      <input type="number" value={slPips} min={1} max={200} onChange={e => setSlPips(parseFloat(e.target.value) || 1)}
+                        style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "6px 8px", fontSize: 13, boxSizing: "border-box" }} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </>)}
+        </div>
+        {step === 2 && (
+          <button onClick={handleRunBacktest} disabled={!candles || !strategyKey} style={{
+            width: "100%", padding: 14, borderRadius: 13, border: "none",
+            cursor: (!candles || !strategyKey) ? "default" : "pointer",
+            background: (!candles || !strategyKey) ? "rgba(255,255,255,0.07)" : `linear-gradient(135deg,${ACCENT},#34d399)`,
+            color: (!candles || !strategyKey) ? "rgba(255,255,255,0.3)" : "#000", fontSize: 14, fontWeight: 800,
+          }}>
+            ⚡ Lancer le backtest
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // ══ RÉSULTATS ══
+  return (
+    <div style={{ minHeight: "100vh", paddingBottom: 100 }}>
+      <ReportHeader title={t("an_backtest_title")} subtitle={`${selectedPair} · ${selectedPeriod}`} onBack={onBack} />
+
+      <div style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 12, padding: "10px 12px", marginBottom: 14, fontSize: 10.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
+        ⚠️ Backtest sur données historiques réelles (M1), stratégie déterministe simple. Ne remplace pas un forward test — la performance passée ne garantit rien.
+      </div>
+
+      {result?.error ? (
+        <div style={{ fontSize: 12, color: "#ef4444", textAlign: "center", padding: 20 }}>{result.error}</div>
+      ) : result && (
         <>
-          {/* ── Sélection paire ── */}
-          <div className="card">
-            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.6 }}>Paire</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-              {pairs.map(p => (
-                <button key={p} onClick={() => { setSelectedPair(p); setSelectedPeriod(null); setCandles(null); setResult(null); }}
-                  style={{ padding: "8px 14px", borderRadius: 100, cursor: "pointer", fontSize: 12, fontWeight: 700,
-                    background: selectedPair === p ? "#a3e635" : "rgba(255,255,255,0.05)",
-                    color: selectedPair === p ? "#000" : "rgba(255,255,255,0.65)",
-                    border: "1px solid " + (selectedPair === p ? "#a3e635" : "rgba(255,255,255,0.1)") }}>
-                  {p}
-                </button>
+          <div className="card" style={{ border: "1px solid " + ACCENT + "33" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 10, textTransform: "uppercase" }}>
+              {result.strategyLabel}
+            </div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              {[
+                { l: "Trades", v: result.totalTrades, c: "#fff" },
+                { l: "Winrate", v: result.winrate + "%", c: tier(result.winrate, 55, 30) },
+                { l: "Profit Factor", v: result.profitFactor === Infinity ? "∞" : result.profitFactor, c: tier(result.profitFactor, 1.5, 1) },
+                { l: "Expectancy", v: (result.expectancy >= 0 ? "+" : "") + result.expectancy + "p", c: result.expectancy >= 0 ? "#6ee7b7" : "#ef4444" },
+              ].map(k => (
+                <div key={k.l} style={{ flex: 1, background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>{k.l}</div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: k.c }}>{k.v}</div>
+                </div>
               ))}
+            </div>
+            <div style={{ fontSize: 12, color: result.totalPips >= 0 ? "#6ee7b7" : "#ef4444", fontWeight: 700, marginBottom: 10 }}>
+              Résultat net : {result.totalPips >= 0 ? "+" : ""}{result.totalPips} pips ({result.wins}G / {result.losses}P)
+            </div>
+            {result.equityCurve.length > 2 && (
+              <ResponsiveContainer width="100%" height={140}>
+                <AreaChart data={result.equityCurve}>
+                  <defs>
+                    <linearGradient id="btEquity" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={result.totalPips >= 0 ? "#6ee7b7" : "#ef4444"} stopOpacity={0.3} />
+                      <stop offset="100%" stopColor={result.totalPips >= 0 ? "#6ee7b7" : "#ef4444"} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="x" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "T" + v} />
+                  <YAxis tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => v + "p"} />
+                  <Tooltip formatter={v => v + " pips"} contentStyle={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, fontSize: 11 }} />
+                  <Area type="monotone" dataKey="y" stroke={result.totalPips >= 0 ? "#6ee7b7" : "#ef4444"} strokeWidth={2} fill="url(#btEquity)" dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* ── Détail réaliste supplémentaire ── */}
+          <div className="card">
+            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 10, textTransform: "uppercase" }}>Détail</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {[
+                { l: "Gain moyen", v: "+" + result.avgWinPips + "p", c: "#6ee7b7" },
+                { l: "Perte moyenne", v: "-" + result.avgLossPips + "p", c: "#ef4444" },
+                { l: "Durée moy. trade", v: result.avgDuration + " min", c: "#fff" },
+                { l: "Drawdown max", v: "-" + result.maxDrawdownPips + "p", c: tier(100 - result.maxDrawdownPips, 80, 50) },
+                { l: "Série pertes max", v: result.maxLossStreak, c: tier(10 - result.maxLossStreak, 5, 2) },
+                { l: "Série gains max", v: result.maxWinStreak, c: "#6ee7b7" },
+                { l: "Trades Long", v: result.longCount + (result.longWinrate != null ? ` (${result.longWinrate}%)` : ""), c: "rgba(255,255,255,0.85)" },
+                { l: "Trades Short", v: result.shortCount + (result.shortWinrate != null ? ` (${result.shortWinrate}%)` : ""), c: "rgba(255,255,255,0.85)" },
+              ].map(item => (
+                <div key={item.l} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 9, padding: "8px 10px" }}>
+                  <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>{item.l}</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: item.c }}>{item.v}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 10, lineHeight: 1.4 }}>
+              TP/SL fixes en pips, un trade à la fois (pas d'empilement). SL vérifié en priorité si TP et SL sont touchés dans la même bougie (biais conservateur).
             </div>
           </div>
 
-          {/* ── Sélection période ── */}
-          {selectedPair && (
-            <div className="card">
-              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.6 }}>Période</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-                {periodsForPair.map(p => (
-                  <button key={p} onClick={() => { setSelectedPeriod(p); setCandles(null); setResult(null); }}
-                    style={{ padding: "8px 14px", borderRadius: 100, cursor: "pointer", fontSize: 12, fontWeight: 700,
-                      background: selectedPeriod === p ? "#a3e635" : "rgba(255,255,255,0.05)",
-                      color: selectedPeriod === p ? "#000" : "rgba(255,255,255,0.65)",
-                      border: "1px solid " + (selectedPeriod === p ? "#a3e635" : "rgba(255,255,255,0.1)") }}>
-                    {p}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── Téléchargement ── */}
-          {selectedPair && selectedPeriod && !candles && (
-            <button onClick={handleDownload} disabled={dlProgress !== null} style={{
-              width: "100%", padding: 14, borderRadius: 13, border: "none", cursor: dlProgress !== null ? "default" : "pointer",
-              background: dlProgress !== null ? "rgba(255,255,255,0.07)" : "#a3e635",
-              color: dlProgress !== null ? "rgba(255,255,255,0.4)" : "#000", fontSize: 14, fontWeight: 800, marginBottom: 12,
-            }}>
-              {dlProgress !== null ? `Téléchargement… ${dlProgress}%` : `Télécharger ${selectedPair} · ${selectedPeriod}`}
-            </button>
-          )}
-          {dlError && <div style={{ fontSize: 11, color: "#ef4444", marginBottom: 12, textAlign: "center" }}>{dlError}</div>}
-
-          {/* ── Config + lancement backtest ── */}
-          {candles && (
-            <div className="card" style={{ border: "1px solid rgba(163,230,53,0.2)" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#a3e635", marginBottom: 4 }}>
-                ✓ {candles.length.toLocaleString()} bougies chargées ({selectedPair} · {selectedPeriod})
-              </div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 12 }}>
-                {new Date(candles[0][0]).toLocaleDateString()} → {new Date(candles[candles.length - 1][0]).toLocaleDateString()}
-              </div>
-
-              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 6 }}>Style de stratégie</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 12 }}>
-                {strategies.map(s => (
-                  <button key={s.key} onClick={() => { setStrategyKey(s.key); setResult(null); }}
-                    style={{ padding: "8px 12px", borderRadius: 10, cursor: "pointer", fontSize: 11.5, fontWeight: 700,
-                      background: strategyKey === s.key ? "#a3e635" : "rgba(255,255,255,0.05)",
-                      color: strategyKey === s.key ? "#000" : "rgba(255,255,255,0.65)",
-                      border: "1px solid " + (strategyKey === s.key ? "#a3e635" : "rgba(255,255,255,0.1)") }}>
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-
-              <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>Take Profit (pips)</div>
-                  <input type="number" value={tpPips} min={1} max={200} onChange={e => setTpPips(parseFloat(e.target.value) || 1)}
-                    style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "6px 8px", fontSize: 13 }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>Stop Loss (pips)</div>
-                  <input type="number" value={slPips} min={1} max={200} onChange={e => setSlPips(parseFloat(e.target.value) || 1)}
-                    style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "6px 8px", fontSize: 13 }} />
-                </div>
-              </div>
-
-              <button onClick={handleRunBacktest} style={{ width: "100%", padding: 13, borderRadius: 12, border: "none", cursor: "pointer", background: "linear-gradient(135deg,#a3e635,#84cc16)", color: "#000", fontSize: 13, fontWeight: 800 }}>
-                ⚡ Lancer le backtest
-              </button>
-            </div>
-          )}
-
-          {/* ── Résultats ── */}
-          {result && !result.error && (
-            <div className="card" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 10, textTransform: "uppercase" }}>
-                Résultats — {result.strategyLabel}
-              </div>
-              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                {[
-                  { l: "Trades", v: result.totalTrades, c: "#fff" },
-                  { l: "Winrate", v: result.winrate + "%", c: mcColor(result.winrate) },
-                  { l: "Profit Factor", v: result.profitFactor === Infinity ? "∞" : result.profitFactor, c: result.profitFactor >= 1.3 ? "#6ee7b7" : "#ef4444" },
-                  { l: "Pertes suite", v: result.maxLossStreak, c: result.maxLossStreak <= 5 ? "#6ee7b7" : "#fbbf24" },
-                ].map(k => (
-                  <div key={k.l} style={{ flex: 1, background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>{k.l}</div>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: k.c }}>{k.v}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ fontSize: 12, color: result.totalPips >= 0 ? "#6ee7b7" : "#ef4444", fontWeight: 700, marginBottom: 10 }}>
-                Résultat net : {result.totalPips >= 0 ? "+" : ""}{result.totalPips} pips ({result.wins}G / {result.losses}P)
-              </div>
-              {result.equityCurve.length > 2 && (
-                <ResponsiveContainer width="100%" height={140}>
-                  <AreaChart data={result.equityCurve}>
-                    <defs>
-                      <linearGradient id="btEquity" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={result.totalPips >= 0 ? "#6ee7b7" : "#ef4444"} stopOpacity={0.3} />
-                        <stop offset="100%" stopColor={result.totalPips >= 0 ? "#6ee7b7" : "#ef4444"} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <XAxis dataKey="x" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "T" + v} />
-                    <YAxis tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => v + "p"} />
-                    <Tooltip formatter={v => v + " pips"} contentStyle={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, fontSize: 11 }} />
-                    <Area type="monotone" dataKey="y" stroke={result.totalPips >= 0 ? "#6ee7b7" : "#ef4444"} strokeWidth={2} fill="url(#btEquity)" dot={false} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 8, lineHeight: 1.4 }}>
-                TP/SL fixes en pips, un trade à la fois (pas d'empilement). SL vérifié en priorité si TP et SL sont touchés dans la même bougie (biais conservateur).
-              </div>
-            </div>
-          )}
-          {result?.error && <div style={{ fontSize: 12, color: "#ef4444", textAlign: "center", padding: 20 }}>{result.error}</div>}
+          <button onClick={restart} style={{ width: "100%", padding: 12, borderRadius: 12, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            Nouveau backtest
+          </button>
         </>
       )}
     </div>
