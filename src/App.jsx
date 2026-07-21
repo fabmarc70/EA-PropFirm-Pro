@@ -4695,7 +4695,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         ctaGoto: 'trades',
       },
       {
-        key:'backtest', accent:'#a3e635', bg:'rgba(163,230,53,0.06)', border:'rgba(163,230,53,0.2)',
+        key:'realbacktest', accent:'#a3e635', bg:'rgba(163,230,53,0.06)', border:'rgba(163,230,53,0.2)',
         icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 4-6" stroke="#a3e635" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
         title: t('an_backtest_title'),
         subtitle: t('an_backtest_sub'),
@@ -5061,7 +5061,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
     return <LabScreen t={t} lang={lang} profile={profile} onBack={() => setMode(null)} />;
   }
 
-  if (mode === 'backtest') {
+  if (mode === 'realbacktest') {
     return <BacktestScreen t={t} lang={lang} onBack={() => setMode(null)} />;
   }
 
