@@ -3627,6 +3627,51 @@ function ReportHeader({ title, subtitle, onBack }) {
 // BACKTEST RÉEL — sélection paire/période, téléchargement depuis
 // GitHub Releases (fabmarc70/HISTDATA-), backtest déterministe local.
 // ══════════════════════════════════════════════════════════════════
+// ── Dropdown custom pour BacktestScreen, au NIVEAU MODULE (composant stable).
+// Il était auparavant defini À L'INTÉRIEUR du rendu de BacktestScreen -- React
+// recréait donc ce composant à CHAQUE re-render (chaque clic sur un dropdown
+// change l'état openDropdown -> re-render -> Select redéfini comme un nouveau
+// type de composant -> React démonte/remonte TOUS les dropdowns -> l'interaction
+// (l'option qu'on vient de toucher) se perd dans le remontage. C'était la cause
+// racine du blocage rapporté ("je ne peux pas choisir de paire/période").
+// En plus d'être stable, la liste se déplie maintenant DANS LE FLUX NORMAL de
+// la page (pas de position absolute/fixed/z-index) — plus aucun risque de
+// superposition invisible ou de recouvrement raté sur mobile.
+function BacktestSelect({ id, label, value, onChange, options, openDropdown, setOpenDropdown, accent }) {
+  const isOpen = openDropdown === id;
+  const current = options.find(o => String(o.value) === String(value));
+  return (
+    <div>
+      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginBottom: 4, fontWeight: 700 }}>{label}</div>
+      <button type="button" onClick={() => setOpenDropdown(isOpen ? null : id)} style={{
+        width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+        background: "rgba(255,255,255,0.05)", border: "1px solid " + (isOpen ? accent : "rgba(255,255,255,0.1)"),
+        borderRadius: 10, color: "#fff", padding: "9px 10px", fontSize: 12.5, fontWeight: 700,
+        boxSizing: "border-box", cursor: "pointer", textAlign: "left",
+      }}>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{current ? current.label : (options[0]?.label || "—")}</span>
+        <span style={{ color: accent, fontSize: 10, flexShrink: 0, marginLeft: 6, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}>▼</span>
+      </button>
+      {isOpen && (
+        <div style={{
+          marginTop: 6, background: "#12121a", border: "1px solid rgba(110,231,183,0.25)", borderRadius: 12,
+          maxHeight: 260, overflowY: "auto",
+        }}>
+          {options.map(o => (
+            <button key={o.value} type="button" onClick={() => { onChange(String(o.value)); setOpenDropdown(null); }} style={{
+              display: "block", width: "100%", textAlign: "left", border: "none",
+              padding: "11px 12px", fontSize: 12.5, fontWeight: String(o.value) === String(value) ? 800 : 500,
+              color: String(o.value) === String(value) ? accent : "rgba(255,255,255,0.8)",
+              background: String(o.value) === String(value) ? "rgba(110,231,183,0.08)" : "transparent",
+              cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.05)",
+            }}>{o.label}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BacktestScreen({ t, lang, onBack }) {
   const ACCENT = "#6ee7b7";
   const [datasets, setDatasets] = useState(null);
@@ -3644,7 +3689,7 @@ function BacktestScreen({ t, lang, onBack }) {
   const [tpPips, setTpPips] = useState(15);
   const [slPips, setSlPips] = useState(10);
   const [riskPct, setRiskPct] = useState(1);
-  const [slippagePips, setSlippagePips] = useState(0.3);
+  const [slippagePips, setSlippagePips] = useState(0.2);
   const [sessionKey, setSessionKey] = useState("24h");
   const [newsFilterOn, setNewsFilterOn] = useState(false);
   const [mmMode, setMmMode] = useState("fixed");
@@ -3711,7 +3756,7 @@ function BacktestScreen({ t, lang, onBack }) {
     resetBacktest();
     setFirmKey("fundednext"); setModelKey("2step"); setCapital(25000);
     setTimeframeKey("1"); setStrategyKey("breakout"); setStrategyParams({});
-    setTpPips(15); setSlPips(10); setRiskPct(1); setSlippagePips(0.3);
+    setTpPips(15); setSlPips(10); setRiskPct(1); setSlippagePips(0.2);
     setSessionKey("24h"); setNewsFilterOn(false);
     setMmMode("fixed"); setMartingaleMultiplier(2); setMartingaleMaxSteps(5);
     setGridSpacingPips(20); setGridLevels(5); setGridDirection("both");
@@ -3793,43 +3838,6 @@ function BacktestScreen({ t, lang, onBack }) {
   const tierInv = (val, good, mid) => val <= good ? "#6ee7b7" : val <= mid ? "#fbbf24" : "#ef4444"; // plus bas = mieux (ex: drawdown)
 
   const [openDropdown, setOpenDropdown] = useState(null); // clé du Select actuellement ouvert (un seul à la fois)
-  const Select = ({ id, label, value, onChange, options }) => {
-    const isOpen = openDropdown === id;
-    const current = options.find(o => String(o.value) === String(value));
-    return (
-      <div style={{ position: "relative" }}>
-        <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginBottom: 4, fontWeight: 700 }}>{label}</div>
-        <button onClick={() => setOpenDropdown(isOpen ? null : id)} style={{
-          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-          background: "rgba(255,255,255,0.05)", border: "1px solid " + (isOpen ? ACCENT : "rgba(255,255,255,0.1)"),
-          borderRadius: 10, color: "#fff", padding: "9px 10px", fontSize: 12.5, fontWeight: 700,
-          boxSizing: "border-box", cursor: "pointer", textAlign: "left",
-        }}>
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{current ? current.label : "—"}</span>
-          <span style={{ color: ACCENT, fontSize: 10, flexShrink: 0, marginLeft: 6, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}>▼</span>
-        </button>
-        {isOpen && (
-          <>
-            <div onClick={() => setOpenDropdown(null)} style={{ position: "fixed", inset: 0, zIndex: 300 }} />
-            <div style={{
-              position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, zIndex: 301,
-              background: "#12121a", border: "1px solid rgba(110,231,183,0.25)", borderRadius: 12,
-              maxHeight: 240, overflowY: "auto", boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
-            }}>
-              {options.map(o => (
-                <div key={o.value} onClick={() => { onChange(String(o.value)); setOpenDropdown(null); }} style={{
-                  padding: "11px 12px", fontSize: 12.5, fontWeight: String(o.value) === String(value) ? 800 : 500,
-                  color: String(o.value) === String(value) ? ACCENT : "rgba(255,255,255,0.8)",
-                  background: String(o.value) === String(value) ? "rgba(110,231,183,0.08)" : "transparent",
-                  cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.05)",
-                }}>{o.label}</div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-    );
-  };
 
   const ScoreCircle = ({ val, size = 66, label, sub }) => {
     const color = val >= 65 ? "#6ee7b7" : val >= 40 ? "#fbbf24" : "#ef4444";
@@ -3950,53 +3958,53 @@ function BacktestScreen({ t, lang, onBack }) {
           </button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-          <Select id="firm" label="Prop firm" value={firmKey} onChange={v => { setFirmKey(v); setModelKey(Object.keys(PROP_FIRMS[v].models)[0]); }}
-            options={Object.keys(PROP_FIRMS).map(k => ({ value: k, label: PROP_FIRMS[k].name }))} />
-          <Select id="model" label="Type de challenge" value={modelKey} onChange={setModelKey}
-            options={modelsForFirm.map(k => ({ value: k, label: firm.models[k].name }))} />
+          <BacktestSelect id="firm" label="Prop firm" value={firmKey} onChange={v => { setFirmKey(v); setModelKey(Object.keys(PROP_FIRMS[v].models)[0]); }}
+            options={Object.keys(PROP_FIRMS).map(k => ({ value: k, label: PROP_FIRMS[k].name }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+          <BacktestSelect id="model" label="Type de challenge" value={modelKey} onChange={setModelKey}
+            options={modelsForFirm.map(k => ({ value: k, label: firm.models[k].name }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-          <Select id="capital" label="Solde du challenge" value={capital} onChange={v => setCapital(parseInt(v))}
-            options={CAPITAL_OPTIONS.map(c => ({ value: c, label: "$" + c.toLocaleString() }))} />
-          <Select id="pair" label="Actif" value={selectedPair || ""} onChange={v => {
+          <BacktestSelect id="capital" label="Solde du challenge" value={capital} onChange={v => setCapital(parseInt(v))}
+            options={CAPITAL_OPTIONS.map(c => ({ value: c, label: "$" + c.toLocaleString() }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+          <BacktestSelect id="pair" label="Actif" value={selectedPair || ""} onChange={v => {
               const newPeriod = datasets.assets.find(a => a.pair === v)?.period || null;
               setSelectedPair(v); setSelectedPeriod(newPeriod);
               handleDownload(v, newPeriod);
             }}
-            options={pairs.map(p => ({ value: p, label: p }))} />
+            options={pairs.map(p => ({ value: p, label: p }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: periodsForPair.length > 1 ? "1fr 1fr" : "1fr", gap: 8, marginBottom: 8 }}>
-          <Select id="timeframe" label="Timeframe" value={timeframeKey} onChange={setTimeframeKey}
-            options={TIMEFRAMES.map(tf => ({ value: tf.key, label: tf.label }))} />
+          <BacktestSelect id="timeframe" label="Timeframe" value={timeframeKey} onChange={setTimeframeKey}
+            options={TIMEFRAMES.map(tf => ({ value: tf.key, label: tf.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
           {periodsForPair.length > 1 && (
-            <Select id="period" label="Période" value={selectedPeriod || ""} onChange={v => { setSelectedPeriod(v); handleDownload(selectedPair, v); }}
-              options={periodsForPair.map(p => ({ value: p, label: p }))} />
+            <BacktestSelect id="period" label="Période" value={selectedPeriod || ""} onChange={v => { setSelectedPeriod(v); handleDownload(selectedPair, v); }}
+              options={periodsForPair.map(p => ({ value: p, label: p }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
           )}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-          <Select id="strategy" label="Stratégie" value={strategyKey} onChange={setStrategyKey}
-            options={strategies.map(s => ({ value: s.key, label: (s.category ? "[" + s.category + "] " : "") + s.label }))} />
-          <Select id="mmmode" label="Gestion du risque" value={mmMode} onChange={setMmMode}
-            options={MONEY_MANAGEMENT_MODES.map(m => ({ value: m.key, label: m.label }))} />
+          <BacktestSelect id="strategy" label="Stratégie" value={strategyKey} onChange={setStrategyKey}
+            options={strategies.map(s => ({ value: s.key, label: (s.category ? "[" + s.category + "] " : "") + s.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+          <BacktestSelect id="mmmode" label="Gestion du risque" value={mmMode} onChange={setMmMode}
+            options={MONEY_MANAGEMENT_MODES.map(m => ({ value: m.key, label: m.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-          <Select id="slippage" label="Frais & slippage" value={slippagePips} onChange={v => setSlippagePips(parseFloat(v))}
-            options={[0, 0.2, 0.5, 1].map(s => ({ value: s, label: s === 0 ? "Aucun (idéal)" : "Spread + " + s + " pip" }))} />
+          <BacktestSelect id="slippage" label="Frais & slippage" value={slippagePips} onChange={v => setSlippagePips(parseFloat(v))}
+            options={[0, 0.2, 0.5, 1].map(s => ({ value: s, label: s === 0 ? "Aucun (idéal)" : "Spread + " + s + " pip" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
           {isGridStrategy ? (
-            <Select id="riskgrid" label="Risque total (% capital)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
-              options={[0.5, 1, 2, 3, 5].map(r => ({ value: r, label: r + "% réparti sur la grille" }))} />
+            <BacktestSelect id="riskgrid" label="Risque total (% capital)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
+              options={[0.5, 1, 2, 3, 5].map(r => ({ value: r, label: r + "% réparti sur la grille" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
           ) : (
-            <Select id="session" label="Heures de trading" value={sessionKey} onChange={setSessionKey}
-              options={SESSIONS.map(s => ({ value: s.key, label: s.label }))} />
+            <BacktestSelect id="session" label="Heures de trading" value={sessionKey} onChange={setSessionKey}
+              options={SESSIONS.map(s => ({ value: s.key, label: s.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
           )}
         </div>
         {!isGridStrategy && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-            <Select id="riskpct" label="Risque par trade (%)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
-              options={[0.25, 0.5, 1, 1.5, 2].map(r => ({ value: r, label: r + "%" }))} />
+            <BacktestSelect id="riskpct" label="Risque par trade (%)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
+              options={[0.25, 0.5, 1, 1.5, 2].map(r => ({ value: r, label: r + "%" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
             {mmMode === "martingale" ? (
-              <Select id="martmult" label="Multiplicateur martingale" value={martingaleMultiplier} onChange={v => setMartingaleMultiplier(parseFloat(v))}
-                options={[1.5, 2, 2.5, 3].map(m => ({ value: m, label: "×" + m }))} />
+              <BacktestSelect id="martmult" label="Multiplicateur martingale" value={martingaleMultiplier} onChange={v => setMartingaleMultiplier(parseFloat(v))}
+                options={[1.5, 2, 2.5, 3].map(m => ({ value: m, label: "×" + m }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
             ) : <div />}
           </div>
         )}
