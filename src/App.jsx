@@ -11908,6 +11908,47 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         </div>
       </div>
 
+      {/* ══════════════════════════════════════════════════════════
+          Prochains événements économiques — bandeau défilant en haut de page
+      ══════════════════════════════════════════════════════════ */}
+      {(() => {
+        const upcoming = generateUpcomingEconEvents(new Date(), 6);
+        if (!upcoming.length) return null;
+        const now = new Date();
+        const fmtDelay = (date) => {
+          const diffH = (date - now) / 3600000;
+          if (diffH < 24) return t("econ_today");
+          return `${Math.floor(diffH / 24)}${t("econ_days")}`;
+        };
+        const Chip = ({ ev, i }) => (
+          <div key={i} style={{
+            display: "flex", alignItems: "center", gap: 5, flexShrink: 0,
+            padding: "5px 11px 5px 8px", borderRadius: 100,
+            background: "rgba(255,255,255,0.035)",
+            border: "1px solid rgba(255,255,255,0.07)",
+            marginRight: 8,
+          }}>
+            <span style={{ fontSize: 12, lineHeight: 1, flexShrink: 0 }}>{ECON_FLAGS[ev.type] || "🌐"}</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", fontWeight: 500, whiteSpace: "nowrap" }}>{t('econ_' + ev.type.toLowerCase())}</span>
+            <span style={{ fontSize: 9.5, color: "rgba(251,191,36,0.65)", fontWeight: 600, whiteSpace: "nowrap" }}>· {fmtDelay(ev.date)}</span>
+          </div>
+        );
+        // Liste dupliquée pour un défilement en boucle continue (sans saut visible)
+        return (
+          <div style={{ marginBottom: 14, overflow: "hidden", borderBottom: "1px solid rgba(255,255,255,0.06)", paddingBottom: 12 }}>
+            <style>{`
+              @keyframes eapfp-econ-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+              .eapfp-econ-track { display: flex; width: max-content; animation: eapfp-econ-marquee 22s linear infinite; }
+              .eapfp-econ-track:hover { animation-play-state: paused; }
+            `}</style>
+            <div className="eapfp-econ-track">
+              {upcoming.map((ev, i) => <Chip ev={ev} i={i} key={"a"+i} />)}
+              {upcoming.map((ev, i) => <Chip ev={ev} i={i} key={"b"+i} />)}
+            </div>
+          </div>
+        );
+      })()}
+
       {!hasData && (
         <div style={{margin:"16px",background:"rgba(110,231,183,0.05)",border:"1px solid rgba(110,231,183,0.15)",borderRadius:16,padding:"28px 20px",textAlign:"center"}}>
           <div style={{marginBottom:12, display:"flex", justifyContent:"center"}}>
@@ -12022,36 +12063,6 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
                 </ResponsiveContainer>
               </div>
             )}
-          </div>
-        );
-      })()}
-
-      {/* ══════════════════════════════════════════════════════════
-          Prochains événements économiques — chips discrètes premium
-      ══════════════════════════════════════════════════════════ */}
-      {(() => {
-        const upcoming = generateUpcomingEconEvents(new Date(), 3);
-        if (!upcoming.length) return null;
-        const now = new Date();
-        const fmtDelay = (date) => {
-          const diffH = (date - now) / 3600000;
-          if (diffH < 24) return t("econ_today");
-          return `${Math.floor(diffH / 24)}${t("econ_days")}`;
-        };
-        return (
-          <div style={{ display: "flex", gap: 6, marginBottom: 16, justifyContent: "center", flexWrap: "wrap" }}>
-            {upcoming.map((ev, i) => (
-              <div key={i} style={{
-                display: "flex", alignItems: "center", gap: 5, flexShrink: 0,
-                padding: "5px 11px 5px 8px", borderRadius: 100,
-                background: "rgba(255,255,255,0.035)",
-                border: "1px solid rgba(255,255,255,0.07)",
-              }}>
-                <span style={{ fontSize: 12, lineHeight: 1, flexShrink: 0 }}>{ECON_FLAGS[ev.type] || "🌐"}</span>
-                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", fontWeight: 500, whiteSpace: "nowrap" }}>{t('econ_' + ev.type.toLowerCase())}</span>
-                <span style={{ fontSize: 9.5, color: "rgba(251,191,36,0.65)", fontWeight: 600, whiteSpace: "nowrap" }}>· {fmtDelay(ev.date)}</span>
-              </div>
-            ))}
           </div>
         );
       })()}
