@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser, fbLoadUserProfile, fbSaveUserProfile, fbDeleteAccount } from "./firebase.js";
 import { listAvailableDatasets, downloadCandles, idbListCached } from "./historicalData.js";
-import { runBacktest, listStrategies } from "./backtestEngine.js";
+import { runBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore } from "./backtestEngine.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -3628,110 +3628,126 @@ function ReportHeader({ title, subtitle, onBack }) {
 // GitHub Releases (fabmarc70/HISTDATA-), backtest déterministe local.
 // ══════════════════════════════════════════════════════════════════
 function BacktestScreen({ t, lang, onBack }) {
+  const ACCENT = "#6ee7b7";
   const [datasets, setDatasets] = useState(null);
   const [loadError, setLoadError] = useState(null);
-  const [step, setStep] = useState(0); // 0=paire, 1=periode, 2=strategie+params, 99=resultats
+
+  // ── Configuration (section 1) ──
+  const [firmKey, setFirmKey] = useState("fundednext");
+  const [modelKey, setModelKey] = useState("2step");
+  const [capital, setCapital] = useState(25000);
   const [selectedPair, setSelectedPair] = useState(null);
   const [selectedPeriod, setSelectedPeriod] = useState(null);
-  const [dlProgress, setDlProgress] = useState(null);
-  const [candles, setCandles] = useState(null);
-  const [dlError, setDlError] = useState(null);
-  const [strategyKey, setStrategyKey] = useState(null);
+  const [timeframeKey, setTimeframeKey] = useState("1");
+  const [strategyKey, setStrategyKey] = useState("breakout");
   const [strategyParams, setStrategyParams] = useState({});
   const [tpPips, setTpPips] = useState(15);
   const [slPips, setSlPips] = useState(10);
+  const [riskPct, setRiskPct] = useState(1);
+  const [slippagePips, setSlippagePips] = useState(0.3);
+  const [sessionKey, setSessionKey] = useState("24h");
+  const [newsFilterOn, setNewsFilterOn] = useState(false);
+
+  const [candles, setCandles] = useState(null);
+  const [dlProgress, setDlProgress] = useState(null);
+  const [dlError, setDlError] = useState(null);
+  const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);
-  const advanceRef = useRef(null);
+  const [score, setScore] = useState(null);
 
   useEffect(() => {
-    listAvailableDatasets().then(setDatasets).catch(e => setLoadError(e.message));
+    listAvailableDatasets().then(d => {
+      setDatasets(d);
+      if (d.assets.length) { setSelectedPair(d.assets[0].pair); setSelectedPeriod(d.assets[0].period); }
+    }).catch(e => setLoadError(e.message));
   }, []);
+
+  useEffect(() => {
+    const def = listStrategies().find(s => s.key === strategyKey);
+    setStrategyParams(def ? { ...def.defaultParams } : {});
+  }, [strategyKey]);
 
   const pairs = datasets ? [...new Set(datasets.assets.map(a => a.pair))] : [];
   const periodsForPair = selectedPair && datasets ? datasets.assets.filter(a => a.pair === selectedPair).map(a => a.period) : [];
   const strategies = listStrategies();
-  // Vert mint standard de l'app — cohérent avec Simulateur/Journal/Laboratoire (pas de couleur d'accent isolée)
-  const ACCENT = "#6ee7b7";
+  const firm = PROP_FIRMS[firmKey];
+  const modelsForFirm = firm ? Object.keys(firm.models) : [];
 
-  // Auto-advance : sélection unique -> étape suivante après un court feedback visuel (comme le Laboratoire)
-  const autoNext = (nextStep, delay = 300) => {
-    if (advanceRef.current) clearTimeout(advanceRef.current);
-    advanceRef.current = setTimeout(() => setStep(nextStep), delay);
-  };
-
-  const selectPair = (p) => {
-    setSelectedPair(p); setSelectedPeriod(null); setCandles(null); setResult(null);
-    autoNext(1);
-  };
-  const selectPeriod = async (p) => {
-    setSelectedPeriod(p); setResult(null);
-    autoNext(2);
-    // Téléchargement lancé immédiatement en tâche de fond pendant la transition
-    setDlProgress(0); setDlError(null); setCandles(null);
+  const handleDownload = async () => {
+    if (!selectedPair || !selectedPeriod) return;
+    setDlProgress(0); setDlError(null); setCandles(null); setResult(null);
     try {
-      const data = await downloadCandles(selectedPair, p, { onProgress: setDlProgress });
+      const data = await downloadCandles(selectedPair, selectedPeriod, { onProgress: setDlProgress });
       setCandles(data.candles);
       setDlProgress(null);
-    } catch (e) {
-      setDlError(e.message);
-      setDlProgress(null);
-    }
-  };
-  const selectStrategy = (key) => {
-    setStrategyKey(key);
-    const def = strategies.find(s => s.key === key);
-    setStrategyParams(def ? { ...def.defaultParams } : {});
-    setResult(null);
+    } catch (e) { setDlError(e.message); setDlProgress(null); }
   };
 
-  const handleRunBacktest = () => {
-    if (!candles || !strategyKey) return;
-    try {
-      const r = runBacktest({ candles, pair: selectedPair, strategyKey, tpPips, slPips, strategyParams });
-      setResult(r);
-      setStep(99);
-    } catch (e) {
-      setResult({ error: e.message });
-      setStep(99);
-    }
+  useEffect(() => { if (selectedPair && selectedPeriod) handleDownload(); }, [selectedPair, selectedPeriod]);
+
+  const handleRun = () => {
+    if (!candles) return;
+    setRunning(true);
+    setTimeout(() => {
+      try {
+        const tf = TIMEFRAMES.find(x => x.key === timeframeKey);
+        const prepared = aggregateCandles(candles, tf ? tf.minutes : 1);
+        const r = runBacktest({
+          candles: prepared, pair: selectedPair, strategyKey, tpPips, slPips, strategyParams,
+          capital, riskPct, slippagePips, sessionKey, newsFilterOn,
+        });
+        setResult(r);
+        const sc = computePropFirmScore(r, capital, firmKey, modelKey, labRunMonteCarlo);
+        setScore(sc);
+      } catch (e) {
+        setResult({ error: e.message });
+        setScore(null);
+      }
+      setRunning(false);
+    }, 50);
   };
 
-  const restart = () => {
-    setStep(0); setSelectedPair(null); setSelectedPeriod(null); setCandles(null);
-    setStrategyKey(null); setStrategyParams({}); setResult(null);
-  };
-
-  // 3 paliers (vert/ambre/rouge) — cohérent avec le reste de l'app (Simulateur, Laboratoire)
   const tier = (val, good, mid) => val >= good ? "#6ee7b7" : val >= mid ? "#fbbf24" : "#ef4444";
+  const tierInv = (val, good, mid) => val <= good ? "#6ee7b7" : val <= mid ? "#fbbf24" : "#ef4444"; // plus bas = mieux (ex: drawdown)
 
-  const Pill = ({ active, onClick, children }) => (
-    <button onClick={onClick} style={{
-      padding: "10px 16px", borderRadius: 100, cursor: "pointer", fontSize: 13, fontWeight: 700,
-      background: active ? ACCENT + "22" : "rgba(255,255,255,0.04)",
-      color: active ? ACCENT : "rgba(255,255,255,0.65)",
-      border: "1.5px solid " + (active ? ACCENT : "rgba(255,255,255,0.1)"),
-      transition: "all .15s",
-    }}>{children}</button>
+  const Select = ({ label, value, onChange, options }) => (
+    <div>
+      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginBottom: 4, fontWeight: 700 }}>{label}</div>
+      <select value={value} onChange={e => onChange(e.target.value)} style={{
+        width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+        borderRadius: 10, color: "#fff", padding: "9px 8px", fontSize: 12.5, fontWeight: 700, boxSizing: "border-box",
+      }}>
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </div>
   );
 
-  const Stepper = () => {
-    const labels = ["Paire", "Période", "Stratégie"];
+  const ScoreCircle = ({ val, size = 66, label, sub }) => {
+    const color = val >= 65 ? "#6ee7b7" : val >= 40 ? "#fbbf24" : "#ef4444";
+    const r = (size - 7) / 2, circ = 2 * Math.PI * r;
     return (
-      <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 4 }}>
-        {labels.map((l, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{
-              width: 26, height: 26, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center",
-              background: i < step || step === 99 ? ACCENT : i === step ? ACCENT + "22" : "rgba(255,255,255,0.05)",
-              border: "1.5px solid " + (i <= step || step === 99 ? ACCENT : "rgba(255,255,255,0.15)"),
-              fontSize: 11, fontWeight: 800, color: (i < step || step === 99) ? "#000" : i === step ? ACCENT : "rgba(255,255,255,0.35)",
-            }}>{(i < step || step === 99) ? "✓" : i + 1}</div>
-            {i < labels.length - 1 && <div style={{ width: 16, height: 1.5, background: i < step || step === 99 ? ACCENT : "rgba(255,255,255,0.15)" }} />}
-          </div>
-        ))}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="5"/>
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="5"
+            strokeDasharray={circ} strokeDashoffset={circ * (1 - Math.max(0, Math.min(100, val)) / 100)}
+            strokeLinecap="round" transform={`rotate(-90 ${size/2} ${size/2})`}/>
+          <text x={size/2} y={size/2 + 5} textAnchor="middle" fontSize="17" fontWeight="900" fill={color}>{Math.round(val)}</text>
+        </svg>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{label}</div>
+          <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)" }}>{sub}</div>
+        </div>
       </div>
     );
   };
+
+  const SectionHeader = ({ n, title }) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 12 }}>
+      <div style={{ width: 24, height: 24, borderRadius: 12, background: ACCENT + "18", border: "1.5px solid " + ACCENT, color: ACCENT, fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{n}</div>
+      <div style={{ fontSize: 11, fontWeight: 800, color: "#fff", textTransform: "uppercase", letterSpacing: 0.5 }}>{title}</div>
+    </div>
+  );
 
   if (loadError) {
     return (
@@ -3744,167 +3760,193 @@ function BacktestScreen({ t, lang, onBack }) {
       </div>
     );
   }
-
   if (!datasets) return null;
 
-  // ══ WIZARD (étapes centrées, une catégorie à la fois, disparaît une fois choisie) ══
-  if (step < 3) {
-    return (
-      <div style={{ minHeight: "100vh", paddingBottom: 100, display: "flex", flexDirection: "column" }}>
-        <ReportHeader title={t("an_backtest_title")} subtitle={`Étape ${step + 1}/3`} onBack={step === 0 ? onBack : () => setStep(step - 1)} />
-        <Stepper />
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", minHeight: "50vh", padding: "18px 2px" }}>
-          {step === 0 && (<>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 4, textAlign: "center" }}>Quelle paire veux-tu tester ?</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 18, textAlign: "center" }}>Données réelles publiées par Fab</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 9, justifyContent: "center" }}>
-              {pairs.map(p => <Pill key={p} active={selectedPair === p} onClick={() => selectPair(p)}>{p}</Pill>)}
-            </div>
-          </>)}
-          {step === 1 && (<>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 4, textAlign: "center" }}>Quelle période ?</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 18, textAlign: "center" }}>{selectedPair}</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 9, justifyContent: "center" }}>
-              {periodsForPair.map(p => <Pill key={p} active={selectedPeriod === p} onClick={() => selectPeriod(p)}>{p}</Pill>)}
-            </div>
-          </>)}
-          {step === 2 && (<>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 4, textAlign: "center" }}>Style de stratégie</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4, textAlign: "center" }}>
-              {dlProgress !== null ? `Téléchargement… ${dlProgress}%` : candles ? `✓ ${candles.length.toLocaleString()} bougies chargées` : dlError ? <span style={{ color: "#ef4444" }}>{dlError}</span> : "…"}
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 9, justifyContent: "center", marginBottom: 20 }}>
-              {strategies.map(s => <Pill key={s.key} active={strategyKey === s.key} onClick={() => selectStrategy(s.key)}>{s.label}</Pill>)}
-            </div>
+  const currentStrategyDef = strategies.find(s => s.key === strategyKey);
 
-            {strategyKey && (() => {
-              const def = strategies.find(s => s.key === strategyKey);
-              return (
-                <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 14, marginBottom: 14 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 10 }}>Paramètres de la stratégie</div>
-                  {def.paramDefs.map(pd => (
-                    <div key={pd.key} style={{ marginBottom: 10 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
-                        <span style={{ color: "rgba(255,255,255,0.6)" }}>{pd.label}</span>
-                        <span style={{ fontWeight: 800, color: ACCENT }}>{strategyParams[pd.key]}</span>
-                      </div>
-                      <input type="range" min={pd.min} max={pd.max} step={pd.step} value={strategyParams[pd.key] ?? pd.min}
-                        onChange={e => setStrategyParams(sp => ({ ...sp, [pd.key]: parseFloat(e.target.value) }))}
-                        style={{ width: "100%", accentColor: ACCENT }} />
-                    </div>
-                  ))}
-                  <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>Take Profit (pips)</div>
-                      <input type="number" value={tpPips} min={1} max={200} onChange={e => setTpPips(parseFloat(e.target.value) || 1)}
-                        style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "6px 8px", fontSize: 13, boxSizing: "border-box" }} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>Stop Loss (pips)</div>
-                      <input type="number" value={slPips} min={1} max={200} onChange={e => setSlPips(parseFloat(e.target.value) || 1)}
-                        style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "6px 8px", fontSize: 13, boxSizing: "border-box" }} />
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-          </>)}
-        </div>
-        {step === 2 && (
-          <button onClick={handleRunBacktest} disabled={!candles || !strategyKey} style={{
-            width: "100%", padding: 14, borderRadius: 13, border: "none",
-            cursor: (!candles || !strategyKey) ? "default" : "pointer",
-            background: (!candles || !strategyKey) ? "rgba(255,255,255,0.07)" : `linear-gradient(135deg,${ACCENT},#34d399)`,
-            color: (!candles || !strategyKey) ? "rgba(255,255,255,0.3)" : "#000", fontSize: 14, fontWeight: 800,
-          }}>
-            ⚡ Lancer le backtest
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  // ══ RÉSULTATS ══
   return (
     <div style={{ minHeight: "100vh", paddingBottom: 100 }}>
-      <ReportHeader title={t("an_backtest_title")} subtitle={`${selectedPair} · ${selectedPeriod}`} onBack={onBack} />
+      <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles · zéro estimation" onBack={onBack} />
 
-      <div style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 12, padding: "10px 12px", marginBottom: 14, fontSize: 10.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
-        ⚠️ Backtest sur données historiques réelles (M1), stratégie déterministe simple. Ne remplace pas un forward test — la performance passée ne garantit rien.
+      <div style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 12, padding: "10px 12px", marginBottom: 14, fontSize: 10, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
+        ⚠️ Stratégies déterministes (breakout, RSI, MACD) sur données réelles. Filtre news = estimation d'horaires à risque (pas un calendrier économique réel). Ne remplace pas un forward test.
       </div>
 
-      {result?.error ? (
-        <div style={{ fontSize: 12, color: "#ef4444", textAlign: "center", padding: 20 }}>{result.error}</div>
-      ) : result && (
-        <>
-          <div className="card" style={{ border: "1px solid " + ACCENT + "33" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 10, textTransform: "uppercase" }}>
-              {result.strategyLabel}
-            </div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-              {[
-                { l: "Trades", v: result.totalTrades, c: "#fff" },
-                { l: "Winrate", v: result.winrate + "%", c: tier(result.winrate, 55, 30) },
-                { l: "Profit Factor", v: result.profitFactor === Infinity ? "∞" : result.profitFactor, c: tier(result.profitFactor, 1.5, 1) },
-                { l: "Expectancy", v: (result.expectancy >= 0 ? "+" : "") + result.expectancy + "p", c: result.expectancy >= 0 ? "#6ee7b7" : "#ef4444" },
-              ].map(k => (
-                <div key={k.l} style={{ flex: 1, background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>{k.l}</div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: k.c }}>{k.v}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ fontSize: 12, color: result.totalPips >= 0 ? "#6ee7b7" : "#ef4444", fontWeight: 700, marginBottom: 10 }}>
-              Résultat net : {result.totalPips >= 0 ? "+" : ""}{result.totalPips} pips ({result.wins}G / {result.losses}P)
-            </div>
-            {result.equityCurve.length > 2 && (
-              <ResponsiveContainer width="100%" height={140}>
-                <AreaChart data={result.equityCurve}>
-                  <defs>
-                    <linearGradient id="btEquity" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={result.totalPips >= 0 ? "#6ee7b7" : "#ef4444"} stopOpacity={0.3} />
-                      <stop offset="100%" stopColor={result.totalPips >= 0 ? "#6ee7b7" : "#ef4444"} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="x" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "T" + v} />
-                  <YAxis tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => v + "p"} />
-                  <Tooltip formatter={v => v + " pips"} contentStyle={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, fontSize: 11 }} />
-                  <Area type="monotone" dataKey="y" stroke={result.totalPips >= 0 ? "#6ee7b7" : "#ef4444"} strokeWidth={2} fill="url(#btEquity)" dot={false} />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
-          </div>
+      {/* ══ SECTION 1 — CONFIGURATION ══ */}
+      <div className="card">
+        <SectionHeader n="1" title="Configuration du backtest" />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+          <Select label="Prop firm" value={firmKey} onChange={v => { setFirmKey(v); setModelKey(Object.keys(PROP_FIRMS[v].models)[0]); }}
+            options={Object.keys(PROP_FIRMS).map(k => ({ value: k, label: PROP_FIRMS[k].name }))} />
+          <Select label="Type de challenge" value={modelKey} onChange={setModelKey}
+            options={modelsForFirm.map(k => ({ value: k, label: firm.models[k].name }))} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+          <Select label="Solde du challenge" value={capital} onChange={v => setCapital(parseInt(v))}
+            options={CAPITAL_OPTIONS.map(c => ({ value: c, label: "$" + c.toLocaleString() }))} />
+          <Select label="Actif" value={selectedPair || ""} onChange={v => { setSelectedPair(v); setSelectedPeriod(datasets.assets.find(a => a.pair === v)?.period || null); }}
+            options={pairs.map(p => ({ value: p, label: p }))} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+          <Select label="Timeframe" value={timeframeKey} onChange={setTimeframeKey}
+            options={TIMEFRAMES.map(tf => ({ value: tf.key, label: tf.label }))} />
+          <Select label="Période" value={selectedPeriod || ""} onChange={setSelectedPeriod}
+            options={periodsForPair.map(p => ({ value: p, label: p }))} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+          <Select label="Stratégie" value={strategyKey} onChange={setStrategyKey}
+            options={strategies.map(s => ({ value: s.key, label: s.label }))} />
+          <Select label="Gestion du risque" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
+            options={[0.25, 0.5, 1, 1.5, 2].map(r => ({ value: r, label: "Risque fixe " + r + "%" }))} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+          <Select label="Frais & slippage" value={slippagePips} onChange={v => setSlippagePips(parseFloat(v))}
+            options={[0, 0.2, 0.5, 1].map(s => ({ value: s, label: s === 0 ? "Aucun (idéal)" : "Spread + " + s + " pip" }))} />
+          <Select label="Heures de trading" value={sessionKey} onChange={setSessionKey}
+            options={SESSIONS.map(s => ({ value: s.key, label: s.label }))} />
+        </div>
 
-          {/* ── Détail réaliste supplémentaire ── */}
-          <div className="card">
-            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 10, textTransform: "uppercase" }}>Détail</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              {[
-                { l: "Gain moyen", v: "+" + result.avgWinPips + "p", c: "#6ee7b7" },
-                { l: "Perte moyenne", v: "-" + result.avgLossPips + "p", c: "#ef4444" },
-                { l: "Durée moy. trade", v: result.avgDuration + " min", c: "#fff" },
-                { l: "Drawdown max", v: "-" + result.maxDrawdownPips + "p", c: tier(100 - result.maxDrawdownPips, 80, 50) },
-                { l: "Série pertes max", v: result.maxLossStreak, c: tier(10 - result.maxLossStreak, 5, 2) },
-                { l: "Série gains max", v: result.maxWinStreak, c: "#6ee7b7" },
-                { l: "Trades Long", v: result.longCount + (result.longWinrate != null ? ` (${result.longWinrate}%)` : ""), c: "rgba(255,255,255,0.85)" },
-                { l: "Trades Short", v: result.shortCount + (result.shortWinrate != null ? ` (${result.shortWinrate}%)` : ""), c: "rgba(255,255,255,0.85)" },
-              ].map(item => (
-                <div key={item.l} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 9, padding: "8px 10px" }}>
-                  <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>{item.l}</div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: item.c }}>{item.v}</div>
+        {/* Paramètres spécifiques à la stratégie */}
+        {currentStrategyDef && (
+          <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: 12, marginBottom: 8 }}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>Setup d'entrée — {currentStrategyDef.label}</div>
+            {currentStrategyDef.paramDefs.map(pd => (
+              <div key={pd.key} style={{ marginBottom: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginBottom: 2 }}>
+                  <span style={{ color: "rgba(255,255,255,0.6)" }}>{pd.label}</span>
+                  <span style={{ fontWeight: 800, color: ACCENT }}>{strategyParams[pd.key]}</span>
                 </div>
-              ))}
-            </div>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 10, lineHeight: 1.4 }}>
-              TP/SL fixes en pips, un trade à la fois (pas d'empilement). SL vérifié en priorité si TP et SL sont touchés dans la même bougie (biais conservateur).
+                <input type="range" min={pd.min} max={pd.max} step={pd.step} value={strategyParams[pd.key] ?? pd.min}
+                  onChange={e => setStrategyParams(sp => ({ ...sp, [pd.key]: parseFloat(e.target.value) }))}
+                  style={{ width: "100%", accentColor: ACCENT }} />
+              </div>
+            ))}
+            <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>Take Profit (pips)</div>
+                <input type="number" value={tpPips} min={1} max={200} onChange={e => setTpPips(parseFloat(e.target.value) || 1)}
+                  style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "6px 8px", fontSize: 13, boxSizing: "border-box" }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>Stop Loss (pips)</div>
+                <input type="number" value={slPips} min={1} max={200} onChange={e => setSlPips(parseFloat(e.target.value) || 1)}
+                  style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "6px 8px", fontSize: 13, boxSizing: "border-box" }} />
+              </div>
             </div>
           </div>
+        )}
 
-          <button onClick={restart} style={{ width: "100%", padding: 12, borderRadius: 12, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-            Nouveau backtest
-          </button>
-        </>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "9px 12px", marginBottom: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>Filtre news</div>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>Estimation horaires à risque (NFP/FOMC/CPI)</div>
+          </div>
+          <div onClick={() => setNewsFilterOn(v => !v)} style={{ width: 38, height: 21, borderRadius: 11, background: newsFilterOn ? ACCENT : "rgba(255,255,255,0.12)", position: "relative", cursor: "pointer", transition: "all .2s" }}>
+            <div style={{ position: "absolute", top: 2, left: newsFilterOn ? 19 : 2, width: 17, height: 17, borderRadius: 9, background: "#fff", transition: "all .2s" }} />
+          </div>
+        </div>
+
+        <div style={{ fontSize: 10.5, color: dlProgress !== null ? "#fbbf24" : candles ? ACCENT : dlError ? "#ef4444" : "rgba(255,255,255,0.4)", marginBottom: 10, textAlign: "center" }}>
+          {dlProgress !== null ? `Téléchargement des données… ${dlProgress}%` : candles ? `✓ ${candles.length.toLocaleString()} bougies M1 chargées (${selectedPair} · ${selectedPeriod})` : dlError || "En attente de données…"}
+        </div>
+
+        <button onClick={handleRun} disabled={!candles || running} style={{
+          width: "100%", padding: 15, borderRadius: 13, border: "none",
+          cursor: (!candles || running) ? "default" : "pointer",
+          background: (!candles || running) ? "rgba(255,255,255,0.07)" : `linear-gradient(135deg,${ACCENT},#34d399)`,
+          color: (!candles || running) ? "rgba(255,255,255,0.3)" : "#000", fontSize: 14, fontWeight: 800,
+        }}>
+          {running ? "Calcul en cours…" : "▶ Lancer le backtest"}
+        </button>
+        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", textAlign: "center", marginTop: 6 }}>Simulation locale, calcul instantané — pas de données inventées</div>
+      </div>
+
+      {/* ══ SECTION 2 — RÉSULTATS ══ */}
+      {result && !result.error && (
+        <div className="card">
+          <SectionHeader n="2" title="Résultats du backtest" />
+          {result.equityCurve.length > 2 && (
+            <ResponsiveContainer width="100%" height={150}>
+              <AreaChart data={result.equityCurve}>
+                <defs>
+                  <linearGradient id="btEquityUSD" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={result.totalUSD >= 0 ? ACCENT : "#ef4444"} stopOpacity={0.3} />
+                    <stop offset="100%" stopColor={result.totalUSD >= 0 ? ACCENT : "#ef4444"} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="x" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "T" + v} />
+                <YAxis tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v/1000).toFixed(0) + "k"} domain={["auto","auto"]} />
+                <Tooltip formatter={v => "$" + v.toLocaleString()} contentStyle={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, fontSize: 11 }} />
+                <Area type="monotone" dataKey="usd" stroke={result.totalUSD >= 0 ? ACCENT : "#ef4444"} strokeWidth={2} fill="url(#btEquityUSD)" dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
+            {[
+              { l: "Gain net", v: (result.totalUSD >= 0 ? "+$" : "-$") + Math.abs(result.totalUSD).toLocaleString(), sub: (result.totalPct >= 0 ? "+" : "") + result.totalPct + "%", c: result.totalUSD >= 0 ? ACCENT : "#ef4444" },
+              { l: "Profit Factor", v: result.profitFactor === Infinity ? "∞" : result.profitFactor, c: tier(result.profitFactor, 1.5, 1) },
+              { l: "Win Rate", v: result.winrate + "%", c: tier(result.winrate, 55, 40) },
+              { l: "R Ratio", v: "1:" + result.rRatio, c: tier(result.rRatio, 1.5, 1) },
+              { l: "Drawdown max", v: "-" + result.maxDrawdownPct + "%", sub: "-$" + result.maxDrawdownUSD.toLocaleString(), c: tierInv(result.maxDrawdownPct, 8, 15) },
+              { l: "Trades", v: result.totalTrades, c: "#fff" },
+            ].map(k => (
+              <div key={k.l} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "9px 10px" }}>
+                <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>{k.l}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: k.c }}>{k.v}</div>
+                {k.sub && <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)" }}>{k.sub}</div>}
+              </div>
+            ))}
+          </div>
+
+          {score && (
+            <div style={{ display: "flex", gap: 10, marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              <ScoreCircle val={score.score} label={score.score >= 65 ? "Très bon" : score.score >= 40 ? "Correct" : "Faible"} sub={`${firm.name} ${firm.models[modelKey].name}`} />
+              <ScoreCircle val={score.passRate} label={score.passRate >= 55 ? "Élevée" : score.passRate >= 30 ? "Moyenne" : "Faible"} sub={"Probabilité de réussite · Monte Carlo"} />
+            </div>
+          )}
+          {!score && result.totalTrades < 10 && (
+            <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)", marginTop: 10, textAlign: "center" }}>Échantillon trop faible (&lt;10 trades) pour un score fiable — élargis la période.</div>
+          )}
+        </div>
       )}
+      {result?.error && <div style={{ fontSize: 12, color: "#ef4444", textAlign: "center", padding: 20 }}>{result.error}</div>}
+
+      {/* ══ SECTION 3 — DIAGNOSTIC (regles deterministes, pas d'IA) ══ */}
+      {result && !result.error && (() => {
+        const forces = [], faiblesses = [], recos = [];
+        if (result.maxDrawdownPct < 8) forces.push("Drawdown maîtrisé (< 8%)");
+        if (result.profitFactor >= 1.3) forces.push("Profit Factor solide (≥ 1.3)");
+        if (result.maxLossStreak <= 4) forces.push("Séries de pertes courtes");
+        const worstDay = [...result.byDow].filter(d => d.count >= 3).sort((a, b) => (a.winrate ?? 100) - (b.winrate ?? 100))[0];
+        if (worstDay && worstDay.winrate != null && worstDay.winrate < result.winrate - 10) faiblesses.push(`Performance faible le ${worstDay.label} (${worstDay.winrate}% WR)`);
+        if (Math.abs((result.longWinrate ?? result.winrate) - (result.shortWinrate ?? result.winrate)) > 15) faiblesses.push("Déséquilibre fort entre Long et Short");
+        if (result.rRatio < 1) faiblesses.push("R Ratio < 1 — les pertes pèsent plus que les gains");
+        if (result.maxDrawdownPct >= 15) faiblesses.push("Drawdown élevé (≥ 15%)");
+        if (result.rRatio < 1.5) recos.push("Viser un R Ratio ≥ 1.5 (TP plus large ou SL plus serré)");
+        if (worstDay && worstDay.winrate != null && worstDay.winrate < 40) recos.push(`Éviter de trader le ${worstDay.label}`);
+        if (result.maxLossStreak >= 6) recos.push("Réduire le risque/trade — séries de pertes longues détectées");
+        if (!newsFilterOn) recos.push("Teste avec le filtre news activé pour comparer");
+        return (
+          <div className="card">
+            <SectionHeader n="3" title="Diagnostic automatique" />
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ background: "rgba(110,231,183,0.05)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, padding: 12 }}>
+                <div style={{ fontSize: 10.5, fontWeight: 800, color: ACCENT, marginBottom: 6 }}>✓ Points forts</div>
+                {forces.length ? forces.map((f, i) => <div key={i} style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", padding: "2px 0" }}>• {f}</div>) : <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Aucun point fort net détecté</div>}
+              </div>
+              <div style={{ background: "rgba(251,191,36,0.05)", border: "1px solid rgba(251,191,36,0.15)", borderRadius: 12, padding: 12 }}>
+                <div style={{ fontSize: 10.5, fontWeight: 800, color: "#fbbf24", marginBottom: 6 }}>⚠ Points faibles</div>
+                {faiblesses.length ? faiblesses.map((f, i) => <div key={i} style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", padding: "2px 0" }}>• {f}</div>) : <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Aucune faiblesse majeure détectée</div>}
+              </div>
+              <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: 12 }}>
+                <div style={{ fontSize: 10.5, fontWeight: 800, color: "rgba(255,255,255,0.8)", marginBottom: 6 }}>◆ Recommandations</div>
+                {recos.length ? recos.map((f, i) => <div key={i} style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", padding: "2px 0" }}>• {f}</div>) : <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Rien à signaler</div>}
+              </div>
+            </div>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 10, lineHeight: 1.4 }}>Diagnostic calculé par règles déterministes sur les résultats réels du backtest — aucune IA, aucune donnée inventée.</div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
