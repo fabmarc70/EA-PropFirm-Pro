@@ -12003,37 +12003,50 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           ? computeCurrentMonthBalanceSeries(journalAll, principalAccount?.id || "default", principalCapital, realMonthKey)
           : null;
 
+        // ── Courbe simulateur : vue GRANDE ÉCHELLE (tout le compte Funded, comme
+        // le graphique M1→M11 de l'onglet Funded) au lieu du seul Mois 1. On voit
+        // ainsi la croissance projetée sur toute la durée, avec un repère sur le
+        // Mois 1 (= là où on en est réellement aujourd'hui dans ce parcours).
+        const fundedData = ls.funded?.data || [];
+        const fundedSeries = fundedData.length
+          ? [{ x: 0, y: cap }, ...fundedData.map(d => ({ x: d.month, y: d.equity }))]
+          : null;
+        const simSeriesToUse = fundedSeries || simSeries;
+
         const dCapital = journalMode ? principalData.opening : cap;
         const dBalance = journalMode ? principalData.balance : simBalance;
         const dPnl = journalMode ? principalData.monthPnl : simAllTimePnl;
         const dPct = journalMode ? principalData.monthPct : simChangePct;
-        const dSeries = journalMode ? principalData.series : simSeries;
+        const dSeries = journalMode ? principalData.series : simSeriesToUse;
         const dLabel = journalMode
           ? journalAccountLabel(principalAccount) + " · " + formatMonthLabel(realMonthKey, lang)
-          : (firm.name + (fm?.name ? " · " + fm.name : "") + " · " + t("cal_month1"));
+          : (firm.name + (fm?.name ? " · " + fm.name : "") + " · " + t("cal_month1")
+              + (fundedSeries ? " sur " + fundedData.length + " mois" : ""));
 
-        // ── Repère sur la courbe (subtil, même code couleur) ──
-        // Simulateur : la simulation a été générée à un instant réel précis (ls.ts).
-        // On repère le jour tradé correspondant à CETTE date de génération (pas la
-        // date du jour où on regarde le dashboard, qui n'a aucun lien avec les
-        // données réellement simulées et donnait un repère mal placé/trompeur).
+        // ── Repère "où on en est" sur la courbe (subtil, même code couleur) ──
+        // Simulateur : si la vue grande échelle (Funded) est disponible, le repère
+        // marque le Mois 1 — le point réel où on se trouve aujourd'hui dans le
+        // parcours, le reste de la courbe étant la projection à venir. Sinon
+        // (challenge pas encore réussi, pas de Funded), repère = date de
+        // génération de la simulation dans le Mois 1 seul.
         // Journal : la courbe avance jour par jour, le repère est la pointe (dernier jour saisi).
         let todayMarker = null;
         if (dSeries.length > 1) {
           if (journalMode) {
             if (principalData.hasEntries) todayMarker = dSeries[dSeries.length - 1];
+          } else if (fundedSeries) {
+            todayMarker = dSeries[1]; // index 1 = Mois 1 (index 0 = capital de départ)
           } else if (simMonth1Sorted.length) {
             const genDate = ls.ts ? new Date(ls.ts) : new Date();
             const genDayOfMonth = genDate.getDate();
-            // Jour tradé exact à cette date, sinon le dernier jour tradé disponible avant elle
             let matchIdx = simMonth1Sorted.findIndex(d => d.dayOfMonth === genDayOfMonth);
             if (matchIdx === -1) {
               for (let i = simMonth1Sorted.length - 1; i >= 0; i--) {
                 if (simMonth1Sorted[i].dayOfMonth <= genDayOfMonth) { matchIdx = i; break; }
               }
-              if (matchIdx === -1) matchIdx = simMonth1Sorted.length - 1; // génération antérieure au 1er jour tradé → dernier point dispo
+              if (matchIdx === -1) matchIdx = simMonth1Sorted.length - 1;
             }
-            todayMarker = dSeries[matchIdx + 1]; // +1 : dSeries[0] = capital initial avant le 1er jour tradé
+            todayMarker = dSeries[matchIdx + 1];
           }
         }
 
