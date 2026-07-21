@@ -3660,13 +3660,29 @@ function BacktestScreen({ t, lang, onBack }) {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);
   const [score, setScore] = useState(null);
+  const [manifestLoading, setManifestLoading] = useState(true);
+  const [history, setHistory] = useState(() => { try { return JSON.parse(localStorage.getItem("eapropfirm_backtest_history") || "[]"); } catch (e) { return []; } });
+  const [showHistory, setShowHistory] = useState(false);
 
-  useEffect(() => {
-    listAvailableDatasets().then(d => {
-      setDatasets(d);
+  const loadManifest = () => {
+    setManifestLoading(true); setLoadError(null);
+    // Timeout de sécurité : si le manifeste ne répond pas en 15s (réseau lent/bloqué),
+    // on sort de l'état de chargement infini pour proposer un vrai message + réessayer.
+    let done = false;
+    const timeoutId = setTimeout(() => {
+      if (!done) { done = true; setManifestLoading(false); setLoadError("Le chargement prend trop de temps (réseau lent ou instable). Réessaie."); }
+    }, 15000);
+    listAvailableDatasets(true).then(d => {
+      if (done) return; done = true; clearTimeout(timeoutId);
+      setDatasets(d); setManifestLoading(false);
       if (d.assets.length) { setSelectedPair(d.assets[0].pair); setSelectedPeriod(d.assets[0].period); }
-    }).catch(e => setLoadError(e.message));
-  }, []);
+    }).catch(e => {
+      if (done) return; done = true; clearTimeout(timeoutId);
+      setLoadError(e.message); setManifestLoading(false);
+    });
+  };
+
+  useEffect(() => { loadManifest(); }, []);
 
   useEffect(() => {
     const def = listStrategies().find(s => s.key === strategyKey);
@@ -3678,6 +3694,33 @@ function BacktestScreen({ t, lang, onBack }) {
   const strategies = listStrategies();
   const firm = PROP_FIRMS[firmKey];
   const modelsForFirm = firm ? Object.keys(firm.models) : [];
+
+  const resetBacktest = () => {
+    setCandles(null); setResult(null); setScore(null); setDlError(null); setDlProgress(null);
+  };
+
+  const archiveResult = () => {
+    if (!result || result.error) return;
+    const entry = {
+      id: Date.now(),
+      savedAt: new Date().toISOString(),
+      pair: selectedPair, period: selectedPeriod, strategyLabel: result.strategyLabel,
+      timeframe: TIMEFRAMES.find(x => x.key === timeframeKey)?.label || "M1",
+      firmName: firm?.name, modelName: firm?.models[modelKey]?.name,
+      totalUSD: result.totalUSD, totalPct: result.totalPct, winrate: result.winrate,
+      profitFactor: result.profitFactor, maxDrawdownPct: result.maxDrawdownPct, totalTrades: result.totalTrades,
+      scoreVal: score?.score ?? null, passRate: score?.passRate ?? null,
+    };
+    const next = [entry, ...history].slice(0, 30); // 30 archives max, évite un localStorage qui grossit indéfiniment
+    setHistory(next);
+    try { localStorage.setItem("eapropfirm_backtest_history", JSON.stringify(next)); } catch (e) {}
+  };
+
+  const deleteArchive = (id) => {
+    const next = history.filter(h => h.id !== id);
+    setHistory(next);
+    try { localStorage.setItem("eapropfirm_backtest_history", JSON.stringify(next)); } catch (e) {}
+  };
 
   const handleDownload = async () => {
     if (!selectedPair || !selectedPeriod) return;
@@ -3769,19 +3812,79 @@ function BacktestScreen({ t, lang, onBack }) {
       <div style={{ minHeight: "100vh", paddingBottom: 100 }}>
         <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles · zéro estimation" onBack={onBack} />
         <div className="card" style={{ textAlign: "center", padding: 20, border: "1px solid rgba(239,68,68,0.2)" }}>
-          <div style={{ color: "#ef4444", fontWeight: 700, fontSize: 12, marginBottom: 4 }}>Aucune donnée disponible</div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{loadError}</div>
+          <div style={{ color: "#ef4444", fontWeight: 700, fontSize: 12, marginBottom: 4 }}>Impossible de charger les données</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 14 }}>{loadError}</div>
+          <button onClick={loadManifest} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid " + ACCENT, background: "transparent", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            ↻ Réessayer
+          </button>
         </div>
       </div>
     );
   }
-  if (!datasets) return null;
+  // Écran de chargement explicite — avant, la page restait vide (return null)
+  // tant que le manifeste réseau n'avait pas répondu, ce qui donnait
+  // l'impression que "la page a du mal à s'ouvrir" sans aucun retour visuel.
+  if (manifestLoading || !datasets) {
+    return (
+      <div style={{ minHeight: "100vh", paddingBottom: 100 }}>
+        <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles · zéro estimation" onBack={onBack} />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "40vh", gap: 12 }}>
+          <div style={{ width: 34, height: 34, borderRadius: 17, border: "3px solid rgba(110,231,183,0.15)", borderTopColor: ACCENT, animation: "eapfp-spin 0.8s linear infinite" }} />
+          <style>{"@keyframes eapfp-spin { to { transform: rotate(360deg); } }"}</style>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>Connexion aux données historiques…</div>
+        </div>
+      </div>
+    );
+  }
 
   const currentStrategyDef = currentStrategyDefEarly;
 
   return (
     <div style={{ minHeight: "100vh", paddingBottom: 100 }}>
       <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles · zéro estimation" onBack={onBack} />
+
+      {history.length > 0 && (
+        <button onClick={() => setShowHistory(true)} style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "10px 14px", borderRadius: 12, marginBottom: 12, cursor: "pointer",
+          background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff",
+        }}>
+          <span style={{ fontSize: 12, fontWeight: 700 }}>📂 Historique des backtests archivés</span>
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{history.length} →</span>
+        </button>
+      )}
+
+      {showHistory && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(3,6,10,0.92)", display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "calc(16px + env(safe-area-inset-top)) 16px 12px" }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Backtests archivés</div>
+            <button onClick={() => setShowHistory(false)} style={{ width: 32, height: 32, borderRadius: 16, background: "rgba(255,255,255,0.08)", border: "none", color: "#fff", fontSize: 15, cursor: "pointer" }}>✕</button>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "0 16px 24px" }}>
+            {history.length === 0 && <div style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 40 }}>Aucune archive pour le moment.</div>}
+            {history.map(h => (
+              <div key={h.id} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 12, marginBottom: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{h.pair} · {h.strategyLabel}</div>
+                    <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)" }}>{h.timeframe} · {h.period} · {h.firmName} {h.modelName}</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{new Date(h.savedAt).toLocaleString()}</div>
+                  </div>
+                  <button onClick={() => deleteArchive(h.id)} style={{ background: "none", border: "none", color: "#ef4444", fontSize: 11, cursor: "pointer", padding: 4 }}>Suppr.</button>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: h.totalUSD >= 0 ? ACCENT : "#ef4444" }}>{(h.totalUSD >= 0 ? "+$" : "-$") + Math.abs(h.totalUSD).toLocaleString()} ({h.totalPct >= 0 ? "+" : ""}{h.totalPct}%)</span>
+                  <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)" }}>WR {h.winrate}%</span>
+                  <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)" }}>PF {h.profitFactor === Infinity ? "∞" : h.profitFactor}</span>
+                  <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)" }}>DD -{h.maxDrawdownPct}%</span>
+                  <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)" }}>{h.totalTrades} trades</span>
+                  {h.scoreVal != null && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#a78bfa" }}>Score {h.scoreVal}/100</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 12, padding: "10px 12px", marginBottom: 14, fontSize: 10, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
         ⚠️ Stratégies déterministes (breakout, RSI, MACD) sur données réelles. Filtre news = estimation d'horaires à risque (pas un calendrier économique réel). Ne remplace pas un forward test.
@@ -3982,6 +4085,15 @@ function BacktestScreen({ t, lang, onBack }) {
           {result.isGridResult && (
             <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)", marginTop: 10, textAlign: "center" }}>Score PropFirm non calculé pour Grid Trading — le drawdown flottant sans stop loss rend une simulation Monte Carlo standard peu représentative.</div>
           )}
+
+          <div style={{ display: "flex", gap: 8, marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            <button onClick={archiveResult} style={{ flex: 1, padding: 11, borderRadius: 10, border: "1px solid " + ACCENT + "55", background: ACCENT + "12", color: ACCENT, fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
+              📥 Archiver ce résultat
+            </button>
+            <button onClick={resetBacktest} style={{ flex: 1, padding: 11, borderRadius: 10, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
+              ↺ Réinitialiser
+            </button>
+          </div>
         </div>
       )}
       {result?.error && <div style={{ fontSize: 12, color: "#ef4444", textAlign: "center", padding: 20 }}>{result.error}</div>}
