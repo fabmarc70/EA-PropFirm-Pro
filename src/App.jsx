@@ -5586,6 +5586,19 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   }; // réduit le split pour les trades en fenêtre news
   const [sim, setSim] = useState(null);
   const [seed, setSeed] = useState(0);
+  // Mesure la vraie hauteur rendue de la barre d'onglets fixe (Configuration/Challenge/Funded)
+  // pour que le spacer en dessous compense EXACTEMENT — plus de gap ni de recouvrement,
+  // quel que soit l'appareil (notch, Dynamic Island, safe-area variable).
+  const simTabBarRef = useRef(null);
+  const [simTabBarH, setSimTabBarH] = useState(null);
+  useEffect(() => {
+    const measure = () => { if (simTabBarRef.current) setSimTabBarH(simTabBarRef.current.getBoundingClientRect().height); };
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("orientationchange", measure);
+    const id = setTimeout(measure, 50); // re-mesure après le premier paint (polices/safe-area)
+    return () => { window.removeEventListener("resize", measure); window.removeEventListener("orientationchange", measure); clearTimeout(id); };
+  }, [tab]);
   const [copied, setCopied] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
 
@@ -6100,12 +6113,12 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
       {/* Toggle Challenge / Funded — fixed header bar (figé, immobile) */}
       {(tab === "challenge" || tab === "bilan" || tab === "funded" || tab === "montecarlo") && (
-        <div data-coach="sim-toggle" style={{
+        <div data-coach="sim-toggle" ref={simTabBarRef} style={{
           position: "fixed", top: 0, left: 0, right: 0, zIndex: 20,
           background: "rgba(6,9,15,0.98)",
           backdropFilter: "blur(10px)",
           WebkitBackdropFilter: "blur(10px)",
-          paddingTop: "env(safe-area-inset-top)", paddingBottom: "10px",
+          paddingTop: "env(safe-area-inset-top)", paddingBottom: "8px",
           paddingLeft: 16, paddingRight: 16,
           borderBottom: "1px solid rgba(110,231,183,0.1)",
           transition: "all 0.2s ease-out",
@@ -6143,9 +6156,9 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
       )}
 
-      {/* Spacer pour compenser le toggle fixed — uniquement quand la barre est affichée */}
+      {/* Spacer pour compenser le toggle fixed — hauteur EXACTE mesurée en temps réel (zéro gap, zéro recouvrement) */}
       {(tab === "challenge" || tab === "bilan" || tab === "funded" || tab === "montecarlo") && (
-        <div style={{ height: "calc(env(safe-area-inset-top, 8px) + 54px)" }} />
+        <div style={{ height: simTabBarH != null ? simTabBarH : "calc(env(safe-area-inset-top, 8px) + 54px)" }} />
       )}
 
       {/* ══ CARTES CONFIG — vue Configuration + Funded uniquement (PAS sur l'onglet Challenge/bilan, qui est un rapport de résultats) ══ */}
