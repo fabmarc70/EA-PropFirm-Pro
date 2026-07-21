@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser, fbLoadUserProfile, fbSaveUserProfile, fbDeleteAccount } from "./firebase.js";
 import { listAvailableDatasets, downloadCandles, idbListCached } from "./historicalData.js";
-import { runBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore } from "./backtestEngine.js";
+import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES } from "./backtestEngine.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -3647,6 +3647,12 @@ function BacktestScreen({ t, lang, onBack }) {
   const [slippagePips, setSlippagePips] = useState(0.3);
   const [sessionKey, setSessionKey] = useState("24h");
   const [newsFilterOn, setNewsFilterOn] = useState(false);
+  const [mmMode, setMmMode] = useState("fixed");
+  const [martingaleMultiplier, setMartingaleMultiplier] = useState(2);
+  const [martingaleMaxSteps, setMartingaleMaxSteps] = useState(5);
+  const [gridSpacingPips, setGridSpacingPips] = useState(20);
+  const [gridLevels, setGridLevels] = useState(5);
+  const [gridDirection, setGridDirection] = useState("both");
 
   const [candles, setCandles] = useState(null);
   const [dlProgress, setDlProgress] = useState(null);
@@ -3685,6 +3691,9 @@ function BacktestScreen({ t, lang, onBack }) {
 
   useEffect(() => { if (selectedPair && selectedPeriod) handleDownload(); }, [selectedPair, selectedPeriod]);
 
+  const currentStrategyDefEarly = strategies.find(s => s.key === strategyKey);
+  const isGridStrategy = !!currentStrategyDefEarly?.isGrid;
+
   const handleRun = () => {
     if (!candles) return;
     setRunning(true);
@@ -3692,12 +3701,18 @@ function BacktestScreen({ t, lang, onBack }) {
       try {
         const tf = TIMEFRAMES.find(x => x.key === timeframeKey);
         const prepared = aggregateCandles(candles, tf ? tf.minutes : 1);
-        const r = runBacktest({
-          candles: prepared, pair: selectedPair, strategyKey, tpPips, slPips, strategyParams,
-          capital, riskPct, slippagePips, sessionKey, newsFilterOn,
-        });
+        const r = isGridStrategy
+          ? runGridBacktest({
+              candles: prepared, pair: selectedPair, capital, riskPct,
+              spacingPips: gridSpacingPips, levels: gridLevels, direction: gridDirection, slippagePips,
+            })
+          : runBacktest({
+              candles: prepared, pair: selectedPair, strategyKey, tpPips, slPips, strategyParams,
+              capital, riskPct, slippagePips, sessionKey, newsFilterOn,
+              mmMode, martingaleMultiplier, martingaleMaxSteps,
+            });
         setResult(r);
-        const sc = computePropFirmScore(r, capital, firmKey, modelKey, labRunMonteCarlo);
+        const sc = r.isGridResult ? null : computePropFirmScore(r, capital, firmKey, modelKey, labRunMonteCarlo);
         setScore(sc);
       } catch (e) {
         setResult({ error: e.message });
@@ -3762,7 +3777,7 @@ function BacktestScreen({ t, lang, onBack }) {
   }
   if (!datasets) return null;
 
-  const currentStrategyDef = strategies.find(s => s.key === strategyKey);
+  const currentStrategyDef = currentStrategyDefEarly;
 
   return (
     <div style={{ minHeight: "100vh", paddingBottom: 100 }}>
@@ -3795,19 +3810,68 @@ function BacktestScreen({ t, lang, onBack }) {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
           <Select label="Stratégie" value={strategyKey} onChange={setStrategyKey}
-            options={strategies.map(s => ({ value: s.key, label: s.label }))} />
-          <Select label="Gestion du risque" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
-            options={[0.25, 0.5, 1, 1.5, 2].map(r => ({ value: r, label: "Risque fixe " + r + "%" }))} />
+            options={strategies.map(s => ({ value: s.key, label: (s.category ? "[" + s.category + "] " : "") + s.label }))} />
+          <Select label="Gestion du risque" value={mmMode} onChange={setMmMode}
+            options={MONEY_MANAGEMENT_MODES.map(m => ({ value: m.key, label: m.label }))} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
           <Select label="Frais & slippage" value={slippagePips} onChange={v => setSlippagePips(parseFloat(v))}
             options={[0, 0.2, 0.5, 1].map(s => ({ value: s, label: s === 0 ? "Aucun (idéal)" : "Spread + " + s + " pip" }))} />
-          <Select label="Heures de trading" value={sessionKey} onChange={setSessionKey}
-            options={SESSIONS.map(s => ({ value: s.key, label: s.label }))} />
+          {isGridStrategy ? (
+            <Select label="Risque total (% capital)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
+              options={[0.5, 1, 2, 3, 5].map(r => ({ value: r, label: r + "% réparti sur la grille" }))} />
+          ) : (
+            <Select label="Heures de trading" value={sessionKey} onChange={setSessionKey}
+              options={SESSIONS.map(s => ({ value: s.key, label: s.label }))} />
+          )}
         </div>
+        {!isGridStrategy && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+            <Select label="Risque par trade (%)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
+              options={[0.25, 0.5, 1, 1.5, 2].map(r => ({ value: r, label: r + "%" }))} />
+            {mmMode === "martingale" ? (
+              <Select label="Multiplicateur martingale" value={martingaleMultiplier} onChange={v => setMartingaleMultiplier(parseFloat(v))}
+                options={[1.5, 2, 2.5, 3].map(m => ({ value: m, label: "×" + m }))} />
+            ) : <div />}
+          </div>
+        )}
+        {!isGridStrategy && mmMode === "martingale" && (
+          <div style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 12, padding: 10, marginBottom: 8, fontSize: 10, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
+            ⚠️ La Martingale double la mise après chaque perte pour "rattraper" le capital — cela amplifie mécaniquement le risque de ruine. Le drawdown sera très probablement bien plus élevé qu'en risque fixe. Plafond de doublements : {martingaleMaxSteps}.
+          </div>
+        )}
 
-        {/* Paramètres spécifiques à la stratégie */}
-        {currentStrategyDef && (
+        {/* Paramètres spécifiques à la stratégie (ou à la grille) */}
+        {isGridStrategy ? (
+          <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: 12, marginBottom: 8 }}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>Configuration de la grille</div>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginBottom: 2 }}>
+                <span style={{ color: "rgba(255,255,255,0.6)" }}>Écart entre niveaux (pips)</span>
+                <span style={{ fontWeight: 800, color: ACCENT }}>{gridSpacingPips}</span>
+              </div>
+              <input type="range" min={5} max={100} step={1} value={gridSpacingPips} onChange={e => setGridSpacingPips(parseFloat(e.target.value))} style={{ width: "100%", accentColor: ACCENT }} />
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginBottom: 2 }}>
+                <span style={{ color: "rgba(255,255,255,0.6)" }}>Nombre de niveaux (de chaque côté)</span>
+                <span style={{ fontWeight: 800, color: ACCENT }}>{gridLevels}</span>
+              </div>
+              <input type="range" min={2} max={15} step={1} value={gridLevels} onChange={e => setGridLevels(parseInt(e.target.value))} style={{ width: "100%", accentColor: ACCENT }} />
+            </div>
+            <div style={{ display: "flex", gap: 7 }}>
+              {[{ k: "both", l: "Achat + Vente" }, { k: "buy", l: "Achat seul" }, { k: "sell", l: "Vente seule" }].map(d => (
+                <button key={d.k} onClick={() => setGridDirection(d.k)} style={{
+                  flex: 1, padding: "8px 6px", borderRadius: 8, cursor: "pointer", fontSize: 10.5, fontWeight: 700,
+                  background: gridDirection === d.k ? ACCENT + "22" : "rgba(255,255,255,0.04)",
+                  color: gridDirection === d.k ? ACCENT : "rgba(255,255,255,0.6)",
+                  border: "1px solid " + (gridDirection === d.k ? ACCENT : "rgba(255,255,255,0.1)"),
+                }}>{d.l}</button>
+              ))}
+            </div>
+            <div style={{ fontSize: 9.5, color: "rgba(239,68,68,0.75)", marginTop: 8, lineHeight: 1.4 }}>⚠️ Pas de stop loss par niveau (caractéristique réelle des grilles) — le risque est dans le drawdown flottant, suivi et affiché honnêtement dans les résultats.</div>
+          </div>
+        ) : currentStrategyDef && (
           <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: 12, marginBottom: 8 }}>
             <div style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>Setup d'entrée — {currentStrategyDef.label}</div>
             {currentStrategyDef.paramDefs.map(pd => (
@@ -3836,6 +3900,7 @@ function BacktestScreen({ t, lang, onBack }) {
           </div>
         )}
 
+        {!isGridStrategy && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "9px 12px", marginBottom: 12 }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>Filtre news</div>
@@ -3843,8 +3908,10 @@ function BacktestScreen({ t, lang, onBack }) {
           </div>
           <div onClick={() => setNewsFilterOn(v => !v)} style={{ width: 38, height: 21, borderRadius: 11, background: newsFilterOn ? ACCENT : "rgba(255,255,255,0.12)", position: "relative", cursor: "pointer", transition: "all .2s" }}>
             <div style={{ position: "absolute", top: 2, left: newsFilterOn ? 19 : 2, width: 17, height: 17, borderRadius: 9, background: "#fff", transition: "all .2s" }} />
+
           </div>
         </div>
+        )}
 
         <div style={{ fontSize: 10.5, color: dlProgress !== null ? "#fbbf24" : candles ? ACCENT : dlError ? "#ef4444" : "rgba(255,255,255,0.4)", marginBottom: 10, textAlign: "center" }}>
           {dlProgress !== null ? `Téléchargement des données… ${dlProgress}%` : candles ? `✓ ${candles.length.toLocaleString()} bougies M1 chargées (${selectedPair} · ${selectedPeriod})` : dlError || "En attente de données…"}
@@ -3882,14 +3949,19 @@ function BacktestScreen({ t, lang, onBack }) {
             </ResponsiveContainer>
           )}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
-            {[
+            {(result.isGridResult ? [
+              { l: "Gain net", v: (result.totalUSD >= 0 ? "+$" : "-$") + Math.abs(result.totalUSD).toLocaleString(), sub: (result.totalPct >= 0 ? "+" : "") + result.totalPct + "%", c: result.totalUSD >= 0 ? ACCENT : "#ef4444" },
+              { l: "Niveaux clôturés", v: result.totalTrades, c: "#fff" },
+              { l: "Drawdown flottant max", v: "-" + result.maxDrawdownPct + "%", sub: "-$" + result.maxDrawdownUSD.toLocaleString(), c: tierInv(result.maxDrawdownPct, 8, 15) },
+              { l: "Niveaux ouverts", v: result.openLevelsCount + " / " + result.gridLevelsTotal, c: "rgba(255,255,255,0.85)" },
+            ] : [
               { l: "Gain net", v: (result.totalUSD >= 0 ? "+$" : "-$") + Math.abs(result.totalUSD).toLocaleString(), sub: (result.totalPct >= 0 ? "+" : "") + result.totalPct + "%", c: result.totalUSD >= 0 ? ACCENT : "#ef4444" },
               { l: "Profit Factor", v: result.profitFactor === Infinity ? "∞" : result.profitFactor, c: tier(result.profitFactor, 1.5, 1) },
               { l: "Win Rate", v: result.winrate + "%", c: tier(result.winrate, 55, 40) },
               { l: "R Ratio", v: "1:" + result.rRatio, c: tier(result.rRatio, 1.5, 1) },
               { l: "Drawdown max", v: "-" + result.maxDrawdownPct + "%", sub: "-$" + result.maxDrawdownUSD.toLocaleString(), c: tierInv(result.maxDrawdownPct, 8, 15) },
               { l: "Trades", v: result.totalTrades, c: "#fff" },
-            ].map(k => (
+            ]).map(k => (
               <div key={k.l} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "9px 10px" }}>
                 <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>{k.l}</div>
                 <div style={{ fontSize: 16, fontWeight: 800, color: k.c }}>{k.v}</div>
@@ -3904,15 +3976,18 @@ function BacktestScreen({ t, lang, onBack }) {
               <ScoreCircle val={score.passRate} label={score.passRate >= 55 ? "Élevée" : score.passRate >= 30 ? "Moyenne" : "Faible"} sub={"Probabilité de réussite · Monte Carlo"} />
             </div>
           )}
-          {!score && result.totalTrades < 10 && (
+          {!score && !result.isGridResult && result.totalTrades < 10 && (
             <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)", marginTop: 10, textAlign: "center" }}>Échantillon trop faible (&lt;10 trades) pour un score fiable — élargis la période.</div>
+          )}
+          {result.isGridResult && (
+            <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)", marginTop: 10, textAlign: "center" }}>Score PropFirm non calculé pour Grid Trading — le drawdown flottant sans stop loss rend une simulation Monte Carlo standard peu représentative.</div>
           )}
         </div>
       )}
       {result?.error && <div style={{ fontSize: 12, color: "#ef4444", textAlign: "center", padding: 20 }}>{result.error}</div>}
 
       {/* ══ SECTION 3 — DIAGNOSTIC (regles deterministes, pas d'IA) ══ */}
-      {result && !result.error && (() => {
+      {result && !result.error && !result.isGridResult && (() => {
         const forces = [], faiblesses = [], recos = [];
         if (result.maxDrawdownPct < 8) forces.push("Drawdown maîtrisé (< 8%)");
         if (result.profitFactor >= 1.3) forces.push("Profit Factor solide (≥ 1.3)");
