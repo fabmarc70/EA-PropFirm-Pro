@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser, fbLoadUserProfile, fbSaveUserProfile, fbDeleteAccount } from "./firebase.js";
+import { listAvailableDatasets, downloadCandles, idbListCached } from "./historicalData.js";
+import { runBacktest, listStrategies } from "./backtestEngine.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -210,6 +212,11 @@ const I18N = {
     an_lab_saved: "Stratégie enregistrée · reprendre",
     an_lab_new: "Nouvelle analyse stratégique",
     an_lab_cta: "Ouvrir le Laboratoire",
+    an_backtest_title: "Backtest Réel",
+    an_backtest_sub: "Teste tes stratégies sur données historiques réelles",
+    an_backtest_desc: "Télécharge des historiques de marché gratuits et lance des backtests déterministes (breakout, RSI, MACD) sur des données réelles — pas des estimations.",
+    an_backtest_data_label: "Données mises à jour régulièrement",
+    an_backtest_cta: "Ouvrir le Backtest",
     dash_sims_left_singular: "simulation gratuite restante",
     dash_sims_left_plural: "simulations gratuites restantes",
     dash_sims_limit_reached: "Limite gratuite atteinte",
@@ -928,6 +935,11 @@ const I18N = {
     an_lab_saved: "Estrategia guardada · continuar",
     an_lab_new: "Nuevo análisis estratégico",
     an_lab_cta: "Abrir el Laboratorio",
+    an_backtest_title: "Backtest Real",
+    an_backtest_sub: "Prueba tus estrategias con datos históricos reales",
+    an_backtest_desc: "Descarga históricos de mercado gratuitos y lanza backtests deterministas (breakout, RSI, MACD) sobre datos reales — no estimaciones.",
+    an_backtest_data_label: "Datos actualizados regularmente",
+    an_backtest_cta: "Abrir el Backtest",
     dash_sims_left_singular: "simulación gratis restante",
     dash_sims_left_plural: "simulaciones gratis restantes",
     dash_sims_limit_reached: "Límite gratis alcanzado",
@@ -1646,6 +1658,11 @@ const I18N = {
     an_lab_saved: "Saved strategy · resume",
     an_lab_new: "New strategic analysis",
     an_lab_cta: "Open the Lab",
+    an_backtest_title: "Real Backtest",
+    an_backtest_sub: "Test your strategies on real historical data",
+    an_backtest_desc: "Download free market history and run deterministic backtests (breakout, RSI, MACD) on real data — not estimates.",
+    an_backtest_data_label: "Regularly updated data",
+    an_backtest_cta: "Open Backtest",
     dash_sims_left_singular: "free simulation left",
     dash_sims_left_plural: "free simulations left",
     dash_sims_limit_reached: "Free limit reached",
@@ -3606,6 +3623,215 @@ function ReportHeader({ title, subtitle, onBack }) {
   );
 }
 
+// ══════════════════════════════════════════════════════════════════
+// BACKTEST RÉEL — sélection paire/période, téléchargement depuis
+// GitHub Releases (fabmarc70/HISTDATA-), backtest déterministe local.
+// ══════════════════════════════════════════════════════════════════
+function BacktestScreen({ t, lang, onBack }) {
+  const [datasets, setDatasets] = useState(null);      // liste des fichiers dispo (release GitHub)
+  const [loadError, setLoadError] = useState(null);
+  const [selectedPair, setSelectedPair] = useState(null);
+  const [selectedPeriod, setSelectedPeriod] = useState(null);
+  const [dlProgress, setDlProgress] = useState(null);   // null = pas en cours, 0-100 = %
+  const [candles, setCandles] = useState(null);         // dataset téléchargé/en cache
+  const [dlError, setDlError] = useState(null);
+  const [strategyKey, setStrategyKey] = useState("breakout");
+  const [tpPips, setTpPips] = useState(15);
+  const [slPips, setSlPips] = useState(10);
+  const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    listAvailableDatasets()
+      .then(setDatasets)
+      .catch(e => setLoadError(e.message));
+  }, []);
+
+  const pairs = datasets ? [...new Set(datasets.assets.map(a => a.pair))] : [];
+  const periodsForPair = selectedPair && datasets ? datasets.assets.filter(a => a.pair === selectedPair).map(a => a.period) : [];
+
+  const handleDownload = async () => {
+    if (!selectedPair || !selectedPeriod) return;
+    setDlProgress(0); setDlError(null); setCandles(null); setResult(null);
+    try {
+      const data = await downloadCandles(selectedPair, selectedPeriod, { onProgress: setDlProgress });
+      setCandles(data.candles);
+      setDlProgress(null);
+    } catch (e) {
+      setDlError(e.message);
+      setDlProgress(null);
+    }
+  };
+
+  const handleRunBacktest = () => {
+    if (!candles) return;
+    try {
+      const r = runBacktest({ candles, pair: selectedPair, strategyKey, tpPips, slPips });
+      setResult(r);
+    } catch (e) {
+      setResult({ error: e.message });
+    }
+  };
+
+  const strategies = listStrategies();
+  const mcColor = (r) => r >= 55 ? "#6ee7b7" : r >= 30 ? "#fbbf24" : "#ef4444";
+
+  return (
+    <div style={{ minHeight: "100vh", paddingBottom: 100 }}>
+      <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles · zéro estimation" onBack={onBack} />
+
+      {/* ── Avertissement réalisme (cohérent avec le reste de l'app) ── */}
+      <div style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 12, padding: "10px 12px", marginBottom: 14, fontSize: 10.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
+        ⚠️ Backtest sur données historiques réelles (M1), stratégies déterministes simples (breakout, RSI, MACD). Ne remplace pas un forward test — la performance passée ne garantit rien.
+      </div>
+
+      {loadError && (
+        <div className="card" style={{ textAlign: "center", padding: 20, border: "1px solid rgba(239,68,68,0.2)" }}>
+          <div style={{ color: "#ef4444", fontWeight: 700, fontSize: 12, marginBottom: 4 }}>Aucune donnée disponible</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{loadError}</div>
+        </div>
+      )}
+
+      {datasets && !loadError && (
+        <>
+          {/* ── Sélection paire ── */}
+          <div className="card">
+            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.6 }}>Paire</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+              {pairs.map(p => (
+                <button key={p} onClick={() => { setSelectedPair(p); setSelectedPeriod(null); setCandles(null); setResult(null); }}
+                  style={{ padding: "8px 14px", borderRadius: 100, cursor: "pointer", fontSize: 12, fontWeight: 700,
+                    background: selectedPair === p ? "#a3e635" : "rgba(255,255,255,0.05)",
+                    color: selectedPair === p ? "#000" : "rgba(255,255,255,0.65)",
+                    border: "1px solid " + (selectedPair === p ? "#a3e635" : "rgba(255,255,255,0.1)") }}>
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Sélection période ── */}
+          {selectedPair && (
+            <div className="card">
+              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.6 }}>Période</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                {periodsForPair.map(p => (
+                  <button key={p} onClick={() => { setSelectedPeriod(p); setCandles(null); setResult(null); }}
+                    style={{ padding: "8px 14px", borderRadius: 100, cursor: "pointer", fontSize: 12, fontWeight: 700,
+                      background: selectedPeriod === p ? "#a3e635" : "rgba(255,255,255,0.05)",
+                      color: selectedPeriod === p ? "#000" : "rgba(255,255,255,0.65)",
+                      border: "1px solid " + (selectedPeriod === p ? "#a3e635" : "rgba(255,255,255,0.1)") }}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Téléchargement ── */}
+          {selectedPair && selectedPeriod && !candles && (
+            <button onClick={handleDownload} disabled={dlProgress !== null} style={{
+              width: "100%", padding: 14, borderRadius: 13, border: "none", cursor: dlProgress !== null ? "default" : "pointer",
+              background: dlProgress !== null ? "rgba(255,255,255,0.07)" : "#a3e635",
+              color: dlProgress !== null ? "rgba(255,255,255,0.4)" : "#000", fontSize: 14, fontWeight: 800, marginBottom: 12,
+            }}>
+              {dlProgress !== null ? `Téléchargement… ${dlProgress}%` : `Télécharger ${selectedPair} · ${selectedPeriod}`}
+            </button>
+          )}
+          {dlError && <div style={{ fontSize: 11, color: "#ef4444", marginBottom: 12, textAlign: "center" }}>{dlError}</div>}
+
+          {/* ── Config + lancement backtest ── */}
+          {candles && (
+            <div className="card" style={{ border: "1px solid rgba(163,230,53,0.2)" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#a3e635", marginBottom: 4 }}>
+                ✓ {candles.length.toLocaleString()} bougies chargées ({selectedPair} · {selectedPeriod})
+              </div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 12 }}>
+                {new Date(candles[0][0]).toLocaleDateString()} → {new Date(candles[candles.length - 1][0]).toLocaleDateString()}
+              </div>
+
+              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 6 }}>Style de stratégie</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 12 }}>
+                {strategies.map(s => (
+                  <button key={s.key} onClick={() => { setStrategyKey(s.key); setResult(null); }}
+                    style={{ padding: "8px 12px", borderRadius: 10, cursor: "pointer", fontSize: 11.5, fontWeight: 700,
+                      background: strategyKey === s.key ? "#a3e635" : "rgba(255,255,255,0.05)",
+                      color: strategyKey === s.key ? "#000" : "rgba(255,255,255,0.65)",
+                      border: "1px solid " + (strategyKey === s.key ? "#a3e635" : "rgba(255,255,255,0.1)") }}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>Take Profit (pips)</div>
+                  <input type="number" value={tpPips} min={1} max={200} onChange={e => setTpPips(parseFloat(e.target.value) || 1)}
+                    style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "6px 8px", fontSize: 13 }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>Stop Loss (pips)</div>
+                  <input type="number" value={slPips} min={1} max={200} onChange={e => setSlPips(parseFloat(e.target.value) || 1)}
+                    style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "6px 8px", fontSize: 13 }} />
+                </div>
+              </div>
+
+              <button onClick={handleRunBacktest} style={{ width: "100%", padding: 13, borderRadius: 12, border: "none", cursor: "pointer", background: "linear-gradient(135deg,#a3e635,#84cc16)", color: "#000", fontSize: 13, fontWeight: 800 }}>
+                ⚡ Lancer le backtest
+              </button>
+            </div>
+          )}
+
+          {/* ── Résultats ── */}
+          {result && !result.error && (
+            <div className="card" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 10, textTransform: "uppercase" }}>
+                Résultats — {result.strategyLabel}
+              </div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                {[
+                  { l: "Trades", v: result.totalTrades, c: "#fff" },
+                  { l: "Winrate", v: result.winrate + "%", c: mcColor(result.winrate) },
+                  { l: "Profit Factor", v: result.profitFactor === Infinity ? "∞" : result.profitFactor, c: result.profitFactor >= 1.3 ? "#6ee7b7" : "#ef4444" },
+                  { l: "Pertes suite", v: result.maxLossStreak, c: result.maxLossStreak <= 5 ? "#6ee7b7" : "#fbbf24" },
+                ].map(k => (
+                  <div key={k.l} style={{ flex: 1, background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>{k.l}</div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: k.c }}>{k.v}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 12, color: result.totalPips >= 0 ? "#6ee7b7" : "#ef4444", fontWeight: 700, marginBottom: 10 }}>
+                Résultat net : {result.totalPips >= 0 ? "+" : ""}{result.totalPips} pips ({result.wins}G / {result.losses}P)
+              </div>
+              {result.equityCurve.length > 2 && (
+                <ResponsiveContainer width="100%" height={140}>
+                  <AreaChart data={result.equityCurve}>
+                    <defs>
+                      <linearGradient id="btEquity" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={result.totalPips >= 0 ? "#6ee7b7" : "#ef4444"} stopOpacity={0.3} />
+                        <stop offset="100%" stopColor={result.totalPips >= 0 ? "#6ee7b7" : "#ef4444"} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="x" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "T" + v} />
+                    <YAxis tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => v + "p"} />
+                    <Tooltip formatter={v => v + " pips"} contentStyle={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, fontSize: 11 }} />
+                    <Area type="monotone" dataKey="y" stroke={result.totalPips >= 0 ? "#6ee7b7" : "#ef4444"} strokeWidth={2} fill="url(#btEquity)" dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 8, lineHeight: 1.4 }}>
+                TP/SL fixes en pips, un trade à la fois (pas d'empilement). SL vérifié en priorité si TP et SL sont touchés dans la même bougie (biais conservateur).
+              </div>
+            </div>
+          )}
+          {result?.error && <div style={{ fontSize: 12, color: "#ef4444", textAlign: "center", padding: 20 }}>{result.error}</div>}
+        </>
+      )}
+    </div>
+  );
+}
+
+
 function LabScreen({ t, lang, profile, onBack }) {
   const LAB_KEY = "eapropfirm_lab_profile";
   const EMPTY = { bot: null, entries: [], exits: [], indicators: [], approach: null, market: null, sessions: [], freeDesc: "", riskChoice: null, tpdChoice: null, newsBehavior: null, firmTarget: null };
@@ -4468,6 +4694,18 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         cta: t('an_lab_cta'),
         ctaGoto: 'trades',
       },
+      {
+        key:'backtest', accent:'#a3e635', bg:'rgba(163,230,53,0.06)', border:'rgba(163,230,53,0.2)',
+        icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 4-6" stroke="#a3e635" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+        title: t('an_backtest_title'),
+        subtitle: t('an_backtest_sub'),
+        desc: t('an_backtest_desc'),
+        chips: ['Données réelles', 'Breakout', 'RSI', 'MACD'],
+        hasData: true,
+        dataLabel: t('an_backtest_data_label'),
+        cta: t('an_backtest_cta'),
+        ctaGoto: 'trades',
+      },
     ];
     return (
       <div style={{padding:'14px 16px 18px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px',minHeight:'100vh',display:'flex',flexDirection:'column'}}>
@@ -4821,6 +5059,10 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
   if (mode === 'lab') {
     return <LabScreen t={t} lang={lang} profile={profile} onBack={() => setMode(null)} />;
+  }
+
+  if (mode === 'backtest') {
+    return <BacktestScreen t={t} lang={lang} onBack={() => setMode(null)} />;
   }
 
   if (mode === 'comparator') {
