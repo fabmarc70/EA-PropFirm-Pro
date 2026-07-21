@@ -3,7 +3,7 @@ import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthCh
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine, Cell
+  ResponsiveContainer, ReferenceLine, ReferenceDot, Cell
 } from "recharts";
 
 // ══════════════════════════════════════════════════════════════════
@@ -11994,16 +11994,40 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         const simAllTimePnl = simBalance - cap;
         const simChangePct = cap ? (simAllTimePnl / cap) * 100 : 0;
 
+        // Mois calendaire RÉEL en cours (ex: "2026-07") — scope commun Journal/Simulateur
+        const now = new Date();
+        const realMonthKey = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+        const realDaysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const realTodayDate = now.getDate();
+
+        // Journal : courbe + chiffres restreints au MOIS EN COURS (cohérent avec le Simulateur "Mois 1")
         const principalData = journalMode
-          ? computeAccountBalanceSeries(journalAll, principalAccount?.id || "default", principalCapital)
+          ? computeCurrentMonthBalanceSeries(journalAll, principalAccount?.id || "default", principalCapital, realMonthKey)
           : null;
 
-        const dCapital = journalMode ? principalCapital : cap;
+        const dCapital = journalMode ? principalData.opening : cap;
         const dBalance = journalMode ? principalData.balance : simBalance;
-        const dPnl = journalMode ? principalData.allTimePnl : simAllTimePnl;
-        const dPct = journalMode ? principalData.changePct : simChangePct;
+        const dPnl = journalMode ? principalData.monthPnl : simAllTimePnl;
+        const dPct = journalMode ? principalData.monthPct : simChangePct;
         const dSeries = journalMode ? principalData.series : simSeries;
-        const dLabel = journalMode ? journalAccountLabel(principalAccount) : (firm.name + (fm?.name ? " · " + fm.name : "") + " · " + t("cal_month1"));
+        const dLabel = journalMode
+          ? journalAccountLabel(principalAccount) + " · " + formatMonthLabel(realMonthKey, lang)
+          : (firm.name + (fm?.name ? " · " + fm.name : "") + " · " + t("cal_month1"));
+
+        // ── Repère "aujourd'hui" sur la courbe (subtil, même code couleur) ──
+        // Simulateur : mois déjà entièrement généré → position proportionnelle
+        // de la date réelle du jour dans le mois. Journal : la courbe avance
+        // jour par jour, le repère est donc simplement la pointe (dernier jour saisi).
+        let todayMarker = null;
+        if (dSeries.length > 1) {
+          if (journalMode) {
+            if (principalData.hasEntries) todayMarker = dSeries[dSeries.length - 1];
+          } else {
+            const ratio = Math.min(1, realTodayDate / realDaysInMonth);
+            const idx = Math.round(ratio * (dSeries.length - 1));
+            todayMarker = dSeries[idx];
+          }
+        }
 
         return (
           <div data-coach="dash-balance" style={{
@@ -12059,6 +12083,16 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
                       </linearGradient>
                     </defs>
                     <Area type="monotone" dataKey="y" stroke={dPnl >= 0 ? "#6ee7b7" : "#ef4444"} strokeWidth={1.8} fill="url(#eapfp-dash-balance-grad)" isAnimationActive={false} />
+                    {todayMarker && (
+                      <ReferenceDot
+                        x={todayMarker.x} y={todayMarker.y}
+                        r={3.5}
+                        fill={dPnl >= 0 ? "#6ee7b7" : "#ef4444"}
+                        stroke="#0a0e14"
+                        strokeWidth={1.5}
+                        isFront={true}
+                      />
+                    )}
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -12725,6 +12759,34 @@ function computeAccountBalanceSeries(journalAllData, accountId, baseCapital) {
   const allTimePnl = running - baseCapital;
   const changePct = baseCapital ? (allTimePnl / baseCapital) * 100 : 0;
   return { balance: running, series, allTimePnl, changePct };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Version SCOPÉE AU MOIS EN COURS de computeAccountBalanceSeries.
+// Utilisée uniquement par la carte "Solde" du Dashboard (accueil) pour
+// que la courbe (et les chiffres associés) reflètent le mois calendaire
+// réel en cours — cohérent avec le Simulateur qui affiche "Mois 1".
+// Le solde d'ouverture du mois = capital + somme de tous les PnL des
+// mois précédents (donc le solde/pourcentage affichés restent exacts,
+// juste recentrés sur "ce mois-ci" au lieu du cumul depuis toujours).
+// ══════════════════════════════════════════════════════════════════
+function computeCurrentMonthBalanceSeries(journalAllData, accountId, baseCapital, monthKey) {
+  const filtered = filterJournalByAccount(journalAllData, accountId);
+  const priorMonths = Object.keys(filtered).sort().filter(mk => mk < monthKey);
+  let opening = baseCapital;
+  priorMonths.forEach(mk => {
+    Object.values(filtered[mk] || {}).forEach(entry => { opening += (entry.pnl || 0); });
+  });
+  const daysSorted = Object.keys(filtered[monthKey] || {}).map(Number).sort((a, b) => a - b);
+  let running = opening;
+  const series = [{ x: 0, y: running }];
+  daysSorted.forEach(d => {
+    running += (filtered[monthKey][String(d)].pnl || 0);
+    series.push({ x: series.length, y: running });
+  });
+  const monthPnl = running - opening;
+  const monthPct = opening ? (monthPnl / opening) * 100 : 0;
+  return { balance: running, series, monthPnl, monthPct, opening, hasEntries: daysSorted.length > 0 };
 }
 
 // ══════════════════════════════════════════════════════════════════
