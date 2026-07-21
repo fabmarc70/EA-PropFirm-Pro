@@ -3699,6 +3699,23 @@ function BacktestScreen({ t, lang, onBack }) {
     setCandles(null); setResult(null); setScore(null); setDlError(null); setDlProgress(null);
   };
 
+  // Réinitialisation TOTALE — remet toute la configuration à ses valeurs par
+  // défaut (paire/période reprises depuis le tout premier dataset dispo) et
+  // efface tout résultat en cours. Accessible à tout moment en haut de la
+  // page, sans avoir besoin d'un résultat existant au préalable.
+  const resetAllConfig = () => {
+    resetBacktest();
+    setFirmKey("fundednext"); setModelKey("2step"); setCapital(25000);
+    setTimeframeKey("1"); setStrategyKey("breakout"); setStrategyParams({});
+    setTpPips(15); setSlPips(10); setRiskPct(1); setSlippagePips(0.3);
+    setSessionKey("24h"); setNewsFilterOn(false);
+    setMmMode("fixed"); setMartingaleMultiplier(2); setMartingaleMaxSteps(5);
+    setGridSpacingPips(20); setGridLevels(5); setGridDirection("both");
+    if (datasets?.assets?.length) { setSelectedPair(datasets.assets[0].pair); setSelectedPeriod(datasets.assets[0].period); }
+    setOpenDropdown(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const archiveResult = () => {
     if (!result || result.error) return;
     const entry = {
@@ -3768,17 +3785,44 @@ function BacktestScreen({ t, lang, onBack }) {
   const tier = (val, good, mid) => val >= good ? "#6ee7b7" : val >= mid ? "#fbbf24" : "#ef4444";
   const tierInv = (val, good, mid) => val <= good ? "#6ee7b7" : val <= mid ? "#fbbf24" : "#ef4444"; // plus bas = mieux (ex: drawdown)
 
-  const Select = ({ label, value, onChange, options }) => (
-    <div>
-      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginBottom: 4, fontWeight: 700 }}>{label}</div>
-      <select value={value} onChange={e => onChange(e.target.value)} style={{
-        width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-        borderRadius: 10, color: "#fff", padding: "9px 8px", fontSize: 12.5, fontWeight: 700, boxSizing: "border-box",
-      }}>
-        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    </div>
-  );
+  const [openDropdown, setOpenDropdown] = useState(null); // clé du Select actuellement ouvert (un seul à la fois)
+  const Select = ({ id, label, value, onChange, options }) => {
+    const isOpen = openDropdown === id;
+    const current = options.find(o => String(o.value) === String(value));
+    return (
+      <div style={{ position: "relative" }}>
+        <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginBottom: 4, fontWeight: 700 }}>{label}</div>
+        <button onClick={() => setOpenDropdown(isOpen ? null : id)} style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+          background: "rgba(255,255,255,0.05)", border: "1px solid " + (isOpen ? ACCENT : "rgba(255,255,255,0.1)"),
+          borderRadius: 10, color: "#fff", padding: "9px 10px", fontSize: 12.5, fontWeight: 700,
+          boxSizing: "border-box", cursor: "pointer", textAlign: "left",
+        }}>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{current ? current.label : "—"}</span>
+          <span style={{ color: ACCENT, fontSize: 10, flexShrink: 0, marginLeft: 6, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}>▼</span>
+        </button>
+        {isOpen && (
+          <>
+            <div onClick={() => setOpenDropdown(null)} style={{ position: "fixed", inset: 0, zIndex: 300 }} />
+            <div style={{
+              position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, zIndex: 301,
+              background: "#12121a", border: "1px solid rgba(110,231,183,0.25)", borderRadius: 12,
+              maxHeight: 240, overflowY: "auto", boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
+            }}>
+              {options.map(o => (
+                <div key={o.value} onClick={() => { onChange(String(o.value)); setOpenDropdown(null); }} style={{
+                  padding: "11px 12px", fontSize: 12.5, fontWeight: String(o.value) === String(value) ? 800 : 500,
+                  color: String(o.value) === String(value) ? ACCENT : "rgba(255,255,255,0.8)",
+                  background: String(o.value) === String(value) ? "rgba(110,231,183,0.08)" : "transparent",
+                  cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.05)",
+                }}>{o.label}</div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
 
   const ScoreCircle = ({ val, size = 66, label, sub }) => {
     const color = val >= 65 ? "#6ee7b7" : val >= 40 ? "#fbbf24" : "#ef4444";
@@ -3892,48 +3936,55 @@ function BacktestScreen({ t, lang, onBack }) {
 
       {/* ══ SECTION 1 — CONFIGURATION ══ */}
       <div className="card">
-        <SectionHeader n="1" title="Configuration du backtest" />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <SectionHeader n="1" title="Configuration du backtest" />
+          <button onClick={resetAllConfig} style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 10.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", marginBottom: 12 }}>
+            ↺ Réinitialiser
+          </button>
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-          <Select label="Prop firm" value={firmKey} onChange={v => { setFirmKey(v); setModelKey(Object.keys(PROP_FIRMS[v].models)[0]); }}
+          <Select id="firm" label="Prop firm" value={firmKey} onChange={v => { setFirmKey(v); setModelKey(Object.keys(PROP_FIRMS[v].models)[0]); }}
             options={Object.keys(PROP_FIRMS).map(k => ({ value: k, label: PROP_FIRMS[k].name }))} />
-          <Select label="Type de challenge" value={modelKey} onChange={setModelKey}
+          <Select id="model" label="Type de challenge" value={modelKey} onChange={setModelKey}
             options={modelsForFirm.map(k => ({ value: k, label: firm.models[k].name }))} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-          <Select label="Solde du challenge" value={capital} onChange={v => setCapital(parseInt(v))}
+          <Select id="capital" label="Solde du challenge" value={capital} onChange={v => setCapital(parseInt(v))}
             options={CAPITAL_OPTIONS.map(c => ({ value: c, label: "$" + c.toLocaleString() }))} />
-          <Select label="Actif" value={selectedPair || ""} onChange={v => { setSelectedPair(v); setSelectedPeriod(datasets.assets.find(a => a.pair === v)?.period || null); }}
+          <Select id="pair" label="Actif" value={selectedPair || ""} onChange={v => { setSelectedPair(v); setSelectedPeriod(datasets.assets.find(a => a.pair === v)?.period || null); }}
             options={pairs.map(p => ({ value: p, label: p }))} />
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-          <Select label="Timeframe" value={timeframeKey} onChange={setTimeframeKey}
+        <div style={{ display: "grid", gridTemplateColumns: periodsForPair.length > 1 ? "1fr 1fr" : "1fr", gap: 8, marginBottom: 8 }}>
+          <Select id="timeframe" label="Timeframe" value={timeframeKey} onChange={setTimeframeKey}
             options={TIMEFRAMES.map(tf => ({ value: tf.key, label: tf.label }))} />
-          <Select label="Période" value={selectedPeriod || ""} onChange={setSelectedPeriod}
-            options={periodsForPair.map(p => ({ value: p, label: p }))} />
+          {periodsForPair.length > 1 && (
+            <Select id="period" label="Période" value={selectedPeriod || ""} onChange={setSelectedPeriod}
+              options={periodsForPair.map(p => ({ value: p, label: p }))} />
+          )}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-          <Select label="Stratégie" value={strategyKey} onChange={setStrategyKey}
+          <Select id="strategy" label="Stratégie" value={strategyKey} onChange={setStrategyKey}
             options={strategies.map(s => ({ value: s.key, label: (s.category ? "[" + s.category + "] " : "") + s.label }))} />
-          <Select label="Gestion du risque" value={mmMode} onChange={setMmMode}
+          <Select id="mmmode" label="Gestion du risque" value={mmMode} onChange={setMmMode}
             options={MONEY_MANAGEMENT_MODES.map(m => ({ value: m.key, label: m.label }))} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-          <Select label="Frais & slippage" value={slippagePips} onChange={v => setSlippagePips(parseFloat(v))}
+          <Select id="slippage" label="Frais & slippage" value={slippagePips} onChange={v => setSlippagePips(parseFloat(v))}
             options={[0, 0.2, 0.5, 1].map(s => ({ value: s, label: s === 0 ? "Aucun (idéal)" : "Spread + " + s + " pip" }))} />
           {isGridStrategy ? (
-            <Select label="Risque total (% capital)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
+            <Select id="riskgrid" label="Risque total (% capital)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
               options={[0.5, 1, 2, 3, 5].map(r => ({ value: r, label: r + "% réparti sur la grille" }))} />
           ) : (
-            <Select label="Heures de trading" value={sessionKey} onChange={setSessionKey}
+            <Select id="session" label="Heures de trading" value={sessionKey} onChange={setSessionKey}
               options={SESSIONS.map(s => ({ value: s.key, label: s.label }))} />
           )}
         </div>
         {!isGridStrategy && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-            <Select label="Risque par trade (%)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
+            <Select id="riskpct" label="Risque par trade (%)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
               options={[0.25, 0.5, 1, 1.5, 2].map(r => ({ value: r, label: r + "%" }))} />
             {mmMode === "martingale" ? (
-              <Select label="Multiplicateur martingale" value={martingaleMultiplier} onChange={v => setMartingaleMultiplier(parseFloat(v))}
+              <Select id="martmult" label="Multiplicateur martingale" value={martingaleMultiplier} onChange={v => setMartingaleMultiplier(parseFloat(v))}
                 options={[1.5, 2, 2.5, 3].map(m => ({ value: m, label: "×" + m }))} />
             ) : <div />}
           </div>
