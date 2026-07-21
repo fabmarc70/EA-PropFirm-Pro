@@ -1,19 +1,24 @@
 # Publication des données historiques (HISTDATA-)
 
-Pipeline pour mettre à jour les données de backtest de l'app, à volonté, sans
-jamais alourdir le bundle ou le service worker de la PWA.
+Pipeline pour mettre à jour les données de backtest de l'app, à volonté,
+sans jamais alourdir le bundle ou le service worker de la PWA.
 
-## Principe
+## Principe (repo PUBLIC, servi via raw.githubusercontent.com)
 
 ```
 HistData.com (téléchargement manuel, navigateur)
         ↓
 parse-csv-to-json.js  (convertit en JSON compact)
         ↓
-publish-release.js    (publie sur GitHub Releases, repo fabmarc70/HISTDATA-)
+publish-git.js         (commit + push direct dans fabmarc70/HISTDATA-)
         ↓
-L'app va chercher automatiquement la DERNIÈRE release publiée
+L'app lit data/index.json (manifeste) à chaque ouverture du Backtest,
+puis télécharge le fichier de la paire/période choisie.
 ```
+
+Aucune clé API côté app, aucun quota, aucune authentification — le repo
+est public et les fichiers sont de simples cours de marché (OHLC),
+non sensibles.
 
 ## Étape 1 — Télécharger les données (manuel, navigateur)
 
@@ -36,35 +41,43 @@ node parse-csv-to-json.js DAT_ASCII_EURUSD_M1_202406.csv EURUSD 2024-06
 
 Génère `EURUSD_2024-06.json` (quelques Mo, format compact `[ts, o, h, l, c]`).
 
-Répète pour chaque paire/mois que tu veux publier.
-
-## Étape 3 — Publier sur GitHub Releases
+## Étape 3 — Publier (commit direct, repo public)
 
 ```bash
-GITHUB_TOKEN=ton_token_github node publish-release.js data-2026-07 \
-  EURUSD_2024-06.json XAUUSD_2024-06.json GBPUSD_2024-06.json
+GITHUB_TOKEN=ton_token_github node publish-git.js EURUSD_2024-06.json XAUUSD_2024-06.json
 ```
 
-- `data-2026-07` = tag de la release (convention : mois de publication)
-- Si la release existe déjà, les fichiers sont ajoutés/remplacés dedans
-- Le token doit avoir le scope `repo` (le repo HISTDATA- est privé)
+- Clone temporairement le repo, copie les fichiers dans `data/`, met à
+  jour `data/index.json` (remplace l'entrée si la même paire/période
+  existe déjà), commit et push. Nettoie le dossier temporaire ensuite.
+- Le token doit avoir le droit d'écriture sur le repo (scope `repo`).
 
 ## Fréquence
 
 Aucune limite technique — republie aussi souvent que tu veux (tous les
-2 mois comme prévu, ou plus fréquemment). L'app relit toujours la dernière
-release automatiquement, aucune action côté utilisateur ni redéploiement
-de l'app n'est nécessaire.
+2 mois comme prévu, ou plus fréquemment). L'app relit toujours le
+manifeste à jour automatiquement (cache CDN GitHub ~5 min), aucune
+action côté utilisateur ni redéploiement de l'app n'est nécessaire.
 
-## Format du JSON produit
+## Format des fichiers
 
+`data/index.json` :
+```json
+{
+  "generatedAt": "2026-07-21T12:00:00.000Z",
+  "datasets": [
+    { "pair": "EURUSD", "period": "2024-06", "file": "EURUSD_2024-06.json", "count": 43200 }
+  ]
+}
+```
+
+`data/{PAIR}_{PERIOD}.json` :
 ```json
 {
   "pair": "EURUSD",
   "period": "2024-06",
   "interval": "1min",
   "count": 43200,
-  "generatedAt": "2026-07-21T12:00:00.000Z",
   "candles": [
     [1719792000000, 1.08496, 1.08501, 1.08490, 1.08498],
     ...

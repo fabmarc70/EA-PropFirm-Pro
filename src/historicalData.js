@@ -1,14 +1,19 @@
 // ══════════════════════════════════════════════════════════════════
-// Récupération des données historiques (bougies M1) publiées sur
-// GitHub Releases (repo fabmarc70/HISTDATA-) + cache local IndexedDB.
+// Récupération des données historiques (bougies M1) publiées sur le
+// repo public fabmarc70/HISTDATA- + cache local IndexedDB.
 //
-// Aucune clé API, aucun quota par utilisateur : les fichiers sont
-// servis directement par le CDN GitHub. Fab republie de nouvelles
-// périodes à volonté (script scripts/histdata/publish-release.js) —
-// l'app relit toujours automatiquement la DERNIÈRE release.
+// Architecture : fichiers servis directement via raw.githubusercontent.com
+// (repo PUBLIC, aucune clé, aucune authentification, aucun quota par
+// utilisateur). Fab republie de nouvelles périodes à volonté par un
+// simple commit git — l'app relit toujours automatiquement le manifeste
+// data/index.json de la branche main.
+//
+// (Remplace l'approche initiale par GitHub Releases : même principe de
+// lien permanent, mais sans dépendance à l'endpoint uploads.github.com
+// et sans gestion de tags — un simple `git push` suffit à tout mettre à jour.)
 // ══════════════════════════════════════════════════════════════════
 
-const REPO = "fabmarc70/HISTDATA-";
+const REPO_RAW_BASE = "https://raw.githubusercontent.com/fabmarc70/HISTDATA-/main/data";
 const DB_NAME = "eapropfirm_histdata";
 const DB_VERSION = 1;
 const STORE = "candles";
@@ -58,37 +63,34 @@ export async function idbListCached() {
   });
 }
 
-// ── Métadonnées de la dernière release (liste des fichiers dispo) ──
-let releaseCache = null; // évite de re-fetch l'API GitHub à chaque appel dans la même session
+// ── Manifeste (liste des jeux de données disponibles) ──
+let manifestCache = null; // évite de re-fetch dans la même session
 export async function listAvailableDatasets(forceRefresh = false) {
-  if (releaseCache && !forceRefresh) return releaseCache;
-  const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-    headers: { Accept: "application/vnd.github+json" },
-  });
+  if (manifestCache && !forceRefresh) return manifestCache;
+  // cache-busting léger : raw.githubusercontent.com cache ~5min côté CDN,
+  // un paramètre "t" horaire suffit à éviter de rester bloqué sur du très périmé
+  const bust = Math.floor(Date.now() / (5 * 60 * 1000));
+  const r = await fetch(`${REPO_RAW_BASE}/index.json?t=${bust}`);
   if (!r.ok) {
     throw new Error(
       r.status === 404
-        ? "Aucune donnée publiée pour le moment (repo vide ou release non créée)."
-        : "Erreur GitHub (" + r.status + ")"
+        ? "Aucune donnée publiée pour le moment (repo vide ou index.json absent)."
+        : "Erreur de connexion (" + r.status + ")"
     );
   }
   const data = await r.json();
-  const assets = (data.assets || [])
-    .filter(a => a.name.endsWith(".json"))
-    .map(a => {
-      // Nom attendu: "EURUSD_2024-06.json" -> pair="EURUSD", period="2024-06"
-      const m = a.name.replace(/\.json$/, "").match(/^([A-Z]+)_(.+)$/);
-      return {
-        name: a.name,
-        pair: m ? m[1] : a.name,
-        period: m ? m[2] : "",
-        url: a.browser_download_url,
-        sizeBytes: a.size,
-        updatedAt: a.updated_at,
-      };
-    });
-  releaseCache = { tag: data.tag_name, publishedAt: data.published_at, assets };
-  return releaseCache;
+  manifestCache = {
+    generatedAt: data.generatedAt,
+    note: data.note,
+    assets: (data.datasets || []).map(d => ({
+      pair: d.pair,
+      period: d.period,
+      file: d.file,
+      count: d.count,
+      url: `${REPO_RAW_BASE}/${d.file}`,
+    })),
+  };
+  return manifestCache;
 }
 
 // ── Téléchargement + cache d'un dataset précis (pair + period) ──
