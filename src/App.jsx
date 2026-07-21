@@ -11997,8 +11997,6 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         // Mois calendaire RÉEL en cours (ex: "2026-07") — scope commun Journal/Simulateur
         const now = new Date();
         const realMonthKey = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
-        const realDaysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-        const realTodayDate = now.getDate();
 
         // Journal : courbe + chiffres restreints au MOIS EN COURS (cohérent avec le Simulateur "Mois 1")
         const principalData = journalMode
@@ -12014,18 +12012,28 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           ? journalAccountLabel(principalAccount) + " · " + formatMonthLabel(realMonthKey, lang)
           : (firm.name + (fm?.name ? " · " + fm.name : "") + " · " + t("cal_month1"));
 
-        // ── Repère "aujourd'hui" sur la courbe (subtil, même code couleur) ──
-        // Simulateur : mois déjà entièrement généré → position proportionnelle
-        // de la date réelle du jour dans le mois. Journal : la courbe avance
-        // jour par jour, le repère est donc simplement la pointe (dernier jour saisi).
+        // ── Repère sur la courbe (subtil, même code couleur) ──
+        // Simulateur : la simulation a été générée à un instant réel précis (ls.ts).
+        // On repère le jour tradé correspondant à CETTE date de génération (pas la
+        // date du jour où on regarde le dashboard, qui n'a aucun lien avec les
+        // données réellement simulées et donnait un repère mal placé/trompeur).
+        // Journal : la courbe avance jour par jour, le repère est la pointe (dernier jour saisi).
         let todayMarker = null;
         if (dSeries.length > 1) {
           if (journalMode) {
             if (principalData.hasEntries) todayMarker = dSeries[dSeries.length - 1];
-          } else {
-            const ratio = Math.min(1, realTodayDate / realDaysInMonth);
-            const idx = Math.round(ratio * (dSeries.length - 1));
-            todayMarker = dSeries[idx];
+          } else if (simMonth1Sorted.length) {
+            const genDate = ls.ts ? new Date(ls.ts) : new Date();
+            const genDayOfMonth = genDate.getDate();
+            // Jour tradé exact à cette date, sinon le dernier jour tradé disponible avant elle
+            let matchIdx = simMonth1Sorted.findIndex(d => d.dayOfMonth === genDayOfMonth);
+            if (matchIdx === -1) {
+              for (let i = simMonth1Sorted.length - 1; i >= 0; i--) {
+                if (simMonth1Sorted[i].dayOfMonth <= genDayOfMonth) { matchIdx = i; break; }
+              }
+              if (matchIdx === -1) matchIdx = simMonth1Sorted.length - 1; // génération antérieure au 1er jour tradé → dernier point dispo
+            }
+            todayMarker = dSeries[matchIdx + 1]; // +1 : dSeries[0] = capital initial avant le 1er jour tradé
           }
         }
 
