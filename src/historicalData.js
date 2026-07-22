@@ -151,3 +151,87 @@ export async function clearAllCachedData() {
     req.onblocked = () => resolve(false);
   });
 }
+
+// ══════════════════════════════════════════════════════════════════
+// TÉLÉCHARGEMENT PAR PLAGE DE DATES (multi-mois)
+// L'utilisateur choisit une date de début et une date de fin ; on
+// détermine les fichiers mensuels nécessaires, on télécharge ceux qui
+// ne sont pas déjà en cache, puis on concatène et on coupe aux dates
+// exactes demandées.
+// ══════════════════════════════════════════════════════════════════
+
+// Liste des clés "YYYY-MM" couvrant la plage (bornes incluses)
+export function monthsInRange(startISO, endISO) {
+  const out = [];
+  const s = new Date(startISO + "T00:00:00Z"), e = new Date(endISO + "T23:59:59Z");
+  let y = s.getUTCFullYear(), m = s.getUTCMonth();
+  while (y < e.getUTCFullYear() || (y === e.getUTCFullYear() && m <= e.getUTCMonth())) {
+    out.push(`${y}-${String(m + 1).padStart(2, "0")}`);
+    m++; if (m > 11) { m = 0; y++; }
+  }
+  return out;
+}
+
+// Renvoie { candles, baseMinutes, monthsUsed, monthsMissing, downloadedCount, fromCacheCount }
+export async function loadRange(pair, startISO, endISO, { onProgress } = {}) {
+  const list = await listAvailableDatasets();
+  const wanted = monthsInRange(startISO, endISO);
+  const available = list.assets.filter(a => a.pair === pair);
+  const byPeriod = new Map(available.map(a => [a.period, a]));
+
+  const toLoad = wanted.filter(p => byPeriod.has(p));
+  const missing = wanted.filter(p => !byPeriod.has(p));
+  if (!toLoad.length) {
+    throw new Error(`Aucune donnée publiée pour ${pair} sur cette plage.`);
+  }
+
+  const startTs = new Date(startISO + "T00:00:00Z").getTime();
+  const endTs = new Date(endISO + "T23:59:59Z").getTime();
+
+  let all = [];
+  let baseMinutes = 1;
+  let downloaded = 0, cached = 0;
+
+  for (let i = 0; i < toLoad.length; i++) {
+    const period = toLoad[i];
+    const cacheKey = `${pair}_${period}`;
+    const hit = await idbGet(cacheKey);
+    let ds;
+    if (hit) { ds = hit; cached++; }
+    else {
+      const asset = byPeriod.get(period);
+      const r = await fetch(asset.url);
+      if (!r.ok) throw new Error(`Téléchargement échoué pour ${period} (${r.status})`);
+      ds = await r.json();
+      await idbSet(cacheKey, ds);
+      downloaded++;
+    }
+    baseMinutes = ds.baseMinutes || baseMinutes;
+    all = all.concat(ds.candles || []);
+    if (onProgress) onProgress({
+      done: i + 1, total: toLoad.length, period,
+      pct: Math.round(((i + 1) / toLoad.length) * 100),
+      fromCache: !!hit,
+    });
+  }
+
+  all.sort((a, b) => a[0] - b[0]);
+  const candles = all.filter(c => c[0] >= startTs && c[0] <= endTs);
+
+  return {
+    candles, baseMinutes,
+    monthsUsed: toLoad, monthsMissing: missing,
+    downloadedCount: downloaded, fromCacheCount: cached,
+  };
+}
+
+// Bornes réelles de couverture publiées (pour borner les sélecteurs de date)
+export async function getCoverage() {
+  const list = await listAvailableDatasets();
+  const periods = [...new Set(list.assets.map(a => a.period))].sort();
+  if (!periods.length) return null;
+  const first = periods[0], last = periods[periods.length - 1];
+  const [ly, lm] = last.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(ly, lm, 0)).getUTCDate();
+  return { min: `${first}-01`, max: `${last}-${String(lastDay).padStart(2, "0")}`, periods };
+}

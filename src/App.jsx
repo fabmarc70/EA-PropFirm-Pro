@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser, fbLoadUserProfile, fbSaveUserProfile, fbDeleteAccount } from "./firebase.js";
-import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedData } from "./historicalData.js";
+import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedData, loadRange, monthsInRange, getCoverage } from "./historicalData.js";
 import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES } from "./backtestEngine.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
@@ -3693,15 +3693,18 @@ function BacktestSelect({ id, label, value, onChange, options, openDropdown, set
 function BacktestScreen({ t, lang, onBack, embedded = false }) {
   const ACCENT = "#6ee7b7";
   const [datasets, setDatasets] = useState(null);
+  const [coverage, setCoverage] = useState(null);
   const [loadError, setLoadError] = useState(null);
+  const [manifestLoading, setManifestLoading] = useState(true);
 
-  // ── Configuration (section 1) ──
+  // ── Configuration ──
   const [firmKey, setFirmKey] = useState("fundednext");
   const [modelKey, setModelKey] = useState("2step");
   const [capital, setCapital] = useState(25000);
   const [selectedPair, setSelectedPair] = useState(null);
-  const [selectedPeriod, setSelectedPeriod] = useState(null);
-  const [timeframeKey, setTimeframeKey] = useState("1");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [timeframeKey, setTimeframeKey] = useState("15");
   const [strategyKey, setStrategyKey] = useState("breakout");
   const [strategyParams, setStrategyParams] = useState({});
   const [tpPips, setTpPips] = useState(15);
@@ -3712,49 +3715,51 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
   const [newsFilterOn, setNewsFilterOn] = useState(false);
   const [mmMode, setMmMode] = useState("fixed");
   const [martingaleMultiplier, setMartingaleMultiplier] = useState(2);
-  const [martingaleMaxSteps, setMartingaleMaxSteps] = useState(5);
+  const [martingaleMaxSteps] = useState(5);
   const [gridSpacingPips, setGridSpacingPips] = useState(20);
   const [gridLevels, setGridLevels] = useState(5);
   const [gridDirection, setGridDirection] = useState("both");
 
-  const [candles, setCandles] = useState(null);
-  const [dlProgress, setDlProgress] = useState(null);
-  const [dlError, setDlError] = useState(null);
   const [running, setRunning] = useState(false);
+  const [loadState, setLoadState] = useState(null); // { pct, done, total, period, fromCache }
+  const [runError, setRunError] = useState(null);
   const [result, setResult] = useState(null);
   const [score, setScore] = useState(null);
-  const [manifestLoading, setManifestLoading] = useState(true);
+  const [openDropdown, setOpenDropdown] = useState(null);
   const [history, setHistory] = useState(() => { try { return JSON.parse(localStorage.getItem("eapropfirm_backtest_history") || "[]"); } catch (e) { return []; } });
   const [showHistory, setShowHistory] = useState(false);
+  const [tipIdx, setTipIdx] = useState(0);
 
   const loadManifest = () => {
     setManifestLoading(true); setLoadError(null);
-    // Timeout de sécurité : si le manifeste ne répond pas en 15s (réseau lent/bloqué),
-    // on sort de l'état de chargement infini pour proposer un vrai message + réessayer.
     let done = false;
     const timeoutId = setTimeout(() => {
       if (!done) { done = true; setManifestLoading(false); setLoadError("Le chargement prend trop de temps (réseau lent ou instable). Réessaie."); }
     }, 15000);
-    listAvailableDatasets(true).then(d => {
+    listAvailableDatasets(true).then(async d => {
       if (done) return; done = true; clearTimeout(timeoutId);
-      setDatasets(d); setManifestLoading(false);
-      if (d.assets.length) {
-        const p0 = d.assets[0].pair, per0 = d.assets[0].period;
-        setSelectedPair(p0); setSelectedPeriod(per0);
-        handleDownload(p0, per0);
+      setDatasets(d);
+      const cov = await getCoverage();
+      setCoverage(cov);
+      if (d.assets.length) setSelectedPair(d.assets[0].pair);
+      if (cov) {
+        // Par défaut : les 3 derniers mois disponibles (plage courte = chargement rapide)
+        const end = cov.max;
+        const endD = new Date(end + "T00:00:00Z");
+        const startD = new Date(Date.UTC(endD.getUTCFullYear(), endD.getUTCMonth() - 2, 1));
+        const startISO = startD.toISOString().slice(0, 10);
+        setStartDate(startISO < cov.min ? cov.min : startISO);
+        setEndDate(end);
       }
+      setManifestLoading(false);
     }).catch(e => {
       if (done) return; done = true; clearTimeout(timeoutId);
       setLoadError(e.message); setManifestLoading(false);
     });
   };
 
-  // Réinitialisation UNIQUE de toutes les anciennes données Backtest Réel
-  // (archives localStorage + cache IndexedDB des bougies téléchargées) suite
-  // au déplacement de la page vers Mes Trades — se déclenche une seule fois,
-  // gardée par un flag localStorage, ne se relancera plus après.
   useEffect(() => {
-    const RESET_FLAG = "eapropfirm_backtest_v2_reset_done";
+    const RESET_FLAG = "eapropfirm_backtest_v3_reset_done";
     (async () => {
       if (!localStorage.getItem(RESET_FLAG)) {
         try { localStorage.removeItem("eapropfirm_backtest_history"); } catch (e) {}
@@ -3771,118 +3776,103 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
     setStrategyParams(def ? { ...def.defaultParams } : {});
   }, [strategyKey]);
 
+  // Rotation des messages pendant un chargement long
+  useEffect(() => {
+    if (!loadState) return;
+    const id = setInterval(() => setTipIdx(i => i + 1), 2600);
+    return () => clearInterval(id);
+  }, [loadState]);
+
   const pairs = datasets ? [...new Set(datasets.assets.map(a => a.pair))] : [];
-  const periodsForPair = selectedPair && datasets ? datasets.assets.filter(a => a.pair === selectedPair).map(a => a.period) : [];
   const strategies = listStrategies();
-  // Granularité NATIVE du dataset sélectionné (la source actuelle est en M15).
-  // On ne propose que les timeframes >= à cette granularité : impossible de
-  // reconstruire du M1 à partir de M15, proposer M1 donnerait un résultat faux.
-  const currentAsset = datasets?.assets?.find(a => a.pair === selectedPair && a.period === selectedPeriod);
-  const baseMinutes = currentAsset?.baseMinutes || 1;
+  const firm = PROP_FIRMS[firmKey];
+  const modelsForFirm = firm ? Object.keys(firm.models) : [];
+  const currentStrategyDef = strategies.find(s => s.key === strategyKey);
+  const isGridStrategy = !!currentStrategyDef?.isGrid;
+
+  // Granularité native (M15 pour la source actuelle) -> timeframes proposés
+  const baseMinutes = datasets?.assets?.find(a => a.pair === selectedPair)?.baseMinutes || 15;
   const availableTimeframes = TIMEFRAMES.filter(tf => tf.minutes >= baseMinutes);
   useEffect(() => {
-    // Si le timeframe courant est devenu invalide (sous la granularité native), on rebascule sur le plus fin possible
     if (availableTimeframes.length && !availableTimeframes.some(tf => tf.key === timeframeKey)) {
       setTimeframeKey(availableTimeframes[0].key);
     }
   }, [baseMinutes, timeframeKey, availableTimeframes.length]);
-  const firm = PROP_FIRMS[firmKey];
-  const modelsForFirm = firm ? Object.keys(firm.models) : [];
 
-  const resetBacktest = () => {
-    setCandles(null); setResult(null); setScore(null); setDlError(null); setDlProgress(null);
-  };
+  const monthsNeeded = (startDate && endDate) ? monthsInRange(startDate, endDate) : [];
 
-  // Réinitialisation TOTALE — remet toute la configuration à ses valeurs par
-  // défaut (paire/période reprises depuis le tout premier dataset dispo) et
-  // efface tout résultat en cours. Accessible à tout moment en haut de la
-  // page, sans avoir besoin d'un résultat existant au préalable.
   const resetAllConfig = () => {
-    resetBacktest();
+    setResult(null); setScore(null); setRunError(null);
     setFirmKey("fundednext"); setModelKey("2step"); setCapital(25000);
-    setTimeframeKey("1"); setStrategyKey("breakout"); setStrategyParams({});
+    setStrategyKey("breakout"); setStrategyParams({});
     setTpPips(15); setSlPips(10); setRiskPct(1); setSlippagePips(0.2);
     setSessionKey("24h"); setNewsFilterOn(false);
-    setMmMode("fixed"); setMartingaleMultiplier(2); setMartingaleMaxSteps(5);
+    setMmMode("fixed"); setMartingaleMultiplier(2);
     setGridSpacingPips(20); setGridLevels(5); setGridDirection("both");
-    if (datasets?.assets?.length) {
-      const p0 = datasets.assets[0].pair, per0 = datasets.assets[0].period;
-      setSelectedPair(p0); setSelectedPeriod(per0);
-      handleDownload(p0, per0);
+    if (datasets?.assets?.length) setSelectedPair(datasets.assets[0].pair);
+    if (coverage) {
+      const endD = new Date(coverage.max + "T00:00:00Z");
+      const startD = new Date(Date.UTC(endD.getUTCFullYear(), endD.getUTCMonth() - 2, 1));
+      const s = startD.toISOString().slice(0, 10);
+      setStartDate(s < coverage.min ? coverage.min : s); setEndDate(coverage.max);
     }
     setOpenDropdown(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // ── Lancement : télécharge la plage demandée PUIS exécute le backtest ──
+  const handleRun = async () => {
+    if (!selectedPair || !startDate || !endDate) return;
+    if (startDate > endDate) { setRunError("La date de début doit précéder la date de fin."); return; }
+    setRunning(true); setRunError(null); setResult(null); setScore(null); setTipIdx(0);
+    try {
+      const range = await loadRange(selectedPair, startDate, endDate, { onProgress: setLoadState });
+      setLoadState(null);
+      if (!range.candles.length) throw new Error("Aucune bougie sur cette plage de dates.");
+      const tf = TIMEFRAMES.find(x => x.key === timeframeKey);
+      const prepared = aggregateCandles(range.candles, tf ? tf.minutes : range.baseMinutes, range.baseMinutes);
+      const r = isGridStrategy
+        ? runGridBacktest({ candles: prepared, pair: selectedPair, capital, riskPct, spacingPips: gridSpacingPips, levels: gridLevels, direction: gridDirection, slippagePips })
+        : runBacktest({ candles: prepared, pair: selectedPair, strategyKey, tpPips, slPips, strategyParams, capital, riskPct, slippagePips, sessionKey, newsFilterOn, mmMode, martingaleMultiplier, martingaleMaxSteps });
+      r.rangeInfo = { start: startDate, end: endDate, months: range.monthsUsed.length, downloaded: range.downloadedCount, cached: range.fromCacheCount, candles: prepared.length };
+      setResult(r);
+      setScore(r.isGridResult ? null : computePropFirmScore(r, capital, firmKey, modelKey, labRunMonteCarlo));
+    } catch (e) {
+      setRunError(e.message); setLoadState(null);
+    }
+    setRunning(false);
+  };
+
   const archiveResult = () => {
     if (!result || result.error) return;
     const entry = {
-      id: Date.now(),
-      savedAt: new Date().toISOString(),
-      pair: selectedPair, period: selectedPeriod, strategyLabel: result.strategyLabel,
-      timeframe: TIMEFRAMES.find(x => x.key === timeframeKey)?.label || "M1",
+      id: Date.now(), savedAt: new Date().toISOString(),
+      pair: selectedPair, period: `${startDate} → ${endDate}`, strategyLabel: result.strategyLabel,
+      timeframe: TIMEFRAMES.find(x => x.key === timeframeKey)?.label || "",
       firmName: firm?.name, modelName: firm?.models[modelKey]?.name,
       totalUSD: result.totalUSD, totalPct: result.totalPct, winrate: result.winrate,
       profitFactor: result.profitFactor, maxDrawdownPct: result.maxDrawdownPct, totalTrades: result.totalTrades,
-      scoreVal: score?.score ?? null, passRate: score?.passRate ?? null,
+      scoreVal: score?.score ?? null,
     };
-    const next = [entry, ...history].slice(0, 30); // 30 archives max, évite un localStorage qui grossit indéfiniment
+    const next = [entry, ...history].slice(0, 30);
     setHistory(next);
     try { localStorage.setItem("eapropfirm_backtest_history", JSON.stringify(next)); } catch (e) {}
   };
-
   const deleteArchive = (id) => {
     const next = history.filter(h => h.id !== id);
     setHistory(next);
     try { localStorage.setItem("eapropfirm_backtest_history", JSON.stringify(next)); } catch (e) {}
   };
 
-  const handleDownload = async (pairArg, periodArg) => {
-    const p = pairArg ?? selectedPair, per = periodArg ?? selectedPeriod;
-    if (!p || !per) return;
-    setDlProgress(0); setDlError(null); setCandles(null); setResult(null);
-    try {
-      const data = await downloadCandles(p, per, { onProgress: setDlProgress });
-      setCandles(data.candles);
-      setDlProgress(null);
-    } catch (e) { setDlError(e.message); setDlProgress(null); }
-  };
+  const tier = (v, good, mid) => v >= good ? "#6ee7b7" : v >= mid ? "#fbbf24" : "#ef4444";
+  const tierInv = (v, good, mid) => v <= good ? "#6ee7b7" : v <= mid ? "#fbbf24" : "#ef4444";
 
-  const currentStrategyDefEarly = strategies.find(s => s.key === strategyKey);
-  const isGridStrategy = !!currentStrategyDefEarly?.isGrid;
-
-  const handleRun = () => {
-    if (!candles) return;
-    setRunning(true);
-    setTimeout(() => {
-      try {
-        const tf = TIMEFRAMES.find(x => x.key === timeframeKey);
-        const prepared = aggregateCandles(candles, tf ? tf.minutes : baseMinutes, baseMinutes);
-        const r = isGridStrategy
-          ? runGridBacktest({
-              candles: prepared, pair: selectedPair, capital, riskPct,
-              spacingPips: gridSpacingPips, levels: gridLevels, direction: gridDirection, slippagePips,
-            })
-          : runBacktest({
-              candles: prepared, pair: selectedPair, strategyKey, tpPips, slPips, strategyParams,
-              capital, riskPct, slippagePips, sessionKey, newsFilterOn,
-              mmMode, martingaleMultiplier, martingaleMaxSteps,
-            });
-        setResult(r);
-        const sc = r.isGridResult ? null : computePropFirmScore(r, capital, firmKey, modelKey, labRunMonteCarlo);
-        setScore(sc);
-      } catch (e) {
-        setResult({ error: e.message });
-        setScore(null);
-      }
-      setRunning(false);
-    }, 50);
-  };
-
-  const tier = (val, good, mid) => val >= good ? "#6ee7b7" : val >= mid ? "#fbbf24" : "#ef4444";
-  const tierInv = (val, good, mid) => val <= good ? "#6ee7b7" : val <= mid ? "#fbbf24" : "#ef4444"; // plus bas = mieux (ex: drawdown)
-
-  const [openDropdown, setOpenDropdown] = useState(null); // clé du Select actuellement ouvert (un seul à la fois)
+  const SectionHeader = ({ n, title }) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 12 }}>
+      <div style={{ width: 24, height: 24, borderRadius: 12, background: ACCENT + "18", border: "1.5px solid " + ACCENT, color: ACCENT, fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{n}</div>
+      <div style={{ fontSize: 11, fontWeight: 800, color: "#fff", textTransform: "uppercase", letterSpacing: 0.5 }}>{title}</div>
+    </div>
+  );
 
   const ScoreCircle = ({ val, size = 66, label, sub }) => {
     const color = val >= 65 ? "#6ee7b7" : val >= 40 ? "#fbbf24" : "#ef4444";
@@ -3904,34 +3894,22 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
     );
   };
 
-  const SectionHeader = ({ n, title }) => (
-    <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 12 }}>
-      <div style={{ width: 24, height: 24, borderRadius: 12, background: ACCENT + "18", border: "1.5px solid " + ACCENT, color: ACCENT, fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{n}</div>
-      <div style={{ fontSize: 11, fontWeight: 800, color: "#fff", textTransform: "uppercase", letterSpacing: 0.5 }}>{title}</div>
-    </div>
-  );
-
   if (loadError) {
     return (
       <div style={{ minHeight: "100vh", paddingBottom: 100 }}>
-        {!embedded && <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles · zéro estimation" onBack={onBack} />}
+        {!embedded && <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles" onBack={onBack} />}
         <div className="card" style={{ textAlign: "center", padding: 20, border: "1px solid rgba(239,68,68,0.2)" }}>
           <div style={{ color: "#ef4444", fontWeight: 700, fontSize: 12, marginBottom: 4 }}>Impossible de charger les données</div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 14 }}>{loadError}</div>
-          <button onClick={loadManifest} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid " + ACCENT, background: "transparent", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-            ↻ Réessayer
-          </button>
+          <button onClick={loadManifest} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid " + ACCENT, background: "transparent", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>↻ Réessayer</button>
         </div>
       </div>
     );
   }
-  // Écran de chargement explicite — avant, la page restait vide (return null)
-  // tant que le manifeste réseau n'avait pas répondu, ce qui donnait
-  // l'impression que "la page a du mal à s'ouvrir" sans aucun retour visuel.
   if (manifestLoading || !datasets) {
     return (
       <div style={{ minHeight: "100vh", paddingBottom: 100 }}>
-        {!embedded && <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles · zéro estimation" onBack={onBack} />}
+        {!embedded && <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles" onBack={onBack} />}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "40vh", gap: 12 }}>
           <div style={{ width: 34, height: 34, borderRadius: 17, border: "3px solid rgba(110,231,183,0.15)", borderTopColor: ACCENT, animation: "eapfp-spin 0.8s linear infinite" }} />
           <style>{"@keyframes eapfp-spin { to { transform: rotate(360deg); } }"}</style>
@@ -3941,48 +3919,171 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
     );
   }
 
-  const currentStrategyDef = currentStrategyDefEarly;
+  const TIPS = [
+    "Données de marché réelles — OHLC authentiques, pas de simulation.",
+    "Une fois téléchargées, ces données restent en cache : les prochains backtests sur la même période seront instantanés.",
+    "Plus la plage est longue, plus l'échantillon est statistiquement fiable.",
+    "Le moteur applique spread et slippage sur chaque trade, comme en conditions réelles.",
+  ];
 
   return (
-    <div style={{ minHeight: "100vh", paddingBottom: 100 }}>
-      {!embedded && <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles · zéro estimation" onBack={onBack} />}
+    <div style={{ paddingBottom: 100 }}>
+      {!embedded && <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles" onBack={onBack} />}
+
+      {/* ══ ZONE FIGÉE : courbe + bouton (le reste défile dessous) ══ */}
+      <div style={{
+        position: "sticky", top: 0, zIndex: 40,
+        background: "#06090f",
+        marginLeft: -16, marginRight: -16, paddingLeft: 6, paddingRight: 6,
+        paddingTop: 8, paddingBottom: 10,
+        borderBottom: "1px solid rgba(255,255,255,0.07)",
+      }}>
+        {result && !result.error ? (
+          <>
+            <div style={{ display: "flex", gap: 12, marginBottom: 2, fontSize: 9.5, color: "rgba(255,255,255,0.45)", paddingLeft: 10 }}>
+              <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: result.totalUSD >= 0 ? ACCENT : "#ef4444", marginRight: 4 }} />Équité</span>
+              <span><span style={{ display: "inline-block", width: 12, height: 2, background: "#f87171", marginRight: 4, verticalAlign: "middle" }} />Drawdown</span>
+              <span style={{ marginLeft: "auto", paddingRight: 10, color: "rgba(255,255,255,0.3)" }}>{result.rangeInfo ? `${result.rangeInfo.candles.toLocaleString()} bougies` : ""}</span>
+            </div>
+            <ResponsiveContainer width="100%" height={190}>
+              <ComposedChart data={result.equityCurve} margin={{ top: 6, right: 4, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="btEquityUSD" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={result.totalUSD >= 0 ? ACCENT : "#ef4444"} stopOpacity={0.32} />
+                    <stop offset="100%" stopColor={result.totalUSD >= 0 ? ACCENT : "#ef4444"} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="x" tick={{ fontSize: 9, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "T" + v} minTickGap={24} />
+                <YAxis yAxisId="equity" width={44} tick={{ fontSize: 9, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v/1000).toFixed(0) + "k"} domain={["auto","auto"]} />
+                <YAxis yAxisId="dd" orientation="right" width={42} tick={{ fontSize: 9, fill: "rgba(248,113,113,0.5)" }} tickFormatter={v => v + "%"} domain={["dataMin", 0]} />
+                <Tooltip formatter={(v, name) => name === "ddPct" ? v + "%" : "$" + v.toLocaleString()} contentStyle={{ background: "rgba(18,18,26,0.95)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, fontSize: 11 }} />
+                <Area yAxisId="equity" type="monotone" dataKey="usd" stroke={result.totalUSD >= 0 ? ACCENT : "#ef4444"} strokeWidth={2} fill="url(#btEquityUSD)" dot={false} />
+                <Line yAxisId="dd" type="monotone" dataKey="ddPct" stroke="#f87171" strokeWidth={1.3} strokeDasharray="3 3" dot={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </>
+        ) : (
+          <div style={{ height: running ? 190 : 96, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "0 16px" }}>
+            {running ? (
+              <>
+                <div style={{ width: 30, height: 30, borderRadius: 15, border: "3px solid rgba(110,231,183,0.15)", borderTopColor: ACCENT, animation: "eapfp-spin 0.8s linear infinite" }} />
+                <style>{"@keyframes eapfp-spin { to { transform: rotate(360deg); } }"}</style>
+                {loadState ? (
+                  <>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
+                      {loadState.fromCache ? "Lecture du cache" : "Téléchargement"} · {loadState.done}/{loadState.total} ({loadState.period})
+                    </div>
+                    <div style={{ width: "80%", maxWidth: 260, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.1)", overflow: "hidden" }}>
+                      <div style={{ width: loadState.pct + "%", height: "100%", background: ACCENT, transition: "width .2s" }} />
+                    </div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textAlign: "center", lineHeight: 1.4, minHeight: 26 }}>
+                      {TIPS[tipIdx % TIPS.length]}
+                    </div>
+                  </>
+                ) : <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Calcul du backtest…</div>}
+              </>
+            ) : (
+              <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.35)", textAlign: "center", lineHeight: 1.5 }}>
+                {runError ? <span style={{ color: "#ef4444" }}>{runError}</span>
+                  : <>Configure ci-dessous puis lance le backtest.<br />La courbe d'équité et le drawdown s'afficheront ici.</>}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div style={{ padding: "0 10px" }}>
+          <button onClick={handleRun} disabled={running || !selectedPair || !startDate || !endDate} style={{
+            width: "100%", padding: 13, borderRadius: 12, border: "none",
+            cursor: running ? "default" : "pointer",
+            background: running ? "rgba(255,255,255,0.07)" : `linear-gradient(135deg,${ACCENT},#34d399)`,
+            color: running ? "rgba(255,255,255,0.3)" : "#000", fontSize: 14, fontWeight: 800,
+          }}>
+            {running ? "Chargement…" : "▶ Lancer le backtest"}
+          </button>
+          {!running && monthsNeeded.length > 0 && (
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.28)", textAlign: "center", marginTop: 5 }}>
+              {monthsNeeded.length} mois · {selectedPair} · données téléchargées automatiquement puis mises en cache
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ══ RÉSULTATS CHIFFRÉS ══ */}
+      {result && !result.error && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <SectionHeader n="1" title="Résultats" />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {(result.isGridResult ? [
+              { l: "Gain net", v: (result.totalUSD >= 0 ? "+$" : "-$") + Math.abs(result.totalUSD).toLocaleString(), sub: (result.totalPct >= 0 ? "+" : "") + result.totalPct + "%", c: result.totalUSD >= 0 ? ACCENT : "#ef4444" },
+              { l: "Niveaux clôturés", v: result.totalTrades, c: "#fff" },
+              { l: "Drawdown flottant", v: "-" + result.maxDrawdownPct + "%", sub: "-$" + result.maxDrawdownUSD.toLocaleString(), c: tierInv(result.maxDrawdownPct, 8, 15) },
+              { l: "Niveaux ouverts", v: result.openLevelsCount + " / " + result.gridLevelsTotal, c: "rgba(255,255,255,0.85)" },
+            ] : [
+              { l: "Gain net", v: (result.totalUSD >= 0 ? "+$" : "-$") + Math.abs(result.totalUSD).toLocaleString(), sub: (result.totalPct >= 0 ? "+" : "") + result.totalPct + "%", c: result.totalUSD >= 0 ? ACCENT : "#ef4444" },
+              { l: "Profit Factor", v: result.profitFactor === Infinity ? "∞" : result.profitFactor, c: tier(result.profitFactor, 1.5, 1) },
+              { l: "Win Rate", v: result.winrate + "%", c: tier(result.winrate, 55, 40) },
+              { l: "R Ratio", v: "1:" + result.rRatio, c: tier(result.rRatio, 1.5, 1) },
+              { l: "Drawdown max", v: "-" + result.maxDrawdownPct + "%", sub: "-$" + result.maxDrawdownUSD.toLocaleString(), c: tierInv(result.maxDrawdownPct, 8, 15) },
+              { l: "Trades", v: result.totalTrades, c: "#fff" },
+            ]).map(k => (
+              <div key={k.l} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "9px 10px" }}>
+                <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>{k.l}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: k.c }}>{k.v}</div>
+                {k.sub && <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)" }}>{k.sub}</div>}
+              </div>
+            ))}
+          </div>
+          {score && (
+            <div style={{ display: "flex", gap: 10, marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              <ScoreCircle val={score.score} label={score.score >= 65 ? "Très bon" : score.score >= 40 ? "Correct" : "Faible"} sub={`${firm.name} ${firm.models[modelKey].name}`} />
+              <ScoreCircle val={score.passRate} label={score.passRate >= 55 ? "Élevée" : score.passRate >= 30 ? "Moyenne" : "Faible"} sub="Probabilité · Monte Carlo" />
+            </div>
+          )}
+          {result.rangeInfo && (
+            <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.3)", marginTop: 10 }}>
+              {result.rangeInfo.start} → {result.rangeInfo.end} · {result.rangeInfo.months} mois ({result.rangeInfo.downloaded} téléchargés, {result.rangeInfo.cached} depuis le cache)
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button onClick={archiveResult} style={{ flex: 1, padding: 11, borderRadius: 10, border: "1px solid " + ACCENT + "55", background: ACCENT + "12", color: ACCENT, fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>📥 Archiver</button>
+            <button onClick={resetAllConfig} style={{ flex: 1, padding: 11, borderRadius: 10, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>↺ Réinitialiser</button>
+          </div>
+        </div>
+      )}
 
       {history.length > 0 && (
         <button onClick={() => setShowHistory(true)} style={{
           width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "10px 14px", borderRadius: 12, marginBottom: 12, cursor: "pointer",
+          padding: "10px 14px", borderRadius: 12, marginTop: 12, cursor: "pointer",
           background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff",
         }}>
-          <span style={{ fontSize: 12, fontWeight: 700 }}>📂 Historique des backtests archivés</span>
+          <span style={{ fontSize: 12, fontWeight: 700 }}>📂 Backtests archivés</span>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{history.length} →</span>
         </button>
       )}
 
       {showHistory && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(3,6,10,0.92)", display: "flex", flexDirection: "column" }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(3,6,10,0.94)", display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "calc(16px + env(safe-area-inset-top)) 16px 12px" }}>
             <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Backtests archivés</div>
             <button onClick={() => setShowHistory(false)} style={{ width: 32, height: 32, borderRadius: 16, background: "rgba(255,255,255,0.08)", border: "none", color: "#fff", fontSize: 15, cursor: "pointer" }}>✕</button>
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: "0 16px 24px" }}>
-            {history.length === 0 && <div style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 40 }}>Aucune archive pour le moment.</div>}
             {history.map(h => (
               <div key={h.id} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 12, marginBottom: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{h.pair} · {h.strategyLabel}</div>
-                    <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)" }}>{h.timeframe} · {h.period} · {h.firmName} {h.modelName}</div>
+                    <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)" }}>{h.timeframe} · {h.period}</div>
                     <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{new Date(h.savedAt).toLocaleString()}</div>
                   </div>
                   <button onClick={() => deleteArchive(h.id)} style={{ background: "none", border: "none", color: "#ef4444", fontSize: 11, cursor: "pointer", padding: 4 }}>Suppr.</button>
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 10.5, fontWeight: 700, color: h.totalUSD >= 0 ? ACCENT : "#ef4444" }}>{(h.totalUSD >= 0 ? "+$" : "-$") + Math.abs(h.totalUSD).toLocaleString()} ({h.totalPct >= 0 ? "+" : ""}{h.totalPct}%)</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: h.totalUSD >= 0 ? ACCENT : "#ef4444" }}>{(h.totalUSD >= 0 ? "+$" : "-$") + Math.abs(h.totalUSD).toLocaleString()}</span>
                   <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)" }}>WR {h.winrate}%</span>
-                  <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)" }}>PF {h.profitFactor === Infinity ? "∞" : h.profitFactor}</span>
                   <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)" }}>DD -{h.maxDrawdownPct}%</span>
                   <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)" }}>{h.totalTrades} trades</span>
-                  {h.scoreVal != null && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#a78bfa" }}>Score {h.scoreVal}/100</span>}
                 </div>
               </div>
             ))}
@@ -3990,17 +4091,40 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
         </div>
       )}
 
-      <div style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 12, padding: "10px 12px", marginBottom: 14, fontSize: 10, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
-        ⚠️ Stratégies déterministes (breakout, RSI, MACD) sur données réelles. Filtre news = estimation d'horaires à risque (pas un calendrier économique réel). Ne remplace pas un forward test.
-      </div>
-
-      {/* ══ SECTION 1 — CONFIGURATION ══ */}
-      <div className="card">
+      {/* ══ CONFIGURATION ══ */}
+      <div className="card" style={{ marginTop: 12 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <SectionHeader n="1" title="Configuration du backtest" />
-          <button onClick={resetAllConfig} style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 10.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", marginBottom: 12 }}>
-            ↺ Réinitialiser
-          </button>
+          <SectionHeader n="2" title="Configuration" />
+          <button onClick={resetAllConfig} style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 10.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", marginBottom: 12 }}>↺ Réinitialiser</button>
+        </div>
+
+        {/* Plage de dates */}
+        <div style={{ background: "rgba(110,231,183,0.04)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, padding: 12, marginBottom: 10 }}>
+          <div style={{ fontSize: 9.5, fontWeight: 700, color: ACCENT, textTransform: "uppercase", marginBottom: 8 }}>📅 Période à backtester</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div>
+              <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginBottom: 4, fontWeight: 700 }}>Du</div>
+              <input type="date" value={startDate} min={coverage?.min} max={coverage?.max} onChange={e => setStartDate(e.target.value)}
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, color: "#fff", padding: "9px 10px", fontSize: 12.5, fontWeight: 700, boxSizing: "border-box", colorScheme: "dark" }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginBottom: 4, fontWeight: 700 }}>Au</div>
+              <input type="date" value={endDate} min={coverage?.min} max={coverage?.max} onChange={e => setEndDate(e.target.value)}
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, color: "#fff", padding: "9px 10px", fontSize: 12.5, fontWeight: 700, boxSizing: "border-box", colorScheme: "dark" }} />
+            </div>
+          </div>
+          {coverage && (
+            <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", marginTop: 7, lineHeight: 1.45 }}>
+              Données disponibles du {coverage.min} au {coverage.max}. Les données de la plage choisie sont téléchargées automatiquement au lancement, puis conservées en cache.
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+          <BacktestSelect id="pair" label="📈 Actif" value={selectedPair || ""} onChange={setSelectedPair}
+            options={pairs.map(p => ({ value: p, label: (PAIR_ICONS[p] || "💱") + " " + p }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+          <BacktestSelect id="timeframe" label="⏱ Timeframe" value={timeframeKey} onChange={setTimeframeKey}
+            options={availableTimeframes.map(tf => ({ value: tf.key, label: tf.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
           <BacktestSelect id="firm" label="🏢 Prop firm" value={firmKey} onChange={v => { setFirmKey(v); setModelKey(Object.keys(PROP_FIRMS[v].models)[0]); }}
@@ -4011,53 +4135,36 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
           <BacktestSelect id="capital" label="💰 Solde du challenge" value={capital} onChange={v => setCapital(parseInt(v))}
             options={CAPITAL_OPTIONS.map(c => ({ value: c, label: "$" + c.toLocaleString() }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
-          <BacktestSelect id="pair" label="📈 Actif" value={selectedPair || ""} onChange={v => {
-              const newPeriod = datasets.assets.find(a => a.pair === v)?.period || null;
-              setSelectedPair(v); setSelectedPeriod(newPeriod);
-              handleDownload(v, newPeriod);
-            }}
-            options={pairs.map(p => ({ value: p, label: (PAIR_ICONS[p] || "💱") + " " + p }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-          <BacktestSelect id="timeframe" label="⏱ Timeframe" value={timeframeKey} onChange={setTimeframeKey}
-            options={availableTimeframes.map(tf => ({ value: tf.key, label: tf.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
-          {isGridStrategy ? (
-            <BacktestSelect id="riskgrid" label="🛡 Risque total (% capital)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
-              options={[0.5, 1, 2, 3, 5].map(r => ({ value: r, label: r + "% réparti" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
-          ) : (
-            <BacktestSelect id="riskpct" label="🛡 Risque par trade (%)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
-              options={[0.25, 0.5, 1, 1.5, 2].map(r => ({ value: r, label: r + "%" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
-          )}
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-          <BacktestSelect id="period" label="📅 Période" value={selectedPeriod || ""} onChange={v => { setSelectedPeriod(v); handleDownload(selectedPair, v); }}
-            options={periodsForPair.map(p => ({ value: p, label: p }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
           <BacktestSelect id="strategy" label="📊 Stratégie" value={strategyKey} onChange={setStrategyKey}
             options={strategies.map(s => ({ value: s.key, label: (s.category ? "[" + s.category + "] " : "") + s.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
           <BacktestSelect id="mmmode" label="⚖️ Gestion du risque" value={mmMode} onChange={setMmMode}
             options={MONEY_MANAGEMENT_MODES.map(m => ({ value: m.key, label: m.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+          <BacktestSelect id="riskpct" label="🛡 Risque par trade (%)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
+            options={[0.25, 0.5, 1, 1.5, 2, 3, 5].map(r => ({ value: r, label: r + "%" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
           <BacktestSelect id="slippage" label="💸 Frais & slippage" value={slippagePips} onChange={v => setSlippagePips(parseFloat(v))}
             options={[0, 0.2, 0.5, 1].map(s => ({ value: s, label: s === 0 ? "Aucun (idéal)" : "Spread + " + s + " pip" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
-        </div>
-        {!isGridStrategy && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+          {isGridStrategy ? <div /> : (
             <BacktestSelect id="session" label="🕐 Heures de trading" value={sessionKey} onChange={setSessionKey}
               options={SESSIONS.map(s => ({ value: s.key, label: s.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
-            {mmMode === "martingale" ? (
+          )}
+        </div>
+        {mmMode === "martingale" && !isGridStrategy && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
               <BacktestSelect id="martmult" label="🎲 Multiplicateur martingale" value={martingaleMultiplier} onChange={v => setMartingaleMultiplier(parseFloat(v))}
                 options={[1.5, 2, 2.5, 3].map(m => ({ value: m, label: "×" + m }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
-            ) : <div />}
-          </div>
-        )}
-        {!isGridStrategy && mmMode === "martingale" && (
-          <div style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 12, padding: 10, marginBottom: 8, fontSize: 10, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
-            ⚠️ La Martingale double la mise après chaque perte pour "rattraper" le capital — cela amplifie mécaniquement le risque de ruine. Le drawdown sera très probablement bien plus élevé qu'en risque fixe. Plafond de doublements : {martingaleMaxSteps}.
-          </div>
+              <div />
+            </div>
+            <div style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 12, padding: 10, marginBottom: 8, fontSize: 10, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
+              ⚠️ La Martingale amplifie mécaniquement le risque de ruine. Plafond de doublements : {martingaleMaxSteps}.
+            </div>
+          </>
         )}
 
-        {/* Paramètres spécifiques à la stratégie (ou à la grille) */}
         {isGridStrategy ? (
           <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: 12, marginBottom: 8 }}>
             <div style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>Configuration de la grille</div>
@@ -4070,7 +4177,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
             </div>
             <div style={{ marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginBottom: 2 }}>
-                <span style={{ color: "rgba(255,255,255,0.6)" }}>Nombre de niveaux (de chaque côté)</span>
+                <span style={{ color: "rgba(255,255,255,0.6)" }}>Niveaux de chaque côté</span>
                 <span style={{ fontWeight: 800, color: ACCENT }}>{gridLevels}</span>
               </div>
               <input type="range" min={2} max={15} step={1} value={gridLevels} onChange={e => setGridLevels(parseInt(e.target.value))} style={{ width: "100%", accentColor: ACCENT }} />
@@ -4085,7 +4192,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
                 }}>{d.l}</button>
               ))}
             </div>
-            <div style={{ fontSize: 9.5, color: "rgba(239,68,68,0.75)", marginTop: 8, lineHeight: 1.4 }}>⚠️ Pas de stop loss par niveau (caractéristique réelle des grilles) — le risque est dans le drawdown flottant, suivi et affiché honnêtement dans les résultats.</div>
+            <div style={{ fontSize: 9.5, color: "rgba(239,68,68,0.75)", marginTop: 8, lineHeight: 1.4 }}>⚠️ Pas de stop loss par niveau — le risque est dans le drawdown flottant, affiché dans les résultats.</div>
           </div>
         ) : currentStrategyDef && (
           <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: 12, marginBottom: 8 }}>
@@ -4104,12 +4211,12 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
             <div style={{ display: "flex", gap: 8 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>Take Profit (pips)</div>
-                <input type="number" value={tpPips} min={1} max={200} onChange={e => setTpPips(parseFloat(e.target.value) || 1)}
+                <input type="number" value={tpPips} min={1} max={500} onChange={e => setTpPips(parseFloat(e.target.value) || 1)}
                   style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "6px 8px", fontSize: 13, boxSizing: "border-box" }} />
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>Stop Loss (pips)</div>
-                <input type="number" value={slPips} min={1} max={200} onChange={e => setSlPips(parseFloat(e.target.value) || 1)}
+                <input type="number" value={slPips} min={1} max={500} onChange={e => setSlPips(parseFloat(e.target.value) || 1)}
                   style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "6px 8px", fontSize: 13, boxSizing: "border-box" }} />
               </div>
             </div>
@@ -4117,109 +4224,19 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
         )}
 
         {!isGridStrategy && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "9px 12px", marginBottom: 12 }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>Filtre news</div>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>Estimation horaires à risque (NFP/FOMC/CPI)</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "9px 12px" }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>Filtre news</div>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>Estimation horaires à risque (NFP/FOMC/CPI)</div>
+            </div>
+            <div onClick={() => setNewsFilterOn(v => !v)} style={{ width: 38, height: 21, borderRadius: 11, background: newsFilterOn ? ACCENT : "rgba(255,255,255,0.12)", position: "relative", cursor: "pointer", transition: "all .2s" }}>
+              <div style={{ position: "absolute", top: 2, left: newsFilterOn ? 19 : 2, width: 17, height: 17, borderRadius: 9, background: "#fff", transition: "all .2s" }} />
+            </div>
           </div>
-          <div onClick={() => setNewsFilterOn(v => !v)} style={{ width: 38, height: 21, borderRadius: 11, background: newsFilterOn ? ACCENT : "rgba(255,255,255,0.12)", position: "relative", cursor: "pointer", transition: "all .2s" }}>
-            <div style={{ position: "absolute", top: 2, left: newsFilterOn ? 19 : 2, width: 17, height: 17, borderRadius: 9, background: "#fff", transition: "all .2s" }} />
-
-          </div>
-        </div>
         )}
-
-        <div style={{ fontSize: 10.5, color: dlProgress !== null ? "#fbbf24" : candles ? ACCENT : dlError ? "#ef4444" : "rgba(255,255,255,0.4)", marginBottom: 10, textAlign: "center" }}>
-          {dlProgress !== null ? `Téléchargement des données… ${dlProgress}%` : candles ? `✓ ${candles.length.toLocaleString()} bougies M1 chargées (${selectedPair} · ${selectedPeriod})` : dlError || "En attente de données…"}
-        </div>
-
-        <button onClick={handleRun} disabled={!candles || running} style={{
-          width: "100%", padding: 15, borderRadius: 13, border: "none",
-          cursor: (!candles || running) ? "default" : "pointer",
-          background: (!candles || running) ? "rgba(255,255,255,0.07)" : `linear-gradient(135deg,${ACCENT},#34d399)`,
-          color: (!candles || running) ? "rgba(255,255,255,0.3)" : "#000", fontSize: 14, fontWeight: 800,
-        }}>
-          {running ? "Calcul en cours…" : "▶ Lancer le backtest"}
-        </button>
-        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", textAlign: "center", marginTop: 6 }}>Simulation locale, calcul instantané — pas de données inventées</div>
       </div>
 
-      {/* ══ SECTION 2 — RÉSULTATS ══ */}
-      {result && !result.error && (
-        <div className="card">
-          <SectionHeader n="2" title="Résultats du backtest" />
-          {result.equityCurve.length > 2 && (
-            <>
-            <div style={{ display: "flex", gap: 12, marginBottom: 4, fontSize: 9.5, color: "rgba(255,255,255,0.45)" }}>
-              <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: result.totalUSD >= 0 ? ACCENT : "#ef4444", marginRight: 4 }} />Équité</span>
-              <span><span style={{ display: "inline-block", width: 12, height: 2, background: "#f87171", marginRight: 4, verticalAlign: "middle" }} />Drawdown</span>
-            </div>
-            <ResponsiveContainer width="100%" height={170}>
-              <ComposedChart data={result.equityCurve}>
-                <defs>
-                  <linearGradient id="btEquityUSD" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={result.totalUSD >= 0 ? ACCENT : "#ef4444"} stopOpacity={0.3} />
-                    <stop offset="100%" stopColor={result.totalUSD >= 0 ? ACCENT : "#ef4444"} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="x" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "T" + v} />
-                <YAxis yAxisId="equity" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v/1000).toFixed(0) + "k"} domain={["auto","auto"]} />
-                <YAxis yAxisId="dd" orientation="right" tick={{ fontSize: 10, fill: "rgba(248,113,113,0.5)" }} tickFormatter={v => v + "%"} domain={["dataMin", 0]} />
-                <Tooltip formatter={(v, name) => name === "ddPct" ? v + "%" : "$" + v.toLocaleString()} contentStyle={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, fontSize: 11 }} />
-                <Area yAxisId="equity" type="monotone" dataKey="usd" stroke={result.totalUSD >= 0 ? ACCENT : "#ef4444"} strokeWidth={2} fill="url(#btEquityUSD)" dot={false} />
-                <Line yAxisId="dd" type="monotone" dataKey="ddPct" stroke="#f87171" strokeWidth={1.3} strokeDasharray="3 3" dot={false} />
-              </ComposedChart>
-            </ResponsiveContainer>
-            </>
-          )}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
-            {(result.isGridResult ? [
-              { l: "Gain net", v: (result.totalUSD >= 0 ? "+$" : "-$") + Math.abs(result.totalUSD).toLocaleString(), sub: (result.totalPct >= 0 ? "+" : "") + result.totalPct + "%", c: result.totalUSD >= 0 ? ACCENT : "#ef4444" },
-              { l: "Niveaux clôturés", v: result.totalTrades, c: "#fff" },
-              { l: "Drawdown flottant max", v: "-" + result.maxDrawdownPct + "%", sub: "-$" + result.maxDrawdownUSD.toLocaleString(), c: tierInv(result.maxDrawdownPct, 8, 15) },
-              { l: "Niveaux ouverts", v: result.openLevelsCount + " / " + result.gridLevelsTotal, c: "rgba(255,255,255,0.85)" },
-            ] : [
-              { l: "Gain net", v: (result.totalUSD >= 0 ? "+$" : "-$") + Math.abs(result.totalUSD).toLocaleString(), sub: (result.totalPct >= 0 ? "+" : "") + result.totalPct + "%", c: result.totalUSD >= 0 ? ACCENT : "#ef4444" },
-              { l: "Profit Factor", v: result.profitFactor === Infinity ? "∞" : result.profitFactor, c: tier(result.profitFactor, 1.5, 1) },
-              { l: "Win Rate", v: result.winrate + "%", c: tier(result.winrate, 55, 40) },
-              { l: "R Ratio", v: "1:" + result.rRatio, c: tier(result.rRatio, 1.5, 1) },
-              { l: "Drawdown max", v: "-" + result.maxDrawdownPct + "%", sub: "-$" + result.maxDrawdownUSD.toLocaleString(), c: tierInv(result.maxDrawdownPct, 8, 15) },
-              { l: "Trades", v: result.totalTrades, c: "#fff" },
-            ]).map(k => (
-              <div key={k.l} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "9px 10px" }}>
-                <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>{k.l}</div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: k.c }}>{k.v}</div>
-                {k.sub && <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)" }}>{k.sub}</div>}
-              </div>
-            ))}
-          </div>
-
-          {score && (
-            <div style={{ display: "flex", gap: 10, marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-              <ScoreCircle val={score.score} label={score.score >= 65 ? "Très bon" : score.score >= 40 ? "Correct" : "Faible"} sub={`${firm.name} ${firm.models[modelKey].name}`} />
-              <ScoreCircle val={score.passRate} label={score.passRate >= 55 ? "Élevée" : score.passRate >= 30 ? "Moyenne" : "Faible"} sub={"Probabilité de réussite · Monte Carlo"} />
-            </div>
-          )}
-          {!score && !result.isGridResult && result.totalTrades < 10 && (
-            <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)", marginTop: 10, textAlign: "center" }}>Échantillon trop faible (&lt;10 trades) pour un score fiable — élargis la période.</div>
-          )}
-          {result.isGridResult && (
-            <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)", marginTop: 10, textAlign: "center" }}>Score PropFirm non calculé pour Grid Trading — le drawdown flottant sans stop loss rend une simulation Monte Carlo standard peu représentative.</div>
-          )}
-
-          <div style={{ display: "flex", gap: 8, marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-            <button onClick={archiveResult} style={{ flex: 1, padding: 11, borderRadius: 10, border: "1px solid " + ACCENT + "55", background: ACCENT + "12", color: ACCENT, fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
-              📥 Archiver ce résultat
-            </button>
-            <button onClick={resetBacktest} style={{ flex: 1, padding: 11, borderRadius: 10, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
-              ↺ Réinitialiser
-            </button>
-          </div>
-        </div>
-      )}
-      {result?.error && <div style={{ fontSize: 12, color: "#ef4444", textAlign: "center", padding: 20 }}>{result.error}</div>}
-
-      {/* ══ SECTION 3 — DIAGNOSTIC (regles deterministes, pas d'IA) ══ */}
+      {/* ══ DIAGNOSTIC ══ */}
       {result && !result.error && !result.isGridResult && (() => {
         const forces = [], faiblesses = [], recos = [];
         if (result.maxDrawdownPct < 8) forces.push("Drawdown maîtrisé (< 8%)");
@@ -4230,9 +4247,9 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
         if (Math.abs((result.longWinrate ?? result.winrate) - (result.shortWinrate ?? result.winrate)) > 15) faiblesses.push("Déséquilibre fort entre Long et Short");
         if (result.rRatio < 1) faiblesses.push("R Ratio < 1 — les pertes pèsent plus que les gains");
         if (result.maxDrawdownPct >= 15) faiblesses.push("Drawdown élevé (≥ 15%)");
-        if (result.rRatio < 1.5) recos.push("Viser un R Ratio ≥ 1.5 (TP plus large ou SL plus serré)");
+        if (result.rRatio < 1.5) recos.push("Viser un R Ratio ≥ 1.5");
         if (worstDay && worstDay.winrate != null && worstDay.winrate < 40) recos.push(`Éviter de trader le ${worstDay.label}`);
-        if (result.maxLossStreak >= 6) recos.push("Réduire le risque/trade — séries de pertes longues détectées");
+        if (result.maxLossStreak >= 6) recos.push("Réduire le risque/trade — séries de pertes longues");
         if (!newsFilterOn) recos.push("Teste avec le filtre news activé pour comparer");
         return (
           <div className="card">
@@ -4244,14 +4261,14 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
               </div>
               <div style={{ background: "rgba(251,191,36,0.05)", border: "1px solid rgba(251,191,36,0.15)", borderRadius: 12, padding: 12 }}>
                 <div style={{ fontSize: 10.5, fontWeight: 800, color: "#fbbf24", marginBottom: 6 }}>⚠ Points faibles</div>
-                {faiblesses.length ? faiblesses.map((f, i) => <div key={i} style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", padding: "2px 0" }}>• {f}</div>) : <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Aucune faiblesse majeure détectée</div>}
+                {faiblesses.length ? faiblesses.map((f, i) => <div key={i} style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", padding: "2px 0" }}>• {f}</div>) : <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Aucune faiblesse majeure</div>}
               </div>
               <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: 12 }}>
                 <div style={{ fontSize: 10.5, fontWeight: 800, color: "rgba(255,255,255,0.8)", marginBottom: 6 }}>◆ Recommandations</div>
                 {recos.length ? recos.map((f, i) => <div key={i} style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", padding: "2px 0" }}>• {f}</div>) : <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Rien à signaler</div>}
               </div>
             </div>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 10, lineHeight: 1.4 }}>Diagnostic calculé par règles déterministes sur les résultats réels du backtest — aucune IA, aucune donnée inventée.</div>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 10, lineHeight: 1.4 }}>Règles déterministes sur les résultats réels du backtest — aucune donnée inventée.</div>
           </div>
         );
       })()}
@@ -8929,7 +8946,7 @@ function TradesHubTab(props) {
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, border: "1px solid rgba(255,255,255,0.08)", marginBottom: 16 }}>
+      <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, border: "1px solid rgba(255,255,255,0.08)", marginBottom: 12 }}>
         {[
           { id: "realtime", label: "Backtest Réel" },
           { id: "historique", label: "Backtest Historique" },
