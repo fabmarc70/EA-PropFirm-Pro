@@ -140,3 +140,13 @@ export async function clearCachedDataset(pair, period) {
     tx.onerror = () => reject(tx.error);
   });
 }
+
+// Réinitialisation totale (supprime toute la base IndexedDB des données historiques mises en cache)
+export async function clearAllCachedData() {
+  return new Promise((resolve) => {
+    const req = indexedDB.deleteDatabase(DB_NAME);
+    req.onsuccess = () => resolve(true);
+    req.onerror = () => resolve(false);
+    req.onblocked = () => resolve(false);
+  });
+}

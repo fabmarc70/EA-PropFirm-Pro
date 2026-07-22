@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser, fbLoadUserProfile, fbSaveUserProfile, fbDeleteAccount } from "./firebase.js";
-import { listAvailableDatasets, downloadCandles, idbListCached } from "./historicalData.js";
+import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedData } from "./historicalData.js";
 import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES } from "./backtestEngine.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
@@ -3672,7 +3672,7 @@ function BacktestSelect({ id, label, value, onChange, options, openDropdown, set
   );
 }
 
-function BacktestScreen({ t, lang, onBack }) {
+function BacktestScreen({ t, lang, onBack, embedded = false }) {
   const ACCENT = "#6ee7b7";
   const [datasets, setDatasets] = useState(null);
   const [loadError, setLoadError] = useState(null);
@@ -3731,7 +3731,22 @@ function BacktestScreen({ t, lang, onBack }) {
     });
   };
 
-  useEffect(() => { loadManifest(); }, []);
+  // Réinitialisation UNIQUE de toutes les anciennes données Backtest Réel
+  // (archives localStorage + cache IndexedDB des bougies téléchargées) suite
+  // au déplacement de la page vers Mes Trades — se déclenche une seule fois,
+  // gardée par un flag localStorage, ne se relancera plus après.
+  useEffect(() => {
+    const RESET_FLAG = "eapropfirm_backtest_v2_reset_done";
+    (async () => {
+      if (!localStorage.getItem(RESET_FLAG)) {
+        try { localStorage.removeItem("eapropfirm_backtest_history"); } catch (e) {}
+        try { await clearAllCachedData(); } catch (e) {}
+        try { localStorage.setItem(RESET_FLAG, "1"); } catch (e) {}
+        setHistory([]);
+      }
+      loadManifest();
+    })();
+  }, []);
 
   useEffect(() => {
     const def = listStrategies().find(s => s.key === strategyKey);
@@ -3869,7 +3884,7 @@ function BacktestScreen({ t, lang, onBack }) {
   if (loadError) {
     return (
       <div style={{ minHeight: "100vh", paddingBottom: 100 }}>
-        <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles · zéro estimation" onBack={onBack} />
+        {!embedded && <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles · zéro estimation" onBack={onBack} />}
         <div className="card" style={{ textAlign: "center", padding: 20, border: "1px solid rgba(239,68,68,0.2)" }}>
           <div style={{ color: "#ef4444", fontWeight: 700, fontSize: 12, marginBottom: 4 }}>Impossible de charger les données</div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 14 }}>{loadError}</div>
@@ -3886,7 +3901,7 @@ function BacktestScreen({ t, lang, onBack }) {
   if (manifestLoading || !datasets) {
     return (
       <div style={{ minHeight: "100vh", paddingBottom: 100 }}>
-        <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles · zéro estimation" onBack={onBack} />
+        {!embedded && <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles · zéro estimation" onBack={onBack} />}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "40vh", gap: 12 }}>
           <div style={{ width: 34, height: 34, borderRadius: 17, border: "3px solid rgba(110,231,183,0.15)", borderTopColor: ACCENT, animation: "eapfp-spin 0.8s linear infinite" }} />
           <style>{"@keyframes eapfp-spin { to { transform: rotate(360deg); } }"}</style>
@@ -3900,7 +3915,7 @@ function BacktestScreen({ t, lang, onBack }) {
 
   return (
     <div style={{ minHeight: "100vh", paddingBottom: 100 }}>
-      <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles · zéro estimation" onBack={onBack} />
+      {!embedded && <ReportHeader title={t("an_backtest_title")} subtitle="Données réelles · zéro estimation" onBack={onBack} />}
 
       {history.length > 0 && (
         <button onClick={() => setShowHistory(true)} style={{
@@ -5071,18 +5086,6 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         cta: t('an_lab_cta'),
         ctaGoto: 'trades',
       },
-      {
-        key:'realbacktest', accent:'#a3e635', bg:'rgba(163,230,53,0.06)', border:'rgba(163,230,53,0.2)',
-        icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 4-6" stroke="#a3e635" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-        title: t('an_backtest_title'),
-        subtitle: t('an_backtest_sub'),
-        desc: t('an_backtest_desc'),
-        chips: ['Données réelles', 'Breakout', 'RSI', 'MACD'],
-        hasData: true,
-        dataLabel: t('an_backtest_data_label'),
-        cta: t('an_backtest_cta'),
-        ctaGoto: 'trades',
-      },
     ];
     return (
       <div style={{padding:'14px 16px 18px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px',minHeight:'100vh',display:'flex',flexDirection:'column'}}>
@@ -5436,10 +5439,6 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
   if (mode === 'lab') {
     return <LabScreen t={t} lang={lang} profile={profile} onBack={() => setMode(null)} />;
-  }
-
-  if (mode === 'realbacktest') {
-    return <BacktestScreen t={t} lang={lang} onBack={() => setMode(null)} />;
   }
 
   if (mode === 'comparator') {
@@ -7869,7 +7868,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
 
       {/* TAB MES TRADES */}
       {tab === "trades" && (
-        <MesTradesTab t={t} lang={lang} sim={sim} capital={capital} fundedMonths={fundedMonths} winrate={winrate} riskPct={riskPct} dailyTargetPct={dailyTargetPct} model={model} finalRR={finalRR} tradesPerDay={tradesPerDay} firm={firm} effectiveRiskAmount={effectiveRiskAmount} />
+        <TradesHubTab t={t} lang={lang} sim={sim} capital={capital} fundedMonths={fundedMonths} winrate={winrate} riskPct={riskPct} dailyTargetPct={dailyTargetPct} model={model} finalRR={finalRR} tradesPerDay={tradesPerDay} firm={firm} effectiveRiskAmount={effectiveRiskAmount} />
       )}
 
       <div style={{ textAlign: "center", fontSize: 10, color: "rgba(255,255,255,0.08)", marginTop: 12, paddingBottom: 8 }}>
@@ -8877,6 +8876,39 @@ function HeatmapReport({ heat, t }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TRADES HUB — conteneur de l'onglet "Mes Trades" avec bascule entre
+// Backtest Réel (données historiques réelles, déplacé depuis Analyse)
+// et Backtest Historique (import CSV MT4/MT5, l'ancien MesTradesTab).
+// Backtest Réel est l'onglet PAR DÉFAUT / affiché en premier.
+// ══════════════════════════════════════════════════════════════════
+function TradesHubTab(props) {
+  const { t, lang } = props;
+  const [sub, setSub] = useState("realtime"); // "realtime" | "historique"
+  const ACCENT = "#6ee7b7";
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, border: "1px solid rgba(255,255,255,0.08)", marginBottom: 16 }}>
+        {[
+          { id: "realtime", label: "Backtest Réel" },
+          { id: "historique", label: "Backtest Historique" },
+        ].map(tg => (
+          <button key={tg.id} onClick={() => { setSub(tg.id); window.scrollTo({ top: 0, behavior: "instant" }); }} style={{
+            flex: 1, padding: "12px 8px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700,
+            background: sub === tg.id ? ACCENT : "transparent",
+            color: sub === tg.id ? "#000000" : "rgba(255,255,255,0.65)",
+            border: "none", transition: "all .2s", userSelect: "none",
+          }}>{tg.label}</button>
+        ))}
+      </div>
+
+      {sub === "realtime" && <BacktestScreen t={t} lang={lang} embedded={true} />}
+      {sub === "historique" && <MesTradesTab {...props} />}
     </div>
   );
 }
