@@ -1297,3 +1297,191 @@ export async function runWalkForward({
     isBars, oosBars,
   };
 }
+
+// ══════════════════════════════════════════════════════════════════
+// AUTOPSIE — pourquoi cette configuration a échoué (ou sous-performé)
+//
+// Analyse forensique des trades RÉELLEMENT produits, pas de conseils
+// génériques. Chaque constat est calculé à partir des données du backtest
+// et débouche sur une action précise.
+//
+// MAE / MFE : excursions maximales défavorable et favorable, exprimées en R
+// (multiples du risque pris). Ce sont les deux mesures qui expliquent le plus
+// souvent un échec : un trade perdant qui était monté à +1.5R avant de revenir
+// au stop ne raconte pas la même histoire qu'un trade parti contre dès l'entrée.
+// ══════════════════════════════════════════════════════════════════
+export function analyzeFailure(result, candles, ctx = {}) {
+  const trades = result?.trades || [];
+  if (!trades.length) return null;
+  const pip = PIP_SIZE[ctx.pair] || 0.0001;
+  const constats = [];
+
+  // ── Excursions MAE / MFE, trade par trade ──
+  const enrichis = trades.map(t => {
+    const from = t.entryIdx, to = Math.min(t.exitIdx, candles.length - 1);
+    let best = t.entryPrice, worst = t.entryPrice;
+    for (let i = from; i <= to; i++) {
+      if (t.dir === "long") { best = Math.max(best, candles[i][2]); worst = Math.min(worst, candles[i][3]); }
+      else { best = Math.min(best, candles[i][3]); worst = Math.max(worst, candles[i][2]); }
+    }
+    const riskPips = Math.abs(t.entryPrice - (t.dir === "long"
+      ? Math.min(worst, t.entryPrice) : Math.max(worst, t.entryPrice))) / pip;
+    const mfePips = Math.abs(best - t.entryPrice) / pip;
+    const maePips = Math.abs(worst - t.entryPrice) / pip;
+    // Le risque de référence = la distance du stop de CE trade
+    const stopDist = t.win ? (Math.abs(t.exitPrice - t.entryPrice) / pip) / (ctx.rMultiple || 2) : Math.abs(t.exitPrice - t.entryPrice) / pip;
+    const ref = stopDist > 0 ? stopDist : 1;
+    return { ...t, mfeR: +(mfePips / ref).toFixed(2), maeR: +(maePips / ref).toFixed(2) };
+  });
+
+  const perdants = enrichis.filter(t => !t.win);
+  const gagnants = enrichis.filter(t => t.win);
+
+  // ── 1. Concentration des pertes : accident ponctuel ou hémorragie continue ? ──
+  if (perdants.length >= 3) {
+    const pertesTriees = [...perdants].sort((a, b) => a.pnlUSD - b.pnlUSD);
+    const totalPerte = Math.abs(perdants.reduce((s, t) => s + t.pnlUSD, 0));
+    const top3 = Math.abs(pertesTriees.slice(0, 3).reduce((s, t) => s + t.pnlUSD, 0));
+    const part = (top3 / totalPerte) * 100;
+    if (part >= 50) {
+      constats.push({
+        titre: "Les pertes viennent de quelques trades isolés",
+        texte: `Les 3 pires trades concentrent ${part.toFixed(0)}% de toutes tes pertes (sur ${perdants.length} trades perdants). Ce n'est pas la stratégie qui est mauvaise en continu : ce sont quelques accidents qui détruisent le résultat.`,
+        action: "Un stop plus serré ou une limite de perte journalière protégerait contre ces accidents sans toucher au reste.",
+      });
+    } else if (part <= 30) {
+      constats.push({
+        titre: "Érosion continue, pas d'accident",
+        texte: `Les pertes sont réparties uniformément (les 3 pires ne pèsent que ${part.toFixed(0)}% du total). Aucun trade isolé n'est responsable.`,
+        action: "Le problème est dans la logique d'entrée elle-même, pas dans la gestion du risque. Ajouter un filtre de confluence est plus pertinent que resserrer le stop.",
+      });
+    }
+  }
+
+  // ── 2. MFE des perdants : combien étaient gagnants avant de se retourner ? ──
+  if (perdants.length >= 5) {
+    const presqueGagnants = perdants.filter(t => t.mfeR >= 1);
+    const partPG = (presqueGagnants.length / perdants.length) * 100;
+    const mfeMoyen = perdants.reduce((s, t) => s + t.mfeR, 0) / perdants.length;
+    if (partPG >= 40) {
+      constats.push({
+        titre: "Tes trades perdants étaient gagnants avant de se retourner",
+        texte: `${presqueGagnants.length} trades perdants sur ${perdants.length} (${partPG.toFixed(0)}%) étaient montés à plus de 1R de profit avant de revenir au stop. MFE moyen des perdants : ${mfeMoyen.toFixed(2)}R.`,
+        action: "C'est le signal le plus net en faveur d'un passage à break-even (déplacer le stop à l'entrée une fois +1R atteint) ou d'une sortie partielle. Le problème n'est pas l'entrée, c'est la sortie.",
+      });
+    } else if (mfeMoyen < 0.4) {
+      constats.push({
+        titre: "Tes trades perdants partent contre toi immédiatement",
+        texte: `MFE moyen des perdants : seulement ${mfeMoyen.toFixed(2)}R. Ils ne vont quasiment jamais en profit avant d'être stoppés.`,
+        action: "Le timing d'entrée est mauvais : tu entres trop tard, après que le mouvement soit déjà consommé. Teste une entrée plus proche du niveau de déclenchement ou un filtre de momentum.",
+      });
+    }
+  }
+
+  // ── 3. MAE des gagnants : le stop est-il bien dimensionné ? ──
+  if (gagnants.length >= 5) {
+    const maeMoyenG = gagnants.reduce((s, t) => s + t.maeR, 0) / gagnants.length;
+    const frolent = gagnants.filter(t => t.maeR >= 0.8).length;
+    if (maeMoyenG <= 0.35) {
+      constats.push({
+        titre: "Ton stop est plus large que nécessaire",
+        texte: `Tes trades gagnants ne descendent en moyenne qu'à ${maeMoyenG.toFixed(2)}R contre toi avant de partir. Le stop n'est presque jamais approché.`,
+        action: `Resserrer le stop améliorerait le rapport gain/risque sans perdre beaucoup de trades gagnants. Un stop réduit d'environ ${Math.round((1 - Math.max(0.5, maeMoyenG + 0.15)) * 100)}% resterait au-delà de l'excursion habituelle.`,
+      });
+    } else if (frolent / gagnants.length >= 0.4) {
+      constats.push({
+        titre: "Tes gagnants frôlent le stop avant de partir",
+        texte: `${frolent} gagnants sur ${gagnants.length} sont descendus à plus de 0.8R contre toi avant de se retourner.`,
+        action: "Le stop est à la limite : le resserrer transformerait ces gagnants en perdants. Ne le touche pas, travaille plutôt le timing d'entrée.",
+      });
+    }
+  }
+
+  // ── 4. Régime de marché : tendance ou range ? ──
+  if (trades.length >= 10) {
+    const { adx } = computeADX(candles, 14);
+    const enTendance = enrichis.filter(t => adx[t.entryIdx] != null && adx[t.entryIdx] >= 25);
+    const enRange = enrichis.filter(t => adx[t.entryIdx] != null && adx[t.entryIdx] < 25);
+    if (enTendance.length >= 4 && enRange.length >= 4) {
+      const pnlT = enTendance.reduce((s, t) => s + t.pnlUSD, 0);
+      const pnlR = enRange.reduce((s, t) => s + t.pnlUSD, 0);
+      const wrT = (enTendance.filter(t => t.win).length / enTendance.length) * 100;
+      const wrR = (enRange.filter(t => t.win).length / enRange.length) * 100;
+      if (pnlT > 0 && pnlR < 0) {
+        constats.push({
+          titre: "La stratégie ne fonctionne qu'en tendance",
+          texte: `En marché directionnel (ADX ≥ 25) : ${enTendance.length} trades, ${wrT.toFixed(0)}% de réussite, ${pnlT >= 0 ? "+" : ""}$${pnlT.toFixed(0)}. En marché sans direction : ${enRange.length} trades, ${wrR.toFixed(0)}%, $${pnlR.toFixed(0)}.`,
+          action: "Active le filtre de confluence Force de tendance (ADX) avec un seuil à 25. Tu supprimes mécaniquement la partie perdante.",
+        });
+      } else if (pnlR > 0 && pnlT < 0) {
+        constats.push({
+          titre: "La stratégie ne fonctionne qu'en range",
+          texte: `En marché sans direction : ${enRange.length} trades, ${wrR.toFixed(0)}% de réussite, +$${pnlR.toFixed(0)}. En tendance : ${enTendance.length} trades, ${wrT.toFixed(0)}%, $${pnlT.toFixed(0)}.`,
+          action: "Paradoxal pour une stratégie de tendance. Vérifie ta logique d'entrée, ou inverse le filtre ADX (seuil maximum au lieu de minimum).",
+        });
+      }
+    }
+  }
+
+  // ── 5. Décrochage temporel : une sous-période a-t-elle tout détruit ? ──
+  if (trades.length >= 12) {
+    const n = trades.length, tiers = Math.floor(n / 3);
+    const parts = [enrichis.slice(0, tiers), enrichis.slice(tiers, tiers * 2), enrichis.slice(tiers * 2)];
+    const pnls = parts.map(p => p.reduce((s, t) => s + t.pnlUSD, 0));
+    const pire = pnls.indexOf(Math.min(...pnls));
+    const totalNeg = pnls.filter(v => v < 0).reduce((s, v) => s + v, 0);
+    if (pnls[pire] < 0 && Math.abs(pnls[pire]) >= Math.abs(totalNeg) * 0.7 && pnls.filter(v => v > 0).length >= 1) {
+      const labels = ["premier tiers", "deuxième tiers", "dernier tiers"];
+      const d1 = new Date(parts[pire][0].entryTs).toISOString().slice(0, 10);
+      const d2 = new Date(parts[pire][parts[pire].length - 1].entryTs).toISOString().slice(0, 10);
+      constats.push({
+        titre: `L'échec est concentré sur une seule période`,
+        texte: `Le ${labels[pire]} de la période (${d1} → ${d2}) porte l'essentiel des pertes ($${pnls[pire].toFixed(0)}), alors que les autres tiers sont ${pnls.filter((v, i) => i !== pire).every(v => v > 0) ? "positifs" : "moins mauvais"}.`,
+        action: "Regarde ce qui s'est passé sur le marché à ce moment-là. Une stratégie qui casse sur une période précise a souvent rencontré un régime de marché qu'elle ne sait pas gérer.",
+      });
+    }
+  }
+
+  // ── 6. Heures problématiques ──
+  if (trades.length >= 15) {
+    const parHeure = {};
+    enrichis.forEach(t => {
+      const h = new Date(t.entryTs).getUTCHours();
+      (parHeure[h] ||= { n: 0, pnl: 0 });
+      parHeure[h].n++; parHeure[h].pnl += t.pnlUSD;
+    });
+    const heuresNeg = Object.entries(parHeure).filter(([, v]) => v.n >= 3 && v.pnl < 0)
+      .sort((a, b) => a[1].pnl - b[1].pnl).slice(0, 3);
+    const perteHeures = heuresNeg.reduce((s, [, v]) => s + v.pnl, 0);
+    const perteTotale = enrichis.filter(t => t.pnlUSD < 0).reduce((s, t) => s + t.pnlUSD, 0);
+    if (heuresNeg.length >= 2 && Math.abs(perteHeures) >= Math.abs(perteTotale) * 0.4) {
+      constats.push({
+        titre: "Des créneaux horaires précis plombent le résultat",
+        texte: `Les heures ${heuresNeg.map(([h, v]) => `${h}h ($${v.pnl.toFixed(0)})`).join(", ")} UTC concentrent ${((perteHeures / perteTotale) * 100).toFixed(0)}% des pertes.`,
+        action: "Exclus ces créneaux via la plage horaire personnalisée et relance pour mesurer le gain réel.",
+      });
+    }
+  }
+
+  // ── 7. Coût des frais rapporté au résultat ──
+  if (ctx.slippagePips > 0 && trades.length) {
+    const coutTotal = trades.reduce((s, t) => s + ctx.slippagePips * (Math.abs(t.pnlUSD) / Math.max(1, Math.abs(t.pips))), 0);
+    const brut = result.totalUSD + coutTotal;
+    if (brut > 0 && result.totalUSD <= 0) {
+      constats.push({
+        titre: "Ce sont les frais qui rendent la stratégie perdante",
+        texte: `Sans spread ni slippage, le résultat serait positif (~+$${brut.toFixed(0)}). Le coût cumulé (~$${coutTotal.toFixed(0)} sur ${trades.length} trades) fait basculer le bilan.`,
+        action: "Vise moins de trades mais plus longs : un timeframe supérieur ou un filtre de confluence réduirait la fréquence, donc le coût total.",
+      });
+    }
+  }
+
+  return {
+    constats,
+    stats: {
+      mfeMoyenPerdants: perdants.length ? +(perdants.reduce((s, t) => s + t.mfeR, 0) / perdants.length).toFixed(2) : null,
+      maeMoyenGagnants: gagnants.length ? +(gagnants.reduce((s, t) => s + t.maeR, 0) / gagnants.length).toFixed(2) : null,
+      perdantsPassesEnProfit: perdants.length ? +((perdants.filter(t => t.mfeR >= 1).length / perdants.length) * 100).toFixed(0) : null,
+    },
+  };
+}

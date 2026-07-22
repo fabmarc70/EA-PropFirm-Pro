@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser, fbLoadUserProfile, fbSaveUserProfile, fbDeleteAccount } from "./firebase.js";
 import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedData, loadRange, monthsInRange, getCoverage } from "./historicalData.js";
-import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS, listConfluenceFilters, WEEKDAYS, runWalkForward } from "./backtestEngine.js";
+import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS, listConfluenceFilters, WEEKDAYS, runWalkForward, analyzeFailure } from "./backtestEngine.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -3901,6 +3901,9 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
   const [wfOosBars, setWfOosBars] = useState(250);
   const [wfResult, setWfResult] = useState(null);
   const [wfProgress, setWfProgress] = useState(null);
+  const [lastCandles, setLastCandles] = useState(null); // conservées pour l'autopsie (MAE/MFE)
+  const [showAutopsy, setShowAutopsy] = useState(false);
+  const [autopsy, setAutopsy] = useState(null);
   const [history, setHistory] = useState(() => { try { return JSON.parse(localStorage.getItem("eapropfirm_backtest_history") || "[]"); } catch (e) { return []; } });
   const [showHistory, setShowHistory] = useState(false);
   const [tipIdx, setTipIdx] = useState(0);
@@ -4028,6 +4031,8 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
       setLoadState(null);
       if (!range.candles.length) throw new Error("Aucune bougie sur cette plage de dates.");
       const prepared = aggregateCandles(range.candles, targetMinutes, range.baseMinutes);
+      setLastCandles(prepared);
+      setAutopsy(null); setShowAutopsy(false);
 
       // ── Mode Walk-Forward : optimisation IS puis validation OOS ──
       if (analysisMode === "walkforward" && !isGridStrategy) {
@@ -4819,6 +4824,75 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
           </div>
         );
       })()}
+
+      {/* ══ AUTOPSIE — pourquoi ça n'a pas fonctionné ══ */}
+      {result && !result.error && !result.isGridResult && !result.isWalkForward && result.totalTrades >= 5 && lastCandles && (
+        <div className="card">
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#fff", marginBottom: 3 }}>
+                🔍 Pourquoi ce résultat ?
+              </div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", lineHeight: 1.45 }}>
+                Autopsie de tes {result.totalTrades} trades : où les pertes se concentrent, si tes perdants étaient gagnants avant de se retourner, dans quel régime de marché la stratégie échoue.
+              </div>
+            </div>
+            <button onClick={() => {
+              if (!autopsy) {
+                try {
+                  const a = analyzeFailure(result, lastCandles, {
+                    pair: selectedPair, slippagePips,
+                    rMultiple: isGridStrategy ? 2 : (strategyParams?.rMultiple || (tpPips / Math.max(1, slPips))),
+                  });
+                  setAutopsy(a);
+                } catch (e) { setAutopsy({ constats: [], stats: {}, erreur: e.message }); }
+              }
+              setShowAutopsy(v => !v);
+            }} style={{
+              flexShrink: 0, padding: "8px 14px", borderRadius: 10, cursor: "pointer",
+              border: "1px solid " + ACCENT + "55", background: showAutopsy ? ACCENT + "22" : ACCENT + "12",
+              color: ACCENT, fontSize: 11, fontWeight: 800, whiteSpace: "nowrap",
+            }}>{showAutopsy ? "Masquer" : "Analyser"}</button>
+          </div>
+
+          {showAutopsy && autopsy && (
+            <div style={{ marginTop: 12 }}>
+              {/* Indicateurs d'excursion : les deux chiffres qui expliquent le plus souvent un échec */}
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)", gap: 7, marginBottom: 11 }}>
+                {[
+                  { l: "Perdants passés en profit", v: autopsy.stats.perdantsPassesEnProfit != null ? autopsy.stats.perdantsPassesEnProfit + "%" : "—",
+                    c: (autopsy.stats.perdantsPassesEnProfit ?? 0) >= 40 ? "#fbbf24" : "rgba(255,255,255,0.8)" },
+                  { l: "MFE moyen perdants", v: autopsy.stats.mfeMoyenPerdants != null ? autopsy.stats.mfeMoyenPerdants + "R" : "—", c: "rgba(255,255,255,0.8)" },
+                  { l: "MAE moyen gagnants", v: autopsy.stats.maeMoyenGagnants != null ? autopsy.stats.maeMoyenGagnants + "R" : "—", c: "rgba(255,255,255,0.8)" },
+                ].map(k => (
+                  <div key={k.l} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 9, padding: "8px 9px" }}>
+                    <div style={{ fontSize: 8.5, color: "rgba(255,255,255,0.4)", marginBottom: 3, lineHeight: 1.3 }}>{k.l}</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: k.c }}>{k.v}</div>
+                  </div>
+                ))}
+              </div>
+
+              {autopsy.constats.length === 0 ? (
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.5, background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: 12 }}>
+                  Aucun schéma d'échec net ne ressort de ces trades : les pertes sont réparties, les excursions sont normales, et aucun régime de marché ou créneau horaire ne se détache. Avec un échantillon plus large, des tendances pourraient apparaître.
+                </div>
+              ) : autopsy.constats.map((cst, i) => (
+                <div key={i} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 11, padding: 12, marginBottom: 8 }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 800, color: "#fff", marginBottom: 5 }}>{cst.titre}</div>
+                  <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.62)", lineHeight: 1.55, marginBottom: 7 }}>{cst.texte}</div>
+                  <div style={{ fontSize: 10.5, color: ACCENT, lineHeight: 1.5, display: "flex", gap: 6 }}>
+                    <span style={{ flexShrink: 0 }}>→</span><span>{cst.action}</span>
+                  </div>
+                </div>
+              ))}
+
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", lineHeight: 1.45, marginTop: 4 }}>
+                MFE = meilleur profit atteint avant la sortie. MAE = pire recul subi avant la sortie. Les deux sont exprimés en R (multiples du risque pris). Calculs effectués bougie par bougie sur tes trades réels — aucune interprétation générée.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ══ RÉCAPITULATIF POUR MT4/MT5 ══ */}
       {result && !result.error && (() => {
