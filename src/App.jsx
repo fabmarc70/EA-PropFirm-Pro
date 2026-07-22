@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser, fbLoadUserProfile, fbSaveUserProfile, fbDeleteAccount } from "./firebase.js";
 import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedData, loadRange, monthsInRange, getCoverage } from "./historicalData.js";
-import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS } from "./backtestEngine.js";
+import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS, listConfluenceFilters, WEEKDAYS } from "./backtestEngine.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -3664,6 +3664,8 @@ const BT_INFO = {
   gridcfg: "Écart = distance entre chaque niveau de la grille. Niveaux = nombre d'ordres étagés de chaque côté du prix. Attention : une grille n'a pas de stop loss par niveau, le risque se matérialise dans le drawdown flottant.",
   direction: "Restreint le sens des positions. Achat uniquement teste la stratégie en marché haussier, Vente uniquement en marché baissier. Utile pour vérifier si ta stratégie est réellement symétrique ou si elle ne fonctionne que dans un sens — un déséquilibre fort est un signal d'alerte.",
   customhours: "Définit ta propre fenêtre d'ouverture de positions en heure UTC. Les positions déjà ouvertes continuent d'être suivies hors de cette plage (seules les ENTRÉES sont filtrées). Une plage qui franchit minuit (ex: 22h → 04h) est gérée correctement.",
+  tradingdays: "Les jours de la semaine où les positions peuvent s'ouvrir. Le vendredi (clôture hebdomadaire) et le lundi (ouverture avec gap) ont souvent un comportement à part. Les positions déjà ouvertes restent suivies les autres jours.",
+  confluence: "Le principe d'un EA MT4 : la stratégie principale déclenche le signal, et chaque filtre ajouté doit ensuite AUTORISER ce sens précis, sinon rien ne s'ouvre. Plus tu ajoutes de filtres, moins tu as de trades — mais chacun est mieux qualifié. Attention à l'excès : trop de filtres sur une période courte donne un échantillon trop petit pour conclure quoi que ce soit.",
   newsfilter: "Exclut les créneaux horaires où tombent statistiquement les annonces à fort impact (NFP, FOMC, CPI). C'est une ESTIMATION basée sur des horaires récurrents, pas un vrai calendrier économique historique.",
 };
 
@@ -3763,6 +3765,8 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
   const [sessionKey, setSessionKey] = useState("24h");
   const [newsFilterOn, setNewsFilterOn] = useState(false);
   const [tradeDirection, setTradeDirection] = useState("both");
+  const [tradingDays, setTradingDays] = useState([1, 2, 3, 4, 5]);
+  const [confluence, setConfluence] = useState([]); // [{ key, params }]
   const [customHourStart, setCustomHourStart] = useState(8);
   const [customHourEnd, setCustomHourEnd] = useState(20);
   const [mmMode, setMmMode] = useState("fixed");
@@ -3884,6 +3888,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
     setTpPips(15); setSlPips(10); setRiskPct(1); setSlippagePips(0.2);
     setSessionKey("24h"); setNewsFilterOn(false);
     setTradeDirection("both"); setCustomHourStart(8); setCustomHourEnd(20);
+    setTradingDays([1, 2, 3, 4, 5]); setConfluence([]);
     setMmMode("fixed"); setMartingaleMultiplier(2);
     setGridSpacingPips(20); setGridLevels(5); setGridDirection("both");
     if (datasets?.assets?.length) setSelectedPair(datasets.assets[0].pair);
@@ -3907,7 +3912,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
       const prepared = aggregateCandles(range.candles, targetMinutes, range.baseMinutes);
       const r = isGridStrategy
         ? runGridBacktest({ candles: prepared, pair: selectedPair, capital, riskPct, spacingPips: gridSpacingPips, levels: gridLevels, direction: gridDirection, slippagePips })
-        : runBacktest({ candles: prepared, pair: selectedPair, strategyKey, tpPips, slPips, strategyParams, capital, riskPct, slippagePips, sessionKey, newsFilterOn, mmMode, martingaleMultiplier, martingaleMaxSteps, tradeDirection, customHours: sessionKey === "custom" ? [customHourStart, customHourEnd] : null });
+        : runBacktest({ candles: prepared, pair: selectedPair, strategyKey, tpPips, slPips, strategyParams, capital, riskPct, slippagePips, sessionKey, newsFilterOn, mmMode, martingaleMultiplier, martingaleMaxSteps, tradeDirection, customHours: sessionKey === "custom" ? [customHourStart, customHourEnd] : null, tradingDays, confluence });
       r.rangeInfo = { start: startDate, end: endDate, months: range.monthsUsed.length, downloaded: range.downloadedCount, cached: range.fromCacheCount, fromApi: range.fromApiCount || 0, failed: (range.monthsMissing || []).length, candles: prepared.length };
       setResult(r);
       setScore(r.isGridResult ? null : computePropFirmScore(r, capital, firmKey, modelKey, labRunMonteCarlo));
@@ -4082,8 +4087,19 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
         </div>
       </div>
 
+      {/* Aucun trade : ce n'est pas une erreur mais un résultat en soi — filtres trop
+          restrictifs. On l'explique au lieu d'afficher un tableau vide de zéros. */}
+      {result && !result.error && result.totalTrades === 0 && (
+        <div className="card" style={{ marginTop: 12, border: "1px solid rgba(251,191,36,0.25)" }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#fbbf24", marginBottom: 6 }}>Aucun trade déclenché</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
+            La combinaison de filtres est trop restrictive : aucun signal n'a passé toutes les conditions sur cette période. Ce n'est pas une erreur, c'est une information — essaie de retirer un filtre de confluence, d'élargir les jours ou la plage horaire, ou d'allonger la période.
+          </div>
+        </div>
+      )}
+
       {/* ══ RÉSULTATS CHIFFRÉS ══ */}
-      {result && !result.error && (
+      {result && !result.error && result.totalTrades > 0 && (
         <div className="card" style={{ marginTop: 12 }}>
           <SectionHeader n="1" title="Résultats" />
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8 }}>
@@ -4117,6 +4133,9 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
             <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.3)", marginTop: 10 }}>
               {result.rangeInfo.start} → {result.rangeInfo.end} · {result.rangeInfo.months} mois ({result.rangeInfo.downloaded} depuis le dépôt, {result.rangeInfo.cached} en cache{result.rangeInfo.fromApi ? `, ${result.rangeInfo.fromApi} via API` : ""})
               {result.rangeInfo.failed > 0 && <span style={{ color: "#fbbf24" }}> · {result.rangeInfo.failed} mois indisponibles</span>}
+              {result.filtersUsed?.confluence?.length > 0 && (
+                <div style={{ marginTop: 3 }}>Confluence : {result.filtersUsed.confluence.map(f => f.label).join(" + ")}</div>
+              )}
             </div>
           )}
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
@@ -4368,6 +4387,100 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
                   style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "6px 8px", fontSize: 13, boxSizing: "border-box" }} />
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── JOURS DE TRADING ── */}
+        {!isGridStrategy && (
+          <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: 12, marginBottom: 8 }}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>
+              📆 Jours de trading<InfoDot id="tradingdays" openInfo={openInfo} setOpenInfo={setOpenInfo} accent={ACCENT} />
+            </div>
+            <InfoPanel id="tradingdays" openInfo={openInfo} accent={ACCENT} />
+            <div style={{ display: "flex", gap: 5 }}>
+              {WEEKDAYS.map(d => {
+                const on = tradingDays.includes(d.key);
+                return (
+                  <button key={d.key} type="button" onClick={() => setTradingDays(prev =>
+                    prev.includes(d.key) ? prev.filter(x => x !== d.key) : [...prev, d.key]
+                  )} style={{
+                    flex: 1, minWidth: 0, padding: "9px 2px", borderRadius: 8, cursor: "pointer",
+                    fontSize: 10.5, fontWeight: 700,
+                    background: on ? ACCENT + "22" : "rgba(255,255,255,0.04)",
+                    color: on ? ACCENT : "rgba(255,255,255,0.4)",
+                    border: "1px solid " + (on ? ACCENT : "rgba(255,255,255,0.1)"),
+                  }}>{d.label}</button>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: 9.5, color: tradingDays.length ? "rgba(255,255,255,0.35)" : "#fbbf24", marginTop: 7 }}>
+              {tradingDays.length === 0
+                ? "⚠️ Aucun jour sélectionné : aucune position ne pourra s'ouvrir."
+                : `${tradingDays.length} jour${tradingDays.length > 1 ? "s" : ""} actif${tradingDays.length > 1 ? "s" : ""} (heure UTC).`}
+            </div>
+          </div>
+        )}
+
+        {/* ── FILTRES DE CONFLUENCE (logique EA MT4) ── */}
+        {!isGridStrategy && (
+          <div style={{ background: "rgba(110,231,183,0.04)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, padding: 12, marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <div style={{ fontSize: 9.5, fontWeight: 700, color: ACCENT, textTransform: "uppercase" }}>
+                🧩 Filtres de confluence<InfoDot id="confluence" openInfo={openInfo} setOpenInfo={setOpenInfo} accent={ACCENT} />
+              </div>
+              {confluence.length > 0 && (
+                <span style={{ fontSize: 9.5, fontWeight: 800, color: ACCENT, background: ACCENT + "18", borderRadius: 100, padding: "2px 8px" }}>{confluence.length} actif{confluence.length > 1 ? "s" : ""}</span>
+              )}
+            </div>
+            <InfoPanel id="confluence" openInfo={openInfo} accent={ACCENT} />
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: confluence.length ? 10 : 0 }}>
+              {listConfluenceFilters().map(f => {
+                const active = confluence.some(x => x.key === f.key);
+                return (
+                  <button key={f.key} type="button" onClick={() => setConfluence(prev =>
+                    active ? prev.filter(x => x.key !== f.key) : [...prev, { key: f.key, params: { ...f.defaultParams } }]
+                  )} style={{
+                    padding: "7px 11px", borderRadius: 100, cursor: "pointer", fontSize: 10.5, fontWeight: 700,
+                    background: active ? ACCENT + "22" : "rgba(255,255,255,0.04)",
+                    color: active ? ACCENT : "rgba(255,255,255,0.55)",
+                    border: "1px solid " + (active ? ACCENT : "rgba(255,255,255,0.1)"),
+                  }}>{active ? "✓ " : "+ "}{f.label}</button>
+                );
+              })}
+            </div>
+
+            {confluence.map(active => {
+              const def = listConfluenceFilters().find(f => f.key === active.key);
+              if (!def) return null;
+              return (
+                <div key={active.key} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: 10, marginTop: 8 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 800, color: "#fff", marginBottom: 3 }}>{def.label}</div>
+                  <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", lineHeight: 1.45, marginBottom: 8 }}>{def.desc}</div>
+                  {def.paramDefs.map(pd => (
+                    <div key={pd.key} style={{ marginBottom: 7 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 2 }}>
+                        <span style={{ color: "rgba(255,255,255,0.55)" }}>{pd.label}</span>
+                        <span style={{ fontWeight: 800, color: ACCENT }}>{active.params?.[pd.key] ?? pd.min}</span>
+                      </div>
+                      <input type="range" min={pd.min} max={pd.max} step={pd.step}
+                        value={active.params?.[pd.key] ?? pd.min}
+                        onChange={ev => {
+                          const v = parseFloat(ev.target.value);
+                          setConfluence(prev => prev.map(x => x.key === active.key
+                            ? { ...x, params: { ...x.params, [pd.key]: v } } : x));
+                        }}
+                        style={{ width: "100%", accentColor: ACCENT }} />
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+
+            {confluence.length === 0 && (
+              <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", marginTop: 8, lineHeight: 1.45 }}>
+                Aucun filtre : la stratégie entre sur chaque signal. Ajoute des filtres pour ne garder que les signaux confirmés par d'autres indicateurs.
+              </div>
+            )}
           </div>
         )}
 

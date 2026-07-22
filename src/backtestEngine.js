@@ -249,6 +249,28 @@ function computeADX(candles, period = 14) {
   return { adx, plusDI, minusDI };
 }
 
+// ATR (Average True Range, Wilder) — mesure de volatilité, standard MT4/MT5
+function computeATR(candles, period = 14) {
+  const n = candles.length;
+  const tr = new Array(n).fill(null);
+  for (let i = 1; i < n; i++) {
+    tr[i] = Math.max(
+      candles[i][2] - candles[i][3],
+      Math.abs(candles[i][2] - candles[i - 1][4]),
+      Math.abs(candles[i][3] - candles[i - 1][4])
+    );
+  }
+  const atr = new Array(n).fill(null);
+  let sum = 0, count = 0;
+  for (let i = 1; i <= period && i < n; i++) { sum += tr[i]; count++; }
+  if (count) atr[period] = sum / count;
+  for (let i = period + 1; i < n; i++) {
+    if (atr[i - 1] == null || tr[i] == null) continue;
+    atr[i] = (atr[i - 1] * (period - 1) + tr[i]) / period;
+  }
+  return atr;
+}
+
 // Ichimoku (Tenkan/Kijun/Senkou standard 9/26/52)
 function computeIchimoku(candles, tenkanP = 9, kijunP = 26, senkouP = 52) {
   const highs = candles.map(c => c[2]), lows = candles.map(c => c[3]);
@@ -406,6 +428,125 @@ function signalsMeanReversion(candles, period = 20, deviations = 2.5) {
   return signals;
 }
 
+// ══════════════════════════════════════════════════════════════════
+// FILTRES DE CONFLUENCE — logique d'un EA MT4/MT5.
+// La stratégie principale DÉCLENCHE l'entrée ; chaque filtre actif doit
+// ensuite AUTORISER ce sens précis, sinon le signal est ignoré.
+// Chaque filtre renvoie deux tableaux de booléens (un par bougie) :
+// { long: [...], short: [...] } — permettre un sens et pas l'autre est
+// essentiel (ex: une tendance haussière autorise l'achat, pas la vente).
+// ══════════════════════════════════════════════════════════════════
+export const CONFLUENCE_FILTERS = {
+  ema_trend: {
+    label: "Tendance (EMA)",
+    desc: "N'autorise l'achat que si le prix est AU-DESSUS de l'EMA, la vente que s'il est en dessous. Évite de trader à contre-courant de la tendance de fond.",
+    defaultParams: { period: 200 },
+    paramDefs: [{ key: "period", label: "Période EMA", min: 20, max: 400, step: 10 }],
+    fn: (candles, p) => {
+      const closes = candles.map(c => c[4]);
+      const ema = computeEMA(closes, p.period);
+      return {
+        long: closes.map((cl, i) => ema[i] == null ? false : cl > ema[i]),
+        short: closes.map((cl, i) => ema[i] == null ? false : cl < ema[i]),
+      };
+    },
+  },
+  adx_strength: {
+    label: "Force de tendance (ADX)",
+    desc: "N'autorise l'entrée que si l'ADX dépasse le seuil, c'est-à-dire si une tendance est réellement en place. Filtre les marchés sans direction où la plupart des stratégies perdent.",
+    defaultParams: { period: 14, threshold: 25 },
+    paramDefs: [
+      { key: "period", label: "Période ADX", min: 7, max: 30, step: 1 },
+      { key: "threshold", label: "Seuil minimum", min: 10, max: 45, step: 1 },
+    ],
+    fn: (candles, p) => {
+      const { adx } = computeADX(candles, p.period);
+      const ok = adx.map(v => v != null && v >= p.threshold);
+      return { long: ok, short: ok };
+    },
+  },
+  rsi_zone: {
+    label: "Zone RSI",
+    desc: "Interdit d'acheter quand le RSI est déjà en surachat, et de vendre quand il est déjà en survente. Évite d'entrer au pire moment, juste avant un retournement.",
+    defaultParams: { period: 14, maxBuy: 70, minSell: 30 },
+    paramDefs: [
+      { key: "period", label: "Période RSI", min: 5, max: 30, step: 1 },
+      { key: "maxBuy", label: "Achat interdit au-dessus de", min: 50, max: 90, step: 1 },
+      { key: "minSell", label: "Vente interdite en dessous de", min: 10, max: 50, step: 1 },
+    ],
+    fn: (candles, p) => {
+      const rsi = computeRSI(candles.map(c => c[4]), p.period);
+      return {
+        long: rsi.map(v => v != null && v < p.maxBuy),
+        short: rsi.map(v => v != null && v > p.minSell),
+      };
+    },
+  },
+  macd_confirm: {
+    label: "Confirmation MACD",
+    desc: "N'autorise l'achat que si la ligne MACD est au-dessus de sa ligne de signal (momentum haussier), et inversement pour la vente.",
+    defaultParams: { fast: 12, slow: 26, signal: 9 },
+    paramDefs: [
+      { key: "fast", label: "EMA rapide", min: 5, max: 20, step: 1 },
+      { key: "slow", label: "EMA lente", min: 15, max: 50, step: 1 },
+      { key: "signal", label: "Ligne signal", min: 5, max: 15, step: 1 },
+    ],
+    fn: (candles, p) => {
+      const { macdLine, signalLine } = computeMACD(candles.map(c => c[4]), p.fast, p.slow, p.signal);
+      return {
+        long: macdLine.map((v, i) => v != null && signalLine[i] != null && v > signalLine[i]),
+        short: macdLine.map((v, i) => v != null && signalLine[i] != null && v < signalLine[i]),
+      };
+    },
+  },
+  atr_volatility: {
+    label: "Volatilité (ATR)",
+    desc: "N'autorise l'entrée que si la volatilité dépasse un pourcentage de sa moyenne. Évite les périodes trop calmes où le prix n'atteint jamais le take profit.",
+    defaultParams: { period: 14, minPct: 80 },
+    paramDefs: [
+      { key: "period", label: "Période ATR", min: 7, max: 30, step: 1 },
+      { key: "minPct", label: "% minimum de l'ATR moyen", min: 30, max: 200, step: 5 },
+    ],
+    fn: (candles, p) => {
+      const atr = computeATR(candles, p.period);
+      const valid = atr.filter(v => v != null);
+      const avg = valid.length ? valid.reduce((a, b) => a + b, 0) / valid.length : 0;
+      const seuil = avg * (p.minPct / 100);
+      const ok = atr.map(v => v != null && v >= seuil);
+      return { long: ok, short: ok };
+    },
+  },
+  stoch_zone: {
+    label: "Zone Stochastique",
+    desc: "Même principe que la zone RSI mais sur le Stochastique, plus réactif sur les petits timeframes.",
+    defaultParams: { kPeriod: 14, dPeriod: 3, maxBuy: 80, minSell: 20 },
+    paramDefs: [
+      { key: "kPeriod", label: "Période %K", min: 5, max: 25, step: 1 },
+      { key: "maxBuy", label: "Achat interdit au-dessus de", min: 50, max: 95, step: 1 },
+      { key: "minSell", label: "Vente interdite en dessous de", min: 5, max: 50, step: 1 },
+    ],
+    fn: (candles, p) => {
+      const { percentK } = computeStochastic(candles, p.kPeriod, p.dPeriod || 3);
+      return {
+        long: percentK.map(v => v != null && v < p.maxBuy),
+        short: percentK.map(v => v != null && v > p.minSell),
+      };
+    },
+  },
+};
+
+export function listConfluenceFilters() {
+  return Object.entries(CONFLUENCE_FILTERS).map(([key, v]) => ({
+    key, label: v.label, desc: v.desc, defaultParams: v.defaultParams, paramDefs: v.paramDefs,
+  }));
+}
+
+// Jours de la semaine (0 = dimanche, convention JS/UTC)
+export const WEEKDAYS = [
+  { key: 1, label: "Lun" }, { key: 2, label: "Mar" }, { key: 3, label: "Mer" },
+  { key: 4, label: "Jeu" }, { key: 5, label: "Ven" }, { key: 0, label: "Dim" }, { key: 6, label: "Sam" },
+];
+
 const STRATEGIES = {
   breakout: {
     label: "Breakout",
@@ -535,6 +676,7 @@ export function runBacktest({
   capital = 10000, riskPct = 1, slippagePips = 0.2, sessionKey = "24h", newsFilterOn = false,
   mmMode = "fixed", martingaleMultiplier = 2, martingaleMaxSteps = 5,
   tradeDirection = "both", customHours = null,
+  tradingDays = null, confluence = [],
 }) {
   const strategy = STRATEGIES[strategyKey];
   if (!strategy) throw new Error("Stratégie inconnue: " + strategyKey);
@@ -547,6 +689,26 @@ export function runBacktest({
   // Coût réel par trade (spread + slippage), retiré du résultat de chaque trade
   const costPips = slippagePips;
 
+  // ── FILTRES DE CONFLUENCE ──
+  // Chaque filtre actif est évalué une seule fois sur toute la série (pas à
+  // chaque bougie), puis consulté à l'ouverture. Un filtre en échec bloque le
+  // signal au lieu de l'inverser : on ne trade simplement pas.
+  const activeFilters = (confluence || [])
+    .filter(f => f && f.key && CONFLUENCE_FILTERS[f.key])
+    .map(f => {
+      const def = CONFLUENCE_FILTERS[f.key];
+      const p = { ...def.defaultParams, ...(f.params || {}) };
+      return { key: f.key, label: def.label, masks: def.fn(candles, p), params: p };
+    });
+  const confluenceAllows = (i, dir) => activeFilters.every(f => {
+    const m = dir === "long" ? f.masks.long : f.masks.short;
+    return !!m[i];
+  });
+
+  // Jours autorisés (null = tous). Convention UTC pour rester cohérent avec
+  // le filtre horaire et les timestamps des bougies.
+  const daysAllowed = Array.isArray(tradingDays) && tradingDays.length ? new Set(tradingDays) : null;
+
   const trades = [];
   let inTrade = null;
   let equity = capital;
@@ -554,7 +716,8 @@ export function runBacktest({
 
   for (let i = 0; i < candles.length; i++) {
     const [ts, , high, low, close] = candles[i];
-    const tradableNow = isInSession(ts, sessionKey, customHours) && (!newsFilterOn || !isLikelyNewsWindow(ts));
+    const dayOk = !daysAllowed || daysAllowed.has(new Date(ts).getUTCDay());
+    const tradableNow = dayOk && isInSession(ts, sessionKey, customHours) && (!newsFilterOn || !isLikelyNewsWindow(ts));
 
     if (inTrade) {
       const { dir, entryPrice, tp, sl, entryIdx, dollarPerPip } = inTrade;
@@ -578,7 +741,7 @@ export function runBacktest({
       || (tradeDirection === "buy" && signals[i] === "long")
       || (tradeDirection === "sell" && signals[i] === "short"));
 
-    if (!inTrade && dirAllowed && tradableNow) {
+    if (!inTrade && dirAllowed && tradableNow && confluenceAllows(i, signals[i])) {
       const dir = signals[i];
       const entryPrice = close;
       const tp = dir === "long" ? entryPrice + tpPips * pip : entryPrice - tpPips * pip;
@@ -649,7 +812,7 @@ export function runBacktest({
   return {
     strategyLabel: strategy.label,
     paramsUsed: params,
-    filtersUsed: { tradeDirection, sessionKey, customHours, newsFilterOn },
+    filtersUsed: { tradeDirection, sessionKey, customHours, newsFilterOn, tradingDays, confluence: activeFilters.map(f => ({ key: f.key, label: f.label, params: f.params })) },
     totalTrades: trades.length,
     wins, losses, winrate: +winrate.toFixed(1),
     totalPips, totalUSD, capital, finalEquity: +(capital + totalUSD).toFixed(2),
