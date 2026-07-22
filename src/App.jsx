@@ -3654,13 +3654,13 @@ function BacktestSelect({ id, label, value, onChange, options, openDropdown, set
     // les champs voisins (comportement attendu d'un dropdown) au lieu de pousser
     // la mise en page vers le bas. Le zIndex sur le wrapper est indispensable :
     // sans lui, les champs situés APRÈS dans le DOM se dessineraient au-dessus du menu.
-    <div style={{ position: "relative", zIndex: isOpen ? 60 : 1 }}>
-      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginBottom: 4, fontWeight: 700 }}>{label}</div>
+    <div style={{ position: "relative", zIndex: isOpen ? 60 : 1, minWidth: 0 }}>
+      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginBottom: 4, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
       <button type="button" onClick={() => setOpenDropdown(isOpen ? null : id)} style={{
         width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
         background: "rgba(255,255,255,0.05)", border: "1px solid " + (isOpen ? accent : "rgba(255,255,255,0.1)"),
         borderRadius: 10, color: "#fff", padding: "9px 10px", fontSize: 12.5, fontWeight: 700,
-        boxSizing: "border-box", cursor: "pointer", textAlign: "left",
+        boxSizing: "border-box", cursor: "pointer", textAlign: "left", height: 40, minWidth: 0,
       }}>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{current ? current.label : (options[0]?.label || "—")}</span>
         <span style={{ color: accent, fontSize: 10, flexShrink: 0, marginLeft: 6, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}>▼</span>
@@ -3702,8 +3702,8 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
   const [modelKey, setModelKey] = useState("2step");
   const [capital, setCapital] = useState(25000);
   const [selectedPair, setSelectedPair] = useState(null);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startIdx, setStartIdx] = useState(0);
+  const [endIdx, setEndIdx] = useState(0);
   const [timeframeKey, setTimeframeKey] = useState("15");
   const [strategyKey, setStrategyKey] = useState("breakout");
   const [strategyParams, setStrategyParams] = useState({});
@@ -3742,14 +3742,11 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
       const cov = await getCoverage();
       setCoverage(cov);
       if (d.assets.length) setSelectedPair(d.assets[0].pair);
-      if (cov) {
+      if (cov && cov.periods.length) {
         // Par défaut : les 3 derniers mois disponibles (plage courte = chargement rapide)
-        const end = cov.max;
-        const endD = new Date(end + "T00:00:00Z");
-        const startD = new Date(Date.UTC(endD.getUTCFullYear(), endD.getUTCMonth() - 2, 1));
-        const startISO = startD.toISOString().slice(0, 10);
-        setStartDate(startISO < cov.min ? cov.min : startISO);
-        setEndDate(end);
+        const last = cov.periods.length - 1;
+        setEndIdx(last);
+        setStartIdx(Math.max(0, last - 2));
       }
       setManifestLoading(false);
     }).catch(e => {
@@ -3783,6 +3780,25 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
     return () => clearInterval(id);
   }, [loadState]);
 
+  // ── Plage de mois : les curseurs pointent sur un index de la liste des mois
+  // réellement publiés. Début = 1er du mois choisi, Fin = dernier jour du mois choisi. ──
+  const periodList = coverage?.periods || [];
+  const monthStartISO = (p) => p ? p + "-01" : "";
+  const monthEndISO = (p) => {
+    if (!p) return "";
+    const [y, m] = p.split("-").map(Number);
+    const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    return `${p}-${String(last).padStart(2, "0")}`;
+  };
+  const MONTH_FR = ["Janv.","Févr.","Mars","Avr.","Mai","Juin","Juil.","Août","Sept.","Oct.","Nov.","Déc."];
+  const monthLabel = (p) => {
+    if (!p) return "—";
+    const [y, m] = p.split("-").map(Number);
+    return `${MONTH_FR[m - 1]} ${y}`;
+  };
+  const startDate = monthStartISO(periodList[startIdx]);
+  const endDate = monthEndISO(periodList[endIdx]);
+
   const pairs = datasets ? [...new Set(datasets.assets.map(a => a.pair))] : [];
   const strategies = listStrategies();
   const firm = PROP_FIRMS[firmKey];
@@ -3810,11 +3826,9 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
     setMmMode("fixed"); setMartingaleMultiplier(2);
     setGridSpacingPips(20); setGridLevels(5); setGridDirection("both");
     if (datasets?.assets?.length) setSelectedPair(datasets.assets[0].pair);
-    if (coverage) {
-      const endD = new Date(coverage.max + "T00:00:00Z");
-      const startD = new Date(Date.UTC(endD.getUTCFullYear(), endD.getUTCMonth() - 2, 1));
-      const s = startD.toISOString().slice(0, 10);
-      setStartDate(s < coverage.min ? coverage.min : s); setEndDate(coverage.max);
+    if (coverage?.periods?.length) {
+      const last = coverage.periods.length - 1;
+      setEndIdx(last); setStartIdx(Math.max(0, last - 2));
     }
     setOpenDropdown(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -4012,7 +4026,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
       {result && !result.error && (
         <div className="card" style={{ marginTop: 12 }}>
           <SectionHeader n="1" title="Résultats" />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8 }}>
             {(result.isGridResult ? [
               { l: "Gain net", v: (result.totalUSD >= 0 ? "+$" : "-$") + Math.abs(result.totalUSD).toLocaleString(), sub: (result.totalPct >= 0 ? "+" : "") + result.totalPct + "%", c: result.totalUSD >= 0 ? ACCENT : "#ef4444" },
               { l: "Niveaux clôturés", v: result.totalTrades, c: "#fff" },
@@ -4098,53 +4112,79 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
           <button onClick={resetAllConfig} style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 10.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", marginBottom: 12 }}>↺ Réinitialiser</button>
         </div>
 
-        {/* Plage de dates */}
+        {/* Plage de mois — curseurs (les données sont stockées en fichiers mensuels,
+            une précision au jour serait donc trompeuse : sélectionner le 15 janvier
+            téléchargerait de toute façon janvier entier) */}
+        {periodList.length > 0 && (
         <div style={{ background: "rgba(110,231,183,0.04)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, padding: 12, marginBottom: 10 }}>
-          <div style={{ fontSize: 9.5, fontWeight: 700, color: ACCENT, textTransform: "uppercase", marginBottom: 8 }}>📅 Période à backtester</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <div>
-              <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginBottom: 4, fontWeight: 700 }}>Du</div>
-              <input type="date" value={startDate} min={coverage?.min} max={coverage?.max} onChange={e => setStartDate(e.target.value)}
-                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, color: "#fff", padding: "9px 10px", fontSize: 12.5, fontWeight: 700, boxSizing: "border-box", colorScheme: "dark" }} />
+          <div style={{ fontSize: 9.5, fontWeight: 700, color: ACCENT, textTransform: "uppercase", marginBottom: 10 }}>📅 Période à backtester</div>
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 8 }}>
+            <div style={{ flex: 1, minWidth: 0, textAlign: "center", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "8px 6px" }}>
+              <div style={{ fontSize: 8.5, color: "rgba(255,255,255,0.4)", fontWeight: 700, textTransform: "uppercase" }}>Début</div>
+              <div style={{ fontSize: 13.5, fontWeight: 800, color: "#fff", whiteSpace: "nowrap" }}>{monthLabel(periodList[startIdx])}</div>
+              <div style={{ fontSize: 8.5, color: "rgba(255,255,255,0.3)" }}>1er du mois</div>
             </div>
-            <div>
-              <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginBottom: 4, fontWeight: 700 }}>Au</div>
-              <input type="date" value={endDate} min={coverage?.min} max={coverage?.max} onChange={e => setEndDate(e.target.value)}
-                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, color: "#fff", padding: "9px 10px", fontSize: 12.5, fontWeight: 700, boxSizing: "border-box", colorScheme: "dark" }} />
+            <div style={{ color: ACCENT, fontSize: 14, flexShrink: 0 }}>→</div>
+            <div style={{ flex: 1, minWidth: 0, textAlign: "center", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "8px 6px" }}>
+              <div style={{ fontSize: 8.5, color: "rgba(255,255,255,0.4)", fontWeight: 700, textTransform: "uppercase" }}>Fin</div>
+              <div style={{ fontSize: 13.5, fontWeight: 800, color: "#fff", whiteSpace: "nowrap" }}>{monthLabel(periodList[endIdx])}</div>
+              <div style={{ fontSize: 8.5, color: "rgba(255,255,255,0.3)" }}>fin du mois</div>
             </div>
           </div>
-          {coverage && (
-            <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", marginTop: 7, lineHeight: 1.45 }}>
-              Données disponibles du {coverage.min} au {coverage.max}. Les données de la plage choisie sont téléchargées automatiquement au lancement, puis conservées en cache.
-            </div>
-          )}
-        </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, color: "rgba(255,255,255,0.45)", fontWeight: 700, marginBottom: 3 }}>
+              <span>Mois de début</span><span style={{ color: ACCENT }}>{monthLabel(periodList[startIdx])}</span>
+            </div>
+            <input type="range" min={0} max={periodList.length - 1} step={1} value={startIdx}
+              onChange={e => { const v = parseInt(e.target.value); setStartIdx(v); if (v > endIdx) setEndIdx(v); }}
+              style={{ width: "100%", accentColor: ACCENT }} />
+          </div>
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, color: "rgba(255,255,255,0.45)", fontWeight: 700, marginBottom: 3 }}>
+              <span>Mois de fin</span><span style={{ color: ACCENT }}>{monthLabel(periodList[endIdx])}</span>
+            </div>
+            <input type="range" min={0} max={periodList.length - 1} step={1} value={endIdx}
+              onChange={e => { const v = parseInt(e.target.value); setEndIdx(v); if (v < startIdx) setStartIdx(v); }}
+              style={{ width: "100%", accentColor: ACCENT }} />
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 8.5, color: "rgba(255,255,255,0.25)", marginTop: 2 }}>
+            <span>{monthLabel(periodList[0])}</span><span>{monthLabel(periodList[periodList.length - 1])}</span>
+          </div>
+
+          <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", marginTop: 8, lineHeight: 1.45 }}>
+            {monthsNeeded.length} mois sélectionné{monthsNeeded.length > 1 ? "s" : ""} ({startDate} → {endDate}). Téléchargement automatique au lancement, puis mise en cache.
+          </div>
+        </div>
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
           <BacktestSelect id="pair" label="📈 Actif" value={selectedPair || ""} onChange={setSelectedPair}
             options={pairs.map(p => ({ value: p, label: (PAIR_ICONS[p] || "💱") + " " + p }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
           <BacktestSelect id="timeframe" label="⏱ Timeframe" value={timeframeKey} onChange={setTimeframeKey}
             options={availableTimeframes.map(tf => ({ value: tf.key, label: tf.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
           <BacktestSelect id="firm" label="🏢 Prop firm" value={firmKey} onChange={v => { setFirmKey(v); setModelKey(Object.keys(PROP_FIRMS[v].models)[0]); }}
             options={Object.keys(PROP_FIRMS).map(k => ({ value: k, label: PROP_FIRMS[k].name }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
           <BacktestSelect id="model" label="🎯 Type de challenge" value={modelKey} onChange={setModelKey}
             options={modelsForFirm.map(k => ({ value: k, label: firm.models[k].name }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
           <BacktestSelect id="capital" label="💰 Solde du challenge" value={capital} onChange={v => setCapital(parseInt(v))}
             options={CAPITAL_OPTIONS.map(c => ({ value: c, label: "$" + c.toLocaleString() }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
           <BacktestSelect id="strategy" label="📊 Stratégie" value={strategyKey} onChange={setStrategyKey}
             options={strategies.map(s => ({ value: s.key, label: (s.category ? "[" + s.category + "] " : "") + s.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
           <BacktestSelect id="mmmode" label="⚖️ Gestion du risque" value={mmMode} onChange={setMmMode}
             options={MONEY_MANAGEMENT_MODES.map(m => ({ value: m.key, label: m.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
           <BacktestSelect id="riskpct" label="🛡 Risque par trade (%)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
             options={[0.25, 0.5, 1, 1.5, 2, 3, 5].map(r => ({ value: r, label: r + "%" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
           <BacktestSelect id="slippage" label="💸 Frais & slippage" value={slippagePips} onChange={v => setSlippagePips(parseFloat(v))}
             options={[0, 0.2, 0.5, 1].map(s => ({ value: s, label: s === 0 ? "Aucun (idéal)" : "Spread + " + s + " pip" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
           {isGridStrategy ? <div /> : (
@@ -4154,7 +4194,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
         </div>
         {mmMode === "martingale" && !isGridStrategy && (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
               <BacktestSelect id="martmult" label="🎲 Multiplicateur martingale" value={martingaleMultiplier} onChange={v => setMartingaleMultiplier(parseFloat(v))}
                 options={[1.5, 2, 2.5, 3].map(m => ({ value: m, label: "×" + m }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
               <div />

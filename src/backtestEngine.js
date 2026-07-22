@@ -505,7 +505,7 @@ const STRATEGIES = {
 // MONEY MANAGEMENT, pas un signal d'entrée — modélisé comme un overlay). ──
 export const MONEY_MANAGEMENT_MODES = [
   { key: "fixed", label: "Risque fixe %" },
-  { key: "martingale", label: "Martingale (doublement après perte)" },
+  { key: "martingale", label: "Martingale" },
 ];
 
 // ── Simulateur de trades : un signal ouvre un trade (si aucun en cours),
