@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser, fbLoadUserProfile, fbSaveUserProfile, fbDeleteAccount } from "./firebase.js";
 import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedData, loadRange, monthsInRange, getCoverage } from "./historicalData.js";
-import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES } from "./backtestEngine.js";
+import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS } from "./backtestEngine.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -3662,6 +3662,8 @@ const BT_INFO = {
   period: "La plage de mois sur laquelle le backtest s'exécute. Plus elle est longue, plus l'échantillon est statistiquement fiable — mais le premier chargement prend plus de temps (ensuite les données sont en cache).",
   tpsl: "Take Profit = distance de sortie en gain. Stop Loss = distance de sortie en perte. Leur rapport définit le R Ratio : un TP de 30 pour un SL de 15 donne un R de 2, ce qui permet d'être rentable même avec moins de 50% de réussite.",
   gridcfg: "Écart = distance entre chaque niveau de la grille. Niveaux = nombre d'ordres étagés de chaque côté du prix. Attention : une grille n'a pas de stop loss par niveau, le risque se matérialise dans le drawdown flottant.",
+  direction: "Restreint le sens des positions. Achat uniquement teste la stratégie en marché haussier, Vente uniquement en marché baissier. Utile pour vérifier si ta stratégie est réellement symétrique ou si elle ne fonctionne que dans un sens — un déséquilibre fort est un signal d'alerte.",
+  customhours: "Définit ta propre fenêtre d'ouverture de positions en heure UTC. Les positions déjà ouvertes continuent d'être suivies hors de cette plage (seules les ENTRÉES sont filtrées). Une plage qui franchit minuit (ex: 22h → 04h) est gérée correctement.",
   newsfilter: "Exclut les créneaux horaires où tombent statistiquement les annonces à fort impact (NFP, FOMC, CPI). C'est une ESTIMATION basée sur des horaires récurrents, pas un vrai calendrier économique historique.",
 };
 
@@ -3760,6 +3762,9 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
   const [slippagePips, setSlippagePips] = useState(0.2);
   const [sessionKey, setSessionKey] = useState("24h");
   const [newsFilterOn, setNewsFilterOn] = useState(false);
+  const [tradeDirection, setTradeDirection] = useState("both");
+  const [customHourStart, setCustomHourStart] = useState(8);
+  const [customHourEnd, setCustomHourEnd] = useState(20);
   const [mmMode, setMmMode] = useState("fixed");
   const [martingaleMultiplier, setMartingaleMultiplier] = useState(2);
   const [martingaleMaxSteps] = useState(5);
@@ -3878,6 +3883,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
     setStrategyKey("breakout"); setStrategyParams({});
     setTpPips(15); setSlPips(10); setRiskPct(1); setSlippagePips(0.2);
     setSessionKey("24h"); setNewsFilterOn(false);
+    setTradeDirection("both"); setCustomHourStart(8); setCustomHourEnd(20);
     setMmMode("fixed"); setMartingaleMultiplier(2);
     setGridSpacingPips(20); setGridLevels(5); setGridDirection("both");
     if (datasets?.assets?.length) setSelectedPair(datasets.assets[0].pair);
@@ -3901,7 +3907,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
       const prepared = aggregateCandles(range.candles, targetMinutes, range.baseMinutes);
       const r = isGridStrategy
         ? runGridBacktest({ candles: prepared, pair: selectedPair, capital, riskPct, spacingPips: gridSpacingPips, levels: gridLevels, direction: gridDirection, slippagePips })
-        : runBacktest({ candles: prepared, pair: selectedPair, strategyKey, tpPips, slPips, strategyParams, capital, riskPct, slippagePips, sessionKey, newsFilterOn, mmMode, martingaleMultiplier, martingaleMaxSteps });
+        : runBacktest({ candles: prepared, pair: selectedPair, strategyKey, tpPips, slPips, strategyParams, capital, riskPct, slippagePips, sessionKey, newsFilterOn, mmMode, martingaleMultiplier, martingaleMaxSteps, tradeDirection, customHours: sessionKey === "custom" ? [customHourStart, customHourEnd] : null });
       r.rangeInfo = { start: startDate, end: endDate, months: range.monthsUsed.length, downloaded: range.downloadedCount, cached: range.fromCacheCount, fromApi: range.fromApiCount || 0, failed: (range.monthsMissing || []).length, candles: prepared.length };
       setResult(r);
       setScore(r.isGridResult ? null : computePropFirmScore(r, capital, firmKey, modelKey, labRunMonteCarlo));
@@ -4248,10 +4254,46 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
           <BacktestSelect id="slippage" label="💸 Frais & slippage" value={slippagePips} onChange={v => setSlippagePips(parseFloat(v))}
             options={[0, 0.2, 0.5, 1].map(s => ({ value: s, label: s === 0 ? "Aucun (idéal)" : "Spread + " + s + " pip" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
           {isGridStrategy ? <div /> : (
-            <BacktestSelect id="session" label="🕐 Heures de trading" value={sessionKey} onChange={setSessionKey}
-              options={SESSIONS.map(s => ({ value: s.key, label: s.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
+            <BacktestSelect id="direction" label="↕️ Sens autorisé" value={tradeDirection} onChange={setTradeDirection}
+              options={TRADE_DIRECTIONS.map(d => ({ value: d.key, label: d.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
           )}
         </div>
+        {!isGridStrategy && (
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
+            <BacktestSelect id="session" label="🕐 Heures de trading" value={sessionKey} onChange={setSessionKey}
+              options={SESSIONS.map(s => ({ value: s.key, label: s.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
+            <div />
+          </div>
+        )}
+        {!isGridStrategy && sessionKey === "custom" && (
+          <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: 12, marginBottom: 8 }}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>
+              Plage horaire d'ouverture (UTC)<InfoDot id="customhours" openInfo={openInfo} setOpenInfo={setOpenInfo} accent={ACCENT} />
+            </div>
+            <InfoPanel id="customhours" openInfo={openInfo} accent={ACCENT} />
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginBottom: 2 }}>
+                <span style={{ color: "rgba(255,255,255,0.6)" }}>Ouverture à partir de</span>
+                <span style={{ fontWeight: 800, color: ACCENT }}>{String(customHourStart).padStart(2, "0")}h00</span>
+              </div>
+              <input type="range" min={0} max={23} step={1} value={customHourStart} onChange={e => setCustomHourStart(parseInt(e.target.value))} style={{ width: "100%", accentColor: ACCENT }} />
+            </div>
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginBottom: 2 }}>
+                <span style={{ color: "rgba(255,255,255,0.6)" }}>Jusqu'à</span>
+                <span style={{ fontWeight: 800, color: ACCENT }}>{String(customHourEnd).padStart(2, "0")}h00</span>
+              </div>
+              <input type="range" min={0} max={23} step={1} value={customHourEnd} onChange={e => setCustomHourEnd(parseInt(e.target.value))} style={{ width: "100%", accentColor: ACCENT }} />
+            </div>
+            <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginTop: 8, lineHeight: 1.45 }}>
+              {customHourStart === customHourEnd
+                ? "Début et fin identiques : aucun filtre appliqué (24h/24h)."
+                : customHourStart < customHourEnd
+                  ? `Positions ouvertes uniquement entre ${String(customHourStart).padStart(2,"0")}h et ${String(customHourEnd).padStart(2,"0")}h UTC (${customHourEnd - customHourStart}h par jour).`
+                  : `Plage à cheval sur minuit : de ${String(customHourStart).padStart(2,"0")}h à 24h puis de 00h à ${String(customHourEnd).padStart(2,"0")}h UTC (${24 - customHourStart + customHourEnd}h par jour).`}
+            </div>
+          </div>
+        )}
         {mmMode === "martingale" && !isGridStrategy && (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>

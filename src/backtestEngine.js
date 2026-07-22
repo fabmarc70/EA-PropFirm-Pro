@@ -71,19 +71,37 @@ export function filterByDateRange(candles, startTs, endTs) {
 
 export const SESSIONS = [
   { key: "24h", label: "24h/24h", hours: null },
-  { key: "asia", label: "Session Asie", hours: [0, 8] },
-  { key: "london", label: "Session Londres", hours: [8, 16] },
-  { key: "ny", label: "Session New York", hours: [13, 21] },
-  { key: "london_ny", label: "Londres + New York", hours: [8, 21] },
+  { key: "asia", label: "Session Asie (00h-08h)", hours: [0, 8] },
+  { key: "london", label: "Session Londres (08h-16h)", hours: [8, 16] },
+  { key: "ny", label: "Session New York (13h-21h)", hours: [13, 21] },
+  { key: "london_ny", label: "Londres + New York (08h-21h)", hours: [8, 21] },
+  { key: "custom", label: "Plage personnalisée", hours: null, custom: true },
 ];
 
-// Une bougie est "tradable" si son heure UTC tombe dans la fenêtre de session
-function isInSession(ts, sessionKey) {
+// Une bougie est "tradable" si son heure UTC tombe dans la fenêtre horaire.
+// customHours = [début, fin] en heures UTC. Une plage qui franchit minuit
+// (ex: 22h → 04h) est gérée correctement : la condition devient un OU au lieu
+// d'un ET, sinon aucune bougie ne passerait le filtre.
+function isInSession(ts, sessionKey, customHours) {
+  if (sessionKey === "custom") {
+    if (!customHours) return true;
+    const [a, b] = customHours;
+    if (a === b) return true; // plage vide = pas de filtre
+    const h = new Date(ts).getUTCHours();
+    return a < b ? (h >= a && h < b) : (h >= a || h < b);
+  }
   const s = SESSIONS.find(x => x.key === sessionKey);
   if (!s || !s.hours) return true;
   const h = new Date(ts).getUTCHours();
   return h >= s.hours[0] && h < s.hours[1];
 }
+
+// Sens autorisés pour l'ouverture des positions
+export const TRADE_DIRECTIONS = [
+  { key: "both", label: "Achat + Vente" },
+  { key: "buy", label: "Achat uniquement" },
+  { key: "sell", label: "Vente uniquement" },
+];
 
 // Filtre "news" — HEURISTIQUE, pas un calendrier économique réel (l'app n'a
 // pas encore de source de dates exactes d'annonces passées). Évite les
@@ -516,6 +534,7 @@ export function runBacktest({
   candles, pair, strategyKey, tpPips = 15, slPips = 10, strategyParams = null,
   capital = 10000, riskPct = 1, slippagePips = 0.2, sessionKey = "24h", newsFilterOn = false,
   mmMode = "fixed", martingaleMultiplier = 2, martingaleMaxSteps = 5,
+  tradeDirection = "both", customHours = null,
 }) {
   const strategy = STRATEGIES[strategyKey];
   if (!strategy) throw new Error("Stratégie inconnue: " + strategyKey);
@@ -535,7 +554,7 @@ export function runBacktest({
 
   for (let i = 0; i < candles.length; i++) {
     const [ts, , high, low, close] = candles[i];
-    const tradableNow = isInSession(ts, sessionKey) && (!newsFilterOn || !isLikelyNewsWindow(ts));
+    const tradableNow = isInSession(ts, sessionKey, customHours) && (!newsFilterOn || !isLikelyNewsWindow(ts));
 
     if (inTrade) {
       const { dir, entryPrice, tp, sl, entryIdx, dollarPerPip } = inTrade;
@@ -554,7 +573,12 @@ export function runBacktest({
       }
     }
 
-    if (!inTrade && signals[i] && tradableNow) {
+    // Sens autorisé : un signal contraire au sens choisi est simplement ignoré
+    const dirAllowed = signals[i] && (tradeDirection === "both"
+      || (tradeDirection === "buy" && signals[i] === "long")
+      || (tradeDirection === "sell" && signals[i] === "short"));
+
+    if (!inTrade && dirAllowed && tradableNow) {
       const dir = signals[i];
       const entryPrice = close;
       const tp = dir === "long" ? entryPrice + tpPips * pip : entryPrice - tpPips * pip;
@@ -625,6 +649,7 @@ export function runBacktest({
   return {
     strategyLabel: strategy.label,
     paramsUsed: params,
+    filtersUsed: { tradeDirection, sessionKey, customHours, newsFilterOn },
     totalTrades: trades.length,
     wins, losses, winrate: +winrate.toFixed(1),
     totalPips, totalUSD, capital, finalEquity: +(capital + totalUSD).toFixed(2),
