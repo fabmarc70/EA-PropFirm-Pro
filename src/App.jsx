@@ -3854,8 +3854,14 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
   const currentStrategyDef = strategies.find(s => s.key === strategyKey);
   const isGridStrategy = !!currentStrategyDef?.isGrid;
 
-  // Granularité native (M15 pour la source actuelle) -> timeframes proposés
-  const baseMinutes = datasets?.assets?.find(a => a.pair === selectedPair)?.baseMinutes || 15;
+  // Granularité native de la PLAGE SÉLECTIONNÉE : la source n'a pas la même finesse
+  // selon les années. On retient la plus GROSSIÈRE des mois sélectionnés, car c'est
+  // elle qui limite ce qu'on peut réellement calculer (on n'invente pas du détail).
+  const monthsSel = (periodList.length && periodList[startIdx] && periodList[endIdx])
+    ? periodList.slice(startIdx, endIdx + 1) : [];
+  const assetsInRange = (datasets?.assets || []).filter(a => a.pair === selectedPair && monthsSel.includes(a.period));
+  const baseMinutes = assetsInRange.length ? Math.max(...assetsInRange.map(a => a.baseMinutes || 15)) : 15;
+  const monthsAvailableInRange = assetsInRange.length;
   const availableTimeframes = TIMEFRAMES.filter(tf => tf.minutes >= baseMinutes);
   useEffect(() => {
     if (availableTimeframes.length && !availableTimeframes.some(tf => tf.key === timeframeKey)) {
@@ -4206,8 +4212,13 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
           </div>
 
           <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", marginTop: 8, lineHeight: 1.45 }}>
-            {monthsNeeded.length} mois sélectionné{monthsNeeded.length > 1 ? "s" : ""} ({startDate} → {endDate}). Téléchargement automatique au lancement, puis mise en cache.
+            {monthsAvailableInRange} mois de données sur cette plage ({startDate} → {endDate}). Granularité disponible : {baseMinutes >= 1440 ? "journalière (D1)" : baseMinutes >= 60 ? "H" + (baseMinutes/60) : "M" + baseMinutes}. Téléchargement automatique au lancement, puis mise en cache.
           </div>
+          {monthsNeeded.length > monthsAvailableInRange && (
+            <div style={{ fontSize: 9.5, color: "#fbbf24", marginTop: 5, lineHeight: 1.45 }}>
+              ⚠️ {monthsNeeded.length - monthsAvailableInRange} mois de cette plage ne sont pas publiés (période 2022-04 à 2024-06 indisponible chez la source gratuite). Ils sont simplement ignorés, sans fausser le calcul.
+            </div>
+          )}
         </div>
         )}
 

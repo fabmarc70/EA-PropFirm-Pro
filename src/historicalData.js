@@ -188,8 +188,12 @@ export async function loadRange(pair, startISO, endISO, { onProgress } = {}) {
   const startTs = new Date(startISO + "T00:00:00Z").getTime();
   const endTs = new Date(endISO + "T23:59:59Z").getTime();
 
-  let all = [];
-  let baseMinutes = 1;
+  // GRANULARITÉ MIXTE : selon la période, la source disponible n'a pas la même
+  // finesse (M15 sur 2020-2022 et 2026, M30 fin 2025, D1 sur 2024-2025). Mélanger
+  // des bougies de granularités différentes dans une même série fausserait tous
+  // les indicateurs. On aligne donc TOUT sur la granularité la plus GROSSIÈRE de
+  // la plage sélectionnée : les tranches plus fines sont agrégées vers elle.
+  const loaded = [];
   let downloaded = 0, cached = 0;
 
   for (let i = 0; i < toLoad.length; i++) {
@@ -206,8 +210,7 @@ export async function loadRange(pair, startISO, endISO, { onProgress } = {}) {
       await idbSet(cacheKey, ds);
       downloaded++;
     }
-    baseMinutes = ds.baseMinutes || baseMinutes;
-    all = all.concat(ds.candles || []);
+    loaded.push({ period, base: ds.baseMinutes || 1, candles: ds.candles || [] });
     if (onProgress) onProgress({
       done: i + 1, total: toLoad.length, period,
       pct: Math.round(((i + 1) / toLoad.length) * 100),
@@ -215,11 +218,30 @@ export async function loadRange(pair, startISO, endISO, { onProgress } = {}) {
     });
   }
 
+  const baseMinutes = loaded.reduce((mx, d) => Math.max(mx, d.base), 1);
+  const mixed = loaded.some(d => d.base !== baseMinutes);
+
+  // Agrégation locale (même logique que backtestEngine.aggregateCandles, dupliquée
+  // ici pour garder ce module autonome et sans dépendance croisée)
+  const aggTo = (candles, from, to) => {
+    const factor = Math.max(1, Math.round(to / from));
+    if (factor <= 1) return candles;
+    const out = [];
+    for (let i = 0; i < candles.length; i += factor) {
+      const ch = candles.slice(i, i + factor);
+      if (!ch.length) continue;
+      out.push([ch[0][0], ch[0][1], Math.max(...ch.map(x => x[2])), Math.min(...ch.map(x => x[3])), ch[ch.length - 1][4]]);
+    }
+    return out;
+  };
+
+  let all = [];
+  loaded.forEach(d => { all = all.concat(d.base === baseMinutes ? d.candles : aggTo(d.candles, d.base, baseMinutes)); });
   all.sort((a, b) => a[0] - b[0]);
   const candles = all.filter(c => c[0] >= startTs && c[0] <= endTs);
 
   return {
-    candles, baseMinutes,
+    candles, baseMinutes, mixedGranularity: mixed,
     monthsUsed: toLoad, monthsMissing: missing,
     downloadedCount: downloaded, fromCacheCount: cached,
   };
