@@ -960,3 +960,197 @@ export function computePropFirmScore(backtestResult, capital, firmKey, modelKey,
 export function listStrategies() {
   return Object.entries(STRATEGIES).map(([key, v]) => ({ key, label: v.label, category: v.category, isGrid: !!v.isGrid, defaultParams: v.defaultParams, paramDefs: v.paramDefs }));
 }
+
+// ══════════════════════════════════════════════════════════════════
+// WALK-FORWARD ANALYSIS
+//
+// Le probleme qu'il resout : un backtest classique optimise ET mesure sur la
+// MEME periode (in-sample). Le resultat est donc structurellement flatteur —
+// il decrit le passe, il ne predit rien. C'est la faille principale de tout
+// backtesteur.
+//
+// Principe : on decoupe la periode en fenetres glissantes. Sur chaque fenetre,
+// on cherche les meilleurs parametres sur la tranche IS (in-sample), puis on
+// applique CES parametres sur la tranche OOS (out-of-sample) qui suit —
+// des donnees que l'optimisation n'a jamais vues. Seule la performance
+// agregee OOS est honnete.
+//
+// Walk-Forward Efficiency (WFE) = performance OOS / performance IS.
+// En dessous de ~30 %, les parametres ne survivent pas hors de leur periode
+// d'origine : la strategie est sur-ajustee.
+// ══════════════════════════════════════════════════════════════════
+
+// Grille de parametres a explorer, construite autour des valeurs par defaut.
+// Le nombre de combinaisons est plafonne pour rester utilisable sur mobile :
+// au-dela, l'attente devient insupportable pour un gain marginal.
+function buildParamGrid(paramDefs, defaults, maxCombos = 36) {
+  const defs = (paramDefs || []).slice(0, 3); // au-dela de 3 params, l'explosion combinatoire n'a plus de sens
+  if (!defs.length) return [{}];
+  const perParam = defs.length >= 3 ? 2 : 3;
+  const axes = defs.map(pd => {
+    const d = defaults[pd.key] ?? pd.min;
+    const facteurs = perParam === 3 ? [0.7, 1, 1.4] : [0.8, 1.25];
+    const vals = facteurs.map(f => {
+      let v = d * f;
+      v = Math.round(v / pd.step) * pd.step;
+      v = Math.max(pd.min, Math.min(pd.max, v));
+      return +v.toFixed(4);
+    });
+    return { key: pd.key, values: [...new Set(vals)] };
+  });
+  let combos = [{}];
+  for (const ax of axes) {
+    const next = [];
+    for (const c of combos) for (const v of ax.values) next.push({ ...c, [ax.key]: v });
+    combos = next;
+    if (combos.length >= maxCombos) break;
+  }
+  return combos.slice(0, maxCombos);
+}
+
+// Agrege une liste de trades (issus de plusieurs fenetres OOS) en un bilan
+// unique, comme s'ils s'etaient enchaines sur un seul compte.
+function aggregateTrades(trades, capital) {
+  const wins = trades.filter(t => t.win).length;
+  const losses = trades.length - wins;
+  const totalUSD = +trades.reduce((s, t) => s + (t.pnlUSD || 0), 0).toFixed(2);
+  const grossWin = trades.filter(t => t.win).reduce((s, t) => s + t.pips, 0);
+  const grossLoss = Math.abs(trades.filter(t => !t.win).reduce((s, t) => s + t.pips, 0));
+  const profitFactor = grossLoss > 0 ? +(grossWin / grossLoss).toFixed(2) : (grossWin > 0 ? Infinity : 0);
+
+  let running = capital, peak = capital, maxDD = 0;
+  const equityCurve = [{ x: 0, y: 0, usd: capital, ddPct: 0 }];
+  trades.forEach((t, i) => {
+    running += (t.pnlUSD || 0);
+    peak = Math.max(peak, running);
+    maxDD = Math.max(maxDD, peak - running);
+    equityCurve.push({
+      x: i + 1, y: +(running - capital).toFixed(1), usd: +running.toFixed(2),
+      ddPct: peak > 0 ? -+(((peak - running) / peak) * 100).toFixed(2) : 0,
+    });
+  });
+
+  let maxLossStreak = 0, cur = 0;
+  trades.forEach(t => { if (!t.win) { cur++; maxLossStreak = Math.max(maxLossStreak, cur); } else cur = 0; });
+
+  const avgWinPips = wins ? +(grossWin / wins).toFixed(1) : 0;
+  const avgLossPips = losses ? +(grossLoss / losses).toFixed(1) : 0;
+
+  return {
+    totalTrades: trades.length, wins, losses,
+    winrate: trades.length ? +((wins / trades.length) * 100).toFixed(1) : 0,
+    totalUSD, totalPct: +((totalUSD / capital) * 100).toFixed(2),
+    profitFactor,
+    rRatio: avgLossPips > 0 ? +(avgWinPips / avgLossPips).toFixed(2) : 0,
+    avgWinPips, avgLossPips,
+    maxDrawdownUSD: +maxDD.toFixed(2),
+    maxDrawdownPct: peak > 0 ? +((maxDD / peak) * 100).toFixed(2) : 0,
+    maxLossStreak,
+    equityCurve, trades, capital,
+    finalEquity: +running.toFixed(2),
+  };
+}
+
+export async function runWalkForward({
+  candles, pair, strategyKey, strategyParams, tpPips, slPips,
+  capital = 25000, riskPct = 1, slippagePips = 0.2,
+  sessionKey = "24h", customHours = null, newsFilterOn = false,
+  mmMode = "fixed", martingaleMultiplier = 2, martingaleMaxSteps = 5,
+  tradeDirection = "both", tradingDays = null, confluence = [],
+  isBars, oosBars, onProgress,
+}) {
+  const strategy = STRATEGIES[strategyKey];
+  if (!strategy) throw new Error("Stratégie inconnue: " + strategyKey);
+  if (strategy.isGrid) throw new Error("Le walk-forward ne s'applique pas au Grid Trading (pas de paramètres d'entrée à optimiser).");
+
+  const total = candles.length;
+  const stepBars = oosBars;
+  if (total < isBars + oosBars) {
+    throw new Error(`Période trop courte pour un walk-forward : il faut au moins ${isBars + oosBars} bougies (${total} disponibles). Allonge la période ou réduis la taille des fenêtres.`);
+  }
+
+  const grid = buildParamGrid(strategy.paramDefs, { ...strategy.defaultParams, ...(strategyParams || {}) });
+  const commun = {
+    pair, strategyKey, tpPips, slPips, capital, riskPct, slippagePips,
+    sessionKey, customHours, newsFilterOn, mmMode, martingaleMultiplier, martingaleMaxSteps,
+    tradeDirection, tradingDays, confluence,
+  };
+
+  const windows = [];
+  let allOosTrades = [], allIsTrades = [];
+  const nWindows = Math.floor((total - isBars) / stepBars);
+
+  for (let w = 0; w < nWindows; w++) {
+    const isStart = w * stepBars;
+    const isEnd = isStart + isBars;
+    const oosEnd = Math.min(isEnd + oosBars, total);
+    if (oosEnd - isEnd < Math.max(30, oosBars * 0.5)) break; // derniere fenetre trop courte -> ignoree
+
+    const isCandles = candles.slice(isStart, isEnd);
+    const oosCandles = candles.slice(isEnd, oosEnd);
+
+    // ── Optimisation sur IS ──
+    let best = null;
+    for (const combo of grid) {
+      try {
+        const r = runBacktest({ ...commun, candles: isCandles, strategyParams: combo });
+        // On exige un minimum de trades : un parametrage qui ne declenche que
+        // 2 trades gagnants n'est pas "le meilleur", c'est du bruit.
+        if (r.totalTrades < 8) continue;
+        if (!best || r.totalUSD > best.result.totalUSD) best = { params: combo, result: r };
+      } catch (e) { /* combinaison invalide -> ignoree */ }
+    }
+    // Repli : si aucune combinaison n'atteint le minimum de trades, on prend
+    // les parametres par defaut plutot que d'abandonner la fenetre.
+    if (!best) {
+      try {
+        const r = runBacktest({ ...commun, candles: isCandles, strategyParams: { ...strategy.defaultParams } });
+        best = { params: { ...strategy.defaultParams }, result: r };
+      } catch (e) { continue; }
+    }
+
+    // ── Validation sur OOS (donnees jamais vues par l'optimisation) ──
+    let oos;
+    try {
+      oos = runBacktest({ ...commun, candles: oosCandles, strategyParams: best.params });
+    } catch (e) { continue; }
+
+    windows.push({
+      index: w + 1,
+      isRange: [isCandles[0][0], isCandles[isCandles.length - 1][0]],
+      oosRange: [oosCandles[0][0], oosCandles[oosCandles.length - 1][0]],
+      bestParams: best.params,
+      isPct: best.result.totalPct, isTrades: best.result.totalTrades, isWinrate: best.result.winrate,
+      oosPct: oos.totalPct, oosTrades: oos.totalTrades, oosWinrate: oos.winrate,
+      oosProfitFactor: oos.profitFactor,
+    });
+    allOosTrades = allOosTrades.concat(oos.trades);
+    allIsTrades = allIsTrades.concat(best.result.trades);
+
+    if (onProgress) onProgress({ done: w + 1, total: nWindows, pct: Math.round(((w + 1) / nWindows) * 100) });
+    // Laisse respirer le thread principal : sans ca, l'interface se fige
+    // pendant tout le calcul et l'utilisateur croit a un plantage.
+    await new Promise(res => setTimeout(res, 0));
+  }
+
+  if (!windows.length) {
+    throw new Error("Aucune fenêtre exploitable : la période est trop courte ou trop peu de signaux sont générés.");
+  }
+
+  allOosTrades.sort((a, b) => a.entryTs - b.entryTs);
+  const oosAgg = aggregateTrades(allOosTrades, capital);
+  const isAgg = aggregateTrades(allIsTrades, capital);
+
+  // Walk-Forward Efficiency : ce que la strategie conserve reellement hors de
+  // sa periode d'optimisation. Si l'IS est negatif, le ratio n'a pas de sens.
+  const wfe = isAgg.totalPct > 0 ? +((oosAgg.totalPct / isAgg.totalPct) * 100).toFixed(1) : null;
+  const windowsPositives = windows.filter(w => w.oosPct > 0).length;
+
+  return {
+    windows, oosAggregate: oosAgg, isAggregate: isAgg, wfe,
+    windowsCount: windows.length, windowsPositives,
+    consistency: +((windowsPositives / windows.length) * 100).toFixed(1),
+    combosTested: grid.length,
+    isBars, oosBars,
+  };
+}

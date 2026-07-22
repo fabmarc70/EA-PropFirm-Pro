@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser, fbLoadUserProfile, fbSaveUserProfile, fbDeleteAccount } from "./firebase.js";
 import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedData, loadRange, monthsInRange, getCoverage } from "./historicalData.js";
-import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS, listConfluenceFilters, WEEKDAYS } from "./backtestEngine.js";
+import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS, listConfluenceFilters, WEEKDAYS, runWalkForward } from "./backtestEngine.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -3666,6 +3666,7 @@ const BT_INFO = {
   customhours: "Définit ta propre fenêtre d'ouverture de positions en heure UTC. Les positions déjà ouvertes continuent d'être suivies hors de cette plage (seules les ENTRÉES sont filtrées). Une plage qui franchit minuit (ex: 22h → 04h) est gérée correctement.",
   tradingdays: "Les jours de la semaine où les positions peuvent s'ouvrir. Le vendredi (clôture hebdomadaire) et le lundi (ouverture avec gap) ont souvent un comportement à part. Les positions déjà ouvertes restent suivies les autres jours.",
   confluence: "Le principe d'un EA MT4 : la stratégie principale déclenche le signal, et chaque filtre ajouté doit ensuite AUTORISER ce sens précis, sinon rien ne s'ouvre. Plus tu ajoutes de filtres, moins tu as de trades — mais chacun est mieux qualifié. Attention à l'excès : trop de filtres sur une période courte donne un échantillon trop petit pour conclure quoi que ce soit.",
+  walkforward: "Un backtest classique optimise ET mesure sur la même période : le résultat décrit le passé, il ne prédit rien. Le walk-forward découpe la période en fenêtres glissantes : les paramètres sont cherchés sur une tranche, puis appliqués sur la tranche suivante que l'optimisation n'a jamais vue. Une fenêtre d'optimisation plus longue donne des paramètres plus stables mais moins réactifs ; plus courte, l'inverse.",
   newsfilter: "Exclut les créneaux horaires où tombent statistiquement les annonces à fort impact (NFP, FOMC, CPI). C'est une ESTIMATION basée sur des horaires récurrents, pas un vrai calendrier économique historique.",
 };
 
@@ -3895,6 +3896,11 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
   const [openDropdown, setOpenDropdown] = useState(null);
   const [openInfo, setOpenInfo] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [analysisMode, setAnalysisMode] = useState("simple"); // "simple" | "walkforward"
+  const [wfIsBars, setWfIsBars] = useState(500);
+  const [wfOosBars, setWfOosBars] = useState(250);
+  const [wfResult, setWfResult] = useState(null);
+  const [wfProgress, setWfProgress] = useState(null);
   const [history, setHistory] = useState(() => { try { return JSON.parse(localStorage.getItem("eapropfirm_backtest_history") || "[]"); } catch (e) { return []; } });
   const [showHistory, setShowHistory] = useState(false);
   const [tipIdx, setTipIdx] = useState(0);
@@ -3994,7 +4000,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
   const monthsNeeded = (startDate && endDate) ? monthsInRange(startDate, endDate) : [];
 
   const resetAllConfig = () => {
-    setResult(null); setScore(null); setRunError(null);
+    setResult(null); setScore(null); setRunError(null); setWfResult(null);
     setFirmKey("fundednext"); setModelKey("2step"); setCapital(25000);
     setStrategyKey("breakout"); setStrategyParams({});
     setTpPips(15); setSlPips(10); setRiskPct(1); setSlippagePips(0.2);
@@ -4016,12 +4022,35 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
   const handleRun = async () => {
     if (!selectedPair || !startDate || !endDate) return;
     if (startDate > endDate) { setRunError("La date de début doit précéder la date de fin."); return; }
-    setRunning(true); setRunError(null); setResult(null); setScore(null); setTipIdx(0);
+    setRunning(true); setRunError(null); setResult(null); setScore(null); setWfResult(null); setTipIdx(0);
     try {
       const range = await loadRange(selectedPair, startDate, endDate, { onProgress: setLoadState, targetMinutes });
       setLoadState(null);
       if (!range.candles.length) throw new Error("Aucune bougie sur cette plage de dates.");
       const prepared = aggregateCandles(range.candles, targetMinutes, range.baseMinutes);
+
+      // ── Mode Walk-Forward : optimisation IS puis validation OOS ──
+      if (analysisMode === "walkforward" && !isGridStrategy) {
+        setWfProgress({ done: 0, total: 0, pct: 0 });
+        const wf = await runWalkForward({
+          candles: prepared, pair: selectedPair, strategyKey, strategyParams, tpPips, slPips,
+          capital, riskPct, slippagePips, sessionKey,
+          customHours: sessionKey === "custom" ? [customHourStart, customHourEnd] : null,
+          newsFilterOn, mmMode, martingaleMultiplier, martingaleMaxSteps,
+          tradeDirection, tradingDays, confluence,
+          isBars: wfIsBars, oosBars: wfOosBars,
+          onProgress: setWfProgress,
+        });
+        wf.rangeInfo = { start: startDate, end: endDate, months: range.monthsUsed.length, candles: prepared.length };
+        setWfResult(wf);
+        // La courbe affichee est celle des trades OOS : la seule honnete
+        setResult({ ...wf.oosAggregate, strategyLabel: "Walk-Forward · " + (strategies.find(s => s.key === strategyKey)?.label || ""), isWalkForward: true, rangeInfo: wf.rangeInfo, byDow: [], filtersUsed: {} });
+        setScore(null);
+        setWfProgress(null);
+        setRunning(false);
+        return;
+      }
+
       const r = isGridStrategy
         ? runGridBacktest({ candles: prepared, pair: selectedPair, capital, riskPct, spacingPips: gridSpacingPips, levels: gridLevels, direction: gridDirection, slippagePips })
         : runBacktest({ candles: prepared, pair: selectedPair, strategyKey, tpPips, slPips, strategyParams, capital, riskPct, slippagePips, sessionKey, newsFilterOn, mmMode, martingaleMultiplier, martingaleMaxSteps, tradeDirection, customHours: sessionKey === "custom" ? [customHourStart, customHourEnd] : null, tradingDays, confluence });
@@ -4171,6 +4200,18 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
                       {TIPS[tipIdx % TIPS.length]}
                     </div>
                   </>
+                ) : wfProgress ? (
+                  <>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
+                      Walk-Forward · fenêtre {wfProgress.done}{wfProgress.total ? "/" + wfProgress.total : ""}
+                    </div>
+                    <div style={{ width: "80%", maxWidth: 260, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.1)", overflow: "hidden" }}>
+                      <div style={{ width: (wfProgress.pct || 0) + "%", height: "100%", background: ACCENT, transition: "width .2s" }} />
+                    </div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textAlign: "center", lineHeight: 1.4 }}>
+                      Optimisation puis validation sur données neuves, fenêtre par fenêtre.
+                    </div>
+                  </>
                 ) : <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Calcul du backtest…</div>}
               </>
             ) : (
@@ -4211,7 +4252,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
       )}
 
       {/* ══ RÉSULTATS CHIFFRÉS ══ */}
-      {result && !result.error && result.totalTrades > 0 && (
+      {result && !result.error && result.totalTrades > 0 && !result.isWalkForward && (
         <div className="card" style={{ marginTop: 12 }}>
           <SectionHeader n="1" title="Résultats" />
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8 }}>
@@ -4303,6 +4344,52 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
           <SectionHeader n="2" title="Configuration" />
           <button onClick={resetAllConfig} style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 10.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", marginBottom: 12 }}>↺ Réinitialiser</button>
         </div>
+
+        {/* ── MODE D'ANALYSE ── */}
+        <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: 4, border: "1px solid rgba(255,255,255,0.08)", marginBottom: 10 }}>
+          {[
+            { id: "simple", label: "Backtest simple" },
+            { id: "walkforward", label: "Walk-Forward" },
+          ].map(md => (
+            <button key={md.id} type="button" onClick={() => { setAnalysisMode(md.id); setResult(null); setWfResult(null); }}
+              disabled={md.id === "walkforward" && isGridStrategy}
+              style={{
+                flex: 1, padding: "9px 6px", borderRadius: 8, cursor: (md.id === "walkforward" && isGridStrategy) ? "default" : "pointer",
+                fontSize: 12, fontWeight: 700,
+                background: analysisMode === md.id ? ACCENT : "transparent",
+                color: analysisMode === md.id ? "#000" : (md.id === "walkforward" && isGridStrategy) ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.6)",
+                border: "none", transition: "all .2s",
+              }}>{md.label}</button>
+          ))}
+        </div>
+
+        {analysisMode === "walkforward" && (
+          <div style={{ background: "rgba(110,231,183,0.04)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, padding: 12, marginBottom: 10 }}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: ACCENT, textTransform: "uppercase", marginBottom: 8 }}>
+              🔬 Fenêtres d'analyse<InfoDot id="walkforward" openInfo={openInfo} setOpenInfo={setOpenInfo} accent={ACCENT} />
+            </div>
+            <InfoPanel id="walkforward" openInfo={openInfo} accent={ACCENT} />
+            <div style={{ marginBottom: 9 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginBottom: 2 }}>
+                <span style={{ color: "rgba(255,255,255,0.6)" }}>Optimisation (in-sample)</span>
+                <span style={{ fontWeight: 800, color: ACCENT }}>{wfIsBars} bougies</span>
+              </div>
+              <input type="range" min={200} max={2000} step={50} value={wfIsBars}
+                onChange={e => setWfIsBars(parseInt(e.target.value))} style={{ width: "100%", accentColor: ACCENT }} />
+            </div>
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginBottom: 2 }}>
+                <span style={{ color: "rgba(255,255,255,0.6)" }}>Test (out-of-sample)</span>
+                <span style={{ fontWeight: 800, color: ACCENT }}>{wfOosBars} bougies</span>
+              </div>
+              <input type="range" min={100} max={1000} step={50} value={wfOosBars}
+                onChange={e => setWfOosBars(parseInt(e.target.value))} style={{ width: "100%", accentColor: ACCENT }} />
+            </div>
+            <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginTop: 8, lineHeight: 1.45 }}>
+              Les paramètres de la stratégie sont optimisés sur chaque tranche d'optimisation, puis appliqués tels quels sur la tranche de test qui suit — des données jamais vues. Seul le résultat out-of-sample compte.
+            </div>
+          </div>
+        )}
 
         {/* Plage de mois — curseurs (les données sont stockées en fichiers mensuels,
             une précision au jour serait donc trompeuse : sélectionner le 15 janvier
@@ -4612,8 +4699,98 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
         )}
       </div>
 
+      {/* ══ RÉSULTATS WALK-FORWARD ══ */}
+      {wfResult && (() => {
+        const wf = wfResult;
+        // Lecture du WFE : c'est LE chiffre qui dit si la stratégie survit hors
+        // de sa période d'optimisation. Négatif = elle perd de l'argent en réel.
+        const wfeColor = wf.wfe === null ? "rgba(255,255,255,0.5)"
+          : wf.wfe >= 50 ? ACCENT : wf.wfe >= 30 ? "#fbbf24" : "#ef4444";
+        const wfeVerdict = wf.wfe === null ? "Non calculable (in-sample négatif)"
+          : wf.wfe >= 50 ? "Robuste — les paramètres tiennent hors optimisation"
+          : wf.wfe >= 30 ? "Fragile — dégradation nette hors optimisation"
+          : wf.wfe >= 0 ? "Sur-ajusté — la performance s'effondre sur données neuves"
+          : "Sur-ajusté — la stratégie PERD de l'argent sur données neuves";
+        const consColor = wf.consistency >= 60 ? ACCENT : wf.consistency >= 40 ? "#fbbf24" : "#ef4444";
+
+        return (
+          <div className="card" style={{ marginTop: 12 }}>
+            <SectionHeader n="2" title="Analyse Walk-Forward" />
+
+            {/* Comparaison IS vs OOS — le contraste est le message */}
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 8, marginBottom: 12 }}>
+              <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px 11px", border: "1px solid rgba(255,255,255,0.07)" }}>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 4, textTransform: "uppercase", fontWeight: 700 }}>In-sample</div>
+                <div style={{ fontSize: 17, fontWeight: 800, color: wf.isAggregate.totalPct >= 0 ? "rgba(255,255,255,0.75)" : "#ef4444" }}>
+                  {wf.isAggregate.totalPct >= 0 ? "+" : ""}{wf.isAggregate.totalPct}%
+                </div>
+                <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)" }}>{wf.isAggregate.totalTrades} trades · WR {wf.isAggregate.winrate}%</div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.28)", marginTop: 3 }}>Optimisé — flatteur par construction</div>
+              </div>
+              <div style={{ background: "rgba(110,231,183,0.05)", borderRadius: 10, padding: "10px 11px", border: "1px solid " + ACCENT + "33" }}>
+                <div style={{ fontSize: 9, color: ACCENT, marginBottom: 4, textTransform: "uppercase", fontWeight: 700 }}>Out-of-sample</div>
+                <div style={{ fontSize: 17, fontWeight: 800, color: wf.oosAggregate.totalPct >= 0 ? ACCENT : "#ef4444" }}>
+                  {wf.oosAggregate.totalPct >= 0 ? "+" : ""}{wf.oosAggregate.totalPct}%
+                </div>
+                <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)" }}>{wf.oosAggregate.totalTrades} trades · WR {wf.oosAggregate.winrate}%</div>
+                <div style={{ fontSize: 9, color: ACCENT, marginTop: 3 }}>Données neuves — le seul chiffre honnête</div>
+              </div>
+            </div>
+
+            {/* Walk-Forward Efficiency */}
+            <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: 12, marginBottom: 9, border: "1px solid " + wfeColor + "33" }}>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 5 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>Walk-Forward Efficiency</span>
+                <span style={{ fontSize: 19, fontWeight: 900, color: wfeColor }}>{wf.wfe === null ? "—" : wf.wfe + "%"}</span>
+              </div>
+              <div style={{ fontSize: 10.5, color: wfeColor, fontWeight: 700, marginBottom: 4 }}>{wfeVerdict}</div>
+              <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", lineHeight: 1.45 }}>
+                Part de la performance conservée hors de la période d'optimisation. Au-dessus de 50% la stratégie est considérée comme robuste ; en dessous de 30%, les paramètres ne font que décrire le passé.
+              </div>
+            </div>
+
+            {/* Consistance */}
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)", gap: 8, marginBottom: 12 }}>
+              {[
+                { l: "Fenêtres OOS+", v: `${wf.windowsPositives}/${wf.windowsCount}`, c: consColor },
+                { l: "Consistance", v: wf.consistency + "%", c: consColor },
+                { l: "Drawdown OOS", v: "-" + wf.oosAggregate.maxDrawdownPct + "%", c: tierInv(wf.oosAggregate.maxDrawdownPct, 8, 15) },
+              ].map(k => (
+                <div key={k.l} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 9, padding: "8px 9px" }}>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>{k.l}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: k.c }}>{k.v}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Détail fenêtre par fenêtre */}
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 6 }}>Détail par fenêtre</div>
+            <div style={{ overflowX: "auto" }}>
+              <div style={{ minWidth: 300 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "28px 1fr 62px 62px", gap: 4, fontSize: 9, color: "rgba(255,255,255,0.35)", fontWeight: 700, padding: "0 0 4px" }}>
+                  <span>#</span><span>Paramètres retenus</span><span style={{ textAlign: "right" }}>IS</span><span style={{ textAlign: "right" }}>OOS</span>
+                </div>
+                {wf.windows.map(w => (
+                  <div key={w.index} style={{ display: "grid", gridTemplateColumns: "28px 1fr 62px 62px", gap: 4, fontSize: 10, padding: "5px 0", borderTop: "1px solid rgba(255,255,255,0.05)", alignItems: "center" }}>
+                    <span style={{ color: "rgba(255,255,255,0.4)" }}>{w.index}</span>
+                    <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 9.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {Object.entries(w.bestParams).map(([k, v]) => `${k}=${v}`).join(", ") || "défaut"}
+                    </span>
+                    <span style={{ textAlign: "right", color: "rgba(255,255,255,0.45)" }}>{w.isPct >= 0 ? "+" : ""}{w.isPct}%</span>
+                    <span style={{ textAlign: "right", fontWeight: 800, color: w.oosPct >= 0 ? ACCENT : "#ef4444" }}>{w.oosPct >= 0 ? "+" : ""}{w.oosPct}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 9, lineHeight: 1.45 }}>
+              {wf.combosTested} combinaisons de paramètres testées par fenêtre · fenêtres de {wf.isBars} bougies d'optimisation pour {wf.oosBars} de test. La courbe en haut de page est celle des trades out-of-sample enchaînés.
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ══ DIAGNOSTIC ══ */}
-      {result && !result.error && !result.isGridResult && result.totalTrades > 0 && (() => {
+      {result && !result.error && !result.isGridResult && !result.isWalkForward && result.totalTrades > 0 && (() => {
         const diag = buildBacktestDiagnostic(result, {
           model: firm?.models?.[modelKey], capital, riskPct,
           monthsCount: result.rangeInfo?.months || monthsSel.length || 1,
