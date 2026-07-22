@@ -13,6 +13,18 @@
 // et sans gestion de tags — un simple `git push` suffit à tout mettre à jour.)
 // ══════════════════════════════════════════════════════════════════
 
+// Correspondance des symboles vers la nomenclature Twelve Data (qui utilise
+// un slash pour les paires). Les indices/matières premières ne sont pas
+// forcément inclus dans l'offre gratuite : en cas d'échec, le mois est
+// simplement ignoré et signalé, jamais remplacé par une donnée inventée.
+const TD_SYMBOL = {
+  EURUSD: "EUR/USD", GBPUSD: "GBP/USD", AUDUSD: "AUD/USD", NZDUSD: "NZD/USD",
+  USDJPY: "USD/JPY", USDCAD: "USD/CAD", USDCHF: "USD/CHF",
+  EURJPY: "EUR/JPY", GBPJPY: "GBP/JPY", AUDJPY: "AUD/JPY", CHFJPY: "CHF/JPY",
+  EURGBP: "EUR/GBP", EURCHF: "EUR/CHF",
+  XAUUSD: "XAU/USD", XAGUSD: "XAG/USD",
+};
+
 const REPO_RAW_BASE = "https://raw.githubusercontent.com/fabmarc70/HISTDATA-/main/data";
 const DB_NAME = "eapropfirm_histdata";
 const DB_VERSION = 1;
@@ -181,9 +193,6 @@ export async function loadRange(pair, startISO, endISO, { onProgress } = {}) {
 
   const toLoad = wanted.filter(p => byPeriod.has(p));
   const missing = wanted.filter(p => !byPeriod.has(p));
-  if (!toLoad.length) {
-    throw new Error(`Aucune donnée publiée pour ${pair} sur cette plage.`);
-  }
 
   const startTs = new Date(startISO + "T00:00:00Z").getTime();
   const endTs = new Date(endISO + "T23:59:59Z").getTime();
@@ -218,6 +227,44 @@ export async function loadRange(pair, startISO, endISO, { onProgress } = {}) {
     });
   }
 
+  // ── REPLI TWELVE DATA pour les mois absents du dépôt ──
+  // Le dépôt GitHub reste la source primaire (gratuite, sans quota). Twelve Data
+  // n'est sollicité que pour les mois réellement manquants, via le proxy
+  // serverless (la clé API ne transite jamais côté client). Un échec ici n'est
+  // pas bloquant : on continue avec ce qu'on a, et on le signale.
+  let fromApi = 0;
+  const apiFailed = [];
+  if (missing.length) {
+    for (let i = 0; i < missing.length; i++) {
+      const period = missing[i];
+      const cacheKey = `${pair}_${period}`;
+      const hit = await idbGet(cacheKey);
+      if (hit) { loaded.push({ period, base: hit.baseMinutes || 1, candles: hit.candles || [] }); cached++; continue; }
+      try {
+        const tdSymbol = TD_SYMBOL[pair] || pair;
+        const [yy, mm] = period.split("-").map(Number);
+        const lastDay = new Date(Date.UTC(yy, mm, 0)).getUTCDate();
+        const url = `/api/twelvedata?symbol=${encodeURIComponent(tdSymbol)}&interval=15min`
+          + `&start=${period}-01&end=${period}-${String(lastDay).padStart(2, "0")}`;
+        const r = await fetch(url);
+        if (!r.ok) { apiFailed.push(period); continue; }
+        const j = await r.json();
+        if (!j.candles || j.candles.length < 50) { apiFailed.push(period); continue; }
+        const ds = { pair, period, interval: "15min", baseMinutes: 15, count: j.candles.length, source: "twelvedata", candles: j.candles };
+        await idbSet(cacheKey, ds);
+        loaded.push({ period, base: 15, candles: j.candles });
+        fromApi++;
+      } catch (e) { apiFailed.push(period); }
+      if (onProgress) onProgress({
+        done: toLoad.length + i + 1, total: toLoad.length + missing.length, period,
+        pct: Math.round(((toLoad.length + i + 1) / (toLoad.length + missing.length)) * 100),
+        fromCache: false, fromApi: true,
+      });
+    }
+  }
+
+  if (!loaded.length) throw new Error(`Aucune donnée disponible pour ${pair} sur cette plage.`);
+
   const baseMinutes = loaded.reduce((mx, d) => Math.max(mx, d.base), 1);
   const mixed = loaded.some(d => d.base !== baseMinutes);
 
@@ -236,14 +283,15 @@ export async function loadRange(pair, startISO, endISO, { onProgress } = {}) {
   };
 
   let all = [];
+  loaded.sort((a, b) => a.period.localeCompare(b.period));
   loaded.forEach(d => { all = all.concat(d.base === baseMinutes ? d.candles : aggTo(d.candles, d.base, baseMinutes)); });
   all.sort((a, b) => a[0] - b[0]);
   const candles = all.filter(c => c[0] >= startTs && c[0] <= endTs);
 
   return {
     candles, baseMinutes, mixedGranularity: mixed,
-    monthsUsed: toLoad, monthsMissing: missing,
-    downloadedCount: downloaded, fromCacheCount: cached,
+    monthsUsed: loaded.map(d => d.period), monthsMissing: apiFailed,
+    downloadedCount: downloaded, fromCacheCount: cached, fromApiCount: fromApi,
   };
 }
 

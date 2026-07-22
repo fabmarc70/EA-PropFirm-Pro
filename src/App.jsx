@@ -3902,7 +3902,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
       const r = isGridStrategy
         ? runGridBacktest({ candles: prepared, pair: selectedPair, capital, riskPct, spacingPips: gridSpacingPips, levels: gridLevels, direction: gridDirection, slippagePips })
         : runBacktest({ candles: prepared, pair: selectedPair, strategyKey, tpPips, slPips, strategyParams, capital, riskPct, slippagePips, sessionKey, newsFilterOn, mmMode, martingaleMultiplier, martingaleMaxSteps });
-      r.rangeInfo = { start: startDate, end: endDate, months: range.monthsUsed.length, downloaded: range.downloadedCount, cached: range.fromCacheCount, candles: prepared.length };
+      r.rangeInfo = { start: startDate, end: endDate, months: range.monthsUsed.length, downloaded: range.downloadedCount, cached: range.fromCacheCount, fromApi: range.fromApiCount || 0, failed: (range.monthsMissing || []).length, candles: prepared.length };
       setResult(r);
       setScore(r.isGridResult ? null : computePropFirmScore(r, capital, firmKey, modelKey, labRunMonteCarlo));
     } catch (e) {
@@ -4039,7 +4039,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
                 {loadState ? (
                   <>
                     <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
-                      {loadState.fromCache ? "Lecture du cache" : "Téléchargement"} · {loadState.done}/{loadState.total} ({loadState.period})
+                      {loadState.fromCache ? "Lecture du cache" : loadState.fromApi ? "Récupération complémentaire" : "Téléchargement"} · {loadState.done}/{loadState.total} ({loadState.period})
                     </div>
                     <div style={{ width: "80%", maxWidth: 260, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.1)", overflow: "hidden" }}>
                       <div style={{ width: loadState.pct + "%", height: "100%", background: ACCENT, transition: "width .2s" }} />
@@ -4109,7 +4109,8 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
           )}
           {result.rangeInfo && (
             <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.3)", marginTop: 10 }}>
-              {result.rangeInfo.start} → {result.rangeInfo.end} · {result.rangeInfo.months} mois ({result.rangeInfo.downloaded} téléchargés, {result.rangeInfo.cached} depuis le cache)
+              {result.rangeInfo.start} → {result.rangeInfo.end} · {result.rangeInfo.months} mois ({result.rangeInfo.downloaded} depuis le dépôt, {result.rangeInfo.cached} en cache{result.rangeInfo.fromApi ? `, ${result.rangeInfo.fromApi} via API` : ""})
+              {result.rangeInfo.failed > 0 && <span style={{ color: "#fbbf24" }}> · {result.rangeInfo.failed} mois indisponibles</span>}
             </div>
           )}
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
@@ -4215,8 +4216,8 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
             {monthsAvailableInRange} mois de données sur cette plage ({startDate} → {endDate}). Granularité disponible : {baseMinutes >= 1440 ? "journalière (D1)" : baseMinutes >= 60 ? "H" + (baseMinutes/60) : "M" + baseMinutes}. Téléchargement automatique au lancement, puis mise en cache.
           </div>
           {monthsNeeded.length > monthsAvailableInRange && (
-            <div style={{ fontSize: 9.5, color: "#fbbf24", marginTop: 5, lineHeight: 1.45 }}>
-              ⚠️ {monthsNeeded.length - monthsAvailableInRange} mois de cette plage ne sont pas publiés (période 2022-04 à 2024-06 indisponible chez la source gratuite). Ils sont simplement ignorés, sans fausser le calcul.
+            <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginTop: 5, lineHeight: 1.45 }}>
+              ↻ {monthsNeeded.length - monthsAvailableInRange} mois de cette plage ne sont pas dans le dépôt : ils seront récupérés automatiquement via l'API au lancement (puis mis en cache). Si l'API ne les fournit pas, ils sont ignorés sans fausser le calcul.
             </div>
           )}
         </div>
