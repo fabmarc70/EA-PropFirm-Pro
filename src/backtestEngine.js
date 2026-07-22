@@ -547,6 +547,96 @@ export const WEEKDAYS = [
   { key: 4, label: "Jeu" }, { key: 5, label: "Ven" }, { key: 0, label: "Dim" }, { key: 6, label: "Sam" },
 ];
 
+// ── EMA200 Pullback : cassure de l'EMA, pullback qui RESPECTE la moyenne,
+// puis reprise dans le sens de la cassure. Le stop est ancré sur l'EMA elle-même
+// (stop DYNAMIQUE), pas sur une distance fixe en pips — c'est ce qui donne son
+// sens à la stratégie : tant que le prix reste du bon côté de la moyenne, le
+// scénario est valide ; dès qu'il repasse de l'autre côté, il est invalidé.
+//
+// Machine à états par bougie :
+//   IDLE     -> le prix casse l'EMA          -> BREAK (on mémorise l'extrême de l'impulsion)
+//   BREAK    -> le prix recule suffisamment  -> PULLBACK
+//   PULLBACK -> le prix repasse l'extrême    -> SIGNAL
+// À tout moment, si le prix repasse du mauvais côté de l'EMA, le scénario est
+// abandonné (c'était une fausse cassure) et on repart de zéro.
+function signalsEmaPullback(candles, emaPeriod = 200, maxPullbackBars = 30, minPullbackPct = 20, slBufferPct = 0.05) {
+  const closes = candles.map(c => c[4]);
+  const ema = computeEMA(closes, emaPeriod);
+  const signals = new Array(candles.length).fill(null);
+
+  let state = "idle";      // idle | break | pullback
+  let dir = null;          // "long" | "short"
+  let breakIdx = -1;
+  let impulseExtreme = 0;  // plus haut (long) ou plus bas (short) atteint depuis la cassure
+  let pullbackExtreme = 0; // extrême du recul, mesuré DEPUIS impulseExtreme
+  let emaAtBreak = 0;
+
+  for (let i = 1; i < candles.length; i++) {
+    if (ema[i] == null || ema[i - 1] == null) continue;
+    const [, , high, low, close] = candles[i];
+
+    // ── Détection d'une cassure quand on n'est engagé sur aucun scénario ──
+    if (state === "idle") {
+      const crossUp = closes[i - 1] <= ema[i - 1] && close > ema[i];
+      const crossDown = closes[i - 1] >= ema[i - 1] && close < ema[i];
+      if (crossUp || crossDown) {
+        state = "break";
+        dir = crossUp ? "long" : "short";
+        breakIdx = i;
+        impulseExtreme = crossUp ? high : low;
+        pullbackExtreme = impulseExtreme;
+        emaAtBreak = ema[i];
+      }
+      continue;
+    }
+
+    // ── Invalidation : le prix repasse du mauvais côté de l'EMA ──
+    const stillValid = dir === "long" ? close > ema[i] : close < ema[i];
+    if (!stillValid) { state = "idle"; dir = null; continue; }
+
+    // ── Expiration : la reprise n'arrive jamais, le signal perd sa pertinence ──
+    if (i - breakIdx > maxPullbackBars) { state = "idle"; dir = null; continue; }
+
+    if (state === "break") {
+      // Tant que l'impulsion se prolonge, on repousse l'extrême et on remet le
+      // compteur de recul à zéro : le pullback ne peut se mesurer que DEPUIS un
+      // sommet (ou creux) établi, jamais sur la bougie qui le crée elle-même —
+      // sinon le simple écart haut/bas d'une grande bougie suffirait à valider
+      // un "pullback" qui n'a pas eu lieu.
+      const newExtreme = dir === "long" ? high > impulseExtreme : low < impulseExtreme;
+      if (newExtreme) {
+        impulseExtreme = dir === "long" ? high : low;
+        pullbackExtreme = impulseExtreme; // le recul repart de ce nouveau sommet
+        continue;
+      }
+
+      // L'impulsion marque une pause : on suit le recul bougie après bougie
+      if (dir === "long") pullbackExtreme = Math.min(pullbackExtreme, low);
+      else pullbackExtreme = Math.max(pullbackExtreme, high);
+
+      const amplitude = Math.abs(impulseExtreme - emaAtBreak);
+      if (amplitude <= 0) continue;
+      const recul = Math.abs(impulseExtreme - pullbackExtreme);
+      if ((recul / amplitude) * 100 >= minPullbackPct) state = "pullback";
+      continue;
+    }
+
+    if (state === "pullback") {
+      // Reprise confirmée : le prix repasse l'extrême de l'impulsion
+      const reprise = dir === "long" ? close > impulseExtreme : close < impulseExtreme;
+      if (reprise) {
+        // Stop ancré sur l'EMA, avec une marge pour ne pas être sorti au tick près
+        const buffer = ema[i] * (slBufferPct / 100);
+        const slPrice = dir === "long" ? ema[i] - buffer : ema[i] + buffer;
+        signals[i] = { dir, sl: slPrice };
+        state = "idle"; dir = null;
+      }
+      continue;
+    }
+  }
+  return signals;
+}
+
 const STRATEGIES = {
   breakout: {
     label: "Breakout",
@@ -554,6 +644,19 @@ const STRATEGIES = {
     defaultParams: { period: 20 },
     paramDefs: [{ key: "period", label: "Périodes de référence", min: 5, max: 60, step: 1 }],
     fn: (c, p) => signalsBreakout(c, p.period),
+  },
+  ema_pullback: {
+    label: "EMA200 Pullback (stop dynamique)",
+    category: "Tendance",
+    dynamicSL: true, // le stop vient de la stratégie, pas du réglage fixe en pips
+    defaultParams: { emaPeriod: 200, maxPullbackBars: 30, minPullbackPct: 20, rMultiple: 2 },
+    paramDefs: [
+      { key: "emaPeriod", label: "Période EMA", min: 50, max: 300, step: 10 },
+      { key: "maxPullbackBars", label: "Bougies max pour le pullback", min: 5, max: 80, step: 1 },
+      { key: "minPullbackPct", label: "Profondeur min. du pullback (%)", min: 10, max: 60, step: 5 },
+      { key: "rMultiple", label: "Take Profit (× le risque)", min: 1, max: 5, step: 0.5 },
+    ],
+    fn: (c, p) => signalsEmaPullback(c, p.emaPeriod, p.maxPullbackBars, p.minPullbackPct),
   },
   ma_cross: {
     label: "Croisement MM",
@@ -720,12 +823,15 @@ export function runBacktest({
     const tradableNow = dayOk && isInSession(ts, sessionKey, customHours) && (!newsFilterOn || !isLikelyNewsWindow(ts));
 
     if (inTrade) {
-      const { dir, entryPrice, tp, sl, entryIdx, dollarPerPip } = inTrade;
+      const { dir, entryPrice, tp, sl, entryIdx, dollarPerPip, slDistPips: dist } = inTrade;
       const hitSL = dir === "long" ? low <= sl : high >= sl;
       const hitTP = dir === "long" ? high >= tp : low <= tp;
       if (hitSL || hitTP) {
         const win = hitTP && !hitSL;
-        const pipsGross = win ? tpPips : -slPips;
+        // Gain/perte exprimés dans la distance réelle du trade (indispensable
+        // avec un stop dynamique : chaque trade a sa propre amplitude)
+        const tpDist = Math.abs(tp - entryPrice) / pip;
+        const pipsGross = win ? tpDist : -dist;
         const pipsNet = pipsGross - costPips;
         const pnlUSD = +(pipsNet * dollarPerPip).toFixed(2);
         equity += pnlUSD;
@@ -736,23 +842,46 @@ export function runBacktest({
       }
     }
 
-    // Sens autorisé : un signal contraire au sens choisi est simplement ignoré
-    const dirAllowed = signals[i] && (tradeDirection === "both"
-      || (tradeDirection === "buy" && signals[i] === "long")
-      || (tradeDirection === "sell" && signals[i] === "short"));
+    // Un signal peut être une simple direction ("long"/"short") ou un objet
+    // { dir, sl } quand la stratégie impose son propre stop (stop dynamique).
+    const rawSignal = signals[i];
+    const sigDir = rawSignal ? (typeof rawSignal === "string" ? rawSignal : rawSignal.dir) : null;
+    const sigSL = rawSignal && typeof rawSignal === "object" ? rawSignal.sl : null;
 
-    if (!inTrade && dirAllowed && tradableNow && confluenceAllows(i, signals[i])) {
-      const dir = signals[i];
+    // Sens autorisé : un signal contraire au sens choisi est simplement ignoré
+    const dirAllowed = sigDir && (tradeDirection === "both"
+      || (tradeDirection === "buy" && sigDir === "long")
+      || (tradeDirection === "sell" && sigDir === "short"));
+
+    if (!inTrade && dirAllowed && tradableNow && confluenceAllows(i, sigDir)) {
+      const dir = sigDir;
       const entryPrice = close;
-      const tp = dir === "long" ? entryPrice + tpPips * pip : entryPrice - tpPips * pip;
-      const sl = dir === "long" ? entryPrice - slPips * pip : entryPrice + slPips * pip;
+
+      // Stop dynamique : la distance vient de la stratégie (ex: l'EMA200), donc
+      // elle VARIE d'un trade à l'autre. Le take profit devient alors un multiple
+      // du risque réellement pris, pas une distance fixe — sinon le rapport
+      // gain/risque changerait à chaque trade sans qu'on le maîtrise.
+      let sl, tp, slDistPips;
+      if (sigSL != null && Number.isFinite(sigSL)) {
+        slDistPips = Math.abs(entryPrice - sigSL) / pip;
+        if (slDistPips < 1) { continue; } // stop trop proche -> trade ininterprétable, on passe
+        sl = sigSL;
+        const rMult = params.rMultiple || 2;
+        tp = dir === "long" ? entryPrice + slDistPips * rMult * pip : entryPrice - slDistPips * rMult * pip;
+      } else {
+        slDistPips = slPips;
+        tp = dir === "long" ? entryPrice + tpPips * pip : entryPrice - tpPips * pip;
+        sl = dir === "long" ? entryPrice - slPips * pip : entryPrice + slPips * pip;
+      }
       // Risque de base = % du capital courant. En Martingale, la mise est multipliée
       // par (multiplicateur ^ nombre de pertes consécutives), plafonnée à martingaleMaxSteps
       // pour éviter une explosion de position infinie (risque de ruine sinon garanti).
       const riskMultiplier = mmMode === "martingale" ? Math.pow(martingaleMultiplier, martingaleStep) : 1;
       const riskUSD = equity * (riskPct / 100) * riskMultiplier;
-      const dollarPerPip = riskUSD / slPips;
-      inTrade = { dir, entryPrice, tp, sl, entryIdx: i, dollarPerPip };
+      // La taille de position se calcule sur la distance RÉELLE du stop : c'est
+      // ce qui garantit que le risque en $ reste constant même quand le stop varie.
+      const dollarPerPip = riskUSD / slDistPips;
+      inTrade = { dir, entryPrice, tp, sl, entryIdx: i, dollarPerPip, slDistPips };
     }
   }
 
@@ -763,11 +892,22 @@ export function runBacktest({
   const totalUSD = +trades.reduce((s, t) => s + t.pnlUSD, 0).toFixed(2);
   const grossWinPips = trades.filter(t => t.win).reduce((s, t) => s + t.pips, 0);
   const grossLossPips = Math.abs(trades.filter(t => !t.win).reduce((s, t) => s + t.pips, 0));
-  const profitFactor = grossLossPips > 0 ? +(grossWinPips / grossLossPips).toFixed(2) : (grossWinPips > 0 ? Infinity : 0);
+  // Profit Factor et R Ratio calculés en DOLLARS, pas en pips.
+  // Avec un stop dynamique, la distance du stop varie d'un trade à l'autre : la
+  // taille de position s'ajuste pour garder le même risque en $, si bien qu'un
+  // trade à petit stop rapporte peu de pips mais autant de dollars. Mesurer en
+  // pips donnerait alors un Profit Factor faux (on a observé PF 0.88 sur un
+  // backtest pourtant à +10 % net). En dollars, la mesure reste juste dans tous
+  // les cas — et reste identique aux pips quand le stop est fixe.
+  const grossWinUSD = trades.filter(t => t.win).reduce((s, t) => s + t.pnlUSD, 0);
+  const grossLossUSD = Math.abs(trades.filter(t => !t.win).reduce((s, t) => s + t.pnlUSD, 0));
+  const profitFactor = grossLossUSD > 0 ? +(grossWinUSD / grossLossUSD).toFixed(2) : (grossWinUSD > 0 ? Infinity : 0);
   const expectancy = trades.length ? +(totalPips / trades.length).toFixed(2) : 0;
   const avgWinPips = wins ? +(grossWinPips / wins).toFixed(1) : 0;
   const avgLossPips = losses ? +(grossLossPips / losses).toFixed(1) : 0;
-  const rRatio = avgLossPips > 0 ? +(avgWinPips / avgLossPips).toFixed(2) : 0;
+  const avgWinUSD = wins ? grossWinUSD / wins : 0;
+  const avgLossUSD = losses ? grossLossUSD / losses : 0;
+  const rRatio = avgLossUSD > 0 ? +(avgWinUSD / avgLossUSD).toFixed(2) : 0;
   const avgDuration = trades.length ? Math.round(trades.reduce((s, t) => s + t.duration, 0) / trades.length) : 0;
 
   // Courbes d'équité (pips ET $, un point par trade clôturé)
@@ -1014,8 +1154,10 @@ function aggregateTrades(trades, capital) {
   const wins = trades.filter(t => t.win).length;
   const losses = trades.length - wins;
   const totalUSD = +trades.reduce((s, t) => s + (t.pnlUSD || 0), 0).toFixed(2);
-  const grossWin = trades.filter(t => t.win).reduce((s, t) => s + t.pips, 0);
-  const grossLoss = Math.abs(trades.filter(t => !t.win).reduce((s, t) => s + t.pips, 0));
+  // Mesures en dollars (voir explication dans runBacktest : indispensable dès
+  // qu'un stop dynamique fait varier la distance de risque entre les trades)
+  const grossWin = trades.filter(t => t.win).reduce((s, t) => s + (t.pnlUSD || 0), 0);
+  const grossLoss = Math.abs(trades.filter(t => !t.win).reduce((s, t) => s + (t.pnlUSD || 0), 0));
   const profitFactor = grossLoss > 0 ? +(grossWin / grossLoss).toFixed(2) : (grossWin > 0 ? Infinity : 0);
 
   let running = capital, peak = capital, maxDD = 0;
@@ -1033,15 +1175,16 @@ function aggregateTrades(trades, capital) {
   let maxLossStreak = 0, cur = 0;
   trades.forEach(t => { if (!t.win) { cur++; maxLossStreak = Math.max(maxLossStreak, cur); } else cur = 0; });
 
-  const avgWinPips = wins ? +(grossWin / wins).toFixed(1) : 0;
-  const avgLossPips = losses ? +(grossLoss / losses).toFixed(1) : 0;
+  const avgWinPips = wins ? +(trades.filter(t => t.win).reduce((s, t) => s + t.pips, 0) / wins).toFixed(1) : 0;
+  const avgLossPips = losses ? +(Math.abs(trades.filter(t => !t.win).reduce((s, t) => s + t.pips, 0)) / losses).toFixed(1) : 0;
+  const rRatioUSD = losses && wins ? +((grossWin / wins) / (grossLoss / losses)).toFixed(2) : 0;
 
   return {
     totalTrades: trades.length, wins, losses,
     winrate: trades.length ? +((wins / trades.length) * 100).toFixed(1) : 0,
     totalUSD, totalPct: +((totalUSD / capital) * 100).toFixed(2),
     profitFactor,
-    rRatio: avgLossPips > 0 ? +(avgWinPips / avgLossPips).toFixed(2) : 0,
+    rRatio: rRatioUSD,
     avgWinPips, avgLossPips,
     maxDrawdownUSD: +maxDD.toFixed(2),
     maxDrawdownPct: peak > 0 ? +((maxDD / peak) * 100).toFixed(2) : 0,
