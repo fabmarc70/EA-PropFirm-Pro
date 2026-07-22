@@ -3860,14 +3860,15 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
   const monthsSel = (periodList.length && periodList[startIdx] && periodList[endIdx])
     ? periodList.slice(startIdx, endIdx + 1) : [];
   const assetsInRange = (datasets?.assets || []).filter(a => a.pair === selectedPair && monthsSel.includes(a.period));
-  const baseMinutes = assetsInRange.length ? Math.max(...assetsInRange.map(a => a.baseMinutes || 15)) : 15;
+  // TOUS les timeframes restent proposés : ceux que le dépôt ne couvre pas assez
+  // finement sont récupérés à la demande via l'API, au timeframe exact demandé.
+  const availableTimeframes = TIMEFRAMES.filter(tf => tf.minutes >= 15);
+  const targetMinutes = TIMEFRAMES.find(tf => tf.key === timeframeKey)?.minutes || 15;
+  // Combien de mois le DÉPÔT couvre déjà à cette finesse (le reste passera par l'API)
+  const monthsFromRepo = assetsInRange.filter(a => (a.baseMinutes || 15) <= targetMinutes).length;
+  const monthsViaApi = monthsSel.length - monthsFromRepo;
   const monthsAvailableInRange = assetsInRange.length;
-  const availableTimeframes = TIMEFRAMES.filter(tf => tf.minutes >= baseMinutes);
-  useEffect(() => {
-    if (availableTimeframes.length && !availableTimeframes.some(tf => tf.key === timeframeKey)) {
-      setTimeframeKey(availableTimeframes[0].key);
-    }
-  }, [baseMinutes, timeframeKey, availableTimeframes.length]);
+
 
   const monthsNeeded = (startDate && endDate) ? monthsInRange(startDate, endDate) : [];
 
@@ -3894,11 +3895,10 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
     if (startDate > endDate) { setRunError("La date de début doit précéder la date de fin."); return; }
     setRunning(true); setRunError(null); setResult(null); setScore(null); setTipIdx(0);
     try {
-      const range = await loadRange(selectedPair, startDate, endDate, { onProgress: setLoadState });
+      const range = await loadRange(selectedPair, startDate, endDate, { onProgress: setLoadState, targetMinutes });
       setLoadState(null);
       if (!range.candles.length) throw new Error("Aucune bougie sur cette plage de dates.");
-      const tf = TIMEFRAMES.find(x => x.key === timeframeKey);
-      const prepared = aggregateCandles(range.candles, tf ? tf.minutes : range.baseMinutes, range.baseMinutes);
+      const prepared = aggregateCandles(range.candles, targetMinutes, range.baseMinutes);
       const r = isGridStrategy
         ? runGridBacktest({ candles: prepared, pair: selectedPair, capital, riskPct, spacingPips: gridSpacingPips, levels: gridLevels, direction: gridDirection, slippagePips })
         : runBacktest({ candles: prepared, pair: selectedPair, strategyKey, tpPips, slPips, strategyParams, capital, riskPct, slippagePips, sessionKey, newsFilterOn, mmMode, martingaleMultiplier, martingaleMaxSteps });
@@ -4213,13 +4213,10 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
           </div>
 
           <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", marginTop: 8, lineHeight: 1.45 }}>
-            {monthsAvailableInRange} mois de données sur cette plage ({startDate} → {endDate}). Granularité disponible : {baseMinutes >= 1440 ? "journalière (D1)" : baseMinutes >= 60 ? "H" + (baseMinutes/60) : "M" + baseMinutes}. Téléchargement automatique au lancement, puis mise en cache.
+            {monthsSel.length} mois sélectionnés ({startDate} → {endDate}) au timeframe {TIMEFRAMES.find(tf => tf.key === timeframeKey)?.label}.
+            {monthsFromRepo > 0 && ` ${monthsFromRepo} depuis le dépôt (instantané).`}
+            {monthsViaApi > 0 && ` ${monthsViaApi} récupérés via l'API à ce timeframe, puis mis en cache.`}
           </div>
-          {monthsNeeded.length > monthsAvailableInRange && (
-            <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginTop: 5, lineHeight: 1.45 }}>
-              ↻ {monthsNeeded.length - monthsAvailableInRange} mois de cette plage ne sont pas dans le dépôt : ils seront récupérés automatiquement via l'API au lancement (puis mis en cache). Si l'API ne les fournit pas, ils sont ignorés sans fausser le calcul.
-            </div>
-          )}
         </div>
         )}
 

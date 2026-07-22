@@ -17,6 +17,9 @@
 // un slash pour les paires). Les indices/matières premières ne sont pas
 // forcément inclus dans l'offre gratuite : en cas d'échec, le mois est
 // simplement ignoré et signalé, jamais remplacé par une donnée inventée.
+// Correspondance minutes -> intervalle Twelve Data
+const TD_INTERVAL = { 15: "15min", 30: "30min", 60: "1h", 240: "4h", 1440: "1day" };
+
 const TD_SYMBOL = {
   EURUSD: "EUR/USD", GBPUSD: "GBP/USD", AUDUSD: "AUD/USD", NZDUSD: "NZD/USD",
   USDJPY: "USD/JPY", USDCAD: "USD/CAD", USDCHF: "USD/CHF",
@@ -185,14 +188,20 @@ export function monthsInRange(startISO, endISO) {
 }
 
 // Renvoie { candles, baseMinutes, monthsUsed, monthsMissing, downloadedCount, fromCacheCount }
-export async function loadRange(pair, startISO, endISO, { onProgress } = {}) {
+// targetMinutes = timeframe demandé par l'utilisateur. Pour chaque mois :
+//  - si le dépôt a une granularité AU MOINS aussi fine -> on l'utilise (gratuit, sans quota)
+//  - sinon -> on demande ce timeframe précis à Twelve Data via le proxy
+// Résultat : la finesse demandée est respectée sur toute la plage quand c'est possible,
+// au lieu d'être rabaissée au plus grossier disponible.
+export async function loadRange(pair, startISO, endISO, { onProgress, targetMinutes = 15 } = {}) {
   const list = await listAvailableDatasets();
   const wanted = monthsInRange(startISO, endISO);
   const available = list.assets.filter(a => a.pair === pair);
   const byPeriod = new Map(available.map(a => [a.period, a]));
 
-  const toLoad = wanted.filter(p => byPeriod.has(p));
-  const missing = wanted.filter(p => !byPeriod.has(p));
+  // Le dépôt ne convient que si sa granularité est au moins aussi fine que demandé
+  const toLoad = wanted.filter(p => byPeriod.has(p) && (byPeriod.get(p).baseMinutes || 1) <= targetMinutes);
+  const missing = wanted.filter(p => !toLoad.includes(p));
 
   const startTs = new Date(startISO + "T00:00:00Z").getTime();
   const endTs = new Date(endISO + "T23:59:59Z").getTime();
@@ -237,22 +246,25 @@ export async function loadRange(pair, startISO, endISO, { onProgress } = {}) {
   if (missing.length) {
     for (let i = 0; i < missing.length; i++) {
       const period = missing[i];
-      const cacheKey = `${pair}_${period}`;
+      const cacheKey = `${pair}_${period}_tf${targetMinutes}`;
       const hit = await idbGet(cacheKey);
       if (hit) { loaded.push({ period, base: hit.baseMinutes || 1, candles: hit.candles || [] }); cached++; continue; }
       try {
-        const tdSymbol = TD_SYMBOL[pair] || pair;
+        const tdSymbol = TD_SYMBOL[pair];
+        const interval = TD_INTERVAL[targetMinutes] || "15min";
+        if (!tdSymbol) { apiFailed.push(period); continue; } // instrument non couvert par l'API
         const [yy, mm] = period.split("-").map(Number);
         const lastDay = new Date(Date.UTC(yy, mm, 0)).getUTCDate();
-        const url = `/api/twelvedata?symbol=${encodeURIComponent(tdSymbol)}&interval=15min`
+        const url = `/api/twelvedata?symbol=${encodeURIComponent(tdSymbol)}&interval=${interval}`
           + `&start=${period}-01&end=${period}-${String(lastDay).padStart(2, "0")}`;
         const r = await fetch(url);
         if (!r.ok) { apiFailed.push(period); continue; }
         const j = await r.json();
-        if (!j.candles || j.candles.length < 50) { apiFailed.push(period); continue; }
-        const ds = { pair, period, interval: "15min", baseMinutes: 15, count: j.candles.length, source: "twelvedata", candles: j.candles };
+        const minNeeded = targetMinutes >= 1440 ? 15 : 50;
+        if (!j.candles || j.candles.length < minNeeded) { apiFailed.push(period); continue; }
+        const ds = { pair, period, interval, baseMinutes: targetMinutes, count: j.candles.length, source: "twelvedata", candles: j.candles };
         await idbSet(cacheKey, ds);
-        loaded.push({ period, base: 15, candles: j.candles });
+        loaded.push({ period, base: targetMinutes, candles: j.candles });
         fromApi++;
       } catch (e) { apiFailed.push(period); }
       if (onProgress) onProgress({
