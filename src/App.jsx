@@ -3694,6 +3694,117 @@ function InfoPanel({ id, openInfo, accent }) {
   );
 }
 
+// ══════════════════════════════════════════════════════════════════
+// DIAGNOSTIC — règles déterministes, confrontées aux VRAIES contraintes
+// de la prop firm sélectionnée (drawdown journalier/total, objectif de
+// phase) plutôt qu'à des seuils génériques. Chaque constat est classé par
+// gravité pour que l'utilisateur sache par quoi commencer.
+// ══════════════════════════════════════════════════════════════════
+function buildBacktestDiagnostic(r, ctx) {
+  const { model, capital, riskPct, monthsCount, confluenceCount, tpPips, slPips } = ctx;
+  const bloquants = [], importants = [], optim = [], forces = [];
+
+  // ── Taille d'échantillon : sans ça, tout le reste est du bruit ──
+  if (r.totalTrades < 30) {
+    bloquants.push(`Échantillon insuffisant (${r.totalTrades} trades). En dessous de ~30 trades, les statistiques n'ont aucune valeur prédictive : allonge la période ou retire des filtres avant d'interpréter quoi que ce soit.`);
+  } else if (r.totalTrades < 100) {
+    importants.push(`Échantillon limité (${r.totalTrades} trades). Vise 100+ trades pour que le winrate et le Profit Factor deviennent fiables.`);
+  } else {
+    forces.push(`Échantillon exploitable (${r.totalTrades} trades) — les statistiques commencent à avoir du sens.`);
+  }
+
+  // ── Winrate vs seuil de rentabilité imposé par le R Ratio ──
+  // Un winrate n'a de sens que confronté au R : avec R=2, 34% suffit ; avec R=0.5, il faut 67%.
+  if (r.rRatio > 0) {
+    const breakeven = 100 / (1 + r.rRatio);
+    const marge = r.winrate - breakeven;
+    if (marge < 0) {
+      bloquants.push(`Winrate sous le seuil de rentabilité : il te faut ${breakeven.toFixed(1)}% pour être à l'équilibre avec un R de ${r.rRatio}, tu es à ${r.winrate}%. Soit tu élargis le TP, soit tu resserres le SL, soit tu filtres davantage les entrées.`);
+    } else if (marge < 5) {
+      importants.push(`Marge très fine : ${r.winrate}% de réussite pour un seuil d'équilibre à ${breakeven.toFixed(1)}%. Le moindre écart de spread réel effacerait le gain.`);
+    } else {
+      forces.push(`Marge confortable : ${r.winrate}% de réussite contre ${breakeven.toFixed(1)}% nécessaires (R ${r.rRatio}).`);
+    }
+  }
+
+  // ── Drawdown confronté aux VRAIES limites de la prop firm choisie ──
+  if (model) {
+    const limDD = (model.totalDD || 0.1) * 100;
+    const limDaily = (model.dailyDD || 0.05) * 100;
+    if (r.maxDrawdownPct >= limDD) {
+      bloquants.push(`Drawdown de ${r.maxDrawdownPct}% : le challenge aurait été ÉCHOUÉ (limite totale ${limDD}%). Réduis le risque par trade — passer de ${riskPct}% à ${(riskPct * limDD / r.maxDrawdownPct * 0.7).toFixed(2)}% ramènerait le drawdown sous la limite avec une marge de sécurité.`);
+    } else if (r.maxDrawdownPct >= limDD * 0.7) {
+      importants.push(`Drawdown de ${r.maxDrawdownPct}% pour une limite à ${limDD}% : il ne reste que ${(limDD - r.maxDrawdownPct).toFixed(1)} points de marge. Une série défavorable de plus et le compte saute.`);
+    } else {
+      forces.push(`Drawdown maîtrisé (${r.maxDrawdownPct}% pour une limite à ${limDD}%).`);
+    }
+
+    // Perte d'une série maximale ramenée au drawdown journalier
+    const perteSerie = r.maxLossStreak * riskPct;
+    if (perteSerie >= limDaily) {
+      importants.push(`Ta plus longue série de ${r.maxLossStreak} pertes représente ${perteSerie.toFixed(1)}% du capital, au-delà de la limite journalière de ${limDaily}%. Si cette série tombe dans la même journée, le compte est perdu même si le backtest global est positif.`);
+    }
+
+    // Objectif de phase atteignable ?
+    const phase1 = model.phases?.[0];
+    if (phase1 && monthsCount > 0) {
+      const gainMensuel = r.totalPct / monthsCount;
+      const target = phase1.target * 100;
+      if (gainMensuel > 0) {
+        const moisNecessaires = target / gainMensuel;
+        if (moisNecessaires > 6) {
+          importants.push(`Au rythme de ${gainMensuel.toFixed(2)}%/mois, atteindre l'objectif de ${target}% (${phase1.label}) prendrait ${moisNecessaires.toFixed(1)} mois. La plupart des traders abandonnent bien avant.`);
+        } else {
+          forces.push(`Rythme de ${gainMensuel.toFixed(2)}%/mois : l'objectif de ${target}% serait atteint en ~${moisNecessaires.toFixed(1)} mois.`);
+        }
+      }
+    }
+  }
+
+  // ── Profit Factor ──
+  if (r.profitFactor !== null && r.profitFactor !== Infinity) {
+    if (r.profitFactor < 1) bloquants.push(`Profit Factor de ${r.profitFactor} : la stratégie perd de l'argent sur cette période. Aucun réglage de risque ne rendra rentable une espérance négative.`);
+    else if (r.profitFactor < 1.2) importants.push(`Profit Factor de ${r.profitFactor} : à peine au-dessus de l'équilibre, très sensible aux frais réels.`);
+    else if (r.profitFactor >= 1.5) forces.push(`Profit Factor solide (${r.profitFactor}).`);
+  }
+
+  // ── Déséquilibre directionnel ──
+  if (r.longWinrate != null && r.shortWinrate != null && r.longCount >= 10 && r.shortCount >= 10) {
+    const ecart = Math.abs(r.longWinrate - r.shortWinrate);
+    if (ecart > 20) {
+      const meilleur = r.longWinrate > r.shortWinrate ? "achat" : "vente";
+      optim.push(`Écart de ${ecart.toFixed(1)} points entre achat (${r.longWinrate}%) et vente (${r.shortWinrate}%). Teste en "${meilleur} uniquement" : tu élimines peut-être la moitié perdante.`);
+    }
+  }
+
+  // ── Jour le plus faible ──
+  const jours = (r.byDow || []).filter(d => d.count >= 5);
+  if (jours.length >= 3) {
+    const pire = [...jours].sort((a, b) => (a.winrate ?? 100) - (b.winrate ?? 100))[0];
+    if (pire.winrate != null && pire.winrate < r.winrate - 12) {
+      optim.push(`Le ${pire.label} sous-performe nettement (${pire.winrate}% contre ${r.winrate}% en moyenne, sur ${pire.count} trades). Décoche-le dans les jours de trading et relance pour comparer.`);
+    }
+  }
+
+  // ── Sur-optimisation ──
+  if (confluenceCount >= 3 && r.totalTrades < 50) {
+    bloquants.push(`${confluenceCount} filtres actifs pour seulement ${r.totalTrades} trades : c'est le profil typique du sur-ajustement. Les filtres ont été choisis pour coller à cette période précise, pas parce qu'ils fonctionnent. Valide sur une autre période avant d'y croire.`);
+  }
+
+  // ── Ratio TP/SL et durée ──
+  if (tpPips && slPips && tpPips / slPips < 1 && r.winrate < 60) {
+    optim.push(`TP (${tpPips}) plus petit que le SL (${slPips}) avec ${r.winrate}% de réussite : ce couple exige un winrate très élevé pour tenir. Tester un TP à ${Math.round(slPips * 1.5)} pips changerait l'équation.`);
+  }
+  if (r.avgDuration > 0) {
+    optim.push(`Durée moyenne d'un trade : ${r.avgDuration} bougies. Une durée très courte rend le résultat dépendant du spread réel de ton broker, souvent pire qu'en backtest.`);
+  }
+
+  // ── Étape suivante, toujours ──
+  optim.push(`Prochaine étape indispensable : rejouer cette configuration sur une période DIFFÉRENTE. Une stratégie qui ne tient que sur une seule fenêtre n'est pas une stratégie.`);
+
+  return { bloquants, importants, optim, forces };
+}
+
 function BacktestSelect({ id, label, value, onChange, options, openDropdown, setOpenDropdown, accent, openInfo, setOpenInfo }) {
   const isOpen = openDropdown === id;
   const current = options.find(o => String(o.value) === String(value));
@@ -3783,6 +3894,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
   const [score, setScore] = useState(null);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [openInfo, setOpenInfo] = useState(null);
+  const [copied, setCopied] = useState(false);
   const [history, setHistory] = useState(() => { try { return JSON.parse(localStorage.getItem("eapropfirm_backtest_history") || "[]"); } catch (e) { return []; } });
   const [showHistory, setShowHistory] = useState(false);
   const [tipIdx, setTipIdx] = useState(0);
@@ -4501,38 +4613,127 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
       </div>
 
       {/* ══ DIAGNOSTIC ══ */}
-      {result && !result.error && !result.isGridResult && (() => {
-        const forces = [], faiblesses = [], recos = [];
-        if (result.maxDrawdownPct < 8) forces.push("Drawdown maîtrisé (< 8%)");
-        if (result.profitFactor >= 1.3) forces.push("Profit Factor solide (≥ 1.3)");
-        if (result.maxLossStreak <= 4) forces.push("Séries de pertes courtes");
-        const worstDay = [...result.byDow].filter(d => d.count >= 3).sort((a, b) => (a.winrate ?? 100) - (b.winrate ?? 100))[0];
-        if (worstDay && worstDay.winrate != null && worstDay.winrate < result.winrate - 10) faiblesses.push(`Performance faible le ${worstDay.label} (${worstDay.winrate}% WR)`);
-        if (Math.abs((result.longWinrate ?? result.winrate) - (result.shortWinrate ?? result.winrate)) > 15) faiblesses.push("Déséquilibre fort entre Long et Short");
-        if (result.rRatio < 1) faiblesses.push("R Ratio < 1 — les pertes pèsent plus que les gains");
-        if (result.maxDrawdownPct >= 15) faiblesses.push("Drawdown élevé (≥ 15%)");
-        if (result.rRatio < 1.5) recos.push("Viser un R Ratio ≥ 1.5");
-        if (worstDay && worstDay.winrate != null && worstDay.winrate < 40) recos.push(`Éviter de trader le ${worstDay.label}`);
-        if (result.maxLossStreak >= 6) recos.push("Réduire le risque/trade — séries de pertes longues");
-        if (!newsFilterOn) recos.push("Teste avec le filtre news activé pour comparer");
+      {result && !result.error && !result.isGridResult && result.totalTrades > 0 && (() => {
+        const diag = buildBacktestDiagnostic(result, {
+          model: firm?.models?.[modelKey], capital, riskPct,
+          monthsCount: result.rangeInfo?.months || monthsSel.length || 1,
+          confluenceCount: confluence.length, tpPips, slPips,
+        });
+        const Bloc = ({ titre, items, couleur, fond }) => items.length === 0 ? null : (
+          <div style={{ background: fond, border: `1px solid ${couleur}33`, borderRadius: 12, padding: 12, marginBottom: 9 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: couleur, marginBottom: 7 }}>{titre}</div>
+            {items.map((t, i) => (
+              <div key={i} style={{ fontSize: 11, color: "rgba(255,255,255,0.72)", padding: "4px 0", lineHeight: 1.5, display: "flex", gap: 6 }}>
+                <span style={{ color: couleur, flexShrink: 0 }}>•</span><span>{t}</span>
+              </div>
+            ))}
+          </div>
+        );
         return (
           <div className="card">
-            <SectionHeader n="3" title="Diagnostic automatique" />
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ background: "rgba(110,231,183,0.05)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, padding: 12 }}>
-                <div style={{ fontSize: 10.5, fontWeight: 800, color: ACCENT, marginBottom: 6 }}>✓ Points forts</div>
-                {forces.length ? forces.map((f, i) => <div key={i} style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", padding: "2px 0" }}>• {f}</div>) : <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Aucun point fort net détecté</div>}
-              </div>
-              <div style={{ background: "rgba(251,191,36,0.05)", border: "1px solid rgba(251,191,36,0.15)", borderRadius: 12, padding: 12 }}>
-                <div style={{ fontSize: 10.5, fontWeight: 800, color: "#fbbf24", marginBottom: 6 }}>⚠ Points faibles</div>
-                {faiblesses.length ? faiblesses.map((f, i) => <div key={i} style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", padding: "2px 0" }}>• {f}</div>) : <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Aucune faiblesse majeure</div>}
-              </div>
-              <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: 12 }}>
-                <div style={{ fontSize: 10.5, fontWeight: 800, color: "rgba(255,255,255,0.8)", marginBottom: 6 }}>◆ Recommandations</div>
-                {recos.length ? recos.map((f, i) => <div key={i} style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", padding: "2px 0" }}>• {f}</div>) : <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Rien à signaler</div>}
-              </div>
+            <SectionHeader n="3" title="Diagnostic" />
+            <Bloc titre="🛑 Bloquant" items={diag.bloquants} couleur="#ef4444" fond="rgba(239,68,68,0.06)" />
+            <Bloc titre="⚠️ À corriger" items={diag.importants} couleur="#fbbf24" fond="rgba(251,191,36,0.05)" />
+            <Bloc titre="✓ Points forts" items={diag.forces} couleur={ACCENT} fond="rgba(110,231,183,0.05)" />
+            <Bloc titre="◆ Pistes d'optimisation" items={diag.optim} couleur="rgba(255,255,255,0.75)" fond="rgba(255,255,255,0.03)" />
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", lineHeight: 1.4 }}>
+              Constats calculés par règles déterministes sur tes résultats réels, confrontés aux limites de {firm?.name} {firm?.models?.[modelKey]?.name} — aucune donnée inventée.
             </div>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 10, lineHeight: 1.4 }}>Règles déterministes sur les résultats réels du backtest — aucune donnée inventée.</div>
+          </div>
+        );
+      })()}
+
+      {/* ══ RÉCAPITULATIF POUR MT4/MT5 ══ */}
+      {result && !result.error && (() => {
+        const tfLabel = TIMEFRAMES.find(t => t.key === timeframeKey)?.label || "";
+        const stratDef = strategies.find(s => s.key === strategyKey);
+        const dirLabel = TRADE_DIRECTIONS.find(d => d.key === tradeDirection)?.label || "";
+        const sessLabel = sessionKey === "custom"
+          ? `${String(customHourStart).padStart(2,"0")}h-${String(customHourEnd).padStart(2,"0")}h UTC`
+          : SESSIONS.find(s => s.key === sessionKey)?.label || "";
+        const joursLabel = WEEKDAYS.filter(d => tradingDays.includes(d.key)).map(d => d.label).join(", ") || "aucun";
+
+        const lignes = [
+          "═══ CONFIGURATION BACKTEST ═══",
+          `Instrument      : ${selectedPair}`,
+          `Timeframe       : ${tfLabel}`,
+          `Période testée  : ${startDate} → ${endDate}`,
+          `Bougies         : ${result.rangeInfo?.candles?.toLocaleString() || "-"}`,
+          "",
+          "─── STRATÉGIE ───",
+          `Type            : ${result.strategyLabel}`,
+          ...(result.paramsUsed ? Object.entries(result.paramsUsed).map(([k, v]) => {
+            const pd = stratDef?.paramDefs?.find(p => p.key === k);
+            return `${(pd?.label || k).padEnd(16).slice(0,16)}: ${v}`;
+          }) : []),
+          "",
+          "─── ENTRÉES / SORTIES ───",
+          ...(isGridStrategy ? [
+            `Écart grille    : ${gridSpacingPips} pips`,
+            `Niveaux         : ${gridLevels} de chaque côté`,
+            `Direction       : ${gridDirection === "both" ? "Achat + Vente" : gridDirection === "buy" ? "Achat" : "Vente"}`,
+          ] : [
+            `Take Profit     : ${tpPips} pips`,
+            `Stop Loss       : ${slPips} pips`,
+            `R Ratio         : 1:${(tpPips / slPips).toFixed(2)}`,
+            `Sens autorisé   : ${dirLabel}`,
+          ]),
+          "",
+          "─── GESTION DU RISQUE ───",
+          `Capital         : $${capital.toLocaleString()}`,
+          `Risque/trade    : ${riskPct}%`,
+          `Money mgmt      : ${MONEY_MANAGEMENT_MODES.find(m => m.key === mmMode)?.label || ""}`,
+          ...(mmMode === "martingale" ? [`Multiplicateur  : x${martingaleMultiplier} (max ${martingaleMaxSteps})`] : []),
+          `Spread+slippage : ${slippagePips} pip`,
+          "",
+          ...(isGridStrategy ? [] : [
+            "─── FILTRES TEMPORELS ───",
+            `Heures          : ${sessLabel}`,
+            `Jours           : ${joursLabel}`,
+            `Filtre news     : ${newsFilterOn ? "activé" : "désactivé"}`,
+            "",
+          ]),
+          ...(confluence.length ? [
+            "─── CONFLUENCE ───",
+            ...confluence.map(f => {
+              const def = listConfluenceFilters().find(x => x.key === f.key);
+              const p = Object.entries(f.params || {}).map(([k, v]) => `${k}=${v}`).join(", ");
+              return `${(def?.label || f.key)} (${p})`;
+            }),
+            "",
+          ] : []),
+          "─── RÉSULTAT OBTENU ───",
+          `Trades          : ${result.totalTrades}`,
+          `Win Rate        : ${result.winrate}%`,
+          `Profit Factor   : ${result.profitFactor === Infinity ? "∞" : result.profitFactor}`,
+          `Gain net        : ${result.totalUSD >= 0 ? "+" : ""}$${result.totalUSD.toLocaleString()} (${result.totalPct >= 0 ? "+" : ""}${result.totalPct}%)`,
+          `Drawdown max    : -${result.maxDrawdownPct}%`,
+          "",
+          "Prop firm       : " + (firm?.name || "") + " " + (firm?.models?.[modelKey]?.name || ""),
+        ];
+        const texte = lignes.join("\n");
+
+        return (
+          <div className="card">
+            <SectionHeader n="4" title="Paramètres à reporter dans MT4/MT5" />
+            <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", lineHeight: 1.5, marginBottom: 10 }}>
+              Récapitulatif complet de cette configuration. Les valeurs de périodes d'indicateurs, TP/SL et risque se reportent directement dans les paramètres d'un EA ou d'un template MT4/MT5.
+            </div>
+            <pre style={{
+              background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10,
+              padding: 12, fontSize: 10, lineHeight: 1.55, color: "rgba(255,255,255,0.8)",
+              overflowX: "auto", whiteSpace: "pre", margin: 0, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+            }}>{texte}</pre>
+            <button onClick={() => {
+              try {
+                navigator.clipboard.writeText(texte);
+                setCopied(true); setTimeout(() => setCopied(false), 2000);
+              } catch (e) { setCopied(false); }
+            }} style={{
+              width: "100%", marginTop: 10, padding: 12, borderRadius: 10, border: "1px solid " + ACCENT + "55",
+              background: copied ? ACCENT : ACCENT + "12", color: copied ? "#000" : ACCENT,
+              fontSize: 12, fontWeight: 800, cursor: "pointer", transition: "all .2s",
+            }}>{copied ? "✓ Copié dans le presse-papiers" : "📋 Copier la configuration"}</button>
           </div>
         );
       })()}
