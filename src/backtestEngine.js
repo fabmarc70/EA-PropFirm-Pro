@@ -592,11 +592,13 @@ export function runBacktest({
     else { curLossStreak++; curWinStreak = 0; maxLossStreak = Math.max(maxLossStreak, curLossStreak); }
   });
 
-  // Drawdown max (pips ET $/%), pire creux depuis un sommet
+  // Drawdown max (pips ET $/%), pire creux depuis un sommet — calculé aussi
+  // POINT PAR POINT (ddPct) pour pouvoir tracer la ligne de drawdown sur le graphique
   let peakPips = 0, maxDDPips = 0, peakUSD = capital, maxDDUSD = 0;
   equityCurve.forEach(pt => {
     peakPips = Math.max(peakPips, pt.y); maxDDPips = Math.max(maxDDPips, peakPips - pt.y);
     peakUSD = Math.max(peakUSD, pt.usd); maxDDUSD = Math.max(maxDDUSD, peakUSD - pt.usd);
+    pt.ddPct = peakUSD > 0 ? -+(((peakUSD - pt.usd) / peakUSD) * 100).toFixed(2) : 0; // négatif = sous le sommet
   });
   const maxDDPct = peakUSD > 0 ? +((maxDDUSD / peakUSD) * 100).toFixed(2) : 0;
 
@@ -711,6 +713,8 @@ export function runGridBacktest({ candles, pair, capital = 10000, riskPct = 1, s
   let running = capital;
   const equityCurve = [{ x: 0, y: 0, usd: capital }];
   trades.forEach((t, i) => { running += t.pnlUSD; equityCurve.push({ x: i + 1, y: +(running - capital).toFixed(1), usd: +running.toFixed(2) }); });
+  let peakG = capital;
+  equityCurve.forEach(pt => { peakG = Math.max(peakG, pt.usd); pt.ddPct = peakG > 0 ? -+(((peakG - pt.usd) / peakG) * 100).toFixed(2) : 0; });
 
   return {
     strategyLabel: "Grid Trading",

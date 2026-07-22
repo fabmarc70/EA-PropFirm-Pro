@@ -3637,6 +3637,14 @@ function ReportHeader({ title, subtitle, onBack }) {
 // En plus d'être stable, la liste se déplie maintenant DANS LE FLUX NORMAL de
 // la page (pas de position absolute/fixed/z-index) — plus aucun risque de
 // superposition invisible ou de recouvrement raté sur mobile.
+const PAIR_ICONS = {
+  EURUSD: "💶", GBPUSD: "💷", USDJPY: "💴", USDCHF: "🇨🇭", AUDUSD: "🇦🇺", USDCAD: "🇨🇦", NZDUSD: "🇳🇿",
+  XAUUSD: "🥇", XAGUSD: "🥈", USOIL: "🛢️", UKOIL: "🛢️", NATGAS: "🔥",
+  US30: "🇺🇸", NAS100: "💻", SPX500: "📉", GER40: "🇩🇪", UK100: "🇬🇧", JPN225: "🇯🇵",
+  BTCUSD: "₿", ETHUSD: "Ξ", SOLUSD: "◎", XRPUSD: "✕",
+  SPY: "📦", QQQ: "📦", GLD: "📦",
+};
+
 function BacktestSelect({ id, label, value, onChange, options, openDropdown, setOpenDropdown, accent }) {
   const isOpen = openDropdown === id;
   const current = options.find(o => String(o.value) === String(value));
@@ -3973,52 +3981,50 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
           </button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-          <BacktestSelect id="firm" label="Prop firm" value={firmKey} onChange={v => { setFirmKey(v); setModelKey(Object.keys(PROP_FIRMS[v].models)[0]); }}
+          <BacktestSelect id="firm" label="🏢 Prop firm" value={firmKey} onChange={v => { setFirmKey(v); setModelKey(Object.keys(PROP_FIRMS[v].models)[0]); }}
             options={Object.keys(PROP_FIRMS).map(k => ({ value: k, label: PROP_FIRMS[k].name }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
-          <BacktestSelect id="model" label="Type de challenge" value={modelKey} onChange={setModelKey}
+          <BacktestSelect id="model" label="🎯 Type de challenge" value={modelKey} onChange={setModelKey}
             options={modelsForFirm.map(k => ({ value: k, label: firm.models[k].name }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-          <BacktestSelect id="capital" label="Solde du challenge" value={capital} onChange={v => setCapital(parseInt(v))}
+          <BacktestSelect id="capital" label="💰 Solde du challenge" value={capital} onChange={v => setCapital(parseInt(v))}
             options={CAPITAL_OPTIONS.map(c => ({ value: c, label: "$" + c.toLocaleString() }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
-          <BacktestSelect id="pair" label="Actif" value={selectedPair || ""} onChange={v => {
+          <BacktestSelect id="pair" label="📈 Actif" value={selectedPair || ""} onChange={v => {
               const newPeriod = datasets.assets.find(a => a.pair === v)?.period || null;
               setSelectedPair(v); setSelectedPeriod(newPeriod);
               handleDownload(v, newPeriod);
             }}
-            options={pairs.map(p => ({ value: p, label: p }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+            options={pairs.map(p => ({ value: p, label: (PAIR_ICONS[p] || "💱") + " " + p }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: periodsForPair.length > 1 ? "1fr 1fr" : "1fr", gap: 8, marginBottom: 8 }}>
-          <BacktestSelect id="timeframe" label="Timeframe" value={timeframeKey} onChange={setTimeframeKey}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+          <BacktestSelect id="timeframe" label="⏱ Timeframe" value={timeframeKey} onChange={setTimeframeKey}
             options={TIMEFRAMES.map(tf => ({ value: tf.key, label: tf.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
-          {periodsForPair.length > 1 && (
-            <BacktestSelect id="period" label="Période" value={selectedPeriod || ""} onChange={v => { setSelectedPeriod(v); handleDownload(selectedPair, v); }}
-              options={periodsForPair.map(p => ({ value: p, label: p }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
-          )}
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-          <BacktestSelect id="strategy" label="Stratégie" value={strategyKey} onChange={setStrategyKey}
-            options={strategies.map(s => ({ value: s.key, label: (s.category ? "[" + s.category + "] " : "") + s.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
-          <BacktestSelect id="mmmode" label="Gestion du risque" value={mmMode} onChange={setMmMode}
-            options={MONEY_MANAGEMENT_MODES.map(m => ({ value: m.key, label: m.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-          <BacktestSelect id="slippage" label="Frais & slippage" value={slippagePips} onChange={v => setSlippagePips(parseFloat(v))}
-            options={[0, 0.2, 0.5, 1].map(s => ({ value: s, label: s === 0 ? "Aucun (idéal)" : "Spread + " + s + " pip" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
           {isGridStrategy ? (
-            <BacktestSelect id="riskgrid" label="Risque total (% capital)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
-              options={[0.5, 1, 2, 3, 5].map(r => ({ value: r, label: r + "% réparti sur la grille" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+            <BacktestSelect id="riskgrid" label="🛡 Risque total (% capital)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
+              options={[0.5, 1, 2, 3, 5].map(r => ({ value: r, label: r + "% réparti" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
           ) : (
-            <BacktestSelect id="session" label="Heures de trading" value={sessionKey} onChange={setSessionKey}
-              options={SESSIONS.map(s => ({ value: s.key, label: s.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+            <BacktestSelect id="riskpct" label="🛡 Risque par trade (%)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
+              options={[0.25, 0.5, 1, 1.5, 2].map(r => ({ value: r, label: r + "%" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
           )}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+          <BacktestSelect id="period" label="📅 Période" value={selectedPeriod || ""} onChange={v => { setSelectedPeriod(v); handleDownload(selectedPair, v); }}
+            options={periodsForPair.map(p => ({ value: p, label: p }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+          <BacktestSelect id="strategy" label="📊 Stratégie" value={strategyKey} onChange={setStrategyKey}
+            options={strategies.map(s => ({ value: s.key, label: (s.category ? "[" + s.category + "] " : "") + s.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+          <BacktestSelect id="mmmode" label="⚖️ Gestion du risque" value={mmMode} onChange={setMmMode}
+            options={MONEY_MANAGEMENT_MODES.map(m => ({ value: m.key, label: m.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+          <BacktestSelect id="slippage" label="💸 Frais & slippage" value={slippagePips} onChange={v => setSlippagePips(parseFloat(v))}
+            options={[0, 0.2, 0.5, 1].map(s => ({ value: s, label: s === 0 ? "Aucun (idéal)" : "Spread + " + s + " pip" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
         </div>
         {!isGridStrategy && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-            <BacktestSelect id="riskpct" label="Risque par trade (%)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
-              options={[0.25, 0.5, 1, 1.5, 2].map(r => ({ value: r, label: r + "%" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+            <BacktestSelect id="session" label="🕐 Heures de trading" value={sessionKey} onChange={setSessionKey}
+              options={SESSIONS.map(s => ({ value: s.key, label: s.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
             {mmMode === "martingale" ? (
-              <BacktestSelect id="martmult" label="Multiplicateur martingale" value={martingaleMultiplier} onChange={v => setMartingaleMultiplier(parseFloat(v))}
+              <BacktestSelect id="martmult" label="🎲 Multiplicateur martingale" value={martingaleMultiplier} onChange={v => setMartingaleMultiplier(parseFloat(v))}
                 options={[1.5, 2, 2.5, 3].map(m => ({ value: m, label: "×" + m }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
             ) : <div />}
           </div>
@@ -4121,8 +4127,13 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
         <div className="card">
           <SectionHeader n="2" title="Résultats du backtest" />
           {result.equityCurve.length > 2 && (
-            <ResponsiveContainer width="100%" height={150}>
-              <AreaChart data={result.equityCurve}>
+            <>
+            <div style={{ display: "flex", gap: 12, marginBottom: 4, fontSize: 9.5, color: "rgba(255,255,255,0.45)" }}>
+              <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: result.totalUSD >= 0 ? ACCENT : "#ef4444", marginRight: 4 }} />Équité</span>
+              <span><span style={{ display: "inline-block", width: 12, height: 2, background: "#f87171", marginRight: 4, verticalAlign: "middle" }} />Drawdown</span>
+            </div>
+            <ResponsiveContainer width="100%" height={170}>
+              <ComposedChart data={result.equityCurve}>
                 <defs>
                   <linearGradient id="btEquityUSD" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={result.totalUSD >= 0 ? ACCENT : "#ef4444"} stopOpacity={0.3} />
@@ -4130,11 +4141,14 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="x" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "T" + v} />
-                <YAxis tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v/1000).toFixed(0) + "k"} domain={["auto","auto"]} />
-                <Tooltip formatter={v => "$" + v.toLocaleString()} contentStyle={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, fontSize: 11 }} />
-                <Area type="monotone" dataKey="usd" stroke={result.totalUSD >= 0 ? ACCENT : "#ef4444"} strokeWidth={2} fill="url(#btEquityUSD)" dot={false} />
-              </AreaChart>
+                <YAxis yAxisId="equity" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v/1000).toFixed(0) + "k"} domain={["auto","auto"]} />
+                <YAxis yAxisId="dd" orientation="right" tick={{ fontSize: 10, fill: "rgba(248,113,113,0.5)" }} tickFormatter={v => v + "%"} domain={["dataMin", 0]} />
+                <Tooltip formatter={(v, name) => name === "ddPct" ? v + "%" : "$" + v.toLocaleString()} contentStyle={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, fontSize: 11 }} />
+                <Area yAxisId="equity" type="monotone" dataKey="usd" stroke={result.totalUSD >= 0 ? ACCENT : "#ef4444"} strokeWidth={2} fill="url(#btEquityUSD)" dot={false} />
+                <Line yAxisId="dd" type="monotone" dataKey="ddPct" stroke="#f87171" strokeWidth={1.3} strokeDasharray="3 3" dot={false} />
+              </ComposedChart>
             </ResponsiveContainer>
+            </>
           )}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
             {(result.isGridResult ? [
