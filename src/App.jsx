@@ -3639,6 +3639,7 @@ function ReportHeader({ title, subtitle, onBack }) {
 // superposition invisible ou de recouvrement raté sur mobile.
 const PAIR_ICONS = {
   EURUSD: "💶", GBPUSD: "💷", USDJPY: "💴", USDCHF: "🇨🇭", AUDUSD: "🇦🇺", USDCAD: "🇨🇦", NZDUSD: "🇳🇿",
+  EURGBP: "💶", EURCHF: "💶", EURJPY: "💶", GBPJPY: "💷", AUDJPY: "🇦🇺",
   XAUUSD: "🥇", XAGUSD: "🥈", USOIL: "🛢️", UKOIL: "🛢️", NATGAS: "🔥",
   US30: "🇺🇸", NAS100: "💻", SPX500: "📉", GER40: "🇩🇪", UK100: "🇬🇧", JPN225: "🇯🇵",
   BTCUSD: "₿", ETHUSD: "Ξ", SOLUSD: "◎", XRPUSD: "✕",
@@ -3649,7 +3650,11 @@ function BacktestSelect({ id, label, value, onChange, options, openDropdown, set
   const isOpen = openDropdown === id;
   const current = options.find(o => String(o.value) === String(value));
   return (
-    <div>
+    // position:relative + zIndex élevé quand ouvert : le menu se déroule PAR-DESSUS
+    // les champs voisins (comportement attendu d'un dropdown) au lieu de pousser
+    // la mise en page vers le bas. Le zIndex sur le wrapper est indispensable :
+    // sans lui, les champs situés APRÈS dans le DOM se dessineraient au-dessus du menu.
+    <div style={{ position: "relative", zIndex: isOpen ? 60 : 1 }}>
       <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginBottom: 4, fontWeight: 700 }}>{label}</div>
       <button type="button" onClick={() => setOpenDropdown(isOpen ? null : id)} style={{
         width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -3661,20 +3666,25 @@ function BacktestSelect({ id, label, value, onChange, options, openDropdown, set
         <span style={{ color: accent, fontSize: 10, flexShrink: 0, marginLeft: 6, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}>▼</span>
       </button>
       {isOpen && (
-        <div style={{
-          marginTop: 6, background: "#12121a", border: "1px solid rgba(110,231,183,0.25)", borderRadius: 12,
-          maxHeight: 260, overflowY: "auto",
-        }}>
-          {options.map(o => (
-            <button key={o.value} type="button" onClick={() => { onChange(String(o.value)); setOpenDropdown(null); }} style={{
-              display: "block", width: "100%", textAlign: "left", border: "none",
-              padding: "11px 12px", fontSize: 12.5, fontWeight: String(o.value) === String(value) ? 800 : 500,
-              color: String(o.value) === String(value) ? accent : "rgba(255,255,255,0.8)",
-              background: String(o.value) === String(value) ? "rgba(110,231,183,0.08)" : "transparent",
-              cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.05)",
-            }}>{o.label}</button>
-          ))}
-        </div>
+        <>
+          {/* Zone de fermeture au clic extérieur */}
+          <div onClick={() => setOpenDropdown(null)} style={{ position: "fixed", inset: 0, zIndex: 55 }} />
+          <div style={{
+            position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 61,
+            background: "#12121a", border: "1px solid rgba(110,231,183,0.3)", borderRadius: 12,
+            maxHeight: 260, overflowY: "auto", boxShadow: "0 14px 36px rgba(0,0,0,0.65)",
+          }}>
+            {options.map(o => (
+              <button key={o.value} type="button" onClick={() => { onChange(String(o.value)); setOpenDropdown(null); }} style={{
+                display: "block", width: "100%", textAlign: "left", border: "none",
+                padding: "11px 12px", fontSize: 12.5, fontWeight: String(o.value) === String(value) ? 800 : 500,
+                color: String(o.value) === String(value) ? accent : "rgba(255,255,255,0.8)",
+                background: String(o.value) === String(value) ? "rgba(110,231,183,0.08)" : "transparent",
+                cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.05)",
+              }}>{o.label}</button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
@@ -3764,6 +3774,18 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
   const pairs = datasets ? [...new Set(datasets.assets.map(a => a.pair))] : [];
   const periodsForPair = selectedPair && datasets ? datasets.assets.filter(a => a.pair === selectedPair).map(a => a.period) : [];
   const strategies = listStrategies();
+  // Granularité NATIVE du dataset sélectionné (la source actuelle est en M15).
+  // On ne propose que les timeframes >= à cette granularité : impossible de
+  // reconstruire du M1 à partir de M15, proposer M1 donnerait un résultat faux.
+  const currentAsset = datasets?.assets?.find(a => a.pair === selectedPair && a.period === selectedPeriod);
+  const baseMinutes = currentAsset?.baseMinutes || 1;
+  const availableTimeframes = TIMEFRAMES.filter(tf => tf.minutes >= baseMinutes);
+  useEffect(() => {
+    // Si le timeframe courant est devenu invalide (sous la granularité native), on rebascule sur le plus fin possible
+    if (availableTimeframes.length && !availableTimeframes.some(tf => tf.key === timeframeKey)) {
+      setTimeframeKey(availableTimeframes[0].key);
+    }
+  }, [baseMinutes, timeframeKey, availableTimeframes.length]);
   const firm = PROP_FIRMS[firmKey];
   const modelsForFirm = firm ? Object.keys(firm.models) : [];
 
@@ -3835,7 +3857,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
     setTimeout(() => {
       try {
         const tf = TIMEFRAMES.find(x => x.key === timeframeKey);
-        const prepared = aggregateCandles(candles, tf ? tf.minutes : 1);
+        const prepared = aggregateCandles(candles, tf ? tf.minutes : baseMinutes, baseMinutes);
         const r = isGridStrategy
           ? runGridBacktest({
               candles: prepared, pair: selectedPair, capital, riskPct,
@@ -3998,7 +4020,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
           <BacktestSelect id="timeframe" label="⏱ Timeframe" value={timeframeKey} onChange={setTimeframeKey}
-            options={TIMEFRAMES.map(tf => ({ value: tf.key, label: tf.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+            options={availableTimeframes.map(tf => ({ value: tf.key, label: tf.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
           {isGridStrategy ? (
             <BacktestSelect id="riskgrid" label="🛡 Risque total (% capital)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
               options={[0.5, 1, 2, 3, 5].map(r => ({ value: r, label: r + "% réparti" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />

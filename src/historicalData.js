@@ -87,6 +87,7 @@ export async function listAvailableDatasets(forceRefresh = false) {
       period: d.period,
       file: d.file,
       count: d.count,
+      baseMinutes: d.baseMinutes || 1, // granularité native du dataset (M15 pour la source actuelle)
       url: `${REPO_RAW_BASE}/${d.file}`,
     })),
   };

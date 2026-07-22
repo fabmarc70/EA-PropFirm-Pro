@@ -13,8 +13,9 @@
 // juste la convention de calcul du point pour que le moteur soit correct
 // le jour où le dataset existe).
 const PIP_SIZE = {
-  // Forex majors
+  // Forex majors et crosses (données réelles publiées)
   EURUSD: 0.0001, GBPUSD: 0.0001, USDJPY: 0.01, USDCHF: 0.0001, AUDUSD: 0.0001, USDCAD: 0.0001, NZDUSD: 0.0001,
+  EURGBP: 0.0001, EURCHF: 0.0001, EURJPY: 0.01, GBPJPY: 0.01, AUDJPY: 0.01,
   // Métaux / matières premières
   XAUUSD: 0.1, XAGUSD: 0.01, USOIL: 0.01, UKOIL: 0.01, NATGAS: 0.001,
   // Indices majeurs
@@ -31,12 +32,17 @@ const PIP_SIZE = {
 // donnée inventée.
 // ══════════════════════════════════════════════════════════════════
 
-// Agrège des bougies M1 en un timeframe plus large (M5, M15, H1, H4, D1)
-export function aggregateCandles(candles, minutesPerCandle) {
-  if (minutesPerCandle <= 1) return candles;
+// Agrège des bougies vers un timeframe plus large.
+// `baseMinutes` = granularité native du dataset (ex: 15 pour une source M15).
+// Le facteur de regroupement est donc targetMinutes / baseMinutes — on ne peut
+// jamais descendre SOUS la granularité native (impossible de créer de
+// l'information qui n'existe pas dans la source).
+export function aggregateCandles(candles, targetMinutes, baseMinutes = 1) {
+  const factor = Math.max(1, Math.round(targetMinutes / baseMinutes));
+  if (factor <= 1) return candles;
   const out = [];
-  for (let i = 0; i < candles.length; i += minutesPerCandle) {
-    const chunk = candles.slice(i, i + minutesPerCandle);
+  for (let i = 0; i < candles.length; i += factor) {
+    const chunk = candles.slice(i, i + factor);
     if (!chunk.length) continue;
     const ts = chunk[0][0];
     const open = chunk[0][1];
@@ -514,7 +520,7 @@ export function runBacktest({
   const strategy = STRATEGIES[strategyKey];
   if (!strategy) throw new Error("Stratégie inconnue: " + strategyKey);
   if (strategy.isGrid) throw new Error("Utilise runGridBacktest() pour la stratégie Grid.");
-  if (!candles || candles.length < 50) throw new Error("Pas assez de données (minimum 50 bougies).");
+  if (!candles || candles.length < 50) throw new Error(`Pas assez de bougies sur ce timeframe (${candles ? candles.length : 0} disponibles, 50 minimum). Choisis un timeframe plus fin ou une période plus longue.`);
 
   const pip = PIP_SIZE[pair] || 0.0001;
   const params = { ...strategy.defaultParams, ...(strategyParams || {}) };
@@ -648,7 +654,7 @@ export function runBacktest({
 // (caractéristique réelle des grilles — c'est justement leur risque inhérent),
 // mais le drawdown FLOTTANT de l'ensemble de la grille est suivi honnêtement. ──
 export function runGridBacktest({ candles, pair, capital = 10000, riskPct = 1, spacingPips = 20, levels = 5, direction = "both", slippagePips = 0.2 }) {
-  if (!candles || candles.length < 50) throw new Error("Pas assez de données (minimum 50 bougies).");
+  if (!candles || candles.length < 50) throw new Error(`Pas assez de bougies sur ce timeframe (${candles ? candles.length : 0} disponibles, 50 minimum). Choisis un timeframe plus fin ou une période plus longue.`);
   const pip = PIP_SIZE[pair] || 0.0001;
   const anchor = candles[0][1];
   const riskPerLevelUSD = (capital * (riskPct / 100)) / levels;
