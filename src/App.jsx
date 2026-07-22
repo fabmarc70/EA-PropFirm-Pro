@@ -3639,14 +3639,58 @@ function ReportHeader({ title, subtitle, onBack }) {
 // superposition invisible ou de recouvrement raté sur mobile.
 const PAIR_ICONS = {
   EURUSD: "💶", GBPUSD: "💷", USDJPY: "💴", USDCHF: "🇨🇭", AUDUSD: "🇦🇺", USDCAD: "🇨🇦", NZDUSD: "🇳🇿",
-  EURGBP: "💶", EURCHF: "💶", EURJPY: "💶", GBPJPY: "💷", AUDJPY: "🇦🇺",
-  XAUUSD: "🥇", XAGUSD: "🥈", USOIL: "🛢️", UKOIL: "🛢️", NATGAS: "🔥",
-  US30: "🇺🇸", NAS100: "💻", SPX500: "📉", GER40: "🇩🇪", UK100: "🇬🇧", JPN225: "🇯🇵",
+  EURGBP: "💶", EURCHF: "💶", EURJPY: "💶", GBPJPY: "💷", AUDJPY: "🇦🇺", CHFJPY: "🇨🇭",
+  XAUUSD: "🥇", XAGUSD: "🥈", USOIL: "🛢️", UKOIL: "🛢️", NATGAS: "🔥", COPPER: "🟠",
+  US30: "🇺🇸", NAS100: "💻", SPX500: "📊", GER40: "🇩🇪", GER30: "🇩🇪", UK100: "🇬🇧", JPN225: "🇯🇵",
   BTCUSD: "₿", ETHUSD: "Ξ", SOLUSD: "◎", XRPUSD: "✕",
   SPY: "📦", QQQ: "📦", GLD: "📦",
 };
 
-function BacktestSelect({ id, label, value, onChange, options, openDropdown, setOpenDropdown, accent }) {
+// Explications affichées au clic sur le point "i" à côté de chaque outil
+const BT_INFO = {
+  pair: "L'instrument financier sur lequel la stratégie est testée. Chaque actif a sa propre volatilité : un pip sur l'or ne vaut pas un pip sur l'EUR/USD, le moteur en tient compte automatiquement.",
+  timeframe: "La durée d'une bougie. Un timeframe court génère beaucoup plus de signaux (donc plus de trades et de frais), un timeframe long en génère peu mais chacun est plus significatif. Les timeframes sous la granularité des données ne sont pas proposés : on ne peut pas inventer de détail qui n'existe pas dans la source.",
+  firm: "La société de financement dont les règles servent à évaluer ta stratégie (drawdown journalier, drawdown total, objectif de profit).",
+  model: "Le type de challenge de cette prop firm. Chaque modèle a ses propres seuils de drawdown et objectifs, qui déterminent le Score PropFirm.",
+  capital: "Le capital de départ du challenge. Il sert de base au calcul de la taille de position : le risque en % est appliqué à ce capital, puis au capital courant à mesure qu'il évolue (effet de composition).",
+  strategy: "La règle d'entrée en position. [Tendance] = suit le mouvement en cours. [Contre-tendance] = parie sur un retour à la moyenne. Grille = ouvre plusieurs positions étagées, sans stop loss individuel.",
+  mmmode: "Risque fixe : chaque trade risque le même pourcentage du capital. Martingale : la mise est multipliée après chaque perte pour tenter de récupérer — cela amplifie mécaniquement le risque de ruine.",
+  riskpct: "Le pourcentage du capital risqué sur chaque trade. C'est ce qui détermine la taille de position : risque ÷ distance du stop loss. 1% est un standard prudent, au-delà de 2% le risque de ruine grimpe vite.",
+  slippage: "Le coût réel de chaque transaction (écart achat/vente + décalage d'exécution), retiré de CHAQUE trade, gagnant comme perdant. Le mettre à zéro donne un résultat trop optimiste, jamais atteignable en réel.",
+  session: "Restreint les entrées à une plage horaire. Les sessions Londres et New York concentrent le plus de volume et de volatilité ; l'Asie est généralement plus calme.",
+  martmult: "Par combien la mise est multipliée après chaque perte. ×2 double à chaque fois : après 5 pertes consécutives, la mise est 32 fois la mise initiale.",
+  period: "La plage de mois sur laquelle le backtest s'exécute. Plus elle est longue, plus l'échantillon est statistiquement fiable — mais le premier chargement prend plus de temps (ensuite les données sont en cache).",
+  tpsl: "Take Profit = distance de sortie en gain. Stop Loss = distance de sortie en perte. Leur rapport définit le R Ratio : un TP de 30 pour un SL de 15 donne un R de 2, ce qui permet d'être rentable même avec moins de 50% de réussite.",
+  gridcfg: "Écart = distance entre chaque niveau de la grille. Niveaux = nombre d'ordres étagés de chaque côté du prix. Attention : une grille n'a pas de stop loss par niveau, le risque se matérialise dans le drawdown flottant.",
+  newsfilter: "Exclut les créneaux horaires où tombent statistiquement les annonces à fort impact (NFP, FOMC, CPI). C'est une ESTIMATION basée sur des horaires récurrents, pas un vrai calendrier économique historique.",
+};
+
+function InfoDot({ id, openInfo, setOpenInfo, accent }) {
+  if (!BT_INFO[id]) return null;
+  const on = openInfo === id;
+  return (
+    <span onClick={(e) => { e.stopPropagation(); setOpenInfo(on ? null : id); }} style={{
+      display: "inline-flex", alignItems: "center", justifyContent: "center",
+      width: 13, height: 13, borderRadius: 7, marginLeft: 4, flexShrink: 0, cursor: "pointer",
+      border: "1px solid " + (on ? accent : "rgba(255,255,255,0.28)"),
+      color: on ? accent : "rgba(255,255,255,0.45)",
+      fontSize: 8.5, fontWeight: 800, fontStyle: "italic", lineHeight: 1, verticalAlign: "middle",
+    }}>i</span>
+  );
+}
+
+function InfoPanel({ id, openInfo, accent }) {
+  if (openInfo !== id || !BT_INFO[id]) return null;
+  return (
+    <div style={{
+      marginTop: 5, padding: "8px 10px", borderRadius: 9,
+      background: "rgba(110,231,183,0.06)", border: "1px solid rgba(110,231,183,0.2)",
+      fontSize: 10, color: "rgba(255,255,255,0.7)", lineHeight: 1.5,
+    }}>{BT_INFO[id]}</div>
+  );
+}
+
+function BacktestSelect({ id, label, value, onChange, options, openDropdown, setOpenDropdown, accent, openInfo, setOpenInfo }) {
   const isOpen = openDropdown === id;
   const current = options.find(o => String(o.value) === String(value));
   return (
@@ -3655,7 +3699,9 @@ function BacktestSelect({ id, label, value, onChange, options, openDropdown, set
     // la mise en page vers le bas. Le zIndex sur le wrapper est indispensable :
     // sans lui, les champs situés APRÈS dans le DOM se dessineraient au-dessus du menu.
     <div style={{ position: "relative", zIndex: isOpen ? 60 : 1, minWidth: 0 }}>
-      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginBottom: 4, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
+      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginBottom: 4, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        {label}<InfoDot id={id} openInfo={openInfo} setOpenInfo={setOpenInfo} accent={accent} />
+      </div>
       <button type="button" onClick={() => setOpenDropdown(isOpen ? null : id)} style={{
         width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
         background: "rgba(255,255,255,0.05)", border: "1px solid " + (isOpen ? accent : "rgba(255,255,255,0.1)"),
@@ -3686,6 +3732,7 @@ function BacktestSelect({ id, label, value, onChange, options, openDropdown, set
           </div>
         </>
       )}
+      <InfoPanel id={id} openInfo={openInfo} accent={accent} />
     </div>
   );
 }
@@ -3726,6 +3773,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
   const [result, setResult] = useState(null);
   const [score, setScore] = useState(null);
   const [openDropdown, setOpenDropdown] = useState(null);
+  const [openInfo, setOpenInfo] = useState(null);
   const [history, setHistory] = useState(() => { try { return JSON.parse(localStorage.getItem("eapropfirm_backtest_history") || "[]"); } catch (e) { return []; } });
   const [showHistory, setShowHistory] = useState(false);
   const [tipIdx, setTipIdx] = useState(0);
@@ -4117,7 +4165,10 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
             téléchargerait de toute façon janvier entier) */}
         {periodList.length > 0 && (
         <div style={{ background: "rgba(110,231,183,0.04)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, padding: 12, marginBottom: 10 }}>
-          <div style={{ fontSize: 9.5, fontWeight: 700, color: ACCENT, textTransform: "uppercase", marginBottom: 10 }}>📅 Période à backtester</div>
+          <div style={{ fontSize: 9.5, fontWeight: 700, color: ACCENT, textTransform: "uppercase", marginBottom: 10 }}>
+            📅 Période à backtester<InfoDot id="period" openInfo={openInfo} setOpenInfo={setOpenInfo} accent={ACCENT} />
+          </div>
+          <InfoPanel id="period" openInfo={openInfo} accent={ACCENT} />
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 8 }}>
             <div style={{ flex: 1, minWidth: 0, textAlign: "center", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "8px 6px" }}>
@@ -4162,41 +4213,41 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
 
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
           <BacktestSelect id="pair" label="📈 Actif" value={selectedPair || ""} onChange={setSelectedPair}
-            options={pairs.map(p => ({ value: p, label: (PAIR_ICONS[p] || "💱") + " " + p }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+            options={pairs.map(p => ({ value: p, label: (PAIR_ICONS[p] || "💱") + " " + p }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
           <BacktestSelect id="timeframe" label="⏱ Timeframe" value={timeframeKey} onChange={setTimeframeKey}
-            options={availableTimeframes.map(tf => ({ value: tf.key, label: tf.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+            options={availableTimeframes.map(tf => ({ value: tf.key, label: tf.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
           <BacktestSelect id="firm" label="🏢 Prop firm" value={firmKey} onChange={v => { setFirmKey(v); setModelKey(Object.keys(PROP_FIRMS[v].models)[0]); }}
-            options={Object.keys(PROP_FIRMS).map(k => ({ value: k, label: PROP_FIRMS[k].name }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+            options={Object.keys(PROP_FIRMS).map(k => ({ value: k, label: PROP_FIRMS[k].name }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
           <BacktestSelect id="model" label="🎯 Type de challenge" value={modelKey} onChange={setModelKey}
-            options={modelsForFirm.map(k => ({ value: k, label: firm.models[k].name }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+            options={modelsForFirm.map(k => ({ value: k, label: firm.models[k].name }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
           <BacktestSelect id="capital" label="💰 Solde du challenge" value={capital} onChange={v => setCapital(parseInt(v))}
-            options={CAPITAL_OPTIONS.map(c => ({ value: c, label: "$" + c.toLocaleString() }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+            options={CAPITAL_OPTIONS.map(c => ({ value: c, label: "$" + c.toLocaleString() }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
           <BacktestSelect id="strategy" label="📊 Stratégie" value={strategyKey} onChange={setStrategyKey}
-            options={strategies.map(s => ({ value: s.key, label: (s.category ? "[" + s.category + "] " : "") + s.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+            options={strategies.map(s => ({ value: s.key, label: (s.category ? "[" + s.category + "] " : "") + s.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
           <BacktestSelect id="mmmode" label="⚖️ Gestion du risque" value={mmMode} onChange={setMmMode}
-            options={MONEY_MANAGEMENT_MODES.map(m => ({ value: m.key, label: m.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+            options={MONEY_MANAGEMENT_MODES.map(m => ({ value: m.key, label: m.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
           <BacktestSelect id="riskpct" label="🛡 Risque par trade (%)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
-            options={[0.25, 0.5, 1, 1.5, 2, 3, 5].map(r => ({ value: r, label: r + "%" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+            options={[0.25, 0.5, 1, 1.5, 2, 3, 5].map(r => ({ value: r, label: r + "%" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
           <BacktestSelect id="slippage" label="💸 Frais & slippage" value={slippagePips} onChange={v => setSlippagePips(parseFloat(v))}
-            options={[0, 0.2, 0.5, 1].map(s => ({ value: s, label: s === 0 ? "Aucun (idéal)" : "Spread + " + s + " pip" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+            options={[0, 0.2, 0.5, 1].map(s => ({ value: s, label: s === 0 ? "Aucun (idéal)" : "Spread + " + s + " pip" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
           {isGridStrategy ? <div /> : (
             <BacktestSelect id="session" label="🕐 Heures de trading" value={sessionKey} onChange={setSessionKey}
-              options={SESSIONS.map(s => ({ value: s.key, label: s.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+              options={SESSIONS.map(s => ({ value: s.key, label: s.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
           )}
         </div>
         {mmMode === "martingale" && !isGridStrategy && (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
               <BacktestSelect id="martmult" label="🎲 Multiplicateur martingale" value={martingaleMultiplier} onChange={v => setMartingaleMultiplier(parseFloat(v))}
-                options={[1.5, 2, 2.5, 3].map(m => ({ value: m, label: "×" + m }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} />
+                options={[1.5, 2, 2.5, 3].map(m => ({ value: m, label: "×" + m }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
               <div />
             </div>
             <div style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 12, padding: 10, marginBottom: 8, fontSize: 10, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
@@ -4207,7 +4258,10 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
 
         {isGridStrategy ? (
           <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: 12, marginBottom: 8 }}>
-            <div style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>Configuration de la grille</div>
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>
+              Configuration de la grille<InfoDot id="gridcfg" openInfo={openInfo} setOpenInfo={setOpenInfo} accent={ACCENT} />
+            </div>
+            <InfoPanel id="gridcfg" openInfo={openInfo} accent={ACCENT} />
             <div style={{ marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginBottom: 2 }}>
                 <span style={{ color: "rgba(255,255,255,0.6)" }}>Écart entre niveaux (pips)</span>
@@ -4236,7 +4290,10 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
           </div>
         ) : currentStrategyDef && (
           <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: 12, marginBottom: 8 }}>
-            <div style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>Setup d'entrée — {currentStrategyDef.label}</div>
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>
+              Setup d'entrée — {currentStrategyDef.label}<InfoDot id="tpsl" openInfo={openInfo} setOpenInfo={setOpenInfo} accent={ACCENT} />
+            </div>
+            <InfoPanel id="tpsl" openInfo={openInfo} accent={ACCENT} />
             {currentStrategyDef.paramDefs.map(pd => (
               <div key={pd.key} style={{ marginBottom: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginBottom: 2 }}>
@@ -4264,15 +4321,18 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
         )}
 
         {!isGridStrategy && (
+          <>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "9px 12px" }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>Filtre news</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>Filtre news<InfoDot id="newsfilter" openInfo={openInfo} setOpenInfo={setOpenInfo} accent={ACCENT} /></div>
               <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>Estimation horaires à risque (NFP/FOMC/CPI)</div>
             </div>
             <div onClick={() => setNewsFilterOn(v => !v)} style={{ width: 38, height: 21, borderRadius: 11, background: newsFilterOn ? ACCENT : "rgba(255,255,255,0.12)", position: "relative", cursor: "pointer", transition: "all .2s" }}>
               <div style={{ position: "absolute", top: 2, left: newsFilterOn ? 19 : 2, width: 17, height: 17, borderRadius: 9, background: "#fff", transition: "all .2s" }} />
             </div>
           </div>
+          <InfoPanel id="newsfilter" openInfo={openInfo} accent={ACCENT} />
+          </>
         )}
       </div>
 
