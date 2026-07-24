@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser, fbLoadUserProfile, fbSaveUserProfile, fbDeleteAccount } from "./firebase.js";
 import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedData, loadRange, monthsInRange, getCoverage } from "./historicalData.js";
-import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS, listConfluenceFilters, WEEKDAYS, runWalkForward, analyzeFailure } from "./backtestEngine.js";
+import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS, listConfluenceFilters, WEEKDAYS, runWalkForward, analyzeFailure, optimizeStrategy } from "./backtestEngine.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -3904,6 +3904,9 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
   const [lastCandles, setLastCandles] = useState(null); // conservées pour l'autopsie (MAE/MFE)
   const [showAutopsy, setShowAutopsy] = useState(false);
   const [autopsy, setAutopsy] = useState(null);
+  const [optResult, setOptResult] = useState(null);
+  const [optRunning, setOptRunning] = useState(false);
+  const [optProgress, setOptProgress] = useState(null);
   const [history, setHistory] = useState(() => { try { return JSON.parse(localStorage.getItem("eapropfirm_backtest_history") || "[]"); } catch (e) { return []; } });
   const [showHistory, setShowHistory] = useState(false);
   const [tipIdx, setTipIdx] = useState(0);
@@ -4032,7 +4035,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
       if (!range.candles.length) throw new Error("Aucune bougie sur cette plage de dates.");
       const prepared = aggregateCandles(range.candles, targetMinutes, range.baseMinutes);
       setLastCandles(prepared);
-      setAutopsy(null); setShowAutopsy(false);
+      setAutopsy(null); setShowAutopsy(false); setOptResult(null);
 
       // ── Mode Walk-Forward : optimisation IS puis validation OOS ──
       if (analysisMode === "walkforward" && !isGridStrategy) {
@@ -4889,6 +4892,103 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
               <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", lineHeight: 1.45, marginTop: 4 }}>
                 MFE = meilleur profit atteint avant la sortie. MAE = pire recul subi avant la sortie. Les deux sont exprimés en R (multiples du risque pris). Calculs effectués bougie par bougie sur tes trades réels — aucune interprétation générée.
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══ OPTIMISEUR ══ */}
+      {result && !result.error && !result.isGridResult && !result.isWalkForward && lastCandles && lastCandles.length >= 400 && (
+        <div className="card">
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#fff", marginBottom: 3 }}>⚗️ Optimiseur de stratégie</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", lineHeight: 1.45 }}>
+                Explore des variantes de ta configuration (paramètres, filtres, TP/SL, sens) et ne retient que celles qui tiennent sur une tranche de données jamais utilisée pendant la recherche.
+              </div>
+            </div>
+            <button onClick={async () => {
+              if (optRunning) return;
+              setOptRunning(true); setOptResult(null); setOptProgress({ pct: 0, label: "" });
+              try {
+                const o = await optimizeStrategy({
+                  candles: lastCandles, pair: selectedPair, strategyKey, strategyParams, tpPips, slPips,
+                  capital, riskPct, slippagePips, sessionKey,
+                  customHours: sessionKey === "custom" ? [customHourStart, customHourEnd] : null,
+                  newsFilterOn, mmMode, martingaleMultiplier, martingaleMaxSteps,
+                  tradeDirection, tradingDays, confluence,
+                  onProgress: setOptProgress,
+                });
+                setOptResult(o);
+              } catch (e) { setOptResult({ erreur: e.message }); }
+              setOptRunning(false); setOptProgress(null);
+            }} disabled={optRunning} style={{
+              flexShrink: 0, padding: "8px 14px", borderRadius: 10, cursor: optRunning ? "default" : "pointer",
+              border: "1px solid " + ACCENT + "55", background: ACCENT + "12", color: ACCENT,
+              fontSize: 11, fontWeight: 800, whiteSpace: "nowrap",
+            }}>{optRunning ? (optProgress?.pct ?? 0) + "%" : "Optimiser"}</button>
+          </div>
+
+          {optRunning && optProgress && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ width: "100%", height: 4, borderRadius: 2, background: "rgba(255,255,255,0.1)", overflow: "hidden" }}>
+                <div style={{ width: optProgress.pct + "%", height: "100%", background: ACCENT, transition: "width .2s" }} />
+              </div>
+              <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginTop: 5 }}>{optProgress.label || "Exploration…"}</div>
+            </div>
+          )}
+
+          {optResult?.erreur && (
+            <div style={{ marginTop: 10, fontSize: 11, color: "#fbbf24", lineHeight: 1.5 }}>{optResult.erreur}</div>
+          )}
+
+          {optResult && !optResult.erreur && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: 11, marginBottom: 10 }}>
+                <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginBottom: 4, fontWeight: 700, textTransform: "uppercase" }}>Ta configuration actuelle</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+                  Recherche {optResult.reference.searchPct}% · <span style={{ color: "#fff", fontWeight: 700 }}>Validation {optResult.reference.holdPct}%</span> ({optResult.reference.holdTrades} trades)
+                </div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 4, lineHeight: 1.4 }}>
+                  {optResult.testees} variantes explorées sur {optResult.searchBars} bougies, chacune re-testée sur {optResult.holdoutBars} bougies gardées intactes.
+                </div>
+              </div>
+
+              {optResult.variants.length === 0 ? (
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>
+                  Aucune variante n'a produit assez de trades pour être évaluée sérieusement. Allonge la période ou assouplis les filtres.
+                </div>
+              ) : (
+                <>
+                  {optResult.variants.map((v, i) => (
+                    <div key={i} style={{
+                      background: v.validee ? "rgba(110,231,183,0.06)" : "rgba(255,255,255,0.03)",
+                      border: "1px solid " + (v.validee ? ACCENT + "33" : "rgba(255,255,255,0.07)"),
+                      borderRadius: 11, padding: 11, marginBottom: 7,
+                    }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                        <div style={{ fontSize: 11.5, fontWeight: 800, color: "#fff", flex: 1, minWidth: 0 }}>{v.desc}</div>
+                        {v.validee
+                          ? <span style={{ fontSize: 9, fontWeight: 800, color: "#000", background: ACCENT, borderRadius: 100, padding: "2px 7px", flexShrink: 0, height: "fit-content" }}>VALIDÉE</span>
+                          : <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>non validée</span>}
+                      </div>
+                      <div style={{ display: "flex", gap: 12, fontSize: 10, flexWrap: "wrap" }}>
+                        <span style={{ color: "rgba(255,255,255,0.35)" }}>recherche {v.searchPct}%</span>
+                        <span style={{ color: v.holdPct >= 0 ? ACCENT : "#ef4444", fontWeight: 800 }}>→ validation {v.holdPct >= 0 ? "+" : ""}{v.holdPct}%</span>
+                        <span style={{ color: "rgba(255,255,255,0.4)" }}>{v.holdTrades}t · PF {v.holdPF === Infinity ? "∞" : v.holdPF} · DD {v.holdDD}%</span>
+                      </div>
+                      {v.voisinage && (
+                        <div style={{ fontSize: 9.5, marginTop: 5, color: v.voisinage === "stable" ? ACCENT : v.voisinage === "moyen" ? "#fbbf24" : "#ef4444" }}>
+                          Voisinage {v.voisinage}{v.voisinage === "isolé" ? " — réglage fragile, probablement un hasard" : v.voisinage === "stable" ? " — les réglages proches fonctionnent aussi" : ""}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", lineHeight: 1.45, marginTop: 6 }}>
+                    « Validée » signifie : fait mieux que ta configuration actuelle SUR LA TRANCHE INTACTE, avec assez de trades. L'écart entre recherche et validation mesure le sur-ajustement — un grand écart signale une variante qui ne survivra pas.
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

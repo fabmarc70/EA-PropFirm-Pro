@@ -516,6 +516,60 @@ export const CONFLUENCE_FILTERS = {
       return { long: ok, short: ok };
     },
   },
+  structure: {
+    label: "Structure (hauts/bas)",
+    desc: "N'autorise l'achat que si la structure est haussière (sommets ET creux croissants), la vente que si elle est baissière. Les swings ne sont pris en compte qu'une fois confirmés — pas de vision rétroactive.",
+    defaultParams: { lookback: 3 },
+    paramDefs: [{ key: "lookback", label: "Bougies de confirmation", min: 2, max: 10, step: 1 }],
+    fn: (candles, p) => { const s = structureMasks(candles, p.lookback); return { long: s.up, short: s.down }; },
+  },
+  channel: {
+    label: "Canal de tendance",
+    desc: "Régression linéaire sur N bougies : n'autorise l'entrée que si le prix suit un canal orienté dans le sens du trade. Le R² minimum écarte les cas où l'on force un canal sur du bruit.",
+    defaultParams: { period: 60, minR2: 40, minSlopeAtr: 0.02 },
+    paramDefs: [
+      { key: "period", label: "Longueur du canal", min: 20, max: 200, step: 10 },
+      { key: "minR2", label: "Qualité minimale (R²)", min: 10, max: 90, step: 5 },
+    ],
+    fn: (candles, p) => { const ch = channelMasks(candles, p.period, p.minR2, p.minSlopeAtr ?? 0.02); return { long: ch.up, short: ch.down }; },
+  },
+  fvg: {
+    label: "Fair Value Gap (SMC)",
+    desc: "N'autorise l'entrée que si un déséquilibre non comblé existe dans le sens du trade. Définition mécanique stricte : vide entre l'extrême de la 1re et de la 3e bougie d'un triplet, actif tant que le prix ne l'a pas rempli.",
+    defaultParams: { maxAgeBars: 50 },
+    paramDefs: [{ key: "maxAgeBars", label: "Durée de vie du gap (bougies)", min: 10, max: 200, step: 10 }],
+    fn: (candles, p) => { const f = fvgMasks(candles, p.maxAgeBars); return { long: f.bull, short: f.bear }; },
+  },
+  order_block: {
+    label: "Order Block (SMC)",
+    desc: "N'autorise l'entrée que lors d'un retest de zone d'accumulation : dernière bougie opposée avant une impulsion supérieure à X fois l'ATR. Version mécanique — les tracés SMC manuels peuvent différer.",
+    defaultParams: { impulseAtrMult: 1.5, maxAgeBars: 80 },
+    paramDefs: [
+      { key: "impulseAtrMult", label: "Force de l'impulsion (× ATR)", min: 0.5, max: 4, step: 0.1 },
+      { key: "maxAgeBars", label: "Durée de vie de la zone", min: 20, max: 200, step: 10 },
+    ],
+    fn: (candles, p) => { const o = orderBlockMasks(candles, p.impulseAtrMult, p.maxAgeBars); return { long: o.bull, short: o.bear }; },
+  },
+  volatility_regime: {
+    label: "Régime de volatilité",
+    desc: "Compare la volatilité courte à la volatilité longue. Permet de n'entrer qu'en expansion (volatilité qui s'accélère) ou qu'en contraction, selon ce que la stratégie exploite.",
+    defaultParams: { fast: 14, slow: 50, mode: 1, ratio: 110 },
+    paramDefs: [
+      { key: "fast", label: "ATR court", min: 5, max: 30, step: 1 },
+      { key: "slow", label: "ATR long", min: 20, max: 120, step: 5 },
+      { key: "ratio", label: "Seuil du ratio (%)", min: 60, max: 180, step: 5 },
+      { key: "mode", label: "1 = expansion, 0 = contraction", min: 0, max: 1, step: 1 },
+    ],
+    fn: (candles, p) => {
+      const a1 = computeATR(candles, p.fast), a2 = computeATR(candles, p.slow);
+      const ok = candles.map((_, i) => {
+        if (a1[i] == null || a2[i] == null || a2[i] === 0) return false;
+        const r = (a1[i] / a2[i]) * 100;
+        return p.mode >= 1 ? r >= p.ratio : r <= p.ratio;
+      });
+      return { long: ok, short: ok };
+    },
+  },
   stoch_zone: {
     label: "Zone Stochastique",
     desc: "Même principe que la zone RSI mais sur le Stochastique, plus réactif sur les petits timeframes.",
@@ -534,6 +588,135 @@ export const CONFLUENCE_FILTERS = {
     },
   },
 };
+
+// ══════════════════════════════════════════════════════════════════
+// DÉTECTIONS STRUCTURELLES — swings, canaux, FVG, order blocks.
+//
+// Note d'honnêteté : les concepts Smart Money (order block, FVG) n'ont PAS de
+// définition universelle — deux traders les tracent différemment. Ce qui est
+// codé ici est une version MÉCANIQUE et stricte, explicitée dans chaque filtre.
+// C'est reproductible et backtestable, mais c'est une interprétation parmi
+// d'autres, assumée comme telle.
+// ══════════════════════════════════════════════════════════════════
+
+// Swings (fractales) : un sommet est un plus-haut entouré de N bougies plus
+// basses de chaque côté. Confirmation décalée de N bougies — c'est la réalité
+// du trading en direct, un swing ne se confirme jamais instantanément.
+function findSwings(candles, lookback = 3) {
+  const n = candles.length;
+  const highs = new Array(n).fill(false), lows = new Array(n).fill(false);
+  for (let i = lookback; i < n - lookback; i++) {
+    let isH = true, isL = true;
+    for (let k = 1; k <= lookback; k++) {
+      if (candles[i][2] <= candles[i - k][2] || candles[i][2] <= candles[i + k][2]) isH = false;
+      if (candles[i][3] >= candles[i - k][3] || candles[i][3] >= candles[i + k][3]) isL = false;
+    }
+    if (isH) highs[i] = true;
+    if (isL) lows[i] = true;
+  }
+  return { highs, lows };
+}
+
+// Structure de marché : sommets et creux croissants (haussier) ou decroissants
+// (baissier). Le masque n'est actif qu'a partir du moment ou le swing est
+// CONFIRME (i + lookback), jamais retroactivement — sinon on utiliserait une
+// information qui n'existait pas encore au moment du trade.
+function structureMasks(candles, lookback = 3) {
+  const n = candles.length;
+  const { highs, lows } = findSwings(candles, lookback);
+  const up = new Array(n).fill(false), down = new Array(n).fill(false);
+  let lastH = null, prevH = null, lastL = null, prevL = null;
+  for (let i = 0; i < n; i++) {
+    const conf = i - lookback;
+    if (conf >= 0) {
+      if (highs[conf]) { prevH = lastH; lastH = candles[conf][2]; }
+      if (lows[conf]) { prevL = lastL; lastL = candles[conf][3]; }
+    }
+    if (lastH != null && prevH != null && lastL != null && prevL != null) {
+      up[i] = lastH > prevH && lastL > prevL;
+      down[i] = lastH < prevH && lastL < prevL;
+    }
+  }
+  return { up, down };
+}
+
+// Fair Value Gap : trois bougies ou le corps central laisse un vide entre
+// l'extreme de la 1re et celui de la 3e. Definition stricte et mecanique.
+// Le masque reste actif tant que le prix n'a pas comble le vide.
+function fvgMasks(candles, maxAgeBars = 50) {
+  const n = candles.length;
+  const bull = new Array(n).fill(false), bear = new Array(n).fill(false);
+  const zones = [];
+  for (let i = 2; i < n; i++) {
+    for (let z = zones.length - 1; z >= 0; z--) {
+      const zn = zones[z];
+      if (i - zn.idx > maxAgeBars) { zones.splice(z, 1); continue; }
+      const comble = zn.dir === "bull" ? candles[i][3] <= zn.low : candles[i][2] >= zn.high;
+      if (comble) zones.splice(z, 1);
+    }
+    if (candles[i][3] > candles[i - 2][2]) zones.push({ dir: "bull", low: candles[i - 2][2], high: candles[i][3], idx: i });
+    if (candles[i][2] < candles[i - 2][3]) zones.push({ dir: "bear", low: candles[i][2], high: candles[i - 2][3], idx: i });
+    bull[i] = zones.some(z => z.dir === "bull");
+    bear[i] = zones.some(z => z.dir === "bear");
+  }
+  return { bull, bear };
+}
+
+// Order Block : derniere bougie de sens oppose avant une impulsion. Version
+// mecanique : bougie baissiere suivie d'une impulsion haussiere depassant son
+// plus-haut d'au moins X fois l'ATR. Le masque s'active au RETEST de la zone.
+function orderBlockMasks(candles, impulseAtrMult = 1.5, maxAgeBars = 80) {
+  const n = candles.length;
+  const atr = computeATR(candles, 14);
+  const bull = new Array(n).fill(false), bear = new Array(n).fill(false);
+  const blocks = [];
+  for (let i = 2; i < n; i++) {
+    if (atr[i] == null) continue;
+    const seuil = atr[i] * impulseAtrMult;
+    const prev = candles[i - 1], cur = candles[i];
+    const prevBear = prev[4] < prev[1], prevBull = prev[4] > prev[1];
+    if (prevBear && (cur[4] - prev[2]) > seuil) blocks.push({ dir: "bull", low: prev[3], high: prev[2], idx: i });
+    if (prevBull && (prev[3] - cur[4]) > seuil) blocks.push({ dir: "bear", low: prev[3], high: prev[2], idx: i });
+    for (let b = blocks.length - 1; b >= 0; b--) if (i - blocks[b].idx > maxAgeBars) blocks.splice(b, 1);
+    // Un order block haussier soutient le prix TANT QUE celui-ci reste au-dessus.
+    // Exiger que le prix soit exactement DANS la zone ne laisserait passer que
+    // les retests profonds (0 signal en pratique quand la stratégie principale
+    // entre sur cassure). On considère donc la zone active tant qu'elle n'est
+    // pas invalidée, avec proximité mesurée en multiples d'ATR.
+    const px = candles[i][4];
+    const near = atr[i] * 6;
+    bull[i] = blocks.some(b => b.dir === "bull" && px >= b.low && px <= b.high + near);
+    bear[i] = blocks.some(b => b.dir === "bear" && px <= b.high && px >= b.low - near);
+  }
+  return { bull, bear };
+}
+
+// Canal de tendance par regression lineaire. La pente donne la direction, le
+// R2 dit si le mouvement est reellement lineaire ou si c'est du bruit qu'on
+// force dans un canal.
+function channelMasks(candles, period = 60, minR2 = 40, minSlopeAtr = 0.02) {
+  const n = candles.length;
+  const up = new Array(n).fill(false), down = new Array(n).fill(false);
+  const atr = computeATR(candles, 14);
+  for (let i = period; i < n; i++) {
+    let sx = 0, sy = 0, sxy = 0, sxx = 0, syy = 0;
+    for (let k = 0; k < period; k++) {
+      const x = k, y = candles[i - period + 1 + k][4];
+      sx += x; sy += y; sxy += x * y; sxx += x * x; syy += y * y;
+    }
+    const den = period * sxx - sx * sx;
+    if (den === 0 || atr[i] == null || atr[i] === 0) continue;
+    const slope = (period * sxy - sx * sy) / den;
+    const num = period * sxy - sx * sy;
+    const denR2 = den * (period * syy - sy * sy);
+    const r2 = denR2 !== 0 ? (num * num) / denR2 * 100 : 0;
+    if (r2 < minR2) continue;
+    const pente = slope / atr[i];
+    if (pente >= minSlopeAtr) up[i] = true;
+    else if (pente <= -minSlopeAtr) down[i] = true;
+  }
+  return { up, down };
+}
 
 export function listConfluenceFilters() {
   return Object.entries(CONFLUENCE_FILTERS).map(([key, v]) => ({
@@ -1483,5 +1666,219 @@ export function analyzeFailure(result, candles, ctx = {}) {
       maeMoyenGagnants: gagnants.length ? +(gagnants.reduce((s, t) => s + t.maeR, 0) / gagnants.length).toFixed(2) : null,
       perdantsPassesEnProfit: perdants.length ? +((perdants.filter(t => t.mfeR >= 1).length / perdants.length) * 100).toFixed(0) : null,
     },
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// OPTIMISEUR DE STRATÉGIE
+//
+// Explore automatiquement des variantes de la configuration courante et
+// propose celles qui tiennent. Trois garde-fous contre le sur-ajustement,
+// sans lesquels un optimiseur ne fait que produire des illusions :
+//
+// 1. VALIDATION OUT-OF-SAMPLE : chaque variante retenue est re-testée sur une
+//    tranche finale jamais utilisée pendant la recherche. C'est ce chiffre qui
+//    est affiché, pas celui de la recherche.
+// 2. ÉCHANTILLON MINIMUM : une variante à 6 trades n'est pas "meilleure",
+//    c'est du bruit. Seuil plancher exigé.
+// 3. ROBUSTESSE DE VOISINAGE : une variante n'est retenue que si ses réglages
+//    VOISINS fonctionnent aussi. Un pic isolé entouré de mauvais résultats est
+//    un accident statistique, pas une découverte.
+// ══════════════════════════════════════════════════════════════════
+
+function scoreVariante(r) {
+  // Score composite : le rendement seul favoriserait les configurations
+  // explosives et fragiles. On pondère par le drawdown et la régularité.
+  if (!r || r.totalTrades < 1) return -Infinity;
+  const pf = r.profitFactor === Infinity ? 3 : (r.profitFactor || 0);
+  const ddPen = 1 + (r.maxDrawdownPct / 12);
+  return (r.totalPct * Math.min(2, pf)) / ddPen;
+}
+
+export async function optimizeStrategy({
+  candles, pair, strategyKey, strategyParams, tpPips, slPips,
+  capital = 25000, riskPct = 1, slippagePips = 0.2,
+  sessionKey = "24h", customHours = null, newsFilterOn = false,
+  mmMode = "fixed", martingaleMultiplier = 2, martingaleMaxSteps = 5,
+  tradeDirection = "both", tradingDays = null, confluence = [],
+  minTrades = 15, maxVariants = 8, onProgress,
+}) {
+  const strategy = STRATEGIES[strategyKey];
+  if (!strategy) throw new Error("Stratégie inconnue: " + strategyKey);
+  if (strategy.isGrid) throw new Error("L'optimiseur ne s'applique pas au Grid Trading.");
+  if (candles.length < 400) throw new Error(`Période trop courte pour optimiser sereinement (${candles.length} bougies, 400 minimum).`);
+
+  // Découpage : 70% pour la recherche, 30% gardés intacts pour la validation
+  const cut = Math.floor(candles.length * 0.7);
+  const search = candles.slice(0, cut);
+  const holdout = candles.slice(cut);
+
+  const commun = {
+    pair, strategyKey, tpPips, slPips, capital, riskPct, slippagePips,
+    sessionKey, customHours, newsFilterOn, mmMode, martingaleMultiplier, martingaleMaxSteps,
+    tradeDirection, tradingDays,
+  };
+  const baseParams = { ...strategy.defaultParams, ...(strategyParams || {}) };
+
+  const essayer = (candlesSet, params, conf) => {
+    try { return runBacktest({ ...commun, candles: candlesSet, strategyParams: params, confluence: conf }); }
+    catch (e) { return null; }
+  };
+
+  // Référence : la configuration actuelle de l'utilisateur
+  const refSearch = essayer(search, baseParams, confluence);
+  const refHold = essayer(holdout, baseParams, confluence);
+
+  const candidats = [];
+  const filtres = Object.keys(CONFLUENCE_FILTERS);
+  let steps = 0;
+  const totalSteps = strategy.paramDefs.length * 4 + filtres.length + 12 + 6;
+  const tick = async (label) => {
+    steps++;
+    if (onProgress) onProgress({ pct: Math.min(99, Math.round((steps / totalSteps) * 100)), label });
+    if (steps % 4 === 0) await new Promise(r => setTimeout(r, 0));
+  };
+
+  // ── Axe 1 : balayage de chaque paramètre de la stratégie ──
+  for (const pd of (strategy.paramDefs || [])) {
+    const cur = baseParams[pd.key] ?? pd.min;
+    const testees = [];
+    for (const f of [0.6, 0.8, 1.25, 1.6]) {
+      let v = Math.round((cur * f) / pd.step) * pd.step;
+      v = Math.max(pd.min, Math.min(pd.max, +v.toFixed(4)));
+      if (v === cur || testees.includes(v)) continue;
+      testees.push(v);
+      const params = { ...baseParams, [pd.key]: v };
+      const r = essayer(search, params, confluence);
+      await tick(pd.label);
+      if (r && r.totalTrades >= minTrades) {
+        candidats.push({ type: "param", params, conf: confluence, score: scoreVariante(r), search: r,
+          desc: `${pd.label} : ${cur} → ${v}`, cle: pd.key, valeur: v });
+      }
+    }
+  }
+
+  // ── Axe 2 : ajout d'un filtre de confluence ──
+  for (const fk of filtres) {
+    if (confluence.some(x => x.key === fk)) continue;
+    const conf = [...confluence, { key: fk, params: { ...CONFLUENCE_FILTERS[fk].defaultParams } }];
+    const r = essayer(search, baseParams, conf);
+    await tick("Filtres");
+    if (r && r.totalTrades >= minTrades) {
+      candidats.push({ type: "filtre", params: baseParams, conf, score: scoreVariante(r), search: r,
+        desc: `Ajouter le filtre « ${CONFLUENCE_FILTERS[fk].label} »` });
+    }
+  }
+
+  // ── Axe 3 : retrait d'un filtre existant (parfois un filtre nuit) ──
+  for (let i = 0; i < confluence.length; i++) {
+    const conf = confluence.filter((_, k) => k !== i);
+    const r = essayer(search, baseParams, conf);
+    await tick("Filtres");
+    if (r && r.totalTrades >= minTrades) {
+      candidats.push({ type: "filtre", params: baseParams, conf, score: scoreVariante(r), search: r,
+        desc: `Retirer le filtre « ${CONFLUENCE_FILTERS[confluence[i].key]?.label || confluence[i].key} »` });
+    }
+  }
+
+  // ── Axe 4 : rapport TP/SL (hors stratégies à stop dynamique) ──
+  if (!strategy.dynamicSL) {
+    for (const [t, s, lbl] of [[tpPips * 1.5, slPips, "TP élargi"], [tpPips, slPips * 0.7, "SL resserré"],
+                               [tpPips * 2, slPips, "TP doublé"], [tpPips * 0.7, slPips, "TP resserré"]]) {
+      const r = essayer(search, baseParams, confluence);
+      const rr = (() => { try { return runBacktest({ ...commun, candles: search, tpPips: Math.round(t), slPips: Math.round(s), strategyParams: baseParams, confluence }); } catch (e) { return null; } })();
+      await tick("TP / SL");
+      if (rr && rr.totalTrades >= minTrades) {
+        candidats.push({ type: "tpsl", params: baseParams, conf: confluence, tp: Math.round(t), sl: Math.round(s),
+          score: scoreVariante(rr), search: rr, desc: `${lbl} : TP ${Math.round(t)} / SL ${Math.round(s)} (R ${(t / s).toFixed(2)})` });
+      }
+    }
+  } else {
+    for (const rm of [1.5, 2.5, 3]) {
+      if (rm === baseParams.rMultiple) continue;
+      const params = { ...baseParams, rMultiple: rm };
+      const r = essayer(search, params, confluence);
+      await tick("Objectif");
+      if (r && r.totalTrades >= minTrades) {
+        candidats.push({ type: "param", params, conf: confluence, score: scoreVariante(r), search: r,
+          desc: `Take Profit : ${baseParams.rMultiple}R → ${rm}R`, cle: "rMultiple", valeur: rm });
+      }
+    }
+  }
+
+  // ── Axe 5 : sens des positions ──
+  for (const dir of ["buy", "sell"]) {
+    if (dir === tradeDirection) continue;
+    const rr = (() => { try { return runBacktest({ ...commun, tradeDirection: dir, candles: search, strategyParams: baseParams, confluence }); } catch (e) { return null; } })();
+    await tick("Sens");
+    if (rr && rr.totalTrades >= Math.max(8, minTrades * 0.6)) {
+      candidats.push({ type: "direction", params: baseParams, conf: confluence, direction: dir, score: scoreVariante(rr),
+        search: rr, desc: dir === "buy" ? "Achat uniquement" : "Vente uniquement" });
+    }
+  }
+
+  // ── Sélection + validation sur la tranche intacte ──
+  candidats.sort((a, b) => b.score - a.score);
+  const retenus = [];
+  for (const cand of candidats) {
+    if (retenus.length >= maxVariants) break;
+    if (retenus.some(r => r.desc === cand.desc)) continue;
+
+    const holdRun = (() => {
+      try {
+        return runBacktest({
+          ...commun, candles: holdout, strategyParams: cand.params, confluence: cand.conf,
+          ...(cand.tp ? { tpPips: cand.tp, slPips: cand.sl } : {}),
+          ...(cand.direction ? { tradeDirection: cand.direction } : {}),
+        });
+      } catch (e) { return null; }
+    })();
+    if (!holdRun) continue;
+
+    // Robustesse de voisinage : pour une variante de paramètre, on vérifie que
+    // les valeurs adjacentes tiennent aussi. Un optimum isolé est un accident.
+    let voisinage = null;
+    if (cand.type === "param" && cand.cle) {
+      const pd = (strategy.paramDefs || []).find(x => x.key === cand.cle);
+      if (pd) {
+        const vals = [cand.valeur - pd.step, cand.valeur + pd.step]
+          .map(v => Math.max(pd.min, Math.min(pd.max, +v.toFixed(4))));
+        const scores = vals.map(v => {
+          const r = essayer(search, { ...cand.params, [cand.cle]: v }, cand.conf);
+          return r ? scoreVariante(r) : -Infinity;
+        });
+        const bons = scores.filter(s => s > 0).length;
+        voisinage = bons === 2 ? "stable" : bons === 1 ? "moyen" : "isolé";
+      }
+    }
+    await tick("Validation");
+
+    retenus.push({
+      desc: cand.desc, type: cand.type,
+      searchPct: cand.search.totalPct, searchTrades: cand.search.totalTrades,
+      holdPct: holdRun.totalPct, holdTrades: holdRun.totalTrades,
+      holdPF: holdRun.profitFactor, holdWR: holdRun.winrate, holdDD: holdRun.maxDrawdownPct,
+      voisinage,
+      // Une variante n'est "validée" que si elle tient AUSSI hors de la zone de
+      // recherche, avec assez de trades pour que ça veuille dire quelque chose.
+      validee: holdRun.totalPct > (refHold?.totalPct ?? -Infinity) && holdRun.totalTrades >= Math.max(5, minTrades * 0.4),
+      config: {
+        params: cand.params, confluence: cand.conf,
+        ...(cand.tp ? { tpPips: cand.tp, slPips: cand.sl } : {}),
+        ...(cand.direction ? { tradeDirection: cand.direction } : {}),
+      },
+    });
+  }
+
+  if (onProgress) onProgress({ pct: 100, label: "Terminé" });
+
+  return {
+    reference: {
+      searchPct: refSearch?.totalPct ?? null, holdPct: refHold?.totalPct ?? null,
+      holdTrades: refHold?.totalTrades ?? 0, holdPF: refHold?.profitFactor ?? null,
+    },
+    variants: retenus,
+    testees: candidats.length,
+    searchBars: search.length, holdoutBars: holdout.length,
   };
 }
