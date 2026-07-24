@@ -963,6 +963,7 @@ export function runBacktest({
   mmMode = "fixed", martingaleMultiplier = 2, martingaleMaxSteps = 5,
   tradeDirection = "both", customHours = null,
   tradingDays = null, confluence = [],
+  ruinThreshold = 0.2, // compte considéré perdu sous 20% du capital initial
 }) {
   const strategy = STRATEGIES[strategyKey];
   if (!strategy) throw new Error("Stratégie inconnue: " + strategyKey);
@@ -998,7 +999,8 @@ export function runBacktest({
   const trades = [];
   let inTrade = null;
   let equity = capital;
-  let martingaleStep = 0; // nombre de pertes consécutives dans le cycle martingale courant
+  let martingaleStep = 0;
+  let ruined = false, ruinedAtIdx = null; // nombre de pertes consécutives dans le cycle martingale courant
 
   for (let i = 0; i < candles.length; i++) {
     const [ts, , high, low, close] = candles[i];
@@ -1019,6 +1021,12 @@ export function runBacktest({
         const pnlUSD = +(pipsNet * dollarPerPip).toFixed(2);
         equity += pnlUSD;
         trades.push({ entryIdx, exitIdx: i, dir, entryPrice, exitPrice: win ? tp : sl, pips: +pipsNet.toFixed(2), pnlUSD, win, duration: i - entryIdx, entryTs: candles[entryIdx][0], martingaleStep });
+        // RUINE : en réel, un compte n'est jamais laissé descendre indéfiniment —
+        // le broker liquide, la prop firm ferme le compte. Sans cet arrêt, le
+        // moteur continuait de trader avec des positions toujours plus petites
+        // (le risque étant un % du capital courant), produisant une courbe qui
+        // rampe vers zéro sur des centaines de trades qui n'auraient jamais eu lieu.
+        if (equity <= capital * ruinThreshold) { ruined = true; ruinedAtIdx = i; inTrade = null; break; }
         // Martingale : perte -> incrémente le step (mise suivante plus grosse) ; gain -> reset du cycle
         if (mmMode === "martingale") martingaleStep = win ? 0 : Math.min(martingaleMaxSteps, martingaleStep + 1);
         inTrade = null;
@@ -1135,6 +1143,7 @@ export function runBacktest({
   return {
     strategyLabel: strategy.label,
     paramsUsed: params,
+    ruined, ruinedAtDate: ruinedAtIdx != null ? candles[ruinedAtIdx][0] : null,
     filtersUsed: { tradeDirection, sessionKey, customHours, newsFilterOn, tradingDays, confluence: activeFilters.map(f => ({ key: f.key, label: f.label, params: f.params })) },
     totalTrades: trades.length,
     wins, losses, winrate: +winrate.toFixed(1),
@@ -1861,7 +1870,18 @@ export async function optimizeStrategy({
       voisinage,
       // Une variante n'est "validée" que si elle tient AUSSI hors de la zone de
       // recherche, avec assez de trades pour que ça veuille dire quelque chose.
-      validee: holdRun.totalPct > (refHold?.totalPct ?? -Infinity) && holdRun.totalTrades >= Math.max(5, minTrades * 0.4),
+      // Une variante n'est "validée" que si elle est RÉELLEMENT bonne dans
+      // l'absolu, pas seulement meilleure qu'une référence catastrophique :
+      // exiger uniquement "mieux que la config actuelle" badgeait en vert des
+      // variantes à -34 % dès lors que la référence perdait 99 %.
+      validee: holdRun.totalPct > 0
+        && holdRun.profitFactor >= 1.1
+        && holdRun.totalPct > (refHold?.totalPct ?? -Infinity)
+        && holdRun.totalTrades >= Math.max(5, minTrades * 0.4)
+        && !holdRun.ruined,
+      // Distinct : simplement moins mauvais que la config actuelle
+      ameliore: holdRun.totalPct > (refHold?.totalPct ?? -Infinity),
+      ruined: !!holdRun.ruined,
       config: {
         params: cand.params, confluence: cand.conf,
         ...(cand.tp ? { tpPips: cand.tp, slPips: cand.sl } : {}),

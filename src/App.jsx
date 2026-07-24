@@ -3907,6 +3907,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
   const [optResult, setOptResult] = useState(null);
   const [optRunning, setOptRunning] = useState(false);
   const [optProgress, setOptProgress] = useState(null);
+  const [varianteAppliquee, setVarianteAppliquee] = useState(null);
   const [history, setHistory] = useState(() => { try { return JSON.parse(localStorage.getItem("eapropfirm_backtest_history") || "[]"); } catch (e) { return []; } });
   const [showHistory, setShowHistory] = useState(false);
   const [tipIdx, setTipIdx] = useState(0);
@@ -4071,6 +4072,23 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
     setRunning(false);
   };
 
+  // Applique une variante proposée par l'optimiseur à la configuration courante.
+  // Chaque variante porte l'intégralité de sa config (params, filtres, TP/SL,
+  // sens) : on remplace donc l'existant plutôt que de fusionner, sinon on
+  // obtiendrait un mélange qui n'a jamais été testé.
+  const appliquerVariante = (v) => {
+    const cfg = v.config || {};
+    if (cfg.params) setStrategyParams({ ...cfg.params });
+    if (Array.isArray(cfg.confluence)) setConfluence(cfg.confluence.map(f => ({ key: f.key, params: { ...(f.params || {}) } })));
+    if (cfg.tpPips != null) setTpPips(cfg.tpPips);
+    if (cfg.slPips != null) setSlPips(cfg.slPips);
+    if (cfg.tradeDirection) setTradeDirection(cfg.tradeDirection);
+    setResult(null); setScore(null); setAutopsy(null); setShowAutopsy(false); setOptResult(null);
+    setVarianteAppliquee(v.desc);
+    setTimeout(() => setVarianteAppliquee(null), 3500);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const archiveResult = () => {
     if (!result || result.error) return;
     const entry = {
@@ -4160,7 +4178,8 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
 
       {/* ══ ZONE FIGÉE : courbe + bouton (le reste défile dessous) ══ */}
       <div style={{
-        position: "sticky", top: 0, zIndex: 40,
+        // Se cale juste sous la barre de bascule (hauteur mesurée : ~54px)
+        position: "sticky", top: 54, zIndex: 40,
         background: "#06090f",
         marginLeft: -16, marginRight: -16, paddingLeft: 6, paddingRight: 6,
         paddingTop: 8, paddingBottom: 10,
@@ -4259,10 +4278,27 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
         </div>
       )}
 
+      {varianteAppliquee && (
+        <div style={{
+          background: "rgba(110,231,183,0.1)", border: "1px solid " + ACCENT + "55", borderRadius: 12,
+          padding: "11px 13px", marginTop: 12, fontSize: 11, color: ACCENT, lineHeight: 1.5, fontWeight: 700,
+        }}>
+          ✓ Configuration appliquée : {varianteAppliquee}. Relance le backtest pour voir le résultat complet sur toute la période.
+        </div>
+      )}
+
       {/* ══ RÉSULTATS CHIFFRÉS ══ */}
       {result && !result.error && result.totalTrades > 0 && !result.isWalkForward && (
         <div className="card" style={{ marginTop: 12 }}>
           <SectionHeader n="1" title="Résultats" />
+          {result.ruined && (
+            <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.35)", borderRadius: 11, padding: 11, marginBottom: 10 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 800, color: "#ef4444", marginBottom: 4 }}>🛑 Compte ruiné en cours de période</div>
+              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
+                Le capital est tombé sous 20% de sa valeur initiale le {result.ruinedAtDate ? new Date(result.ruinedAtDate).toLocaleDateString() : ""}. Le backtest s'arrête là : en réel, le compte aurait été fermé bien avant. Les chiffres ci-dessous ne couvrent que la période jusqu'à cet instant.
+              </div>
+            </div>
+          )}
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8 }}>
             {(result.isGridResult ? [
               { l: "Gain net", v: (result.totalUSD >= 0 ? "+$" : "-$") + Math.abs(result.totalUSD).toLocaleString(), sub: (result.totalPct >= 0 ? "+" : "") + result.totalPct + "%", c: result.totalUSD >= 0 ? ACCENT : "#ef4444" },
@@ -4970,7 +5006,11 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
                         <div style={{ fontSize: 11.5, fontWeight: 800, color: "#fff", flex: 1, minWidth: 0 }}>{v.desc}</div>
                         {v.validee
                           ? <span style={{ fontSize: 9, fontWeight: 800, color: "#000", background: ACCENT, borderRadius: 100, padding: "2px 7px", flexShrink: 0, height: "fit-content" }}>VALIDÉE</span>
-                          : <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>non validée</span>}
+                          : v.ruined
+                            ? <span style={{ fontSize: 9, fontWeight: 800, color: "#ef4444", flexShrink: 0 }}>COMPTE RUINÉ</span>
+                            : v.ameliore
+                              ? <span style={{ fontSize: 9, fontWeight: 700, color: "#fbbf24", flexShrink: 0, textAlign: "right", lineHeight: 1.3 }}>moins mauvais<br />mais perdante</span>
+                              : <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>non retenue</span>}
                       </div>
                       <div style={{ display: "flex", gap: 12, fontSize: 10, flexWrap: "wrap" }}>
                         <span style={{ color: "rgba(255,255,255,0.35)" }}>recherche {v.searchPct}%</span>
@@ -4982,6 +5022,13 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
                           Voisinage {v.voisinage}{v.voisinage === "isolé" ? " — réglage fragile, probablement un hasard" : v.voisinage === "stable" ? " — les réglages proches fonctionnent aussi" : ""}
                         </div>
                       )}
+                      <button onClick={() => appliquerVariante(v)} style={{
+                        width: "100%", marginTop: 8, padding: "9px", borderRadius: 9, cursor: "pointer",
+                        border: "1px solid " + (v.validee ? ACCENT + "66" : "rgba(255,255,255,0.14)"),
+                        background: v.validee ? ACCENT + "18" : "transparent",
+                        color: v.validee ? ACCENT : "rgba(255,255,255,0.55)",
+                        fontSize: 10.5, fontWeight: 800,
+                      }}>Appliquer cette configuration</button>
                     </div>
                   ))}
                   <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", lineHeight: 1.45, marginTop: 6 }}>
@@ -9762,7 +9809,13 @@ function TradesHubTab(props) {
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, border: "1px solid rgba(255,255,255,0.08)", marginBottom: 12 }}>
+      <div style={{
+        display: "flex", gap: 4, background: "#0b0f16", borderRadius: 12, padding: 4,
+        border: "1px solid rgba(255,255,255,0.08)", marginBottom: 12,
+        // Figée en haut, AU-DESSUS de la zone courbe (z-index supérieur) : les
+        // deux blocs sticky s'empilent, la barre reste toujours atteignable.
+        position: "sticky", top: 0, zIndex: 50,
+      }}>
         {[
           { id: "realtime", label: "Backtest Réel" },
           { id: "historique", label: "Backtest Historique" },
