@@ -11411,21 +11411,35 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
               : "Mois " + selectedMonth + " - simulation jour par jour"}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-          <button onClick={() => setSelectedMonth(Math.max(1, selectedMonth - 1))}
-            disabled={selectedMonth <= 1}
-            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: selectedMonth <= 1 ? "rgba(255,255,255,0.2)" : "#6ee7b7", width: 32, height: 32, fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
-            ‹
-          </button>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7", minWidth: 60, textAlign: "center" }}>
-            M{selectedMonth}/{months.length}
-          </span>
-          <button onClick={() => setSelectedMonth(Math.min(months.length, selectedMonth + 1))}
-            disabled={selectedMonth >= months.length}
-            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: selectedMonth >= months.length ? "rgba(255,255,255,0.2)" : "#6ee7b7", width: 32, height: 32, fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
-            ›
-          </button>
-        </div>
+        {/* En mode journal, la navigation reelle se fait via le selecteur de mois
+            externe (input type=month, au-dessus du calendrier) — ce pill interne
+            affichait "M1/1" en permanence (selectedMonth et months.length valent
+            TOUJOURS 1 dans ce mode : `months = [selectedMonth]`), avec des fleches
+            desactivees en permanence. Un controle mort et illisible, redondant
+            avec le vrai selecteur. Remplace par le vrai nom du mois, sans fleches. */}
+        {journalMode ? (
+          calDateMatch && (
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>
+              {["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"][calMonth - 1]} {calYear}
+            </span>
+          )
+        ) : (
+          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            <button onClick={() => setSelectedMonth(Math.max(1, selectedMonth - 1))}
+              disabled={selectedMonth <= 1}
+              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: selectedMonth <= 1 ? "rgba(255,255,255,0.2)" : "#6ee7b7", width: 32, height: 32, fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
+              ‹
+            </button>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7", minWidth: 60, textAlign: "center" }}>
+              M{selectedMonth}/{months.length}
+            </span>
+            <button onClick={() => setSelectedMonth(Math.min(months.length, selectedMonth + 1))}
+              disabled={selectedMonth >= months.length}
+              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: selectedMonth >= months.length ? "rgba(255,255,255,0.2)" : "#6ee7b7", width: 32, height: 32, fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
+              ›
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Stats resume */}
@@ -13282,14 +13296,19 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
   const ls = lastSim || {};
   const cap = ls.capital || profile.capital || 25000;
 
-  // ── Courbe equity journal : cumul mensuel depuis le capital de référence (compte sélectionné uniquement) ──
-  // DOIT être après cap — utilise cap comme point de départ
+  // ── Courbe equity journal : cumul mensuel depuis le CAPITAL RÉEL DU COMPTE sélectionné ──
+  // BUG CORRIGÉ : utilisait "cap" (= dernier capital configuré dans le Simulateur)
+  // au lieu de "principalCapital" (= capital réellement alloué au compte de journal
+  // sélectionné). Deux comptes journal différents avec des capitaux différents
+  // affichaient tous les deux une courbe partant du MÊME capital simulateur —
+  // incohérent avec l'argent réellement en jeu sur ce compte.
+  // DOIT être après principalCapital — utilise principalCapital comme point de départ
   const journalAllForSelectedAccount = filterJournalByAccount(journalAll, dashSelectedAccountId);
   const journalEquityCurve = (() => {
     if (!journalAllForSelectedAccount || Object.keys(journalAllForSelectedAccount).length === 0) return null;
     const sortedMonths = Object.keys(journalAllForSelectedAccount).sort();
     if (sortedMonths.length === 0) return null;
-    let equity = cap;
+    let equity = principalCapital;
     return sortedMonths.map((monthKey, idx) => {
       const days = journalAllForSelectedAccount[monthKey] || {};
       const monthPnl = Object.values(days).reduce((sum, d) => sum + (d.pnl || 0), 0);
@@ -13326,8 +13345,8 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
 
   const monthlyChartData = (() => {
     const result = [];
-    let simEquity = cap;
-    let journalEquity = cap;
+    let simEquity = cap; // capital du Simulateur — légitime, c'est CETTE courbe qui compare à la simulation
+    let journalEquity = principalCapital; // capital RÉEL du compte journal sélectionné — corrigé (voir plus haut)
 
     for (let day = 1; day <= chartEndDay; day++) {
       // Simulation : trouver le jour correspondant (dayOfMonth)
@@ -13865,7 +13884,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
                 formatter={(v,name)=>[fmt(v),name==="journalEquity"?"Journal réel":name==="simEquity"?"Simulation":name]}
                 contentStyle={{background:"rgba(10,12,22,0.97)",border:"1px solid rgba(110,231,183,0.15)",borderRadius:12,fontSize:11}}
               />
-              <ReferenceLine y={cap} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 2"/>
+              <ReferenceLine y={monthlyPrimaryIsJournal ? principalCapital : cap} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 2"/>
               {/* ── Cas 1 : journalMode actif → Journal principal (vert Area) + Sim secondaire (amber pointillé) ── */}
               {monthlyPrimaryIsJournal && monthlyHasJournal && (
                 <Area type="monotone" dataKey="journalEquity" stroke="#6ee7b7" strokeWidth={2.5} fill="url(#grad-journal-monthly)" dot={false} name="journalEquity" connectNulls={true}/>
