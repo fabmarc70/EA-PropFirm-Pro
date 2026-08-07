@@ -11200,7 +11200,7 @@ function compressImage(file, maxDim = 900, quality = 0.72) {
   });
 }
 
-function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, newsSkipDays = 0, activeDays = [1,2,3,4,5], t = (k) => k, lang = "fr", realMode = false, accounts = null, accountLabel = null, activeAccountId = null, journalLocked = false, onJournalLocked = null }) {
+function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, journalMonthKey = null, newsSkipDays = 0, activeDays = [1,2,3,4,5], t = (k) => k, lang = "fr", realMode = false, accounts = null, accountLabel = null, activeAccountId = null, journalLocked = false, onJournalLocked = null }) {
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [editingDay, setEditingDay] = useState(null); // jour en cours d'édition (mode journal)
   const [formWins, setFormWins] = useState(0);
@@ -11247,8 +11247,18 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
   const worstDay = statsSource.length ? Math.min(...statsSource.map(d => d.pnl || 0)) : 0;
 
   // ── Vrai positionnement calendaire ──
-  // Extrait année/mois via regex YYYY-MM présente dans journalMonthLabel (ou la prop moisStr des modes simulation/backtest)
-  const calDateMatch = (journalMonthLabel || "").match(/(\d{4})-(\d{2})/);
+  // BUG CORRIGE : journalMonthLabel est un texte D'AFFICHAGE ("Août 2026"), pas
+  // une donnée fiable — certains appelants y injectent le AAAA-MM brut (le regex
+  // marchait par accident), d'autres un texte déjà formaté en toutes lettres
+  // (le regex ne matchait JAMAIS, silencieusement). Résultat : le calendrier
+  // retombait sur le mois RÉEL actuel, quel que soit le mois réellement navigué
+  // par l'utilisateur — mauvais jour de la semaine pour tous les mois sauf le
+  // mois en cours. journalMonthKey est désormais la source de vérité explicite
+  // ("2026-08"), le regex sur le label ne sert plus que de repli pour d'anciens
+  // appelants qui ne fournissent pas encore cette prop.
+  const calDateMatch = journalMonthKey
+    ? journalMonthKey.match(/(\d{4})-(\d{2})/)
+    : (journalMonthLabel || "").match(/(\d{4})-(\d{2})/);
   const calYear = calDateMatch ? parseInt(calDateMatch[1]) : new Date().getFullYear();
   const calMonth = calDateMatch ? parseInt(calDateMatch[2]) : new Date().getMonth() + 1;
   // Nombre réel de jours dans le mois (28/29/30/31)
@@ -13782,6 +13792,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
               journalData={journalMonthDataForSelectedAccount}
               onJournalSave={saveJournalEntry}
               journalMonthLabel={t("cal_click_day") + " · " + journalMonth}
+              journalMonthKey={journalMonth}
               accounts={activeJournalAccounts}
               accountLabel={journalAccountLabel}
               activeAccountId={dashSelectedAccountId}
@@ -14500,7 +14511,22 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
   // ── Compte actif du Journal — chaque compte = une session de journal totalement indépendante ──
   const activeAccounts = accounts.filter(a => !a.archived);
   const archivedAccounts = accounts.filter(a => a.archived);
-  const [selectedAccountId, setSelectedAccountId] = useState(() => (activeAccounts[0] || accounts[0])?.id || "default");
+  // BUG CORRIGE : aucune persistance -> a chaque remontage de l'ecran (navigation,
+  // rechargement de l'app), la selection retombait TOUJOURS sur le premier compte
+  // du tableau, meme si l'utilisateur avait choisi un autre compte (ex: "memecoin").
+  // Le capital affiche redevenait alors celui du compte par defaut sans que rien
+  // n'ait ete configure de travers.
+  const [selectedAccountId, setSelectedAccountIdRaw] = useState(() => {
+    try {
+      const saved = localStorage.getItem("eapropfirm_journal_selected_account");
+      if (saved) return saved;
+    } catch (e) {}
+    return (activeAccounts[0] || accounts[0])?.id || "default";
+  });
+  const setSelectedAccountId = (id) => {
+    setSelectedAccountIdRaw(id);
+    try { localStorage.setItem("eapropfirm_journal_selected_account", id); } catch (e) {}
+  };
   useEffect(() => {
     // Si le compte sélectionné a été supprimé/archivé entre deux rendus, retomber sur le premier compte actif disponible
     if (!activeAccounts.find(a => a.id === selectedAccountId)) {
@@ -14780,6 +14806,7 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
             journalData={journalMonthDataFiltered}
             onJournalSave={saveJournalEntry}
             journalMonthLabel={t("cal_click_day") + " · " + formatMonthLabel(journalMonth, lang)}
+            journalMonthKey={journalMonth}
             accounts={activeAccounts}
             accountLabel={accountLabel}
             activeAccountId={selectedAccountId}
