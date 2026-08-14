@@ -11118,6 +11118,134 @@ function useJournal() {
 // customName (texte libre), color }. Stocké localement, indépendant
 // des entrées de jour (qui référencent juste un accountId).
 // ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// PLAN DE TRADING — un jeu de règles + limites numériques par compte,
+// épinglé en haut du journal (inspiré du "Trade Plan" d'EdgeFlo, mais
+// sans exécution live : c'est un garde-fou déclaratif que l'utilisateur
+// définit une fois, comparé ensuite à ce qu'il saisit réellement).
+// ══════════════════════════════════════════════════════════════════
+function useTradingPlan(accountId) {
+  const key = "eapropfirm_trading_plan_" + (accountId || "default");
+  const [plan, setPlanRaw] = useState(() => {
+    try {
+      const r = localStorage.getItem(key);
+      if (r) return JSON.parse(r);
+    } catch (e) {}
+    return { rules: [], maxDailyLossPct: 5, maxTradesPerDay: 6, riskPerTradePct: 1 };
+  });
+  // Recharge si le compte actif change (chaque compte a son propre plan)
+  useEffect(() => {
+    try {
+      const r = localStorage.getItem(key);
+      setPlanRaw(r ? JSON.parse(r) : { rules: [], maxDailyLossPct: 5, maxTradesPerDay: 6, riskPerTradePct: 1 });
+    } catch (e) {
+      setPlanRaw({ rules: [], maxDailyLossPct: 5, maxTradesPerDay: 6, riskPerTradePct: 1 });
+    }
+  }, [accountId]);
+  const setPlan = (next) => {
+    setPlanRaw(next);
+    try { localStorage.setItem(key, JSON.stringify(next)); } catch (e) {}
+  };
+  return [plan, setPlan];
+}
+
+// ── Statut des garde-fous : croise le plan (ou à défaut les règles réelles de
+// la prop firm si le compte y est rattaché) avec ce qui a été réellement saisi
+// aujourd'hui et ce mois-ci. Purement informatif — pas de blocage d'exécution
+// possible ici puisqu'il n'y a pas de connexion broker live, contrairement à
+// EdgeFlo. C'est un avertissement a posteriori, pas une prévention en direct.
+function computeGuardrailStatus({ plan, firmModel, effectiveCapital, monthEntries, todayEntry }) {
+  const dailyLimitPct = firmModel ? firmModel.dailyDD * 100 : (plan?.maxDailyLossPct ?? 5);
+  const totalLimitPct = firmModel ? firmModel.totalDD * 100 : null;
+  const maxTrades = plan?.maxTradesPerDay ?? 6;
+
+  // Perte du jour en cours de saisie, en % du capital
+  const todayPnl = todayEntry?.pnl || 0;
+  const todayLossPct = todayPnl < 0 && effectiveCapital > 0 ? (Math.abs(todayPnl) / effectiveCapital) * 100 : 0;
+  const todayTrades = (todayEntry?.wins || 0) + (todayEntry?.losses || 0);
+
+  // Drawdown du mois (pic -> creux), à partir des jours déjà enregistrés
+  let running = effectiveCapital, peak = effectiveCapital, maxDD = 0;
+  const days = Object.keys(monthEntries || {}).map(Number).sort((a, b) => a - b);
+  days.forEach(d => {
+    running += (monthEntries[String(d)]?.pnl || 0);
+    peak = Math.max(peak, running);
+    maxDD = Math.max(maxDD, peak > 0 ? ((peak - running) / peak) * 100 : 0);
+  });
+
+  return {
+    dailyLimitPct, totalLimitPct, maxTrades,
+    todayLossPct: +todayLossPct.toFixed(2), todayTrades,
+    monthDrawdownPct: +maxDD.toFixed(2),
+    dailyBreached: todayLossPct >= dailyLimitPct,
+    dailyNear: todayLossPct >= dailyLimitPct * 0.7 && todayLossPct < dailyLimitPct,
+    totalBreached: totalLimitPct != null && maxDD >= totalLimitPct,
+    totalNear: totalLimitPct != null && maxDD >= totalLimitPct * 0.7 && maxDD < totalLimitPct,
+    tradesOver: todayTrades > maxTrades,
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DÉTECTION DE PATTERNS DANS LES NOTES — pas d'IA/API ici : un simple
+// comptage de familles de mots-clés récurrentes à travers les notes libres
+// du journal, façon "grep intelligent". Inspiré du rapport IA hebdomadaire
+// d'EdgeFlo (qui lit les notes vocales transcrites pour repérer des phrases
+// répétées comme "je voulais récupérer ma perte" = revenge trading), en
+// version 100% locale et déterministe — aucune donnée envoyée nulle part.
+// ══════════════════════════════════════════════════════════════════
+const NOTE_PATTERNS = [
+  { key: "revenge", label: "Revenge trading", keywords: ["récupérer", "recuperer", "rattraper", "me refaire", "revanche", "reprendre ma perte"] },
+  { key: "fomo", label: "FOMO", keywords: ["fomo", "peur de rater", "tout le monde", "j'ai raté", "j'ai rate", "manqué le mouvement"] },
+  { key: "impulsif", label: "Trade impulsif", keywords: ["sans réfléchir", "sans reflechir", "impulsif", "coup de tête", "coup de tete", "sur un coup de tête"] },
+  { key: "stop", label: "Stop non respecté", keywords: ["annulé mon stop", "annule mon stop", "déplacé mon stop", "deplace mon stop", "pas mis de stop", "sans stop", "retiré le stop"] },
+  { key: "fatigue", label: "Fatigue / état mental", keywords: ["fatigue", "fatigué", "fatigue", "épuisé", "epuise", "pas dormi", "stressé", "stresse"] },
+  { key: "surtrading", label: "Sur-trading", keywords: ["trop tradé", "trop trade", "encore un trade", "un dernier trade", "un de plus"] },
+];
+
+function detectJournalPatterns(journalRaw) {
+  const notedDays = [];
+  Object.entries(journalRaw || {}).forEach(([mk, days]) => {
+    Object.entries(days || {}).forEach(([d, e]) => {
+      if (e && e.notes && e.notes.trim()) {
+        notedDays.push({ date: `${mk}-${d.padStart(2, "0")}`, notes: e.notes.toLowerCase(), pnl: e.pnl || 0 });
+      }
+    });
+  });
+  if (notedDays.length < 3) return { findings: [], notedDaysCount: notedDays.length }; // échantillon trop faible pour dire quoi que ce soit
+
+  const findings = [];
+  NOTE_PATTERNS.forEach(p => {
+    const hits = notedDays.filter(d => p.keywords.some(k => d.notes.includes(k)));
+    if (hits.length >= 2) {
+      const losingHits = hits.filter(d => d.pnl < 0).length;
+      findings.push({
+        key: p.key, label: p.label, count: hits.length,
+        losingCount: losingHits,
+        dates: hits.map(d => d.date),
+      });
+    }
+  });
+  findings.sort((a, b) => b.count - a.count);
+  return { findings, notedDaysCount: notedDays.length };
+}
+
+// Champ d'ajout d'une règle au plan de trading — composant stable au niveau
+// module (l'avoir défini à l'intérieur du rendu de JournalScreen recréerait
+// le composant à chaque frappe et ferait perdre le focus du champ).
+function NewRuleInput({ onAdd }) {
+  const [val, setVal] = useState("");
+  const submit = () => { if (val.trim()) { onAdd(val.trim()); setVal(""); } };
+  return (
+    <div style={{ display: "flex", gap: 6 }}>
+      <input value={val} onChange={e => setVal(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter") submit(); }}
+        placeholder="Ex : jamais plus de 3 trades après une perte"
+        style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12, boxSizing: "border-box" }} />
+      <button onClick={submit} style={{ padding: "0 16px", borderRadius: 8, background: "rgba(110,231,183,0.15)", color: "#6ee7b7", border: "1px solid rgba(110,231,183,0.3)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+</button>
+    </div>
+  );
+}
+
 function useJournalAccounts() {
   const [accounts, setAccounts] = useState(() => {
     try {
@@ -11217,6 +11345,8 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
   const [formRespectRisk, setFormRespectRisk] = useState(true);
   const [formLotIncreaseAfterLoss, setFormLotIncreaseAfterLoss] = useState(false);
   const [formEmotionalTrading, setFormEmotionalTrading] = useState(false);
+  const [formMood, setFormMood] = useState(null); // tag d'émotion rapide (inspiré EdgeFlo, sans note vocale)
+  const [formNotes, setFormNotes] = useState(""); // note libre — sert à la détection de patterns
   const [viewerImg, setViewerImg] = useState(null);
   const [imgLoading, setImgLoading] = useState(false);
   const [imgDateWarn, setImgDateWarn] = useState(null); // alerte doublon potentiel
@@ -11513,6 +11643,8 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 setFormEmotionalTrading(existing ? !!existing.emotionalTrading : false);
                 setFormIntradayDD(existing && existing.intradayDD !== undefined && existing.intradayDD !== null ? String(existing.intradayDD) : "");
                 setFormAccountId(activeAccountId || (accounts && accounts.length ? accounts[0].id : "default"));
+                setFormMood(existing && existing.mood ? existing.mood : null);
+                setFormNotes(existing && existing.notes ? existing.notes : "");
                 setImgDateWarn(null);
               }}
               style={{
@@ -11562,6 +11694,11 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                         <circle cx="9" cy="9" r="1.5" fill="rgba(255,255,255,0.5)"/>
                         <path d="M21 15l-5-5-4 4-3-3-6 6" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
+                    )}
+                    {journalMode && cell.journalEntry && cell.journalEntry.mood && (
+                      <span style={{ fontSize: 8 }}>
+                        {{ calme: "😌", confiant: "💪", anxieux: "😰", fomo: "🎯", revenge: "😤" }[cell.journalEntry.mood]}
+                      </span>
                     )}
                   </div>
                 </>
@@ -11720,6 +11857,50 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
 
               {/* Compte de trading associé à ce jour : déterminé automatiquement par le compte actif de la page (plus de sélecteur manuel ici, pour éviter qu'une saisie parte vers un autre compte que celui affiché) */}
 
+              {/* ── Tag d'émotion rapide — sélection unique, façon puces ── */}
+              <div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 7 }}>
+                  État d'esprit du jour
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {[
+                    { key: "calme", label: "😌 Calme" },
+                    { key: "confiant", label: "💪 Confiant" },
+                    { key: "anxieux", label: "😰 Anxieux" },
+                    { key: "fomo", label: "🎯 FOMO" },
+                    { key: "revenge", label: "😤 Revenge" },
+                  ].map(m => {
+                    const active = formMood === m.key;
+                    return (
+                      <button key={m.key} type="button" onClick={() => setFormMood(active ? null : m.key)} style={{
+                        padding: "7px 11px", borderRadius: 100, cursor: "pointer", fontSize: 11, fontWeight: 700,
+                        background: active ? "rgba(110,231,183,0.18)" : "rgba(255,255,255,0.04)",
+                        color: active ? "#6ee7b7" : "rgba(255,255,255,0.55)",
+                        border: "1px solid " + (active ? "#6ee7b7" : "rgba(255,255,255,0.1)"),
+                      }}>{m.label}</button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ── Note libre — sert de matière à la détection de patterns comportementaux ── */}
+              <div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 7 }}>
+                  Note (optionnel)
+                </div>
+                <textarea
+                  value={formNotes}
+                  onChange={e => setFormNotes(e.target.value)}
+                  placeholder="Ce qui s'est passé, pourquoi tu es entré, comment tu t'es senti…"
+                  rows={3}
+                  style={{
+                    width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)",
+                    borderRadius: 12, padding: "10px 12px", color: "#fff", fontSize: 12.5, outline: "none",
+                    boxSizing: "border-box", resize: "vertical", fontFamily: "inherit", lineHeight: 1.5,
+                  }}
+                />
+              </div>
+
               {/* ── Coach de Discipline : signaux comportementaux du jour ── */}
               <div style={{ marginTop: 4 }}>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 7 }}>
@@ -11831,6 +12012,8 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                   const entry = { wins: formWins, losses: formLosses, pnl,
                     respectPlan: formRespectPlan, respectRisk: formRespectRisk,
                     lotIncreaseAfterLoss: formLotIncreaseAfterLoss, emotionalTrading: formEmotionalTrading };
+                  if (formMood) entry.mood = formMood;
+                  if (formNotes.trim()) entry.notes = formNotes.trim();
                   if (formImages.length > 0) entry.images = formImages;
                   if (formIntradayDD !== "" && !isNaN(parseFloat(formIntradayDD))) entry.intradayDD = Math.abs(parseFloat(formIntradayDD));
                   if (onJournalSave) onJournalSave(editingDay, entry, formAccountId || "default");
@@ -14549,6 +14732,21 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
   const discipline = disciplineAnalyze(journalAllFiltered);
   const journalHeatmap = heatmapAnalyzeJournal(journalAllFiltered);
 
+  // ── Plan de trading (par compte) + garde-fous + patterns comportementaux ──
+  const [tradingPlan, setTradingPlan] = useTradingPlan(selectedAccountId);
+  const [showPlanEditor, setShowPlanEditor] = useState(false);
+  const selectedFirmModel = selectedAccount?.firmKey && PROP_FIRMS[selectedAccount.firmKey]
+    ? PROP_FIRMS[selectedAccount.firmKey].models[Object.keys(PROP_FIRMS[selectedAccount.firmKey].models)[0]]
+    : null;
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const isViewingCurrentMonth = journalMonth === todayKey.slice(0, 7);
+  const todayEntry = isViewingCurrentMonth ? journalMonthDataFiltered[String(new Date().getDate())] : null;
+  const guardrails = computeGuardrailStatus({
+    plan: tradingPlan, firmModel: selectedFirmModel, effectiveCapital,
+    monthEntries: journalMonthDataFiltered, todayEntry,
+  });
+  const behaviorPatterns = detectJournalPatterns(journalAllFiltered);
+
   const shiftMonth = (delta) => {
     const [y, m] = journalMonth.split("-").map(Number);
     const d = new Date(y, m - 1 + delta, 1);
@@ -14798,6 +14996,103 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
           gradientSuffix="-journalpage"
         />
 
+        {/* ── GARDE-FOUS — statut a posteriori, pas de blocage live (aucune connexion
+             broker temps réel ici, contrairement à EdgeFlo) : ça informe, ça ne bloque rien. ── */}
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, padding: 16, marginBottom: 16 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>
+            🛡 Garde-fous {selectedFirmModel ? `— règles ${PROP_FIRMS[selectedAccount.firmKey]?.name}` : "— plan personnel"}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 8, marginBottom: 10 }}>
+            <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "10px 11px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginBottom: 5 }}>
+                <span>Perte du jour</span><span>{guardrails.dailyLimitPct}% max</span>
+              </div>
+              <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                <div style={{
+                  width: Math.min(100, (guardrails.todayLossPct / guardrails.dailyLimitPct) * 100) + "%", height: "100%",
+                  background: guardrails.dailyBreached ? "#ef4444" : guardrails.dailyNear ? "#fbbf24" : "#6ee7b7", transition: "width .3s",
+                }} />
+              </div>
+              <div style={{ fontSize: 10.5, fontWeight: 800, marginTop: 5, color: guardrails.dailyBreached ? "#ef4444" : guardrails.dailyNear ? "#fbbf24" : "#fff" }}>
+                {guardrails.todayLossPct}%
+              </div>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "10px 11px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginBottom: 5 }}>
+                <span>Drawdown du mois</span><span>{guardrails.totalLimitPct != null ? guardrails.totalLimitPct + "% max" : "—"}</span>
+              </div>
+              <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                <div style={{
+                  width: guardrails.totalLimitPct != null ? Math.min(100, (guardrails.monthDrawdownPct / guardrails.totalLimitPct) * 100) + "%" : "0%",
+                  height: "100%", background: guardrails.totalBreached ? "#ef4444" : guardrails.totalNear ? "#fbbf24" : "#6ee7b7", transition: "width .3s",
+                }} />
+              </div>
+              <div style={{ fontSize: 10.5, fontWeight: 800, marginTop: 5, color: guardrails.totalBreached ? "#ef4444" : guardrails.totalNear ? "#fbbf24" : "#fff" }}>
+                {guardrails.monthDrawdownPct}%
+              </div>
+            </div>
+          </div>
+
+          {(guardrails.dailyBreached || guardrails.totalBreached || guardrails.tradesOver) && (
+            <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 11, padding: 11, marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#ef4444", marginBottom: 3 }}>⚠️ Limite dépassée</div>
+              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
+                {guardrails.dailyBreached && "Ta perte du jour dépasse la limite journalière. "}
+                {guardrails.totalBreached && "Le drawdown du mois dépasse la limite totale. "}
+                {guardrails.tradesOver && `${guardrails.todayTrades} trades aujourd'hui pour une limite de ${guardrails.maxTrades}.`}
+              </div>
+            </div>
+          )}
+          {!guardrails.dailyBreached && !guardrails.totalBreached && (guardrails.dailyNear || guardrails.totalNear) && (
+            <div style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 11, padding: 11, marginBottom: 8 }}>
+              <div style={{ fontSize: 10.5, color: "#fbbf24", lineHeight: 1.5 }}>
+                ⚠️ Tu approches d'une limite ({guardrails.dailyNear ? "perte du jour" : "drawdown du mois"}). Encore une perte similaire et tu la dépasses.
+              </div>
+            </div>
+          )}
+
+          <button onClick={() => setShowPlanEditor(v => !v)} style={{
+            width: "100%", padding: "10px", borderRadius: 10, cursor: "pointer", marginTop: 2,
+            border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.55)",
+            fontSize: 10.5, fontWeight: 700,
+          }}>
+            {showPlanEditor ? "Masquer" : "📋 Mon plan de trading"} {tradingPlan.rules.length > 0 ? `(${tradingPlan.rules.length} règle${tradingPlan.rules.length > 1 ? "s" : ""})` : ""}
+          </button>
+
+          {showPlanEditor && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 8, marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginBottom: 4, fontWeight: 700 }}>Perte max/jour (%)</div>
+                  <input type="number" value={tradingPlan.maxDailyLossPct}
+                    onChange={e => setTradingPlan({ ...tradingPlan, maxDailyLossPct: parseFloat(e.target.value) || 0 })}
+                    style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "8px 10px", fontSize: 13, boxSizing: "border-box" }} />
+                  {selectedFirmModel && (
+                    <div style={{ fontSize: 8.5, color: "rgba(255,255,255,0.3)", marginTop: 3, lineHeight: 1.4 }}>
+                      Le garde-fou ci-dessus utilise la limite réelle de {PROP_FIRMS[selectedAccount.firmKey]?.name} ({selectedFirmModel.dailyDD * 100}%), pas ce champ. Ce champ ne sert que si tu détaches le compte de la prop firm.
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginBottom: 4, fontWeight: 700 }}>Trades max/jour</div>
+                  <input type="number" value={tradingPlan.maxTradesPerDay}
+                    onChange={e => setTradingPlan({ ...tradingPlan, maxTradesPerDay: parseInt(e.target.value) || 0 })}
+                    style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "8px 10px", fontSize: 13, boxSizing: "border-box" }} />
+                </div>
+              </div>
+              <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", marginBottom: 6, fontWeight: 700 }}>Mes règles</div>
+              {tradingPlan.rules.map((r, i) => (
+                <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+                  <div style={{ flex: 1, fontSize: 11.5, color: "rgba(255,255,255,0.75)", background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "8px 10px" }}>{r}</div>
+                  <button onClick={() => setTradingPlan({ ...tradingPlan, rules: tradingPlan.rules.filter((_, k) => k !== i) })}
+                    style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "none", fontSize: 13, cursor: "pointer", flexShrink: 0 }}>✕</button>
+                </div>
+              ))}
+              <NewRuleInput onAdd={(txt) => setTradingPlan({ ...tradingPlan, rules: [...tradingPlan.rules, txt] })} />
+            </div>
+          )}
+        </div>
+
         {/* Calendrier en mode journal (saisie + visualisation) */}
         <div data-coach="journal-calendar" style={{ marginBottom: 16 }}>
           <CalendrierPnL t={t} lang={lang}
@@ -14814,6 +15109,26 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
             onJournalLocked={requirePremium}
           />
         </div>
+
+        {/* ── PATTERNS COMPORTEMENTAUX — détectés dans les notes libres, sans IA/API :
+             comptage de familles de mots-clés récurrentes à travers les jours notés.
+             N'apparaît que si au moins 3 jours ont une note (sinon aucune conclusion fiable). ── */}
+        {behaviorPatterns.findings.length > 0 && (
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(251,191,36,0.15)", borderRadius: 20, padding: 16, marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
+              🔍 Patterns détectés dans tes notes
+            </div>
+            <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", marginBottom: 10 }}>
+              Sur {behaviorPatterns.notedDaysCount} jours notés — comptage de mots-clés, aucune IA, rien n'est envoyé nulle part.
+            </div>
+            {behaviorPatterns.findings.map(f => (
+              <div key={f.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 11px", borderRadius: 10, background: "rgba(251,191,36,0.05)", border: "1px solid rgba(251,191,36,0.15)", marginBottom: 6 }}>
+                <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.8)", fontWeight: 700 }}>{f.label}</span>
+                <span style={{ fontSize: 10.5, color: "#fbbf24" }}>{f.count} jours{f.losingCount > 0 ? ` · ${f.losingCount} perdants` : ""}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {!journalStats && (
           <div style={{ textAlign: "center", padding: "20px 10px", color: "rgba(255,255,255,0.35)", fontSize: 12 }}>
