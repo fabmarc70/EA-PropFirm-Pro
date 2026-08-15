@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
-    <meta name="theme-color" content="#080810" />
+    <meta name="theme-color" content="#050300" />
     <meta name="description" content="Simulateur EA pour challenges FundedNext - règles Stellar 2026" />
 
     <!-- iOS PWA -->
@@ -20,20 +20,29 @@
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       html, body {
-        background: #080810;
-        color: #e2e8f0;
+        background: #06090f;
+        color: #FFFFFF;
         min-height: 100vh;
         min-height: -webkit-fill-available;
         overscroll-behavior: none;
         -webkit-tap-highlight-color: transparent;
+        /* Police système iOS — identique à Capital.com */
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", sans-serif;
+        -webkit-font-smoothing: antialiased;
+        font-size: 15px;
+        line-height: 1.5;
       }
       #root {
         min-height: 100vh;
         min-height: -webkit-fill-available;
-        background: #080810;
+        background: #06090f;
       }
+      /* Scrollbar discrète */
+      ::-webkit-scrollbar { width: 2px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
     </style>
-    <script type="module" crossorigin src="/assets/index-Cr4CV1Wl.js"></script>
+    <script type="module" crossorigin src="/assets/index-B4nwG7ws.js"></script>
   <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
   <body>
     <div id="root"></div>

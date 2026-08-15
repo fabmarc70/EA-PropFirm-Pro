@@ -16,7 +16,7 @@ import {
   updateProfile,
   deleteUser,
 } from "firebase/auth";
-import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, addDoc, getDocs, updateDoc, query, where, serverTimestamp } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCYqMoWp-3BpU_yJZALoioSbTf1zb7HL3g",
@@ -127,4 +127,124 @@ export async function fbDeleteAccount() {
     if (e && e.code === "auth/requires-recent-login") return { ok: false, needsReauth: true };
     return { ok: false, error: e?.message || "unknown" };
   }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// WATCHLIST + ALERTES DE PRIX + POSITIONS SURVEILLÉES
+//
+// Ces données DOIVENT vivre dans Firestore (pas localStorage) car le
+// contrôle des prix et l'envoi des notifications se font côté SERVEUR
+// (api/check-alerts.js, déclenché par un cron Vercel) — un cron ne peut
+// pas lire le localStorage d'un téléphone. Sous-collections de
+// users/{uid} pour rester cohérent avec le modèle existant.
+// ══════════════════════════════════════════════════════════════════
+
+function requireUid() {
+  const u = auth.currentUser;
+  if (!u) throw new Error("Utilisateur non connecté.");
+  return u.uid;
+}
+
+// ── Watchlist : paires/indices suivis + stratégie associée ──
+export async function fbAddWatchlistItem({ pair, category, strategy }) {
+  const uid = requireUid();
+  const ref = await addDoc(collection(db, "users", uid, "watchlist"), {
+    pair, category: category || null, strategy: strategy || "", createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+export async function fbListWatchlist() {
+  const uid = requireUid();
+  const snap = await getDocs(collection(db, "users", uid, "watchlist"));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+export async function fbDeleteWatchlistItem(id) {
+  const uid = requireUid();
+  await deleteDoc(doc(db, "users", uid, "watchlist", id));
+}
+export async function fbUpdateWatchlistItem(id, patch) {
+  const uid = requireUid();
+  await updateDoc(doc(db, "users", uid, "watchlist", id), patch);
+}
+
+// ── Alertes de prix : seuil en prix absolu ou en %, contrôlé côté serveur ──
+export async function fbAddPriceAlert({ pair, mode, direction, value, refPrice }) {
+  const uid = requireUid();
+  const ref = await addDoc(collection(db, "users", uid, "priceAlerts"), {
+    pair, mode, direction, value, refPrice: refPrice ?? null,
+    active: true, triggeredAt: null, createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+export async function fbListPriceAlerts() {
+  const uid = requireUid();
+  const snap = await getDocs(collection(db, "users", uid, "priceAlerts"));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+export async function fbDeletePriceAlert(id) {
+  const uid = requireUid();
+  await deleteDoc(doc(db, "users", uid, "priceAlerts", id));
+}
+export async function fbSetPriceAlertActive(id, active) {
+  const uid = requireUid();
+  await updateDoc(doc(db, "users", uid, "priceAlerts", id), { active });
+}
+
+// ── Positions surveillées : créées après validation d'une capture d'écran,
+// surveillées en continu côté serveur jusqu'à TP/SL touché ──
+export async function fbAddOpenPosition({ pair, direction, entryPrice, sl, tp, lotSize, source }) {
+  const uid = requireUid();
+  const ref = await addDoc(collection(db, "users", uid, "openPositions"), {
+    pair, direction, entryPrice, sl: sl ?? null, tp: tp ?? null, lotSize: lotSize ?? null,
+    source: source || "manual", status: "open",
+    openedAt: serverTimestamp(), closedAt: null, resultPct: null,
+  });
+  return ref.id;
+}
+export async function fbListOpenPositions() {
+  const uid = requireUid();
+  const q = query(collection(db, "users", uid, "openPositions"), where("status", "==", "open"));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+export async function fbCloseOpenPositionManually(id, resultPct) {
+  const uid = requireUid();
+  await updateDoc(doc(db, "users", uid, "openPositions", id), {
+    status: "closed_manual", closedAt: serverTimestamp(), resultPct,
+  });
+}
+export async function fbDeleteOpenPosition(id) {
+  const uid = requireUid();
+  await deleteDoc(doc(db, "users", uid, "openPositions", id));
+}
+
+// ── Abonnement Web Push : nécessaire pour que le serveur puisse notifier
+// CET appareil précis même quand l'app est fermée ──
+export async function fbSavePushSubscription(subscription) {
+  const uid = requireUid();
+  // Un seul abonnement par endpoint — l'endpoint identifie l'appareil/navigateur
+  const id = btoa(subscription.endpoint).replace(/[^a-zA-Z0-9]/g, "").slice(0, 120);
+  await setDoc(doc(db, "users", uid, "pushSubscriptions", id), {
+    subscription, createdAt: serverTimestamp(),
+  });
+}
+export async function fbRemovePushSubscription(endpoint) {
+  const uid = requireUid();
+  const id = btoa(endpoint).replace(/[^a-zA-Z0-9]/g, "").slice(0, 120);
+  await deleteDoc(doc(db, "users", uid, "pushSubscriptions", id));
+}
+
+// ── Entrées journal générées automatiquement par le serveur (position
+// clôturée pendant que l'app était fermée) — le client les récupère et les
+// fusionne dans le journal local (localStorage) à la prochaine ouverture,
+// puis les efface de Firestore. Pont minimal entre le cron serveur et un
+// journal qui reste, pour le reste, en localStorage. ──
+export async function fbListPendingJournalEntries() {
+  const uid = requireUid();
+  const snap = await getDocs(collection(db, "users", uid, "pendingJournalEntries"));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+export async function fbDeletePendingJournalEntry(id) {
+  const uid = requireUid();
+  await deleteDoc(doc(db, "users", uid, "pendingJournalEntries", id));
 }

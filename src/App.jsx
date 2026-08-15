@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser, fbLoadUserProfile, fbSaveUserProfile, fbDeleteAccount } from "./firebase.js";
+import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser, fbLoadUserProfile, fbSaveUserProfile, fbDeleteAccount,
+  fbAddWatchlistItem, fbListWatchlist, fbDeleteWatchlistItem,
+  fbAddPriceAlert, fbListPriceAlerts, fbDeletePriceAlert, fbSetPriceAlertActive,
+  fbAddOpenPosition, fbListOpenPositions, fbCloseOpenPositionManually, fbDeleteOpenPosition,
+  fbSavePushSubscription, fbListPendingJournalEntries, fbDeletePendingJournalEntry } from "./firebase.js";
 import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedData, loadRange, monthsInRange, getCoverage } from "./historicalData.js";
 import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS, listConfluenceFilters, WEEKDAYS, runWalkForward, analyzeFailure, optimizeStrategy } from "./backtestEngine.js";
 import {
@@ -11090,6 +11094,27 @@ function useJournal() {
       return next;
     });
   };
+  // Variante de saveJournalEntry qui écrit dans un MOIS EXPLICITE plutôt que
+  // le mois actuellement affiché (journalMonth). Nécessaire pour fusionner les
+  // entrées auto-générées par le serveur (positions clôturées pendant que
+  // l'app était fermée) : si l'utilisateur rouvre l'app plusieurs jours après,
+  // affichant "août" alors que le trade s'est clôturé fin juillet, écrire via
+  // saveJournalEntry aurait classé l'entrée sous le mauvais mois/jour.
+  const saveJournalEntryForMonth = (monthKey, day, entry, accountId = "default") => {
+    setJournal(prev => {
+      const next = { ...prev };
+      next[monthKey] = { ...(next[monthKey] || {}) };
+      const dayKey = String(day);
+      const dayAccounts = { ...(next[monthKey][dayKey] || {}) };
+      if (entry === null) delete dayAccounts[accountId];
+      else dayAccounts[accountId] = entry;
+      if (Object.keys(dayAccounts).length) next[monthKey][dayKey] = dayAccounts;
+      else delete next[monthKey][dayKey];
+      if (!Object.keys(next[monthKey]).length) delete next[monthKey];
+      try { localStorage.setItem("eapropfirm_journal", JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
+  };
   // Purge toutes les entrées d'un compte donné (utilisé lors d'une suppression DÉFINITIVE de compte) —
   // ne touche QUE ce compte, les autres comptes gardent leurs entrées sur les mêmes jours.
   const purgeAccountEntries = (accId) => {
@@ -11108,7 +11133,7 @@ function useJournal() {
       return next;
     });
   };
-  return { journal, journalMonth, setJournalMonth, saveJournalEntry, purgeAccountEntries, monthData: journal[journalMonth] || {} };
+  return { journal, journalMonth, setJournalMonth, saveJournalEntry, saveJournalEntryForMonth, purgeAccountEntries, monthData: journal[journalMonth] || {} };
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -14682,8 +14707,394 @@ function computeCurrentMonthBalanceSeries(journalAllData, accountId, baseCapital
 // ══════════════════════════════════════════════════════════════════
 // NAVBAR (bas d'écran)
 // ══════════════════════════════════════════════════════════════════
+// Clé publique VAPID — safe à exposer côté client (c'est tout le principe du
+// chiffrement asymétrique Web Push : seule la clé PRIVÉE, côté serveur, permet
+// d'envoyer des notifications ; la clé publique ne sert qu'à s'abonner).
+const VAPID_PUBLIC_KEY = "BNQQpUMZ53cHbE9MJifm5avVMBWUkFa2D5_YJnt6W8BAbBmD6dZXqkv2vEelggAIsnciwXh14a1baJmURKc6lic";
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+const WATCH_CATEGORIES = [
+  { key: "forex", label: "Forex" }, { key: "metals", label: "Métaux" },
+  { key: "indices", label: "Indices" }, { key: "crypto", label: "Crypto" },
+  { key: "commodities", label: "Matières premières" }, { key: "other", label: "Autre" },
+];
+
+// ══════════════════════════════════════════════════════════════════
+// WATCHLIST + ALERTES DE PRIX + POSITIONS SURVEILLÉES PAR CAPTURE D'ÉCRAN
+//
+// Composant autonome, au niveau module (stable — évite le bug de remontage
+// React déjà rencontré ailleurs dans cette app quand un composant est défini
+// à l'intérieur du rendu d'un écran). Toutes les données vivent dans Firestore
+// (pas localStorage) car le contrôle des prix se fait côté SERVEUR (cron
+// Vercel, api/check-alerts.js) — un cron ne peut pas lire le stockage local
+// d'un téléphone qui peut même être éteint.
+// ══════════════════════════════════════════════════════════════════
+function WatchAlertsSection({ t, onPositionsClosed }) {
+  const ACCENT = "#6ee7b7";
+  const [loading, setLoading] = useState(true);
+  const [watchlist, setWatchlist] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  const [positions, setPositions] = useState([]);
+  const [pushStatus, setPushStatus] = useState("idle"); // idle|subscribing|subscribed|denied|unsupported|error
+
+  const [showAddPair, setShowAddPair] = useState(false);
+  const [newPair, setNewPair] = useState("");
+  const [newCategory, setNewCategory] = useState("forex");
+  const [newStrategy, setNewStrategy] = useState("");
+
+  const [showAddAlert, setShowAddAlert] = useState(false);
+  const [alertPair, setAlertPair] = useState("");
+  const [alertMode, setAlertMode] = useState("price"); // "price" | "pct"
+  const [alertDirection, setAlertDirection] = useState("above");
+  const [alertValue, setAlertValue] = useState("");
+  const [alertBusy, setAlertBusy] = useState(false);
+  const [alertError, setAlertError] = useState(null);
+
+  const [showScreenshotFlow, setShowScreenshotFlow] = useState(false);
+  const [screenshotLoading, setScreenshotLoading] = useState(false);
+  const [screenshotError, setScreenshotError] = useState(null);
+  const [screenshotDraft, setScreenshotDraft] = useState(null); // { pair, direction, entryPrice, sl, tp, lotSize, confidence, notes }
+
+  const loadAll = async () => {
+    setLoading(true);
+    try {
+      const [w, a, p] = await Promise.all([fbListWatchlist(), fbListPriceAlerts(), fbListOpenPositions()]);
+      setWatchlist(w); setAlerts(a); setPositions(p);
+    } catch (e) { /* utilisateur pas encore connecté, ou hors-ligne — pas bloquant */ }
+    setLoading(false);
+  };
+  useEffect(() => { loadAll(); }, []);
+
+  // ── Abonnement Web Push : demande la permission navigateur, s'abonne, sauvegarde côté Firestore ──
+  const subscribeToPush = async () => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) { setPushStatus("unsupported"); return; }
+    setPushStatus("subscribing");
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") { setPushStatus("denied"); return; }
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+      }
+      await fbSavePushSubscription(sub.toJSON());
+      setPushStatus("subscribed");
+    } catch (e) { setPushStatus("error"); }
+  };
+
+  // Prix de référence approximatif pour une alerte en % — réutilise le proxy
+  // Twelve Data existant (conçu pour l'historique) avec outputsize=1 : ce
+  // n'est pas un cours "live à la seconde", mais une cotation récente
+  // suffisante comme base pour un seuil en pourcentage.
+  const fetchRefPrice = async (pair) => {
+    try {
+      const symbol = /^[A-Z]{6}$/i.test(pair) ? pair.slice(0, 3) + "/" + pair.slice(3) : pair;
+      const r = await fetch(`/api/twelvedata?symbol=${encodeURIComponent(symbol)}&interval=1day&outputsize=1`);
+      const j = await r.json();
+      return j.candles && j.candles[0] ? j.candles[0][4] : null;
+    } catch (e) { return null; }
+  };
+
+  const addWatchlistItem = async () => {
+    if (!newPair.trim()) return;
+    try {
+      await fbAddWatchlistItem({ pair: newPair.trim().toUpperCase(), category: newCategory, strategy: newStrategy.trim() });
+      setNewPair(""); setNewStrategy(""); setShowAddPair(false);
+      loadAll();
+    } catch (e) { alert("Connecte-toi pour utiliser la watchlist."); }
+  };
+  const deleteWatchlistItem = async (id) => { await fbDeleteWatchlistItem(id); loadAll(); };
+
+  const addAlert = async () => {
+    const val = parseFloat(alertValue);
+    if (!alertPair.trim() || !val) return;
+    setAlertBusy(true); setAlertError(null);
+    try {
+      let refPrice = null;
+      if (alertMode === "pct") {
+        refPrice = await fetchRefPrice(alertPair.trim().toUpperCase());
+        if (!refPrice) { setAlertError("Impossible de récupérer un prix de référence pour cette paire. Vérifie le code (ex: EURUSD, XAUUSD)."); setAlertBusy(false); return; }
+      }
+      await fbAddPriceAlert({ pair: alertPair.trim().toUpperCase(), mode: alertMode, direction: alertDirection, value: val, refPrice });
+      setAlertPair(""); setAlertValue(""); setShowAddAlert(false);
+      loadAll();
+    } catch (e) { setAlertError("Connecte-toi pour créer une alerte."); }
+    setAlertBusy(false);
+  };
+  const deleteAlert = async (id) => { await fbDeletePriceAlert(id); loadAll(); };
+  const toggleAlert = async (id, active) => { await fbSetPriceAlertActive(id, active); loadAll(); };
+
+  // ── Capture d'écran -> extraction IA -> confirmation -> position surveillée ──
+  const handleScreenshot = async (file) => {
+    setScreenshotLoading(true); setScreenshotError(null); setScreenshotDraft(null);
+    try {
+      const compressed = await compressImage(file);
+      const match = compressed.match(/^data:(.+);base64,(.+)$/);
+      if (!match) throw new Error("Image illisible.");
+      const r = await fetch("/api/analyze-screenshot", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ imageBase64: match[2], mediaType: match[1] }),
+      });
+      const data = await r.json();
+      if (!r.ok || !data.extracted) throw new Error(data.error || "Extraction échouée.");
+      setScreenshotDraft(data.extracted);
+    } catch (e) { setScreenshotError(e.message || "Échec de l'analyse de la capture."); }
+    setScreenshotLoading(false);
+  };
+  const confirmPosition = async () => {
+    if (!screenshotDraft || !screenshotDraft.pair || !screenshotDraft.direction || !screenshotDraft.entryPrice) return;
+    try {
+      await fbAddOpenPosition({
+        pair: screenshotDraft.pair.toUpperCase(), direction: screenshotDraft.direction,
+        entryPrice: parseFloat(screenshotDraft.entryPrice),
+        sl: screenshotDraft.sl != null ? parseFloat(screenshotDraft.sl) : null,
+        tp: screenshotDraft.tp != null ? parseFloat(screenshotDraft.tp) : null,
+        lotSize: screenshotDraft.lotSize != null ? parseFloat(screenshotDraft.lotSize) : null,
+        source: "screenshot",
+      });
+      setScreenshotDraft(null); setShowScreenshotFlow(false);
+      loadAll();
+    } catch (e) { setScreenshotError("Connecte-toi pour surveiller une position."); }
+  };
+  const closeManually = async (id) => {
+    const pct = prompt("Résultat en % (ex: 1.5 pour +1.5%, -2 pour -2%) :");
+    if (pct === null || isNaN(parseFloat(pct))) return;
+    await fbCloseOpenPositionManually(id, parseFloat(pct));
+    loadAll();
+  };
+  const deletePosition = async (id) => { await fbDeleteOpenPosition(id); loadAll(); };
+
+  if (loading) return null;
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      {/* ── WATCHLIST : paires tradées + stratégie associée ── */}
+      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, padding: 16, marginBottom: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>
+            📌 Mes paires & stratégies
+          </div>
+          <button onClick={() => setShowAddPair(v => !v)} style={{ padding: "5px 11px", borderRadius: 8, border: "1px solid " + ACCENT + "55", background: ACCENT + "12", color: ACCENT, fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>
+            {showAddPair ? "Annuler" : "+ Ajouter"}
+          </button>
+        </div>
+
+        {watchlist.length === 0 && !showAddPair && (
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Aucune paire suivie. Ajoute les instruments que tu trades, avec la stratégie que tu appliques dessus.</div>
+        )}
+        {watchlist.map(w => (
+          <div key={w.id} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 11, padding: 11, marginBottom: 7 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{w.pair}</span>
+                <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginLeft: 6 }}>{WATCH_CATEGORIES.find(c => c.key === w.category)?.label || ""}</span>
+              </div>
+              <button onClick={() => deleteWatchlistItem(w.id)} style={{ background: "none", border: "none", color: "#ef4444", fontSize: 11, cursor: "pointer" }}>✕</button>
+            </div>
+            {w.strategy && <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.6)", marginTop: 4, lineHeight: 1.45 }}>{w.strategy}</div>}
+          </div>
+        ))}
+
+        {showAddPair && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 7, marginBottom: 7 }}>
+              <input value={newPair} onChange={e => setNewPair(e.target.value.toUpperCase())} placeholder="Ex : EURUSD"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box" }} />
+              <select value={newCategory} onChange={e => setNewCategory(e.target.value)}
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box" }}>
+                {WATCH_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+            </div>
+            <textarea value={newStrategy} onChange={e => setNewStrategy(e.target.value)} placeholder="Stratégie appliquée sur cette paire (optionnel)" rows={2}
+              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12, boxSizing: "border-box", marginBottom: 7, resize: "vertical", fontFamily: "inherit" }} />
+            <button onClick={addWatchlistItem} style={{ width: "100%", padding: 10, borderRadius: 9, background: ACCENT, color: "#000", border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>Ajouter à la watchlist</button>
+          </div>
+        )}
+      </div>
+
+      {/* ── ALERTES DE PRIX ── */}
+      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, padding: 16, marginBottom: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>
+            🔔 Alertes de prix
+          </div>
+          <button onClick={() => setShowAddAlert(v => !v)} style={{ padding: "5px 11px", borderRadius: 8, border: "1px solid " + ACCENT + "55", background: ACCENT + "12", color: ACCENT, fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>
+            {showAddAlert ? "Annuler" : "+ Ajouter"}
+          </button>
+        </div>
+
+        {pushStatus !== "subscribed" && (
+          <button onClick={subscribeToPush} disabled={pushStatus === "subscribing"} style={{
+            width: "100%", padding: 10, borderRadius: 10, marginBottom: 10, cursor: "pointer",
+            border: "1px solid rgba(251,191,36,0.3)", background: "rgba(251,191,36,0.08)", color: "#fbbf24", fontSize: 11, fontWeight: 700,
+          }}>
+            {pushStatus === "subscribing" ? "Activation…" : pushStatus === "denied" ? "Notifications refusées — active-les dans les réglages du navigateur" : pushStatus === "unsupported" ? "Notifications non supportées sur cet appareil" : "🔔 Activer les notifications (même app fermée)"}
+          </button>
+        )}
+        {pushStatus === "subscribed" && (
+          <div style={{ fontSize: 10.5, color: ACCENT, marginBottom: 10 }}>✓ Notifications activées sur cet appareil</div>
+        )}
+
+        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 10, lineHeight: 1.4 }}>
+          Contrôle du prix toutes les 5 minutes environ (pas un flux tick par tick) — une alerte peut avoir quelques minutes de décalage avec le marché réel.
+        </div>
+
+        {alerts.length === 0 && !showAddAlert && (
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Aucune alerte configurée.</div>
+        )}
+        {alerts.map(a => (
+          <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "9px 11px", marginBottom: 6, opacity: a.active ? 1 : 0.45 }}>
+            <div>
+              <span style={{ fontSize: 11.5, fontWeight: 800, color: "#fff" }}>{a.pair}</span>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginLeft: 6 }}>
+                {a.direction === "above" ? "≥" : "≤"} {a.mode === "pct" ? a.value + "%" : a.value}
+                {a.triggeredAt ? " · déclenchée" : ""}
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {!a.triggeredAt && (
+                <div onClick={() => toggleAlert(a.id, !a.active)} style={{ width: 32, height: 18, borderRadius: 9, background: a.active ? ACCENT : "rgba(255,255,255,0.12)", position: "relative", cursor: "pointer" }}>
+                  <div style={{ position: "absolute", top: 2, left: a.active ? 16 : 2, width: 14, height: 14, borderRadius: 7, background: "#fff", transition: "all .2s" }} />
+                </div>
+              )}
+              <button onClick={() => deleteAlert(a.id)} style={{ background: "none", border: "none", color: "#ef4444", fontSize: 11, cursor: "pointer" }}>✕</button>
+            </div>
+          </div>
+        ))}
+
+        {showAddAlert && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 7, marginBottom: 7 }}>
+              <input value={alertPair} onChange={e => setAlertPair(e.target.value.toUpperCase())} placeholder="Ex : XAUUSD"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box" }} />
+              <select value={alertMode} onChange={e => setAlertMode(e.target.value)}
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box" }}>
+                <option value="price">Prix exact</option>
+                <option value="pct">Variation %</option>
+              </select>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 7, marginBottom: 7 }}>
+              <select value={alertDirection} onChange={e => setAlertDirection(e.target.value)}
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box" }}>
+                <option value="above">Au-dessus de</option>
+                <option value="below">En dessous de</option>
+              </select>
+              <input value={alertValue} onChange={e => setAlertValue(e.target.value)} type="number" placeholder={alertMode === "pct" ? "Ex : 2 (%)" : "Ex : 1.0950"}
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box" }} />
+            </div>
+            {alertError && <div style={{ fontSize: 10, color: "#ef4444", marginBottom: 7, lineHeight: 1.4 }}>{alertError}</div>}
+            <button onClick={addAlert} disabled={alertBusy} style={{ width: "100%", padding: 10, borderRadius: 9, background: ACCENT, color: "#000", border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+              {alertBusy ? "…" : "Créer l'alerte"}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── POSITIONS SURVEILLÉES PAR CAPTURE D'ÉCRAN ── */}
+      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, padding: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>
+            📷 Positions surveillées
+          </div>
+          <button onClick={() => setShowScreenshotFlow(v => !v)} style={{ padding: "5px 11px", borderRadius: 8, border: "1px solid " + ACCENT + "55", background: ACCENT + "12", color: ACCENT, fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>
+            {showScreenshotFlow ? "Annuler" : "+ Capture"}
+          </button>
+        </div>
+        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 10, lineHeight: 1.4 }}>
+          Une fois confirmée, la position est surveillée automatiquement. Dès que le prix touche ton TP ou ton SL (contrôle toutes les 5 min), le résultat est ajouté à ton journal — même si l'app est fermée.
+        </div>
+
+        {positions.length === 0 && !showScreenshotFlow && (
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Aucune position surveillée.</div>
+        )}
+        {positions.map(p => (
+          <div key={p.id} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 11, padding: 11, marginBottom: 7 }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <div>
+                <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{p.pair}</span>
+                <span style={{ fontSize: 10, fontWeight: 700, marginLeft: 6, color: p.direction === "buy" ? ACCENT : "#ef4444" }}>{p.direction === "buy" ? "ACHAT" : "VENTE"}</span>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => closeManually(p.id)} style={{ background: "none", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, color: "rgba(255,255,255,0.5)", fontSize: 9, padding: "3px 7px", cursor: "pointer" }}>Clôturer</button>
+                <button onClick={() => deletePosition(p.id)} style={{ background: "none", border: "none", color: "#ef4444", fontSize: 11, cursor: "pointer" }}>✕</button>
+              </div>
+            </div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
+              Entrée {p.entryPrice} {p.sl != null && `· SL ${p.sl}`} {p.tp != null && `· TP ${p.tp}`}
+            </div>
+          </div>
+        ))}
+
+        {showScreenshotFlow && (
+          <div style={{ marginTop: 8 }}>
+            {!screenshotDraft && (
+              <label style={{ display: "block", padding: 20, borderRadius: 12, border: "1.5px dashed rgba(255,255,255,0.15)", textAlign: "center", cursor: "pointer", background: "rgba(255,255,255,0.02)" }}>
+                <div style={{ fontSize: 11, color: screenshotLoading ? ACCENT : "rgba(255,255,255,0.5)", fontWeight: 700 }}>
+                  {screenshotLoading ? "Analyse en cours…" : "📷 Choisir une capture d'écran"}
+                </div>
+                <input type="file" accept="image/*" style={{ display: "none" }} disabled={screenshotLoading}
+                  onChange={e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) handleScreenshot(f); }} />
+              </label>
+            )}
+            {screenshotError && <div style={{ fontSize: 10.5, color: "#ef4444", marginTop: 8, lineHeight: 1.4 }}>{screenshotError}</div>}
+
+            {screenshotDraft && (
+              <div style={{ marginTop: 4 }}>
+                {screenshotDraft.confidence !== "high" && (
+                  <div style={{ fontSize: 10, color: "#fbbf24", background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 8, padding: 8, marginBottom: 8, lineHeight: 1.4 }}>
+                    ⚠️ Confiance {screenshotDraft.confidence} — vérifie/corrige les valeurs avant de valider. {screenshotDraft.notes || ""}
+                  </div>
+                )}
+                <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 7, marginBottom: 7 }}>
+                  <div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>Paire</div>
+                    <input value={screenshotDraft.pair || ""} onChange={e => setScreenshotDraft({ ...screenshotDraft, pair: e.target.value.toUpperCase() })}
+                      style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "8px 9px", fontSize: 12, boxSizing: "border-box" }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>Sens</div>
+                    <select value={screenshotDraft.direction || "buy"} onChange={e => setScreenshotDraft({ ...screenshotDraft, direction: e.target.value })}
+                      style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "8px 9px", fontSize: 12, boxSizing: "border-box" }}>
+                      <option value="buy">Achat</option>
+                      <option value="sell">Vente</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)", gap: 7, marginBottom: 10 }}>
+                  {["entryPrice", "sl", "tp"].map(k => (
+                    <div key={k}>
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>{k === "entryPrice" ? "Entrée" : k.toUpperCase()}</div>
+                      <input value={screenshotDraft[k] ?? ""} onChange={e => setScreenshotDraft({ ...screenshotDraft, [k]: e.target.value })} type="number"
+                        style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "8px 9px", fontSize: 12, boxSizing: "border-box" }} />
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => setScreenshotDraft(null)} style={{ flex: 1, padding: 10, borderRadius: 9, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>Reprendre une capture</button>
+                  <button onClick={confirmPosition} style={{ flex: 1, padding: 10, borderRadius: 9, background: ACCENT, color: "#000", border: "none", fontSize: 11.5, fontWeight: 800, cursor: "pointer" }}>Surveiller cette position</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premiumAccess = true, requirePremium = () => {} }) {
-  const { journal: journalAll, journalMonth, setJournalMonth, saveJournalEntry, purgeAccountEntries, monthData: journalMonthData } = useJournal();
+  const { journal: journalAll, journalMonth, setJournalMonth, saveJournalEntry, saveJournalEntryForMonth, purgeAccountEntries, monthData: journalMonthData } = useJournal();
   const { accounts, addAccount, removeAccount, updateAccount, archiveAccount, accountLabel } = useJournalAccounts();
   // Quota freemium journal : 7 jours distincts de saisie (tous comptes et mois confondus)
   const journalQuotaReached = !premiumAccess && countJournalDays(journalAll) >= FREE_JOURNAL_DAYS;
@@ -14746,6 +15157,49 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
     monthEntries: journalMonthDataFiltered, todayEntry,
   });
   const behaviorPatterns = detectJournalPatterns(journalAllFiltered);
+
+  // ── Fusion des entrées auto-générées par le serveur (positions clôturées
+  // pendant que l'app était fermée) dans le journal local, une fois à
+  // l'ouverture de l'écran. Écrit dans le MOIS RÉEL de clôture (via
+  // saveJournalEntryForMonth), pas le mois actuellement affiché — sinon un
+  // trade clôturé il y a plusieurs jours atterrirait sous le mauvais jour.
+  // LIMITE CONNUE : la position n'est pas rattachée à un compte précis (la
+  // watchlist/les alertes sont globales, pas par compte) — l'entrée auto est
+  // donc attribuée au compte SÉLECTIONNÉ au moment de la fusion, pas
+  // forcément celui utilisé pour ce trade réel.
+  const [autoMergedInfo, setAutoMergedInfo] = useState(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const pending = await fbListPendingJournalEntries();
+        if (!pending.length) return;
+        let count = 0;
+        for (const entry of pending) {
+          const closedDate = entry.createdAt && entry.createdAt.toDate ? entry.createdAt.toDate() : new Date();
+          const monthKey = closedDate.getFullYear() + "-" + String(closedDate.getMonth() + 1).padStart(2, "0");
+          const dayNum = closedDate.getDate();
+          const pnlUsd = effectiveCapital > 0 ? +(effectiveCapital * (entry.resultPct / 100)).toFixed(2) : 0;
+          const existing = (journalAll[monthKey] || {})[String(dayNum)]?.[selectedAccountId];
+          const noteLign = `[Auto] ${entry.pair} ${entry.direction === "buy" ? "achat" : "vente"} clôturé (${entry.outcome === "tp" ? "TP" : "SL"}) : ${entry.resultPct >= 0 ? "+" : ""}${entry.resultPct}%`;
+          const merged = {
+            wins: (existing?.wins || 0) + (entry.outcome === "tp" ? 1 : 0),
+            losses: (existing?.losses || 0) + (entry.outcome === "sl" ? 1 : 0),
+            pnl: +((existing?.pnl || 0) + pnlUsd).toFixed(2),
+            respectPlan: existing?.respectPlan ?? true, respectRisk: existing?.respectRisk ?? true,
+            lotIncreaseAfterLoss: !!existing?.lotIncreaseAfterLoss, emotionalTrading: !!existing?.emotionalTrading,
+            notes: existing?.notes ? existing.notes + "\n" + noteLign : noteLign,
+          };
+          if (existing?.images) merged.images = existing.images;
+          if (existing?.mood) merged.mood = existing.mood;
+          saveJournalEntryForMonth(monthKey, dayNum, merged, selectedAccountId);
+          await fbDeletePendingJournalEntry(entry.id);
+          count++;
+        }
+        if (count > 0) setAutoMergedInfo(count);
+      } catch (e) { /* pas connecté ou hors-ligne — pas bloquant */ }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const shiftMonth = (delta) => {
     const [y, m] = journalMonth.split("-").map(Number);
@@ -15092,6 +15546,15 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
             </div>
           )}
         </div>
+
+        {autoMergedInfo && (
+          <div style={{ background: "rgba(110,231,183,0.1)", border: "1px solid rgba(110,231,183,0.35)", borderRadius: 12, padding: "11px 13px", marginBottom: 16, fontSize: 11, color: "#6ee7b7", fontWeight: 700, lineHeight: 1.5 }}>
+            ✓ {autoMergedInfo} trade{autoMergedInfo > 1 ? "s" : ""} clôturé{autoMergedInfo > 1 ? "s" : ""} automatiquement pendant que l'app était fermée — ajouté{autoMergedInfo > 1 ? "s" : ""} à ton journal.
+          </div>
+        )}
+
+        {/* ── Watchlist, alertes de prix, positions surveillées par capture ── */}
+        <WatchAlertsSection t={t} />
 
         {/* Calendrier en mode journal (saisie + visualisation) */}
         <div data-coach="journal-calendar" style={{ marginBottom: 16 }}>
