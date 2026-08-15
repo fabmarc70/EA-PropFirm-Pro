@@ -99,3 +99,4 @@ Avant tout commit, consulter la **Section 6** de [`PROJECT_COMPASS.md`](./PROJEC
 ---
 
 *Projet de Fabrice — Auto-entrepreneur, trader depuis 2014*
+
