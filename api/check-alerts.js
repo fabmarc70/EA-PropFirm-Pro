@@ -19,7 +19,16 @@ function initFirebaseAdmin() {
   if (admin.apps.length) return admin.app();
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   if (!raw) throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY manquante côté serveur.");
-  const serviceAccount = JSON.parse(raw);
+  // Accepte deux formats : JSON brut (commence par "{") OU la même chose encodée
+  // en base64 — recommandé, car un JSON multi-lignes (le champ private_key
+  // contient des retours à la ligne internes) se corrompt facilement au copier-
+  // coller sur certaines interfaces mobiles (guillemets réécrits, sauts de
+  // ligne mal interprétés). Le base64 est une seule ligne de caractères sûrs,
+  // impossible à casser au collage.
+  const jsonStr = raw.trim().startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf-8");
+  let serviceAccount;
+  try { serviceAccount = JSON.parse(jsonStr); }
+  catch (e) { throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY illisible (ni JSON valide, ni base64 valide) : " + e.message); }
   return admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 }
 
