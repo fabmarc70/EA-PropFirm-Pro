@@ -101,3 +101,4 @@ Avant tout commit, consulter la **Section 6** de [`PROJECT_COMPASS.md`](./PROJEC
 *Projet de Fabrice — Auto-entrepreneur, trader depuis 2014*
 
 # Test reconnexion Vercel 1786834431
+# Test apres validation des permissions GitHub App Vercel 1786834871
