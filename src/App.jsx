@@ -15023,26 +15023,40 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
 
         {showAddAlert && (
           <div style={{ marginTop: 8 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 7, marginBottom: 7 }}>
-              <input value={alertPair} onChange={e => setAlertPair(e.target.value.toUpperCase())} placeholder="Ex : XAUUSD"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box" }} />
-              <select value={alertMode} onChange={e => setAlertMode(e.target.value)}
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box" }}>
-                <option value="price">Prix exact</option>
-                <option value="pct">Variation %</option>
-              </select>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 7, marginBottom: 7 }}>
-              <select value={alertDirection} onChange={e => setAlertDirection(e.target.value)}
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box" }}>
-                <option value="above">Au-dessus de</option>
-                <option value="below">En dessous de</option>
-              </select>
-              <input value={alertValue} onChange={e => setAlertValue(e.target.value)} type="number" placeholder={alertMode === "pct" ? "Ex : 2 (%)" : "Ex : 1.0950"}
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box" }} />
-            </div>
+            {watchlist.length === 0 ? (
+              <div style={{ fontSize: 10.5, color: "#fbbf24", background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 9, padding: 10, marginBottom: 9, lineHeight: 1.5 }}>
+                Ajoute d'abord une paire dans « Mes paires & stratégies » ci-dessus — les alertes se créent à partir de ta watchlist, pour ne jamais suivre une paire que tu ne trades pas vraiment.
+              </div>
+            ) : (
+              <>
+                <div style={{ marginBottom: 7 }}>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 4, fontWeight: 700 }}>Paire (depuis ta watchlist)</div>
+                  <select value={alertPair} onChange={e => setAlertPair(e.target.value)}
+                    style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box" }}>
+                    <option value="">— Choisir —</option>
+                    {watchlist.map(w => (
+                      <option key={w.id} value={w.pair}>{(PAIR_ICONS[w.pair] || "💱") + " " + w.pair}{w.strategy ? " — " + w.strategy.slice(0, 30) : ""}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 7, marginBottom: 7 }}>
+                  <select value={alertMode} onChange={e => setAlertMode(e.target.value)}
+                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box" }}>
+                    <option value="price">Prix exact</option>
+                    <option value="pct">Variation %</option>
+                  </select>
+                  <select value={alertDirection} onChange={e => setAlertDirection(e.target.value)}
+                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box" }}>
+                    <option value="above">Au-dessus de</option>
+                    <option value="below">En dessous de</option>
+                  </select>
+                </div>
+                <input value={alertValue} onChange={e => setAlertValue(e.target.value)} type="number" placeholder={alertMode === "pct" ? "Ex : 2 (%)" : "Ex : 1.0950"}
+                  style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box", marginBottom: 7 }} />
+              </>
+            )}
             {alertError && <div style={{ fontSize: 10, color: "#ef4444", marginBottom: 7, lineHeight: 1.4 }}>{alertError}</div>}
-            <button onClick={addAlert} disabled={alertBusy} style={{ width: "100%", padding: 10, borderRadius: 9, background: ACCENT, color: "#000", border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+            <button onClick={addAlert} disabled={alertBusy || !alertPair || watchlist.length === 0} style={{ width: "100%", padding: 10, borderRadius: 9, background: (alertPair && watchlist.length > 0) ? ACCENT : "rgba(255,255,255,0.08)", color: (alertPair && watchlist.length > 0) ? "#000" : "rgba(255,255,255,0.3)", border: "none", fontSize: 12, fontWeight: 800, cursor: (alertPair && watchlist.length > 0) ? "pointer" : "default" }}>
               {alertBusy ? "…" : "Créer l'alerte"}
             </button>
           </div>
