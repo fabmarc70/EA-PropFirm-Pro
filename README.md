@@ -103,3 +103,4 @@ Avant tout commit, consulter la **Section 6** de [`PROJECT_COMPASS.md`](./PROJEC
 # Test reconnexion Vercel 1786834431
 # Test apres validation des permissions GitHub App Vercel 1786834871
 # Test apres reinstallation complete de l'App GitHub Vercel 1786884116
+# Test apres reconnexion GitHub au niveau compte (ordinateur) 1786893266
