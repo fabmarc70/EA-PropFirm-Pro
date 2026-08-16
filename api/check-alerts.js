@@ -12,11 +12,18 @@
 // périodique, à fréquence limitée par le quota de l'API de prix.
 // ══════════════════════════════════════════════════════════════════
 
-import admin from "firebase-admin";
+import { initializeApp, cert, getApps, getApp } from "firebase-admin/app";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import webpush from "web-push";
 
 function initFirebaseAdmin() {
-  if (admin.apps.length) return admin.app();
+  // API MODULAIRE (firebase-admin/app) plutôt que l'import par défaut du
+  // namespace 'admin' — ce dernier posait un problème d'interop ESM/CJS dans
+  // l'environnement serverless de Vercel (admin.apps se retrouvait undefined
+  // malgré un import syntaxiquement correct). L'API modulaire évite cette
+  // ambiguïté à la source ; c'est aussi le pattern recommandé par Firebase
+  // depuis la v11+ pour tout contexte ESM.
+  if (getApps().length) return getApp();
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   if (!raw) throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY manquante côté serveur.");
   // Accepte deux formats : JSON brut (commence par "{") OU la même chose encodée
@@ -29,7 +36,7 @@ function initFirebaseAdmin() {
   let serviceAccount;
   try { serviceAccount = JSON.parse(jsonStr); }
   catch (e) { throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY illisible (ni JSON valide, ni base64 valide) : " + e.message); }
-  return admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+  return initializeApp({ credential: cert(serviceAccount) });
 }
 
 // Convertit un code de paire interne ("EURUSD", "XAUUSD") vers le format
@@ -130,7 +137,7 @@ export default async function handler(req, res) {
   let app;
   try { app = initFirebaseAdmin(); }
   catch (e) { return res.status(500).json({ error: "Échec d'initialisation Firebase Admin (FIREBASE_SERVICE_ACCOUNT_KEY).", detail: e.message, stack: e.stack }); }
-  const db = admin.firestore();
+  const db = getFirestore(app);
 
   let alertsSnap, positionsSnap;
   try {
@@ -175,7 +182,7 @@ export default async function handler(req, res) {
       const crossed = alert.direction === "above" ? price >= target : price <= target;
       if (!crossed) continue;
 
-      await docSnap.ref.update({ active: false, triggeredAt: admin.firestore.FieldValue.serverTimestamp() });
+      await docSnap.ref.update({ active: false, triggeredAt: FieldValue.serverTimestamp() });
       await sendPush(db, uid, {
         title: `Alerte ${alert.pair}`,
         body: `${alert.pair} a ${alert.direction === "above" ? "dépassé" : "atteint"} ${target.toFixed(5)} (actuellement ${price.toFixed(5)})`,
@@ -205,7 +212,7 @@ export default async function handler(req, res) {
 
       await docSnap.ref.update({
         status: slHit ? "closed_sl" : "closed_tp",
-        closedAt: admin.firestore.FieldValue.serverTimestamp(),
+        closedAt: FieldValue.serverTimestamp(),
         resultPct, exitPriceObserved: price,
       });
 
@@ -214,7 +221,7 @@ export default async function handler(req, res) {
       await db.collection("users").doc(uid).collection("pendingJournalEntries").add({
         pair: pos.pair, direction: pos.direction, entryPrice: pos.entryPrice,
         exitPrice: price, outcome, resultPct, positionId: docSnap.id,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
       });
 
       await sendPush(db, uid, {
