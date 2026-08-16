@@ -47,11 +47,18 @@ async function fetchPrices(pairs, apiKey) {
   const url = `https://api.twelvedata.com/price?symbol=${encodeURIComponent(symbols.join(","))}&apikey=${apiKey}`;
   const r = await fetch(url);
   const data = await r.json();
+  // Twelve Data renvoie parfois un objet d'ERREUR ({code, message, status})
+  // au lieu d'un objet de prix, notamment pour un symbole non reconnu (ex:
+  // un ticker crypto mal formé). Sans cette garde, Object.entries() itérait
+  // sur les champs de l'erreur comme s'ils étaient des prix.
+  if (data && data.status === "error") {
+    throw new Error(`Twelve Data a refusé la requête : ${data.message || data.code || "raison inconnue"}`);
+  }
   const out = {};
   if (symbols.length === 1) {
     const s = symbols[0];
-    if (data.price) out[s] = parseFloat(data.price);
-  } else {
+    if (data && data.price) out[s] = parseFloat(data.price);
+  } else if (data && typeof data === "object") {
     Object.entries(data).forEach(([sym, v]) => { if (v && v.price) out[sym] = parseFloat(v.price); });
   }
   // Ré-indexe par pair d'origine (sans le slash) pour un accès simple
@@ -65,6 +72,14 @@ async function sendPush(db, uid, payload) {
   const results = [];
   for (const doc of subsSnap.docs) {
     const sub = doc.data().subscription;
+    // Garde contre un abonnement mal formé (sauvegarde partielle côté client,
+    // ex: sub.toJSON() qui aurait échoué à mi-chemin) — la librairie web-push
+    // lève une erreur bas niveau peu explicite si endpoint/keys manquent.
+    if (!sub || !sub.endpoint || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) {
+      results.push({ ok: false, error: "Abonnement push incomplet, ignoré." });
+      await doc.ref.delete().catch(() => {});
+      continue;
+    }
     try {
       await webpush.sendNotification(sub, JSON.stringify(payload));
       results.push({ ok: true });
@@ -94,29 +109,41 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "Non autorisé." });
   }
 
-  const vapidPublic = process.env.VAPID_PUBLIC_KEY;
-  const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
-  const twelveDataKey = process.env.TWELVE_DATA_API_KEY;
+  const vapidPublic = (process.env.VAPID_PUBLIC_KEY || "").trim();
+  const vapidPrivate = (process.env.VAPID_PRIVATE_KEY || "").trim();
+  const twelveDataKey = (process.env.TWELVE_DATA_API_KEY || "").trim();
   if (!vapidPublic || !vapidPrivate) {
     return res.status(500).json({ error: "VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY manquantes côté serveur." });
   }
   if (!twelveDataKey) {
     return res.status(500).json({ error: "TWELVE_DATA_API_KEY manquante côté serveur." });
   }
-  webpush.setVapidDetails("mailto:contact@eapropfirmpro.app", vapidPublic, vapidPrivate);
+  // Étape isolée avec son propre try/catch : si une clé VAPID est malformée
+  // (espace/retour à la ligne collé par erreur), l'erreur précédente était
+  // trop générique pour savoir OÙ ça cassait. Désormais identifiée nommément.
+  try {
+    webpush.setVapidDetails("mailto:contact@eapropfirmpro.app", vapidPublic, vapidPrivate);
+  } catch (e) {
+    return res.status(500).json({ error: "Échec de configuration VAPID (clé publique ou privée malformée).", detail: e.message });
+  }
 
   let app;
   try { app = initFirebaseAdmin(); }
-  catch (e) { return res.status(500).json({ error: e.message }); }
+  catch (e) { return res.status(500).json({ error: "Échec d'initialisation Firebase Admin (FIREBASE_SERVICE_ACCOUNT_KEY).", detail: e.message, stack: e.stack }); }
   const db = admin.firestore();
 
+  let alertsSnap, positionsSnap;
   try {
     // ── Collecte des alertes actives et positions ouvertes, TOUS UTILISATEURS ──
-    const [alertsSnap, positionsSnap] = await Promise.all([
+    [alertsSnap, positionsSnap] = await Promise.all([
       db.collectionGroup("priceAlerts").where("active", "==", true).get(),
       db.collectionGroup("openPositions").where("status", "==", "open").get(),
     ]);
+  } catch (e) {
+    return res.status(500).json({ error: "Échec de la lecture Firestore (index composite manquant probable — voir le lien dans detail).", detail: e.message });
+  }
 
+  try {
     const allPairs = new Set();
     alertsSnap.docs.forEach(d => allPairs.add(d.data().pair));
     positionsSnap.docs.forEach(d => allPairs.add(d.data().pair));
@@ -125,7 +152,12 @@ export default async function handler(req, res) {
       return res.status(200).json({ checked: 0, message: "Aucune alerte ni position à surveiller." });
     }
 
-    const prices = await fetchPrices([...allPairs], twelveDataKey);
+    let prices;
+    try {
+      prices = await fetchPrices([...allPairs], twelveDataKey);
+    } catch (e) {
+      return res.status(500).json({ error: "Échec de récupération des prix Twelve Data.", detail: e.message, pairs: [...allPairs] });
+    }
 
     let alertsTriggered = 0, positionsClosed = 0;
 
@@ -199,6 +231,6 @@ export default async function handler(req, res) {
       pairsChecked: [...allPairs],
     });
   } catch (e) {
-    return res.status(500).json({ error: "Échec du contrôle des alertes.", detail: String(e) });
+    return res.status(500).json({ error: "Échec du contrôle des alertes.", detail: e.message || String(e), stack: e.stack });
   }
 }
