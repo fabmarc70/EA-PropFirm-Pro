@@ -14947,7 +14947,7 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
         )}
 
         <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 10, lineHeight: 1.4 }}>
-          Contrôle du prix toutes les 5 minutes environ (pas un flux tick par tick) — une alerte peut avoir quelques minutes de décalage avec le marché réel.
+          Contrôle du prix 1 fois par jour (limite du plan Vercel actuel) — pas un flux tick par tick, ni du temps réel. Une alerte peut avoir jusqu'à 24h de décalage avec le marché.
         </div>
 
         {alerts.length === 0 && !showAddAlert && (
@@ -15012,7 +15012,7 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
           </button>
         </div>
         <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 10, lineHeight: 1.4 }}>
-          Une fois confirmée, la position est surveillée automatiquement. Dès que le prix touche ton TP ou ton SL (contrôle toutes les 5 min), le résultat est ajouté à ton journal — même si l'app est fermée.
+          Une fois confirmée, la position est surveillée automatiquement, 1 fois par jour (limite du plan Vercel actuel). Dès que le prix a touché ton TP ou ton SL au moment du contrôle quotidien, le résultat est ajouté à ton journal — même si l'app est fermée.
         </div>
 
         {positions.length === 0 && !showScreenshotFlow && (
