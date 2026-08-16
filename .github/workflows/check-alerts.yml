@@ -1,0 +1,31 @@
+name: Surveillance des prix (alertes + positions)
+
+# Déclenche api/check-alerts toutes les 15 minutes — contourne la limite du
+# plan Vercel Hobby (1 exécution/jour pour son propre système de cron) en
+# passant par un déclencheur EXTERNE, gratuit sur GitHub Actions.
+#
+# LIMITE À CONNAÎTRE : GitHub peut retarder ou occasionnellement sauter une
+# exécution programmée en période de forte charge sur ses serveurs — ce n'est
+# pas garanti à la minute près, contrairement à un vrai flux de prix. Et les
+# workflows programmés sont automatiquement désactivés après 60 jours sans
+# aucune activité sur le dépôt (pas un souci tant que le projet évolue).
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {} # permet aussi un déclenchement manuel depuis l'onglet Actions
+
+jobs:
+  check-alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Appeler api/check-alerts
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "https://ea-propfirm-pro.vercel.app/api/check-alerts" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo "Réponse ($HTTP_CODE) : $BODY"
+          if [ "$HTTP_CODE" -ge 400 ]; then
+            echo "::error::Le contrôle des alertes a échoué (HTTP $HTTP_CODE)"
+            exit 1
+          fi

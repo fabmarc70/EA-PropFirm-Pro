@@ -80,6 +80,20 @@ async function sendPush(db, uid, payload) {
 }
 
 export default async function handler(req, res) {
+  // ── Protection par secret partagé ──
+  // Cet endpoint est maintenant appelé depuis DEUX sources : le cron interne
+  // Vercel (1x/jour, limite du plan Hobby) ET un workflow GitHub Actions
+  // programmé plus fréquemment (gratuit, hors de cette limite). Sans cette
+  // vérification, n'importe qui connaissant l'URL pourrait déclencher des
+  // contrôles à volonté (épuisement du quota Twelve Data, spam de notifications).
+  // Vercel Cron envoie automatiquement ce header quand la variable s'appelle
+  // exactement CRON_SECRET (mécanisme documenté, rien à coder côté cron
+  // interne) ; le workflow GitHub Actions l'envoie manuellement de la même façon.
+  const expectedAuth = "Bearer " + process.env.CRON_SECRET;
+  if (!process.env.CRON_SECRET || req.headers.authorization !== expectedAuth) {
+    return res.status(401).json({ error: "Non autorisé." });
+  }
+
   const vapidPublic = process.env.VAPID_PUBLIC_KEY;
   const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
   const twelveDataKey = process.env.TWELVE_DATA_API_KEY;
