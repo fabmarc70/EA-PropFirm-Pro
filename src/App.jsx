@@ -14727,6 +14727,22 @@ const WATCH_CATEGORIES = [
   { key: "commodities", label: "Matières premières" }, { key: "other", label: "Autre" },
 ];
 
+// Instruments suggérés par catégorie — repris EXACTEMENT du manifeste réel de
+// HISTDATA- (les 24 instruments réellement couverts par des données de marché
+// publiées, vérifiés en direct avant d'écrire cette liste). Ce sont donc les
+// paires réellement testables en Backtest Réel, pas une liste inventée — ce
+// qui correspond aussi à ce que proposent couramment les prop firms (majors,
+// métaux, indices US/EU/UK/JP, pétrole). Crypto n'a aucune donnée publiée
+// actuellement : pas de suggestions inventées, texte libre uniquement.
+const WATCH_SUGGESTIONS = {
+  forex: ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "USDCHF", "NZDUSD", "EURGBP", "EURJPY", "EURCHF", "GBPJPY", "AUDJPY", "CHFJPY"],
+  metals: ["XAUUSD", "XAGUSD"],
+  indices: ["US30", "NAS100", "SPX500", "GER30", "UK100", "JPN225"],
+  commodities: ["USOIL", "UKOIL", "COPPER"],
+  crypto: [],
+  other: [],
+};
+
 // ══════════════════════════════════════════════════════════════════
 // WATCHLIST + ALERTES DE PRIX + POSITIONS SURVEILLÉES PAR CAPTURE D'ÉCRAN
 //
@@ -14908,13 +14924,45 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
 
         {showAddPair && (
           <div style={{ marginTop: 8 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 7, marginBottom: 7 }}>
-              <input value={newPair} onChange={e => setNewPair(e.target.value.toUpperCase())} placeholder="Ex : EURUSD"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box" }} />
-              <select value={newCategory} onChange={e => setNewCategory(e.target.value)}
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box" }}>
+            <div style={{ marginBottom: 7 }}>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 4, fontWeight: 700 }}>Catégorie</div>
+              <select value={newCategory} onChange={e => { setNewCategory(e.target.value); setNewPair(""); }}
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box" }}>
                 {WATCH_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
               </select>
+            </div>
+
+            {/* Suggestions réelles pour la catégorie choisie — paires effectivement
+                backtestables (données publiées), pas une liste inventée */}
+            {WATCH_SUGGESTIONS[newCategory]?.length > 0 ? (
+              <div style={{ marginBottom: 9 }}>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginBottom: 5 }}>
+                  Paires courantes en {WATCH_CATEGORIES.find(c => c.key === newCategory)?.label.toLowerCase()} — testables en Backtest Réel :
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {WATCH_SUGGESTIONS[newCategory].map(p => {
+                    const active = newPair === p;
+                    return (
+                      <button key={p} type="button" onClick={() => setNewPair(p)} style={{
+                        padding: "6px 10px", borderRadius: 100, cursor: "pointer", fontSize: 10.5, fontWeight: 700,
+                        background: active ? ACCENT + "22" : "rgba(255,255,255,0.04)",
+                        color: active ? ACCENT : "rgba(255,255,255,0.6)",
+                        border: "1px solid " + (active ? ACCENT : "rgba(255,255,255,0.1)"),
+                      }}>{(PAIR_ICONS[p] || "💱") + " " + p}</button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (newCategory === "crypto") && (
+              <div style={{ fontSize: 9.5, color: "#fbbf24", marginBottom: 9, lineHeight: 1.4 }}>
+                ⚠️ Aucune donnée crypto n'est actuellement publiée dans l'app — tu peux suivre une paire crypto ici (texte libre), mais elle ne sera pas testable en Backtest Réel pour l'instant.
+              </div>
+            )}
+
+            <div style={{ marginBottom: 7 }}>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 4, fontWeight: 700 }}>Paire{newPair ? " : " + newPair : ""}</div>
+              <input value={newPair} onChange={e => setNewPair(e.target.value.toUpperCase())} placeholder="Choisis une puce ci-dessus, ou tape un code (ex : EURUSD)"
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box" }} />
             </div>
             <textarea value={newStrategy} onChange={e => setNewStrategy(e.target.value)} placeholder="Stratégie appliquée sur cette paire (optionnel)" rows={2}
               style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12, boxSizing: "border-box", marginBottom: 7, resize: "vertical", fontFamily: "inherit" }} />
