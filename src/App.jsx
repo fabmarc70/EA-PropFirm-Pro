@@ -14753,6 +14753,86 @@ const WATCH_SUGGESTIONS = {
 // Vercel, api/check-alerts.js) — un cron ne peut pas lire le stockage local
 // d'un téléphone qui peut même être éteint.
 // ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// GRAPHIQUE TRADINGVIEW EMBARQUÉ — plutôt que de reconstruire un graphique en
+// chandelier à partir de nos données historiques (limitées à des mois précis
+// pour le backtest), on intègre le vrai widget TradingView : gratuit, sans
+// clé API, live, avec zoom/scroll/indicateurs et sélecteur de timeframe
+// natifs. C'est exactement ce que montrent les captures d'écran de l'app
+// TradingView elle-même.
+//
+// HONNÊTETÉ SUR LES SYMBOLES : le prefixe/broker exact utilisé par
+// TradingView varie par instrument. Sûr et vérifié pour le forex et les
+// métaux (convention OANDA très standard). Moins certain pour certains
+// indices/matières premières (Allemagne, Royaume-Uni, cuivre) — un champ
+// modifiable est fourni pour corriger si le symbole auto-deviné ne charge
+// rien de correct.
+// ══════════════════════════════════════════════════════════════════
+const TV_SYMBOL_MAP = {
+  // Forex majors/cross — convention OANDA, fiable
+  EURUSD: "OANDA:EURUSD", GBPUSD: "OANDA:GBPUSD", USDJPY: "OANDA:USDJPY",
+  AUDUSD: "OANDA:AUDUSD", USDCAD: "OANDA:USDCAD", USDCHF: "OANDA:USDCHF",
+  NZDUSD: "OANDA:NZDUSD", EURGBP: "OANDA:EURGBP", EURJPY: "OANDA:EURJPY",
+  EURCHF: "OANDA:EURCHF", GBPJPY: "OANDA:GBPJPY", AUDJPY: "OANDA:AUDJPY", CHFJPY: "OANDA:CHFJPY",
+  // Métaux — fiable
+  XAUUSD: "OANDA:XAUUSD", XAGUSD: "OANDA:XAGUSD",
+  // Indices — CFD OANDA, généralement disponibles gratuitement
+  US30: "OANDA:US30USD", NAS100: "OANDA:NAS100USD", SPX500: "OANDA:SPX500USD",
+  GER30: "OANDA:DE30EUR", UK100: "OANDA:UK100GBP", JPN225: "OANDA:JP225USD",
+  // Matières premières — moins certain, à vérifier/corriger si besoin
+  USOIL: "OANDA:WTICOUSD", UKOIL: "OANDA:BCOUSD", COPPER: "OANDA:XCUUSD",
+  // Crypto — pas dans notre base de backtest, mais TradingView les couvre largement
+  BTCUSDT: "BINANCE:BTCUSDT", BTCUSD: "COINBASE:BTCUSD", ETHUSD: "COINBASE:ETHUSD",
+};
+
+function guessTvSymbol(pair) {
+  return TV_SYMBOL_MAP[pair] || pair; // repli : le code tel quel (l'utilisateur peut corriger)
+}
+
+function TradingViewChartModal({ pair, onClose }) {
+  const ACCENT = "#6ee7b7";
+  const [symbol, setSymbol] = useState(guessTvSymbol(pair));
+  const [editingSymbol, setEditingSymbol] = useState(false);
+  const [symbolInput, setSymbolInput] = useState(symbol);
+  const isGuessUncertain = !TV_SYMBOL_MAP[pair]; // aucune correspondance connue -> avertir
+
+  const src = `https://s.tradingview.com/embed-widget/advanced-chart/?locale=fr#${encodeURIComponent(JSON.stringify({
+    symbol, interval: "60", timezone: "Etc/UTC", theme: "dark", style: "1",
+    withdateranges: true, hide_side_toolbar: false, allow_symbol_change: true,
+    studies: [], autosize: true,
+  }))}`;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "#06090f", display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "calc(12px + env(safe-area-inset-top)) 14px 10px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{pair}</div>
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>Graphique live — TradingView</div>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button onClick={() => { setEditingSymbol(v => !v); setSymbolInput(symbol); }} style={{ padding: "6px 10px", borderRadius: 8, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Symbole</button>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 16, background: "rgba(255,255,255,0.08)", border: "none", color: "#fff", fontSize: 15, cursor: "pointer" }}>✕</button>
+        </div>
+      </div>
+
+      {isGuessUncertain && !editingSymbol && (
+        <div style={{ fontSize: 9.5, color: "#fbbf24", background: "rgba(251,191,36,0.08)", padding: "8px 14px", lineHeight: 1.4 }}>
+          ⚠️ Symbole deviné automatiquement ({symbol}) — si le graphique ne charge rien, appuie sur « Symbole » pour le corriger.
+        </div>
+      )}
+      {editingSymbol && (
+        <div style={{ display: "flex", gap: 8, padding: "8px 14px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+          <input value={symbolInput} onChange={e => setSymbolInput(e.target.value.toUpperCase())} placeholder="Ex : OANDA:EURUSD"
+            style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: "#fff", padding: "8px 10px", fontSize: 12, boxSizing: "border-box" }} />
+          <button onClick={() => { setSymbol(symbolInput); setEditingSymbol(false); }} style={{ padding: "0 14px", borderRadius: 8, background: ACCENT, color: "#000", border: "none", fontSize: 11.5, fontWeight: 800, cursor: "pointer" }}>OK</button>
+        </div>
+      )}
+
+      <iframe title={"TradingView " + pair} src={src} style={{ flex: 1, width: "100%", border: "none" }} allowFullScreen />
+    </div>
+  );
+}
+
 function WatchAlertsSection({ t, onPositionsClosed }) {
   const ACCENT = "#6ee7b7";
   const [loading, setLoading] = useState(true);
@@ -14760,6 +14840,7 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
   const [alerts, setAlerts] = useState([]);
   const [positions, setPositions] = useState([]);
   const [pushStatus, setPushStatus] = useState("idle"); // idle|subscribing|subscribed|denied|unsupported|error
+  const [chartPair, setChartPair] = useState(null); // paire dont le graphique TradingView est ouvert
 
   const [showAddPair, setShowAddPair] = useState(false);
   const [newPair, setNewPair] = useState("");
@@ -14916,11 +14997,17 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
                 <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{w.pair}</span>
                 <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginLeft: 6 }}>{WATCH_CATEGORIES.find(c => c.key === w.category)?.label || ""}</span>
               </div>
-              <button onClick={() => deleteWatchlistItem(w.id)} style={{ background: "none", border: "none", color: "#ef4444", fontSize: 11, cursor: "pointer" }}>✕</button>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <button onClick={() => setChartPair(w.pair)} style={{ background: "none", border: "none", color: ACCENT, fontSize: 10.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
+                  📈 Graphique
+                </button>
+                <button onClick={() => deleteWatchlistItem(w.id)} style={{ background: "none", border: "none", color: "#ef4444", fontSize: 11, cursor: "pointer" }}>✕</button>
+              </div>
             </div>
             {w.strategy && <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.6)", marginTop: 4, lineHeight: 1.45 }}>{w.strategy}</div>}
           </div>
         ))}
+        {chartPair && <TradingViewChartModal pair={chartPair} onClose={() => setChartPair(null)} />}
 
         {showAddPair && (
           <div style={{ marginTop: 8 }}>
