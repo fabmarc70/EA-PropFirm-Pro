@@ -11211,50 +11211,6 @@ function computeGuardrailStatus({ plan, firmModel, effectiveCapital, monthEntrie
   };
 }
 
-// ══════════════════════════════════════════════════════════════════
-// DÉTECTION DE PATTERNS DANS LES NOTES — pas d'IA/API ici : un simple
-// comptage de familles de mots-clés récurrentes à travers les notes libres
-// du journal, façon "grep intelligent". Inspiré du rapport IA hebdomadaire
-// d'EdgeFlo (qui lit les notes vocales transcrites pour repérer des phrases
-// répétées comme "je voulais récupérer ma perte" = revenge trading), en
-// version 100% locale et déterministe — aucune donnée envoyée nulle part.
-// ══════════════════════════════════════════════════════════════════
-const NOTE_PATTERNS = [
-  { key: "revenge", label: "Revenge trading", keywords: ["récupérer", "recuperer", "rattraper", "me refaire", "revanche", "reprendre ma perte"] },
-  { key: "fomo", label: "FOMO", keywords: ["fomo", "peur de rater", "tout le monde", "j'ai raté", "j'ai rate", "manqué le mouvement"] },
-  { key: "impulsif", label: "Trade impulsif", keywords: ["sans réfléchir", "sans reflechir", "impulsif", "coup de tête", "coup de tete", "sur un coup de tête"] },
-  { key: "stop", label: "Stop non respecté", keywords: ["annulé mon stop", "annule mon stop", "déplacé mon stop", "deplace mon stop", "pas mis de stop", "sans stop", "retiré le stop"] },
-  { key: "fatigue", label: "Fatigue / état mental", keywords: ["fatigue", "fatigué", "fatigue", "épuisé", "epuise", "pas dormi", "stressé", "stresse"] },
-  { key: "surtrading", label: "Sur-trading", keywords: ["trop tradé", "trop trade", "encore un trade", "un dernier trade", "un de plus"] },
-];
-
-function detectJournalPatterns(journalRaw) {
-  const notedDays = [];
-  Object.entries(journalRaw || {}).forEach(([mk, days]) => {
-    Object.entries(days || {}).forEach(([d, e]) => {
-      if (e && e.notes && e.notes.trim()) {
-        notedDays.push({ date: `${mk}-${d.padStart(2, "0")}`, notes: e.notes.toLowerCase(), pnl: e.pnl || 0 });
-      }
-    });
-  });
-  if (notedDays.length < 3) return { findings: [], notedDaysCount: notedDays.length }; // échantillon trop faible pour dire quoi que ce soit
-
-  const findings = [];
-  NOTE_PATTERNS.forEach(p => {
-    const hits = notedDays.filter(d => p.keywords.some(k => d.notes.includes(k)));
-    if (hits.length >= 2) {
-      const losingHits = hits.filter(d => d.pnl < 0).length;
-      findings.push({
-        key: p.key, label: p.label, count: hits.length,
-        losingCount: losingHits,
-        dates: hits.map(d => d.date),
-      });
-    }
-  });
-  findings.sort((a, b) => b.count - a.count);
-  return { findings, notedDaysCount: notedDays.length };
-}
-
 // Champ d'ajout d'une règle au plan de trading — composant stable au niveau
 // module (l'avoir défini à l'intérieur du rendu de JournalScreen recréerait
 // le composant à chaque frappe et ferait perdre le focus du champ).
@@ -15369,7 +15325,6 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
     plan: tradingPlan, firmModel: selectedFirmModel, effectiveCapital,
     monthEntries: journalMonthDataFiltered, todayEntry,
   });
-  const behaviorPatterns = detectJournalPatterns(journalAllFiltered);
 
   // ── Fusion des entrées auto-générées par le serveur (positions clôturées
   // pendant que l'app était fermée) dans le journal local, une fois à
@@ -15740,26 +15695,6 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
 
         {/* ── Watchlist, alertes de prix, positions surveillées par capture ── */}
         <WatchAlertsSection t={t} />
-
-        {/* ── PATTERNS COMPORTEMENTAUX — détectés dans les notes libres, sans IA/API :
-             comptage de familles de mots-clés récurrentes à travers les jours notés.
-             N'apparaît que si au moins 3 jours ont une note (sinon aucune conclusion fiable). ── */}
-        {behaviorPatterns.findings.length > 0 && (
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(251,191,36,0.15)", borderRadius: 20, padding: 16, marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
-              🔍 Patterns détectés dans tes notes
-            </div>
-            <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", marginBottom: 10 }}>
-              Sur {behaviorPatterns.notedDaysCount} jours notés — comptage de mots-clés, aucune IA, rien n'est envoyé nulle part.
-            </div>
-            {behaviorPatterns.findings.map(f => (
-              <div key={f.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 11px", borderRadius: 10, background: "rgba(251,191,36,0.05)", border: "1px solid rgba(251,191,36,0.15)", marginBottom: 6 }}>
-                <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.8)", fontWeight: 700 }}>{f.label}</span>
-                <span style={{ fontSize: 10.5, color: "#fbbf24" }}>{f.count} jours{f.losingCount > 0 ? ` · ${f.losingCount} perdants` : ""}</span>
-              </div>
-            ))}
-          </div>
-        )}
 
         {!journalStats && (
           <div style={{ textAlign: "center", padding: "20px 10px", color: "rgba(255,255,255,0.35)", fontSize: 12 }}>
