@@ -7,6 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false, // enregistrement géré manuellement dans main.jsx (vérif périodique + bandeau de mise à jour)
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'notif-sw.js'],
       manifest: {
         name: 'EA PropFirm Pro',
