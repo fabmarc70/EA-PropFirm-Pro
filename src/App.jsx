@@ -11372,7 +11372,6 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
   const [formLotIncreaseAfterLoss, setFormLotIncreaseAfterLoss] = useState(false);
   const [formEmotionalTrading, setFormEmotionalTrading] = useState(false);
   const [formMood, setFormMood] = useState(null); // tag d'émotion rapide (inspiré EdgeFlo, sans note vocale)
-  const [formNotes, setFormNotes] = useState(""); // note libre — sert à la détection de patterns
   const [viewerImg, setViewerImg] = useState(null);
   const [imgLoading, setImgLoading] = useState(false);
   const [imgDateWarn, setImgDateWarn] = useState(null); // alerte doublon potentiel
@@ -11670,7 +11669,6 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 setFormIntradayDD(existing && existing.intradayDD !== undefined && existing.intradayDD !== null ? String(existing.intradayDD) : "");
                 setFormAccountId(activeAccountId || (accounts && accounts.length ? accounts[0].id : "default"));
                 setFormMood(existing && existing.mood ? existing.mood : null);
-                setFormNotes(existing && existing.notes ? existing.notes : "");
                 setImgDateWarn(null);
               }}
               style={{
@@ -11755,6 +11753,10 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
             style={{
               width: "100%",
               maxWidth: 430,
+              // Hauteur plafonnée à l'écran + défilement interne : sans ça, un
+              // formulaire chargé grandissait hors de l'écran et les boutons
+              // Enregistrer/Annuler devenaient invisibles, sans moyen d'y accéder.
+              maxHeight: "calc(100dvh - env(safe-area-inset-top, 16px) - 24px)",
               background: "#12121a",
               border: "1px solid rgba(110,231,183,0.22)",
               borderRadius: 20,
@@ -11781,8 +11783,11 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
               </div>
             </div>
 
-            {/* ── CONTENU (pas de scroll horizontal) ── */}
-            <div style={{ padding: "14px 18px", overflowX: "hidden" }}>
+            {/* ── CONTENU (défile en interne — header et footer restent fixes,
+                 minHeight:0 est indispensable pour que ce flex-item accepte de
+                 rétrécir et laisse le défilement se faire ICI plutôt que de
+                 pousser toute la carte plus haut que l'écran) ── */}
+            <div style={{ padding: "14px 18px", overflowX: "hidden", overflowY: "auto", flex: 1, minHeight: 0 }}>
 
               {/* Gagnants + Perdants côte à côte */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
@@ -11888,7 +11893,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 7 }}>
                   État d'esprit du jour
                 </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 4, flexWrap: "nowrap" }}>
                   {[
                     { key: "calme", label: "😌 Calme" },
                     { key: "confiant", label: "💪 Confiant" },
@@ -11899,32 +11904,15 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                     const active = formMood === m.key;
                     return (
                       <button key={m.key} type="button" onClick={() => setFormMood(active ? null : m.key)} style={{
-                        padding: "7px 11px", borderRadius: 100, cursor: "pointer", fontSize: 11, fontWeight: 700,
+                        flex: 1, minWidth: 0, padding: "7px 2px", borderRadius: 100, cursor: "pointer", fontSize: 9.5, fontWeight: 700,
                         background: active ? "rgba(110,231,183,0.18)" : "rgba(255,255,255,0.04)",
                         color: active ? "#6ee7b7" : "rgba(255,255,255,0.55)",
                         border: "1px solid " + (active ? "#6ee7b7" : "rgba(255,255,255,0.1)"),
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                       }}>{m.label}</button>
                     );
                   })}
                 </div>
-              </div>
-
-              {/* ── Note libre — sert de matière à la détection de patterns comportementaux ── */}
-              <div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 7 }}>
-                  Note (optionnel)
-                </div>
-                <textarea
-                  value={formNotes}
-                  onChange={e => setFormNotes(e.target.value)}
-                  placeholder="Ce qui s'est passé, pourquoi tu es entré, comment tu t'es senti…"
-                  rows={3}
-                  style={{
-                    width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)",
-                    borderRadius: 12, padding: "10px 12px", color: "#fff", fontSize: 12.5, outline: "none",
-                    boxSizing: "border-box", resize: "vertical", fontFamily: "inherit", lineHeight: 1.5,
-                  }}
-                />
               </div>
 
               {/* ── Coach de Discipline : signaux comportementaux du jour ── */}
@@ -12039,7 +12027,6 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                     respectPlan: formRespectPlan, respectRisk: formRespectRisk,
                     lotIncreaseAfterLoss: formLotIncreaseAfterLoss, emotionalTrading: formEmotionalTrading };
                   if (formMood) entry.mood = formMood;
-                  if (formNotes.trim()) entry.notes = formNotes.trim();
                   if (formImages.length > 0) entry.images = formImages;
                   if (formIntradayDD !== "" && !isNaN(parseFloat(formIntradayDD))) entry.intradayDD = Math.abs(parseFloat(formIntradayDD));
                   if (onJournalSave) onJournalSave(editingDay, entry, formAccountId || "default");
