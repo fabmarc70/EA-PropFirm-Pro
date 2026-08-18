@@ -1,0 +1,27 @@
+name: Détection de setup (EMA200 Pullback)
+
+# Séparé de check-alerts.yml à dessein : ce contrôle récupère une SÉRIE de
+# 700 bougies par paire (pour une EMA200 fiable), donc bien plus coûteux en
+# quota Twelve Data qu'un simple contrôle de prix. D'où une cadence plus
+# espacée (30 min) — largement suffisant puisqu'une bougie H1 ne se clôt
+# qu'une fois par heure de toute façon.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  check-setups:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Appeler api/check-setups
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "https://ea-propfirm-pro.vercel.app/api/check-setups" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo "Réponse ($HTTP_CODE) : $BODY"
+          if [ "$HTTP_CODE" -ge 400 ]; then
+            echo "::error::La détection de setup a échoué (HTTP $HTTP_CODE)"
+            exit 1
+          fi

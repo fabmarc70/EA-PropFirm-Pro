@@ -248,3 +248,44 @@ export async function fbDeletePendingJournalEntry(id) {
   const uid = requireUid();
   await deleteDoc(doc(db, "users", uid, "pendingJournalEntries", id));
 }
+
+// ══════════════════════════════════════════════════════════════════
+// DÉTECTION DE SETUP EN TEMPS RÉEL (EMA200 Pullback)
+//
+// setupWatches : les paires surveillées pour ce schéma précis (cassure EMA200
+// → pullback → reprise). Chacune garde son dernier état notifié (lastState)
+// pour ne jamais renvoyer deux fois la même alerte tant que l'état ne change
+// pas — sans ça, chaque contrôle (toutes les ~30 min) spammerait la même
+// notification en boucle.
+//
+// setupConfig : capital et risque DÉDIÉS à ce système, volontairement
+// séparés du plan de trading général (demande explicite) — sert uniquement
+// à calculer le risque en $ affiché dans la notification "Setup confirmé".
+// ══════════════════════════════════════════════════════════════════
+export async function fbAddSetupWatch({ pair, timeframe = "60" }) {
+  const uid = requireUid();
+  const ref = await addDoc(collection(db, "users", uid, "setupWatches"), {
+    pair, timeframe, strategy: "ema_pullback", active: true,
+    lastState: "idle", lastNotifiedAt: null, createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+export async function fbListSetupWatches() {
+  const uid = requireUid();
+  const snap = await getDocs(collection(db, "users", uid, "setupWatches"));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+export async function fbDeleteSetupWatch(id) {
+  const uid = requireUid();
+  await deleteDoc(doc(db, "users", uid, "setupWatches", id));
+}
+
+export async function fbGetSetupConfig() {
+  const uid = requireUid();
+  const snap = await getDoc(doc(db, "users", uid, "setupConfig", "default"));
+  return snap.exists() ? snap.data() : { capital: 25000, riskPct: 1 };
+}
+export async function fbSaveSetupConfig(cfg) {
+  const uid = requireUid();
+  await setDoc(doc(db, "users", uid, "setupConfig", "default"), cfg, { merge: true });
+}

@@ -3,7 +3,8 @@ import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthCh
   fbAddWatchlistItem, fbListWatchlist, fbDeleteWatchlistItem,
   fbAddPriceAlert, fbListPriceAlerts, fbDeletePriceAlert, fbSetPriceAlertActive,
   fbAddOpenPosition, fbListOpenPositions, fbCloseOpenPositionManually, fbDeleteOpenPosition,
-  fbSavePushSubscription, fbListPendingJournalEntries, fbDeletePendingJournalEntry } from "./firebase.js";
+  fbSavePushSubscription, fbListPendingJournalEntries, fbDeletePendingJournalEntry,
+  fbAddSetupWatch, fbListSetupWatches, fbDeleteSetupWatch, fbGetSetupConfig, fbSaveSetupConfig } from "./firebase.js";
 import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedData, loadRange, monthsInRange, getCoverage } from "./historicalData.js";
 import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS, listConfluenceFilters, WEEKDAYS, runWalkForward, analyzeFailure, optimizeStrategy } from "./backtestEngine.js";
 import {
@@ -14841,6 +14842,11 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
   const [positions, setPositions] = useState([]);
   const [pushStatus, setPushStatus] = useState("idle"); // idle|subscribing|subscribed|denied|unsupported|error
   const [chartPair, setChartPair] = useState(null); // paire dont le graphique TradingView est ouvert
+  const [setupWatches, setSetupWatches] = useState([]);
+  const [setupConfig, setSetupConfig] = useState({ capital: 25000, riskPct: 1 });
+  const [showAddSetup, setShowAddSetup] = useState(false);
+  const [setupPairInput, setSetupPairInput] = useState("");
+  const [showSetupConfig, setShowSetupConfig] = useState(false);
 
   const [showAddPair, setShowAddPair] = useState(false);
   const [newPair, setNewPair] = useState("");
@@ -14863,12 +14869,20 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [w, a, p] = await Promise.all([fbListWatchlist(), fbListPriceAlerts(), fbListOpenPositions()]);
-      setWatchlist(w); setAlerts(a); setPositions(p);
+      const [w, a, p, sw, sc] = await Promise.all([fbListWatchlist(), fbListPriceAlerts(), fbListOpenPositions(), fbListSetupWatches(), fbGetSetupConfig()]);
+      setWatchlist(w); setAlerts(a); setPositions(p); setSetupWatches(sw); setSetupConfig(sc);
     } catch (e) { /* utilisateur pas encore connecté, ou hors-ligne — pas bloquant */ }
     setLoading(false);
   };
   useEffect(() => { loadAll(); }, []);
+
+  const addSetupWatch = async () => {
+    if (!setupPairInput.trim()) return;
+    try { await fbAddSetupWatch({ pair: setupPairInput.trim().toUpperCase(), timeframe: "60" }); setSetupPairInput(""); setShowAddSetup(false); loadAll(); }
+    catch (e) { alert("Connecte-toi pour surveiller un setup."); }
+  };
+  const deleteSetupWatch = async (id) => { await fbDeleteSetupWatch(id); loadAll(); };
+  const saveSetupConfig = async () => { await fbSaveSetupConfig(setupConfig); setShowSetupConfig(false); };
 
   // ── Abonnement Web Push : demande la permission navigateur, s'abonne, sauvegarde côté Firestore ──
   const subscribeToPush = async () => {
@@ -15235,6 +15249,69 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
                 </div>
               </div>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* ── DÉTECTION DE SETUP EN TEMPS RÉEL — EMA200 Pullback uniquement.
+           Scope volontairement restreint (voir discussion) : cette section ne
+           couvre QUE le schéma cassure EMA200 → pullback → reprise, exactement
+           la stratégie déjà backtestée dans Backtest Réel. Pas un moteur
+           multi-stratégies générique. ── */}
+      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, padding: 16, marginTop: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>
+            🎯 Détection de setup — EMA200 Pullback
+          </div>
+          <button onClick={() => setShowAddSetup(v => !v)} style={{ padding: "5px 11px", borderRadius: 8, border: "1px solid " + ACCENT + "55", background: ACCENT + "12", color: ACCENT, fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>
+            {showAddSetup ? "Annuler" : "+ Ajouter"}
+          </button>
+        </div>
+
+        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 10, lineHeight: 1.5 }}>
+          Contrôle toutes les 30 minutes (H1 fixe — plus coûteux en quota qu'une simple alerte de prix, donc espacé davantage). 🟡 = cassure EMA200 + pullback en cours. 🟢 = reprise confirmée, avec entrée/SL/TP/risque calculés.
+        </div>
+
+        <button onClick={() => setShowSetupConfig(v => !v)} style={{
+          width: "100%", padding: "9px", borderRadius: 9, cursor: "pointer", marginBottom: 10,
+          border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.55)", fontSize: 10.5, fontWeight: 700,
+        }}>
+          ⚙️ Capital & risque dédiés à ce système ({setupConfig.capital}$ · {setupConfig.riskPct}%)
+        </button>
+        {showSetupConfig && (
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 7, marginBottom: 10 }}>
+            <div>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>Capital de référence ($)</div>
+              <input type="number" value={setupConfig.capital} onChange={e => setSetupConfig({ ...setupConfig, capital: parseFloat(e.target.value) || 0 })}
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "8px 9px", fontSize: 12, boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>Risque par trade (%)</div>
+              <input type="number" step="0.1" value={setupConfig.riskPct} onChange={e => setSetupConfig({ ...setupConfig, riskPct: parseFloat(e.target.value) || 0 })}
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "8px 9px", fontSize: 12, boxSizing: "border-box" }} />
+            </div>
+            <button onClick={saveSetupConfig} style={{ gridColumn: "1 / -1", padding: 9, borderRadius: 9, background: ACCENT, color: "#000", border: "none", fontSize: 11.5, fontWeight: 800, cursor: "pointer" }}>Enregistrer</button>
+          </div>
+        )}
+
+        {setupWatches.length === 0 && !showAddSetup && (
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Aucune paire surveillée pour ce setup.</div>
+        )}
+        {setupWatches.map(sw => (
+          <div key={sw.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "9px 11px", marginBottom: 6 }}>
+            <div>
+              <span style={{ fontSize: 11.5, fontWeight: 800, color: "#fff" }}>{sw.pair}</span>
+              <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginLeft: 6 }}>H1 · dernier état : {sw.lastState || "idle"}</span>
+            </div>
+            <button onClick={() => deleteSetupWatch(sw.id)} style={{ background: "none", border: "none", color: "#ef4444", fontSize: 11, cursor: "pointer" }}>✕</button>
+          </div>
+        ))}
+
+        {showAddSetup && (
+          <div style={{ marginTop: 8 }}>
+            <input value={setupPairInput} onChange={e => setSetupPairInput(e.target.value.toUpperCase())} placeholder="Ex : XAUUSD"
+              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box", marginBottom: 7 }} />
+            <button onClick={addSetupWatch} style={{ width: "100%", padding: 10, borderRadius: 9, background: ACCENT, color: "#000", border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>Surveiller ce setup</button>
           </div>
         )}
       </div>

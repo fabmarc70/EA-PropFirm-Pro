@@ -820,6 +820,83 @@ function signalsEmaPullback(candles, emaPeriod = 200, maxPullbackBars = 30, minP
   return signals;
 }
 
+// ══════════════════════════════════════════════════════════════════
+// VERSION "LIVE" — même machine à états que signalsEmaPullback ci-dessus
+// (aucune divergence de logique volontaire : c'est la stratégie EXACTEMENT
+// backtestée), mais renvoie l'ÉTAT COURANT à la fin de la série plutôt que
+// l'historique complet des signaux. Sert à la détection de setup en temps
+// réel (surveillance des paires), pas au backtest.
+// ══════════════════════════════════════════════════════════════════
+export function evaluateEmaPullbackLive(candles, emaPeriod = 200, maxPullbackBars = 30, minPullbackPct = 20, slBufferPct = 0.05) {
+  const closes = candles.map(c => c[4]);
+  const ema = computeEMA(closes, emaPeriod);
+
+  let state = "idle", dir = null, breakIdx = -1;
+  let impulseExtreme = 0, pullbackExtreme = 0, emaAtBreak = 0;
+  let justConfirmed = null; // { dir, entryPrice, sl } si la dernière bougie vient de confirmer
+
+  for (let i = 1; i < candles.length; i++) {
+    justConfirmed = null;
+    if (ema[i] == null || ema[i - 1] == null) continue;
+    const [, , high, low, close] = candles[i];
+
+    if (state === "idle") {
+      const crossUp = closes[i - 1] <= ema[i - 1] && close > ema[i];
+      const crossDown = closes[i - 1] >= ema[i - 1] && close < ema[i];
+      if (crossUp || crossDown) {
+        state = "break"; dir = crossUp ? "long" : "short"; breakIdx = i;
+        impulseExtreme = crossUp ? high : low; pullbackExtreme = impulseExtreme; emaAtBreak = ema[i];
+      }
+      continue;
+    }
+
+    const stillValid = dir === "long" ? close > ema[i] : close < ema[i];
+    if (!stillValid) { state = "idle"; dir = null; continue; }
+    if (i - breakIdx > maxPullbackBars) { state = "idle"; dir = null; continue; }
+
+    if (state === "break") {
+      const newExtreme = dir === "long" ? high > impulseExtreme : low < impulseExtreme;
+      if (newExtreme) { impulseExtreme = dir === "long" ? high : low; pullbackExtreme = impulseExtreme; continue; }
+      if (dir === "long") pullbackExtreme = Math.min(pullbackExtreme, low);
+      else pullbackExtreme = Math.max(pullbackExtreme, high);
+      const amplitude = Math.abs(impulseExtreme - emaAtBreak);
+      if (amplitude <= 0) continue;
+      const recul = Math.abs(impulseExtreme - pullbackExtreme);
+      if ((recul / amplitude) * 100 >= minPullbackPct) state = "pullback";
+      continue;
+    }
+
+    if (state === "pullback") {
+      const reprise = dir === "long" ? close > impulseExtreme : close < impulseExtreme;
+      if (reprise) {
+        const buffer = ema[i] * (slBufferPct / 100);
+        const slPrice = dir === "long" ? ema[i] - buffer : ema[i] + buffer;
+        justConfirmed = { dir, entryPrice: close, sl: slPrice };
+        state = "idle"; dir = null;
+      }
+      continue;
+    }
+  }
+
+  // Progression du pullback (0-100%) : utile pour le message "zone d'entrée proche"
+  let pullbackProgressPct = null;
+  if (state === "break" || state === "pullback") {
+    const amplitude = Math.abs(impulseExtreme - emaAtBreak);
+    if (amplitude > 0) pullbackProgressPct = Math.min(100, Math.round((Math.abs(impulseExtreme - pullbackExtreme) / amplitude) * 100));
+  }
+
+  return {
+    state,               // "idle" | "break" | "pullback"
+    dir,                 // "long" | "short" | null
+    justConfirmed,       // objet si la DERNIÈRE bougie vient de confirmer un signal, sinon null
+    pullbackProgressPct, // 0-100, seulement en "break"/"pullback"
+    emaAtBreak: state !== "idle" ? emaAtBreak : null,
+    impulseExtreme: state !== "idle" ? impulseExtreme : null,
+    lastPrice: closes[closes.length - 1],
+    lastEma: ema[ema.length - 1],
+  };
+}
+
 const STRATEGIES = {
   breakout: {
     label: "Breakout",
