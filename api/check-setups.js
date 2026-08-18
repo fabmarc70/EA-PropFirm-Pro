@@ -18,6 +18,7 @@
 import { initializeApp, cert, getApps, getApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import webpush from "web-push";
+import { toTwelveDataSymbol } from "./_lib/tdSymbols.js";
 
 function initFirebaseAdmin() {
   if (getApps().length) return getApp();
@@ -26,12 +27,6 @@ function initFirebaseAdmin() {
   const jsonStr = raw.trim().startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf-8");
   const serviceAccount = JSON.parse(jsonStr);
   return initializeApp({ credential: cert(serviceAccount) });
-}
-
-function toTwelveDataSymbol(pair) {
-  const p = (pair || "").toUpperCase().replace(/\s/g, "");
-  if (/^[A-Z]{6}$/.test(p)) return p.slice(0, 3) + "/" + p.slice(3);
-  return p;
 }
 
 const TD_INTERVAL = { "15": "15min", "30": "30min", "60": "1h", "240": "4h", "1440": "1day" };

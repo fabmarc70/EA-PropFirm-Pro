@@ -15,6 +15,7 @@
 import { initializeApp, cert, getApps, getApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import webpush from "web-push";
+import { toTwelveDataSymbol } from "./_lib/tdSymbols.js";
 
 function initFirebaseAdmin() {
   // API MODULAIRE (firebase-admin/app) plutôt que l'import par défaut du
@@ -37,15 +38,6 @@ function initFirebaseAdmin() {
   try { serviceAccount = JSON.parse(jsonStr); }
   catch (e) { throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY illisible (ni JSON valide, ni base64 valide) : " + e.message); }
   return initializeApp({ credential: cert(serviceAccount) });
-}
-
-// Convertit un code de paire interne ("EURUSD", "XAUUSD") vers le format
-// Twelve Data ("EUR/USD"). Passe telle quelle si le format n'est pas reconnu
-// (couvre indices/crypto/actions dont le ticker Twelve Data est direct).
-function toTwelveDataSymbol(pair) {
-  const p = (pair || "").toUpperCase().replace(/\s/g, "");
-  if (/^[A-Z]{6}$/.test(p)) return p.slice(0, 3) + "/" + p.slice(3);
-  return p;
 }
 
 async function fetchPrices(pairs, apiKey) {
