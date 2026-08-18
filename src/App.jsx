@@ -13344,11 +13344,11 @@ function buildMonthlyEquityChart({ monthKey, journalAll, lastSim, capital, journ
 // Composant visuel — Carte "Équité" (Journal réel vs Simulation)
 // Réplique exacte du graphique de la Home, réutilisée dans JournalScreen.
 // ══════════════════════════════════════════════════════════════════
-function EquityChartCard({ t, lang = "fr", monthKey, chartData, hasJournal, hasSim, primaryIsJournal, cap, todayDay, gradientSuffix = "" }) {
+function EquityChartCard({ t, lang = "fr", monthKey, chartData, hasJournal, hasSim, primaryIsJournal, cap, todayDay, gradientSuffix = "", tightBottom = false }) {
   const gradJournal = "grad-journal-eq" + gradientSuffix;
   const gradSim = "grad-sim-eq" + gradientSuffix;
   return (
-    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, padding: 16, marginBottom: 16 }}>
+    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, padding: 16, marginBottom: tightBottom ? 6 : 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>Équité — {formatMonthLabel(monthKey, lang)}</div>
@@ -15542,6 +15542,26 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
             </div>
           </div>
 
+          {/* Score de discipline — remplace l'ancien gros conteneur dédié :
+              même info essentielle (score + niveau), une seule ligne compacte. */}
+          {discipline && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
+              <LevelIcon level={discipline.levelIcon} color={discipline.levelColor} size={13} />
+              <span style={{ fontSize: 11, fontWeight: 800, color: discipline.levelColor }}>{discipline.score}/100</span>
+              <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)" }}>
+                {discipline.level === "elite" ? t("disc_level_elite")
+                  : discipline.level === "professional" ? t("disc_level_professional")
+                  : discipline.level === "disciplined" ? t("disc_level_disciplined")
+                  : t("disc_level_beginner")}
+              </span>
+              {discipline.todayDelta && (
+                <span style={{ fontSize: 10, fontWeight: 700, color: discipline.todayDelta.delta >= 0 ? "#6ee7b7" : "#ef4444" }}>
+                  {discipline.todayDelta.delta >= 0 ? "+" : ""}{discipline.todayDelta.delta}
+                </span>
+              )}
+            </div>
+          )}
+
           {accountEquitySeries.length > 2 && (
             <div style={{ height: 46, marginTop: 10, marginLeft: -18, marginRight: -18 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -15559,74 +15579,8 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
           )}
         </div>
 
-        {/* ══════════════════════════════════════════════════════════
-            COACH DE DISCIPLINE — score comportemental façon jeu vidéo
-        ══════════════════════════════════════════════════════════ */}
-        {!discipline ? (
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: "20px 14px", marginBottom: 16, textAlign: "center" }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={{ marginBottom: 8, opacity: 0.3 }}>
-              <circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/>
-              <circle cx="12" cy="12" r="4" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/>
-              <circle cx="12" cy="12" r="1" fill="rgba(255,255,255,0.5)"/>
-            </svg>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{t("disc_no_data")}</div>
-          </div>
-        ) : (() => {
-          const levelLabel = discipline.level === "elite" ? t("disc_level_elite")
-            : discipline.level === "professional" ? t("disc_level_professional")
-            : discipline.level === "disciplined" ? t("disc_level_disciplined")
-            : t("disc_level_beginner");
-          const progressToNext = discipline.level === "elite" ? 100 : Math.min(100, (discipline.score / discipline.nextLevelScore) * 100);
-          return (
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>{t("disc_title")}</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("disc_subtitle")}</div>
-                </div>
-                {discipline.todayDelta && (
-                  <div style={{ fontSize: 11, fontWeight: 800, color: discipline.todayDelta.delta >= 0 ? "#6ee7b7" : "#ef4444", padding: "3px 9px", borderRadius: 8, background: (discipline.todayDelta.delta >= 0 ? "#6ee7b7" : "#ef4444") + "15" }}>
-                    {discipline.todayDelta.delta >= 0 ? "+" : ""}{discipline.todayDelta.delta}
-                  </div>
-                )}
-              </div>
-
-              {/* Score + niveau façon jeu vidéo */}
-              <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14 }}>
-                <div style={{ position: "relative", width: 72, height: 72, flexShrink: 0 }}>
-                  <svg width="72" height="72" viewBox="0 0 72 72">
-                    <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="7" />
-                    <circle cx="36" cy="36" r="30" fill="none" stroke={discipline.levelColor} strokeWidth="7" strokeLinecap="round"
-                      strokeDasharray={`${2*Math.PI*30*(discipline.score/100)} ${2*Math.PI*30}`} transform="rotate(-90 36 36)" />
-                  </svg>
-                  <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{ fontSize: 17, fontWeight: 800, color: discipline.levelColor }}>{discipline.score}</span>
-                    <span style={{ fontSize: 7, color: "rgba(255,255,255,0.4)" }}>/100</span>
-                  </div>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5 }}>{t("disc_score_label")}</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: discipline.levelColor, display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                    <LevelIcon level={discipline.levelIcon} color={discipline.levelColor} size={18} /> {levelLabel}
-                  </div>
-                  {/* Barre XP vers le prochain niveau */}
-                  {discipline.level !== "elite" && (
-                    <>
-                      <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: progressToNext + "%", background: discipline.levelColor, transition: "width .4s ease" }} />
-                      </div>
-                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 3 }}>{t("disc_next_level")} {discipline.nextLevelScore}</div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-            </div>
-          );
-        })()}
-
-        {/* Navigation mois + stats rapides — regroupées dans une carte standard */}
-        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
+        {/* Navigation mois + stats rapides — regroupées dans une carte standard, collée à la courbe d'équité qui suit (plus d'espace inutile entre les deux) */}
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 6 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <button onClick={() => shiftMonth(-1)} aria-label={t("journal_prev_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>‹</button>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>{formatMonthLabel(journalMonth, lang)}</div>
@@ -15660,8 +15614,26 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
           t={t} lang={lang} monthKey={journalMonth}
           chartData={equityData.chartData} hasJournal={equityData.hasJournal} hasSim={equityData.hasSim}
           primaryIsJournal={equityData.primaryIsJournal} cap={equityData.cap} todayDay={equityData.todayDay}
-          gradientSuffix="-journalpage"
+          gradientSuffix="-journalpage" tightBottom
         />
+
+        {/* Calendrier collé juste sous la courbe d'équité, comme demandé — plus
+            besoin de descendre toute la page pour passer de l'un à l'autre */}
+        <div data-coach="journal-calendar" style={{ marginBottom: 16 }}>
+          <CalendrierPnL t={t} lang={lang}
+            dailyLog={[]}
+            journalMode={true}
+            journalData={journalMonthDataFiltered}
+            onJournalSave={saveJournalEntry}
+            journalMonthLabel={t("cal_click_day") + " · " + formatMonthLabel(journalMonth, lang)}
+            journalMonthKey={journalMonth}
+            accounts={activeAccounts}
+            accountLabel={accountLabel}
+            activeAccountId={selectedAccountId}
+            journalLocked={journalQuotaReached}
+            onJournalLocked={requirePremium}
+          />
+        </div>
 
         {/* ── GARDE-FOUS — statut a posteriori, pas de blocage live (aucune connexion
              broker temps réel ici, contrairement à EdgeFlo) : ça informe, ça ne bloque rien. ── */}
@@ -15768,23 +15740,6 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
 
         {/* ── Watchlist, alertes de prix, positions surveillées par capture ── */}
         <WatchAlertsSection t={t} />
-
-        {/* Calendrier en mode journal (saisie + visualisation) */}
-        <div data-coach="journal-calendar" style={{ marginBottom: 16 }}>
-          <CalendrierPnL t={t} lang={lang}
-            dailyLog={[]}
-            journalMode={true}
-            journalData={journalMonthDataFiltered}
-            onJournalSave={saveJournalEntry}
-            journalMonthLabel={t("cal_click_day") + " · " + formatMonthLabel(journalMonth, lang)}
-            journalMonthKey={journalMonth}
-            accounts={activeAccounts}
-            accountLabel={accountLabel}
-            activeAccountId={selectedAccountId}
-            journalLocked={journalQuotaReached}
-            onJournalLocked={requirePremium}
-          />
-        </div>
 
         {/* ── PATTERNS COMPORTEMENTAUX — détectés dans les notes libres, sans IA/API :
              comptage de familles de mots-clés récurrentes à travers les jours notés.
