@@ -6608,6 +6608,42 @@ function makeTradeStream(winrate, clustering, maxConsecLosses, rng = Math.random
   };
 }
 
+// ══════════════════════════════════════════════════════════════════
+// Conversions d'unité pour la config Simulateur — le moteur ne connaît QUE
+// dailyTargetPct (objectif journalier %) et tradesPerDay (trades/jour, peut
+// être fractionnaire : 0.33 = ~1 trade tous les 3 jours, géré de façon
+// probabiliste jour par jour dans simulateDay). Ces fonctions convertissent
+// une saisie en mois/semaine vers ces deux seules variables, sans toucher au
+// moteur — qui continue de tirer aléatoirement les jours de trading via la
+// probabilité déjà en place, exactement ce qui evite d'avoir a cocher des
+// jours precis.
+// ══════════════════════════════════════════════════════════════════
+const TRADING_DAYS_PER_MONTH = 21; // convention standard (5j/semaine × ~4.33 semaines)
+const CALENDAR_DAYS_PER_MONTH = 30.44;
+
+// Objectif : conversion COMPOSÉE (un rendement journalier composé sur 21
+// jours ouvrés donne le rendement mensuel — et inversement).
+function dailyPctToMonthly(dailyPct) {
+  return (Math.pow(1 + dailyPct / 100, TRADING_DAYS_PER_MONTH) - 1) * 100;
+}
+function monthlyPctToDaily(monthlyPct) {
+  return (Math.pow(1 + monthlyPct / 100, 1 / TRADING_DAYS_PER_MONTH) - 1) * 100;
+}
+
+// Fréquence : conversion LINÉAIRE (un nombre de trades s'additionne, ne se
+// compose pas). tradesPerDay reste fractionnaire si besoin — c'est justement
+// ce qui permet au moteur de répartir les trades aléatoirement sur les jours.
+function tradesPerDayToUnit(perDay, unit) {
+  if (unit === "week") return perDay * 7;
+  if (unit === "month") return perDay * CALENDAR_DAYS_PER_MONTH;
+  return perDay;
+}
+function unitToTradesPerDay(value, unit) {
+  if (unit === "week") return value / 7;
+  if (unit === "month") return value / CALENDAR_DAYS_PER_MONTH;
+  return value;
+}
+
 function simulateDay(equity, tradesPerDay, riskAmount, rr, nextTrade, dailyDDLimit, rng = Math.random) {
   let dayEquity = equity;
   let dayLowPnl = 0;
@@ -6934,6 +6970,13 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const [dailyTargetPct, setDailyTargetPct] = useState(saved.dailyTargetPct ?? 0.25);
   const [winrate, setWinrate] = useState(saved.winrate ?? 55);
   const [tradesPerDay, setTradesPerDay] = useState(saved.tradesPerDay ?? 3);
+  // ── Unités d'affichage/saisie pour l'objectif et la fréquence de trading ──
+  // dailyTargetPct et tradesPerDay restent la SEULE source de vérité pour tout
+  // le moteur (des dizaines de calculs en dépendent déjà) — ces deux modes ne
+  // sont qu'une couche de saisie qui convertit vers/depuis ces deux valeurs,
+  // sans rien changer au calcul de simulation lui-même.
+  const [targetUnit, setTargetUnit] = useState("day"); // "day" | "month"
+  const [freqUnit, setFreqUnit] = useState("day"); // "day" | "week" | "month"
   const [clusteringPct, setClusteringPct] = useState(saved.clusteringPct ?? 40);
   const [maxConsecLosses, setMaxConsecLosses] = useState(saved.maxConsecLosses ?? 4);
   const [split, setSplit] = useState(saved.split ?? 80);
@@ -7790,17 +7833,55 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </div>
 
           {[
-            { label: t("sim_trades_day"), tip: t("tip_tradesday"), val: tradesPerDay, set: (v) => setTradesPerDay(Math.round(v)), min: 1, max: 15, step: 1 },
-            { label: t("sim_target_day"), tip: t("tip_targetday"), val: dailyTargetPct, set: setDailyTargetPct, min: 0.05, max: 1.5, step: 0.05 },
+            {
+              label: freqUnit === "day" ? t("sim_trades_day") : freqUnit === "week" ? "Trades/sem" : "Trades/mois",
+              tip: t("tip_tradesday"), val: tradesPerDayToUnit(tradesPerDay, freqUnit),
+              set: (v) => setTradesPerDay(freqUnit === "day" ? Math.round(v) : unitToTradesPerDay(v, freqUnit)),
+              min: freqUnit === "day" ? 1 : freqUnit === "week" ? 1 : 1,
+              max: freqUnit === "day" ? 15 : freqUnit === "week" ? 60 : 250,
+              step: freqUnit === "day" ? 1 : 1,
+              unitToggle: { value: freqUnit, options: [["day", "Jour"], ["week", "Sem"], ["month", "Mois"]], onChange: setFreqUnit },
+            },
+            {
+              label: targetUnit === "day" ? t("sim_target_day") : "Objectif/mois",
+              tip: t("tip_targetday"), val: targetUnit === "day" ? dailyTargetPct : dailyPctToMonthly(dailyTargetPct),
+              set: (v) => setDailyTargetPct(targetUnit === "day" ? v : monthlyPctToDaily(v)),
+              min: targetUnit === "day" ? 0.05 : +dailyPctToMonthly(0.05).toFixed(2),
+              max: targetUnit === "day" ? 1.5 : +dailyPctToMonthly(1.5).toFixed(2),
+              step: targetUnit === "day" ? 0.05 : 0.5,
+              unitToggle: { value: targetUnit, options: [["day", "Jour"], ["month", "Mois"]], onChange: setTargetUnit },
+            },
             { label: t("sim_split"), tip: t("tip_split"), val: split, set: setSplit, min: 80, max: 95, step: 5 },
             { label: t("sim_funded_months"), tip: t("tip_fundedmonths"), val: fundedMonths, set: setFundedMonths, min: 1, max: 60, step: 1 },
           ].map((f) => (
             <div key={f.label}>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700, display: "flex", alignItems: "center" }}>{f.label}{f.tip && <InfoTip text={f.tip} />}</div>
-              <input type="number" value={f.val} min={f.min} max={f.max} step={f.step} onChange={e => f.set(parseFloat(e.target.value) || 0)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#FFFFFF", padding: "5px 8px", width: "100%", fontSize: 13 }} />
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ display: "flex", alignItems: "center" }}>{f.label}{f.tip && <InfoTip text={f.tip} />}</span>
+                {f.unitToggle && (
+                  <div style={{ display: "flex", gap: 2, background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: 2 }}>
+                    {f.unitToggle.options.map(([key, lbl]) => (
+                      <button key={key} type="button" onClick={() => f.unitToggle.onChange(key)} style={{
+                        padding: "2px 6px", borderRadius: 4, border: "none", cursor: "pointer",
+                        fontSize: 8.5, fontWeight: 700,
+                        background: f.unitToggle.value === key ? "#6ee7b7" : "transparent",
+                        color: f.unitToggle.value === key ? "#000" : "rgba(255,255,255,0.5)",
+                      }}>{lbl}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <input type="number" value={+f.val.toFixed(2)} min={f.min} max={f.max} step={f.step} onChange={e => f.set(parseFloat(e.target.value) || 0)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#FFFFFF", padding: "5px 8px", width: "100%", fontSize: 13 }} />
               <input type="range" min={f.min} max={f.max} step={f.step} value={f.val} onChange={e => f.set(parseFloat(e.target.value))} />
             </div>
           ))}
+        </div>
+
+        {/* Rappel explicite du réglage réel utilisé par le moteur — les deux
+            nouveaux modes ne sont qu'une saisie alternative, jamais une
+            obligation de cocher des jours précis : le moteur tire déjà les
+            jours de trading au hasard selon cette fréquence. */}
+        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 6, lineHeight: 1.4 }}>
+          Moteur : {tradesPerDay.toFixed(2)} trade{tradesPerDay >= 2 ? "s" : ""}/jour (réparti au hasard sur le mois, aucun jour précis à choisir) · objectif {dailyTargetPct.toFixed(2)}%/jour ≈ {dailyPctToMonthly(dailyTargetPct).toFixed(1)}%/mois.
         </div>
 
         {/* Résumé paramètres */}
