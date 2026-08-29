@@ -6619,7 +6619,6 @@ function makeTradeStream(winrate, clustering, maxConsecLosses, rng = Math.random
 // jours precis.
 // ══════════════════════════════════════════════════════════════════
 const TRADING_DAYS_PER_MONTH = 21; // convention standard (5j/semaine × ~4.33 semaines)
-const CALENDAR_DAYS_PER_MONTH = 30.44;
 
 // Objectif : conversion COMPOSÉE (un rendement journalier composé sur 21
 // jours ouvrés donne le rendement mensuel — et inversement).
@@ -6633,14 +6632,21 @@ function monthlyPctToDaily(monthlyPct) {
 // Fréquence : conversion LINÉAIRE (un nombre de trades s'additionne, ne se
 // compose pas). tradesPerDay reste fractionnaire si besoin — c'est justement
 // ce qui permet au moteur de répartir les trades aléatoirement sur les jours.
-function tradesPerDayToUnit(perDay, unit) {
-  if (unit === "week") return perDay * 7;
-  if (unit === "month") return perDay * CALENDAR_DAYS_PER_MONTH;
+// BUG CORRIGE : utilisait 30.44 jours calendaires/mois, alors que le moteur
+// (simulateFunded, TD_MONTH_DYNAMIC) ne simule que des JOURS DE TRADING —
+// 21/mois hors week-end (le cas par défaut), 30 si week-end inclus. La valeur
+// affichée ("X trades/mois") ne correspondait donc pas à ce que le moteur
+// simulait réellement. Le paramètre includeWeekend doit être transmis pour
+// que la conversion reste exacte dans les deux modes.
+function tradingDaysPerMonth(includeWeekend) { return includeWeekend ? 30 : 21; }
+function tradesPerDayToUnit(perDay, unit, includeWeekend = false) {
+  if (unit === "week") return perDay * (includeWeekend ? 7 : 5);
+  if (unit === "month") return perDay * tradingDaysPerMonth(includeWeekend);
   return perDay;
 }
-function unitToTradesPerDay(value, unit) {
-  if (unit === "week") return value / 7;
-  if (unit === "month") return value / CALENDAR_DAYS_PER_MONTH;
+function unitToTradesPerDay(value, unit, includeWeekend = false) {
+  if (unit === "week") return value / (includeWeekend ? 7 : 5);
+  if (unit === "month") return value / tradingDaysPerMonth(includeWeekend);
   return value;
 }
 
@@ -6738,9 +6744,13 @@ function simulatePhase(capital, cfg, model, p) {
 function simulateFunded(capital, months, model, p, split) {
   // Jours de trading par mois : override récurrence si fourni, sinon calcul standard
   const TD_MONTH_DYNAMIC = p.tdMonthOverride || (p.includeWeekend ? 30 : 21);
-  const dailyDDLimit = capital * model.dailyDD;
-  const floorEquity = capital * (1 - model.totalDD);
-  const riskAmount = capital * p.riskPct;
+  // BUG CORRIGE : riskAmount/dailyDDLimit/floorEquity étaient calculés UNE SEULE
+  // FOIS à partir du capital INITIAL, jamais recalculés après un scaling —
+  // un compte scalé de $25k à $35k continuait de risquer un montant par trade
+  // et des limites de drawdown basés sur $25k. En réalité, un compte scalé a
+  // un solde plus gros : le risque par trade (% du capital) et les limites de
+  // DD (% du capital) doivent suivre le NOUVEAU capital. Recalculés à chaque
+  // mois à partir de currentCapital (qui change après un scaling), pas figés.
   const rng = p.rng || Math.random;
   const nextTrade = makeTradeStream(p.winrate, p.clustering, p.maxConsecLosses, rng);
   let equity = capital;
@@ -6764,6 +6774,11 @@ function simulateFunded(capital, months, model, p, split) {
   let globalDay = 0;
 
   for (let m = 1; m <= months; m++) {
+    // Recalculés à CHAQUE mois : suivent currentCapital, donc un scaling
+    // pris en compte immédiatement dès le mois suivant.
+    const riskAmount = currentCapital * p.riskPct;
+    const dailyDDLimit = currentCapital * model.dailyDD;
+    const floorEquity = currentCapital * (1 - model.totalDD);
     const monthStart = equity;
     let monthFailed = null;
 
@@ -7835,8 +7850,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           {[
             {
               label: freqUnit === "day" ? t("sim_trades_day") : freqUnit === "week" ? "Trades/sem" : "Trades/mois",
-              tip: t("tip_tradesday"), val: tradesPerDayToUnit(tradesPerDay, freqUnit),
-              set: (v) => setTradesPerDay(freqUnit === "day" ? Math.round(v) : unitToTradesPerDay(v, freqUnit)),
+              tip: t("tip_tradesday"), val: tradesPerDayToUnit(tradesPerDay, freqUnit, includeWeekend),
+              set: (v) => setTradesPerDay(freqUnit === "day" ? Math.round(v) : unitToTradesPerDay(v, freqUnit, includeWeekend)),
               min: freqUnit === "day" ? 1 : freqUnit === "week" ? 1 : 1,
               max: freqUnit === "day" ? 15 : freqUnit === "week" ? 60 : 250,
               step: freqUnit === "day" ? 1 : 1,
