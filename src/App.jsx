@@ -8742,8 +8742,17 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
               </ResponsiveContainer>
             </div>
 
-            {/* CALENDRIER PnL — jours skippés répartis aléatoirement selon la récurrence EA */}
-            <CalendrierPnL t={t} lang={lang} dailyLog={sim.funded.dailyLog} newsSkipDays={newsSkipDays} activeDays={activeDays} journalMonthLabel={(() => { const n = new Date(); return n.getFullYear() + "-" + String(n.getMonth()+1).padStart(2,"0"); })()} />
+            {/* CALENDRIER PnL — jours skippés répartis aléatoirement selon la récurrence EA.
+                 BUG CORRIGE : journalMonthLabel utilisait la date REELLE d'aujourd'hui, sans
+                 aucun rapport avec le mois SIMULE affiche (Monte Carlo synthetique, pas une
+                 vraie date de calendrier) — faussait l'alignement des jours de la semaine pour
+                 tout mois simule autre que le mois calendaire en cours par coincidence.
+                 Une donnee simulee n'a AUCUNE date reelle a laquelle se rattacher — plutot que
+                 de retomber (silencieusement, comme avant) sur la date du jour a chaque fois
+                 que ce composant est monte, on ancre sur un mois FIXE et neutre (janvier 2024 :
+                 31 jours, commence un lundi) pour un rendu de grille toujours propre et stable,
+                 quelle que soit la date reelle d'utilisation de l'app. */}
+            <CalendrierPnL t={t} lang={lang} dailyLog={sim.funded.dailyLog} newsSkipDays={newsSkipDays} activeDays={activeDays} journalMonthKey="2024-01" />
 
             <div className="card">
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: "#fbbf24" }}>{t("sim_detail_monthly")}</div>
