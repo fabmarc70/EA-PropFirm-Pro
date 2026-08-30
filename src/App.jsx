@@ -16457,45 +16457,46 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
               </ResponsiveContainer>
             </div>
           )}
+
+          {/* Bloc KPI du mois — déplacé ici, SOUS la courbe d'équité de CETTE
+              première carte (Solde du compte), comme demandé. */}
+          {(() => {
+            const indicators = [
+              [t("journal_total_pnl"), (monthPnl>=0?"+":"") + "$" + Math.abs(Math.round(monthPnl)), monthPnl>=0?"#6ee7b7":"#ef4444"],
+              [t("journal_win_days"), winDays, "#6ee7b7"],
+              [t("journal_loss_days"), lossDays, "#ef4444"],
+              [t("journal_total_trades"), totalTradesMonth, "#a78bfa"],
+              ...(maxIntradayDDOfMonth !== null ? [[t("journal_max_dd_today"), maxIntradayDDOfMonth.toFixed(1) + "%", "#fbbf24"]] : []),
+            ];
+            const cols = indicators.length;
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 5, marginTop: 12 }}>
+                {indicators.map(([label, val, color], i) => (
+                  <div key={i} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 3px", textAlign: "center", minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color, whiteSpace: "nowrap" }}>{val}</div>
+                    <div style={{ fontSize: 7, color: "rgba(255,255,255,0.4)", marginTop: 2, lineHeight: 1.2 }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
 
-        {/* ── Bloc fusionné : navigation mois + KPI du mois + calendrier PnL,
-             tous dans le MÊME conteneur (même fond/bordure), sans espace entre
-             eux — demandé explicitement pour que le sélecteur de mois soit
-             "collé et intégré" juste au-dessus du calendrier plutôt que dans
-             une carte séparée. Note : CalendrierPnL n'applique lui-même aucun
+        {/* ── Bloc fusionné : navigation mois + calendrier PnL, dans le MÊME
+             conteneur (même fond/bordure), sans espace entre eux — le bloc KPI
+             a été déplacé sous la courbe d'équité de la carte "Solde du compte"
+             ci-dessus. Note : CalendrierPnL n'applique lui-même aucun
              fond/bordure (className="card" est une classe vide dans ce projet,
              seul le padding:16 s'applique) — c'est TOUJOURS l'appelant qui
              dessine le fond de carte. La fusion ne crée donc aucune double
              bordure : un seul wrapper visible pour les deux sections. ── */}
         <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, overflow: "hidden", marginBottom: 16 }}>
           <div style={{ padding: "16px 16px 14px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <button onClick={() => shiftMonth(-1)} aria-label={t("journal_prev_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>‹</button>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>{formatMonthLabel(journalMonth, lang)}</div>
               <button onClick={() => shiftMonth(1)} aria-label={t("journal_next_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>›</button>
             </div>
-
-            {(() => {
-              const indicators = [
-                [t("journal_total_pnl"), (monthPnl>=0?"+":"") + "$" + Math.abs(Math.round(monthPnl)), monthPnl>=0?"#6ee7b7":"#ef4444"],
-                [t("journal_win_days"), winDays, "#6ee7b7"],
-                [t("journal_loss_days"), lossDays, "#ef4444"],
-                [t("journal_total_trades"), totalTradesMonth, "#a78bfa"],
-                ...(maxIntradayDDOfMonth !== null ? [[t("journal_max_dd_today"), maxIntradayDDOfMonth.toFixed(1) + "%", "#fbbf24"]] : []),
-              ];
-              const cols = indicators.length;
-              return (
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 5 }}>
-                  {indicators.map(([label, val, color], i) => (
-                    <div key={i} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 3px", textAlign: "center", minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color, whiteSpace: "nowrap" }}>{val}</div>
-                      <div style={{ fontSize: 7, color: "rgba(255,255,255,0.4)", marginTop: 2, lineHeight: 1.2 }}>{label}</div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
           </div>
 
           {/* Séparateur discret entre le bloc nav/KPI et le calendrier, toujours
