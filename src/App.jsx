@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser, fbLoadUserProfile, fbSaveUserProfile, fbDeleteAccount,
+  fbSaveJournalData, fbLoadJournalData, fbSaveJournalAccounts, fbLoadJournalAccounts,
   fbAddWatchlistItem, fbListWatchlist, fbDeleteWatchlistItem,
   fbAddPriceAlert, fbListPriceAlerts, fbDeletePriceAlert, fbSetPriceAlertActive,
   fbAddOpenPosition, fbListOpenPositions, fbCloseOpenPositionManually, fbDeleteOpenPosition,
@@ -11330,6 +11331,56 @@ function migrateJournalToMultiAccount(rawJournal) {
   return out;
 }
 
+// ══════════════════════════════════════════════════════════════════
+// SYNC CLOUD DU JOURNAL — helpers ajoutés le 30/08/2026 (voir firebase.js
+// pour le contexte complet : perte de données réelle suite à un nettoyage
+// de cache, Firebase ne sauvegardait jusque-là que le profil).
+// ══════════════════════════════════════════════════════════════════
+
+// uid de l'utilisateur courant, lu directement depuis le state persistant de
+// l'app (pas de contexte React à threader partout) — même lecture que celle
+// déjà faite ailleurs dans ce fichier pour la langue (ligne ~11370).
+function getCurrentUid() {
+  try { return loadApp()?.user?.uid || null; } catch (e) { return null; }
+}
+
+// Fusionne journal LOCAL et journal CLOUD sans jamais rien perdre : union de
+// tous les mois/jours/comptes des deux côtés. En cas de conflit sur une même
+// entrée (mois+jour+compte présent des deux côtés avec un contenu différent),
+// le LOCAL gagne — c'est la version la plus fraîche pour l'appareil courant.
+// Le cloud ne sert qu'à COMBLER ce qui manque localement (ex. après un
+// nettoyage de cache), jamais à écraser une saisie locale plus récente.
+function mergeJournalData(local, cloud) {
+  if (!cloud || typeof cloud !== "object") return local || {};
+  if (!local || typeof local !== "object") return cloud;
+  const merged = {};
+  const months = new Set([...Object.keys(local), ...Object.keys(cloud)]);
+  months.forEach(month => {
+    const localDays = local[month] || {};
+    const cloudDays = cloud[month] || {};
+    const days = new Set([...Object.keys(localDays), ...Object.keys(cloudDays)]);
+    const mergedDays = {};
+    days.forEach(day => {
+      const localAccounts = localDays[day] || {};
+      const cloudAccounts = cloudDays[day] || {};
+      mergedDays[day] = { ...cloudAccounts, ...localAccounts };
+    });
+    if (Object.keys(mergedDays).length) merged[month] = mergedDays;
+  });
+  return merged;
+}
+
+// Même principe pour la liste des comptes journal : union par id, local
+// prioritaire en cas de conflit.
+function mergeJournalAccounts(local, cloud) {
+  if (!Array.isArray(cloud) || !cloud.length) return local || [];
+  if (!Array.isArray(local) || !local.length) return cloud;
+  const byId = new Map();
+  cloud.forEach(acc => { if (acc && acc.id) byId.set(acc.id, acc); });
+  local.forEach(acc => { if (acc && acc.id) byId.set(acc.id, acc); }); // local écrase cloud sur conflit
+  return Array.from(byId.values());
+}
+
 function useJournal() {
   const [journalMonth, setJournalMonth] = useState(() => {
     const now = new Date();
@@ -11346,6 +11397,44 @@ function useJournal() {
     }
     catch (e) { return {}; }
   });
+
+  // ── Filet de sécurité cloud ──────────────────────────────────────
+  // Au montage : si connecté, on récupère le journal Firestore et on le
+  // FUSIONNE (jamais un simple écrasement) avec le journal local — comble
+  // ce qui manquerait localement (ex. après un nettoyage de cache) sans
+  // jamais perdre une saisie locale plus récente que le cloud.
+  // À chaque changement du journal : on repousse l'état complet vers
+  // Firestore (debounce 1.5s pour ne pas spammer à chaque frappe), pour que
+  // le cloud reste un miroir à jour et qu'une perte locale future soit
+  // toujours récupérable.
+  const journalCloudSynced = useRef(false);
+  useEffect(() => {
+    const uid = getCurrentUid();
+    if (!uid || journalCloudSynced.current) return;
+    journalCloudSynced.current = true;
+    fbLoadJournalData(uid).then(cloud => {
+      if (!cloud) return;
+      setJournal(prevLocal => {
+        const merged = mergeJournalData(prevLocal, cloud);
+        if (JSON.stringify(merged) !== JSON.stringify(prevLocal)) {
+          try { localStorage.setItem("eapropfirm_journal", JSON.stringify(merged)); } catch (e) {}
+          return merged;
+        }
+        return prevLocal;
+      });
+    });
+  }, []);
+  const journalPushTimer = useRef(null);
+  const journalFirstRender = useRef(true);
+  useEffect(() => {
+    if (journalFirstRender.current) { journalFirstRender.current = false; return; } // pas de push au tout premier rendu (avant même le pull cloud)
+    const uid = getCurrentUid();
+    if (!uid) return;
+    if (journalPushTimer.current) clearTimeout(journalPushTimer.current);
+    journalPushTimer.current = setTimeout(() => { fbSaveJournalData(uid, journal); }, 1500);
+    return () => { if (journalPushTimer.current) clearTimeout(journalPushTimer.current); };
+  }, [journal]);
+
   // accountId : compte auquel rattacher cette entrée. "default" si non précisé
   // (cas des écrans qui n'ont pas encore de sélecteur de compte, ex. mini-journal de Mes Trades).
   const saveJournalEntry = (day, entry, accountId = "default") => {
@@ -11518,9 +11607,36 @@ function useJournalAccounts() {
     } catch (e) { return [{ id: "default", firmKey: null, customName: null, color: "#6ee7b7", capital: null, accountType: null, archived: false }]; }
   });
 
+  // Filet de sécurité cloud — même principe que useJournal() (voir son
+  // commentaire détaillé) : pull+fusion au montage, push debouncé à chaque
+  // changement.
+  const accountsCloudSynced = useRef(false);
+  useEffect(() => {
+    const uid = getCurrentUid();
+    if (!uid || accountsCloudSynced.current) return;
+    accountsCloudSynced.current = true;
+    fbLoadJournalAccounts(uid).then(cloud => {
+      if (!cloud) return;
+      setAccounts(prevLocal => {
+        const merged = mergeJournalAccounts(prevLocal, cloud);
+        if (JSON.stringify(merged) !== JSON.stringify(prevLocal)) {
+          try { localStorage.setItem("eapropfirm_journal_accounts", JSON.stringify(merged)); } catch (e) {}
+          return merged;
+        }
+        return prevLocal;
+      });
+    });
+  }, []);
+  const accountsPushTimer = useRef(null);
+
   const persist = (next) => {
     setAccounts(next);
     try { localStorage.setItem("eapropfirm_journal_accounts", JSON.stringify(next)); } catch (e) {}
+    const uid = getCurrentUid();
+    if (uid) {
+      if (accountsPushTimer.current) clearTimeout(accountsPushTimer.current);
+      accountsPushTimer.current = setTimeout(() => { fbSaveJournalAccounts(uid, next); }, 1500);
+    }
   };
 
   const addAccount = (firmKey, customName, capital, accountType) => {
@@ -16480,6 +16596,33 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
           <div style={{ fontSize: 16, fontWeight: 700 }}>{t("journal_title")}</div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{t("journal_subtitle")}</div>
         </div>
+        {/* Export manuel — filet de sécurité supplémentaire, indépendant de la
+            synchro cloud automatique : télécharge tout le journal (tous
+            comptes, tous mois) + la liste des comptes en un fichier JSON,
+            utilisable pour une sauvegarde perso ou une ré-importation future. */}
+        <button
+          onClick={() => {
+            try {
+              const payload = { exportedAt: new Date().toISOString(), journal: journalAll, accounts };
+              const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = "eapropfirmpro-journal-" + new Date().toISOString().slice(0, 10) + ".json";
+              document.body.appendChild(a); a.click(); a.remove();
+              setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch (e) { alert("Export impossible : " + (e?.message || "erreur inconnue")); }
+          }}
+          style={{
+            flexShrink: 0, display: "flex", alignItems: "center", gap: 5,
+            background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 10, padding: "7px 11px", color: "rgba(255,255,255,0.75)",
+            fontSize: 11, fontWeight: 700, cursor: "pointer",
+          }}
+          title="Télécharger une sauvegarde JSON de tout ton journal"
+        >
+          <span style={{ fontSize: 13 }}>⬇</span> Exporter
+        </button>
       </div>
 
       <div style={{ padding: "14px 16px 100px" }}>

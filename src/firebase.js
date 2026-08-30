@@ -1,7 +1,10 @@
 // ══════════════════════════════════════════════════════════════════
-// FIREBASE — Auth uniquement pour le moment.
-// Les données (journal, configs, simulations) et fichiers restent en
-// localStorage. Firestore/Storage seront branchés dans une phase future.
+// FIREBASE — Auth + sauvegarde cloud du profil ET du journal de trading
+// (voir fbSaveJournalData/fbLoadJournalData plus bas, ajoutés le 30/08/2026
+// après une perte de données réelle : avant cette date, SEUL le profil
+// était sauvegardé sur Firestore, le journal restait uniquement en
+// localStorage). Configs de simulation et fichiers restent en localStorage
+// (données reproductibles/non critiques, pas de risque de perte réelle).
 // ══════════════════════════════════════════════════════════════════
 import { initializeApp } from "firebase/app";
 import {
@@ -106,6 +109,70 @@ export async function fbSaveUserProfile(uid, data) {
   } catch (e) {
     console.warn("Firestore save failed (offline?):", e.message);
     return false;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SAUVEGARDE CLOUD DU JOURNAL DE TRADING — ajouté suite à une perte de
+// données réelle (30/08/2026) : jusqu'ici, Firebase ne gérait QUE
+// l'authentification — le journal (entrées quotidiennes) et la liste des
+// comptes journal restaient uniquement en localStorage, sans aucune copie
+// cloud. Un simple nettoyage des données de site (fait pour corriger un
+// souci de cache PWA) a effacé des mois d'historique sans aucun moyen de
+// les restaurer. Ces deux fonctions comblent ce trou : mêmes documents
+// users/{uid} que le profil (merge:true, donc n'écrase jamais profile/
+// setupDone), champs "journal" et "journalAccounts" séparés.
+//
+// LIMITE CONNUE : un seul document Firestore (limite Firestore : 1 Mio).
+// Largement suffisant pour plusieurs années de journal quotidien
+// multi-comptes, mais si ça devient un jour un problème réel, la vraie
+// solution est une sous-collection users/{uid}/journalMonths/{YYYY-MM}
+// (un document par mois) plutôt qu'un seul gros document. Pas fait ici
+// pour rester au plus proche du pattern déjà existant (profil) et livrer
+// vite un vrai filet de sécurité — voir TODO si le volume grossit.
+// ══════════════════════════════════════════════════════════════════
+export async function fbSaveJournalData(uid, journal) {
+  if (!uid) return false;
+  try {
+    await setDoc(doc(db, "users", uid), { journal, journalUpdatedAt: Date.now() }, { merge: true });
+    return true;
+  } catch (e) {
+    console.warn("Firestore journal save failed (offline?):", e.message);
+    return false;
+  }
+}
+export async function fbLoadJournalData(uid) {
+  if (!uid) return null;
+  try {
+    const snap = await getDoc(doc(db, "users", uid));
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    return data && data.journal ? data.journal : null;
+  } catch (e) {
+    console.warn("Firestore journal load failed (offline?):", e.message);
+    return null;
+  }
+}
+export async function fbSaveJournalAccounts(uid, accounts) {
+  if (!uid) return false;
+  try {
+    await setDoc(doc(db, "users", uid), { journalAccounts: accounts, journalAccountsUpdatedAt: Date.now() }, { merge: true });
+    return true;
+  } catch (e) {
+    console.warn("Firestore journal accounts save failed (offline?):", e.message);
+    return false;
+  }
+}
+export async function fbLoadJournalAccounts(uid) {
+  if (!uid) return null;
+  try {
+    const snap = await getDoc(doc(db, "users", uid));
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    return data && data.journalAccounts ? data.journalAccounts : null;
+  } catch (e) {
+    console.warn("Firestore journal accounts load failed (offline?):", e.message);
+    return null;
   }
 }
 
