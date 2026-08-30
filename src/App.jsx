@@ -15451,6 +15451,7 @@ function calculateAccountMaturity(journalAllFiltered, accountType, opts = {}) {
 // arrondies, accent vert menthe #6ee7b7, rouge/orange sur le risque).
 // ══════════════════════════════════════════════════════════════════
 function AccountMaturityGauge({ maturity, compact = false }) {
+  const [expanded, setExpanded] = useState(false);
   if (!maturity) return null;
   const { stages, stageIndex, stageProgressPct, color, stageLabel, score, reasons, nextStageLabel, nextStageMissing, quickIndicators } = maturity;
   const n = stages.length;
@@ -15526,47 +15527,69 @@ function AccountMaturityGauge({ maturity, compact = false }) {
         ))}
       </div>
 
-      {/* Étape actuelle / progression / prochaine étape / critères restants */}
-      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: "10px 12px", marginBottom: quickIndicators.length ? 10 : 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
-          {stageLabel} — <span style={{ color }}>{score}%</span>
-        </div>
-        {reasons.length > 0 && (
-          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", marginTop: 3 }}>
-            {reasons.join(" · ")}
-          </div>
-        )}
-        {nextStageLabel && (
-          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", marginTop: 6, lineHeight: 1.5 }}>
-            Prochaine étape : <b style={{ color: "#fff" }}>{nextStageLabel}</b>
-            {nextStageMissing.length > 0 && (
-              <div style={{ color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
-                {nextStageMissing.join(" · ")}
+      {/* Bouton dépliant — masque par défaut le détail (étape/raisons/prochaine
+          étape/indicateurs courts), optimisation d'espace demandée. Le
+          résumé essentiel (étape + % + barre) reste toujours visible
+          au-dessus ; seul le détail texte est replié. */}
+      <button
+        onClick={() => setExpanded(v => !v)}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+          background: "rgba(255,255,255,0.04)", border: "none", borderRadius: 10,
+          padding: "8px 10px", cursor: "pointer", color: "rgba(255,255,255,0.55)",
+          fontSize: 11, fontWeight: 700,
+        }}
+        aria-expanded={expanded}
+      >
+        {expanded ? "Masquer le détail" : "Voir le détail"}
+        <span style={{ fontSize: 10, transform: expanded ? "rotate(180deg)" : "none", transition: "transform .15s" }}>▾</span>
+      </button>
+
+      {expanded && (
+        <>
+          {/* Étape actuelle / progression / prochaine étape / critères restants */}
+          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: "10px 12px", marginTop: 10, marginBottom: quickIndicators.length ? 10 : 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
+              {stageLabel} — <span style={{ color }}>{score}%</span>
+            </div>
+            {reasons.length > 0 && (
+              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", marginTop: 3 }}>
+                {reasons.join(" · ")}
+              </div>
+            )}
+            {nextStageLabel && (
+              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", marginTop: 6, lineHeight: 1.5 }}>
+                Prochaine étape : <b style={{ color: "#fff" }}>{nextStageLabel}</b>
+                {nextStageMissing.length > 0 && (
+                  <div style={{ color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+                    {nextStageMissing.join(" · ")}
+                  </div>
+                )}
+              </div>
+            )}
+            {!nextStageLabel && (
+              <div style={{ fontSize: 10.5, color: "#6ee7b7", marginTop: 6, fontWeight: 700 }}>
+                🏆 Étape finale du parcours atteinte
               </div>
             )}
           </div>
-        )}
-        {!nextStageLabel && (
-          <div style={{ fontSize: 10.5, color: "#6ee7b7", marginTop: 6, fontWeight: 700 }}>
-            🏆 Étape finale du parcours atteinte
-          </div>
-        )}
-      </div>
 
-      {/* Indicateurs courts */}
-      {quickIndicators.length > 0 && (
-        <div style={{ display: "flex", gap: 6 }}>
-          {quickIndicators.map((ind, i) => (
-            <div key={i} style={{
-              flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-              background: "rgba(255,255,255,0.03)", border: `1px solid ${ind.ok ? "rgba(110,231,183,0.2)" : "rgba(239,68,68,0.2)"}`,
-              borderRadius: 10, padding: "7px 4px", fontSize: 9.5, fontWeight: 600,
-              color: ind.ok ? "#6ee7b7" : "#f87171", textAlign: "center",
-            }}>
-              <span>{ind.icon}</span> {ind.label}
+          {/* Indicateurs courts */}
+          {quickIndicators.length > 0 && (
+            <div style={{ display: "flex", gap: 6 }}>
+              {quickIndicators.map((ind, i) => (
+                <div key={i} style={{
+                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                  background: "rgba(255,255,255,0.03)", border: `1px solid ${ind.ok ? "rgba(110,231,183,0.2)" : "rgba(239,68,68,0.2)"}`,
+                  borderRadius: 10, padding: "7px 4px", fontSize: 9.5, fontWeight: 600,
+                  color: ind.ok ? "#6ee7b7" : "#f87171", textAlign: "center",
+                }}>
+                  <span>{ind.icon}</span> {ind.label}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );
