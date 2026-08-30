@@ -7339,6 +7339,46 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     ? splitRate * (1 - newsRatio + newsRatio * 0.4)  // 85% normal + 15% × 40%
     : splitRate;
 
+  // ══════════════════════════════════════════════════════════════
+  // ALERTE MARGE DE SÉCURITÉ — garde-fou pré-challenge
+  // ──────────────────────────────────────────────────────────────
+  // PROBLÈME STRUCTUREL : finalRR est résolu pour que l'espérance
+  // tombe PILE sur l'objectif (voir formule ligne ~7313). Résultat :
+  // la marge de sécurité au winrate backtesté est TOUJOURS ≈ 0%,
+  // même quand tout "a l'air" bon (WR élevé, DD confortable).
+  // Ce bloc calcule ce qui se passe avec la friction réelle que
+  // l'app annonce déjà en bas de page ("résultats réels inférieurs
+  // de 5 à 15% à cause du spread/slippage") et alerte AVANT que
+  // l'utilisateur ne paie un challenge sur cette base.
+  // ══════════════════════════════════════════════════════════════
+  const FRICTION_HAIRCUT = 0.10; // 10% = milieu de la fourchette 5-15% déjà affichée
+  const monthlyTargetDollar = +(capital * monthlyTarget).toFixed(2);
+  const tradesPerMonthReal = tradesPerDay * tdMonthRecurrence;
+
+  // Marge brute (au winrate backtesté déclaré) — structurellement ≈ 0 par construction.
+  const rawMonthlyPnL = expectedDailyPnL * tdMonthRecurrence;
+  const rawMarginPct = monthlyTargetDollar !== 0 ? +((rawMonthlyPnL - monthlyTargetDollar) / Math.abs(monthlyTargetDollar) * 100).toFixed(1) : 0;
+
+  // Marge réelle après friction (spread/slippage/exécution) sur le winrate.
+  const degradedW = Math.max(0, w * (1 - FRICTION_HAIRCUT));
+  const degradedExpectedPerTrade = effectiveRiskAmount * (degradedW * finalRR - (1 - degradedW));
+  const degradedMonthlyPnL = +(degradedExpectedPerTrade * tradesPerMonthReal).toFixed(2);
+  const degradedMarginPct = monthlyTargetDollar !== 0 ? +((degradedMonthlyPnL - monthlyTargetDollar) / Math.abs(monthlyTargetDollar) * 100).toFixed(1) : 0;
+  const degradedShortfall = +(monthlyTargetDollar - degradedMonthlyPnL).toFixed(2);
+
+  // Winrate minimum réellement requis pour tenir l'objectif (info actionnable).
+  const requiredWFraction = (finalRR + tradesPerMonthReal * effectiveRiskAmount > 0 && finalRR > -1)
+    ? (monthlyTargetDollar / tradesPerMonthReal / effectiveRiskAmount + 1) / (finalRR + 1)
+    : 0;
+  const requiredWPct = +(Math.max(0, Math.min(1, requiredWFraction)) * 100).toFixed(1);
+
+  // Niveaux d'alerte :
+  // - danger  : même en friction faible, l'objectif n'est pas tenu ET le RR < 1 (perte > gain)
+  // - warning : la marge après friction devient négative
+  // - ok      : marge après friction encore positive
+  const rrBelowOne = finalRR < 1 && finalRR > 0;
+  const marginSeverity = degradedMarginPct < -15 ? "danger" : degradedMarginPct < 0 ? "warning" : "ok";
+
   const p = {
     tradesPerDay,
     riskPct:        effectiveRisk,
@@ -7946,6 +7986,55 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             Profit equiv. : <b>{(monthlyTarget * 100).toFixed(1)}% / mois</b> - frais : <b>{fmt(fee)}</b> - RR : <b style={{ color: finalRR < 1.5 ? "#6ee7b7" : finalRR < 2.5 ? "#fbbf24" : "#ef4444" }}>1:{finalRR.toFixed(2)}</b>
           </div>
         </div>
+
+        {/* ── ALERTE MARGE DE SÉCURITÉ ─────────────────────────────
+            finalRR est résolu pour tomber pile sur l'objectif au
+            winrate déclaré (marge brute ≈ 0% TOUJOURS, par
+            construction de la formule). Ce bloc applique la friction
+            réelle (spread/slippage, cf. disclaimer plus bas) et
+            alerte si l'objectif devient intenable AVANT le challenge. */}
+        <div style={{
+          marginTop: 10, borderRadius: 12, padding: "10px 12px",
+          background: marginSeverity === "danger" ? "rgba(239,68,68,0.10)" : marginSeverity === "warning" ? "rgba(251,191,36,0.10)" : "rgba(110,231,183,0.08)",
+          border: `1px solid ${marginSeverity === "danger" ? "rgba(239,68,68,0.35)" : marginSeverity === "warning" ? "rgba(251,191,36,0.35)" : "rgba(110,231,183,0.25)"}`,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 800, color: marginSeverity === "danger" ? "#ef4444" : marginSeverity === "warning" ? "#fbbf24" : "#6ee7b7" }}>
+            {marginSeverity === "ok" ? "✅ Marge de sécurité correcte" : marginSeverity === "warning" ? "⚠️ Marge de sécurité insuffisante" : "🛑 Objectif intenable avec cette config"}
+          </div>
+
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 5, lineHeight: 1.5 }}>
+            Marge brute (au WR déclaré, sans friction) : <b style={{ color: "#fbbf24" }}>{rawMarginPct >= 0 ? "+" : ""}{rawMarginPct}%</b>
+            <span style={{ color: "rgba(255,255,255,0.45)" }}> — ta config est calée pile sur l'objectif, jamais au-dessus.</span>
+          </div>
+
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 3, lineHeight: 1.5 }}>
+            Avec friction réelle (-{(FRICTION_HAIRCUT * 100).toFixed(0)}% sur le WR, spread/slippage) :{" "}
+            <b style={{ color: degradedMarginPct >= 0 ? "#6ee7b7" : "#ef4444" }}>
+              {fmt2(degradedMonthlyPnL)}/mois vs objectif {fmt2(monthlyTargetDollar)}
+            </b>
+            {degradedMarginPct < 0 && (
+              <span style={{ color: "#ef4444" }}> → manque {fmt2(degradedShortfall)} ({degradedMarginPct}%)</span>
+            )}
+          </div>
+
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 3, lineHeight: 1.5 }}>
+            Winrate minimum réellement requis : <b style={{ color: requiredWPct > winrate ? "#ef4444" : "#6ee7b7" }}>{requiredWPct}%</b>
+            <span style={{ color: "rgba(255,255,255,0.45)" }}> (ton WR déclaré : {winrate}%)</span>
+          </div>
+
+          {rrBelowOne && (
+            <div style={{ fontSize: 11, color: "#fbbf24", marginTop: 5, paddingTop: 5, borderTop: "1px solid rgba(255,255,255,0.08)", lineHeight: 1.5 }}>
+              ⚠️ RR &lt; 1 : tu perds plus par trade perdant que tu ne gagnes par trade gagnant. Ta réussite dépend à 100% du winrate exact, aucune place pour l'erreur.
+            </div>
+          )}
+
+          {marginSeverity !== "ok" && (
+            <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", marginTop: 5, lineHeight: 1.5 }}>
+              Avant de payer ce challenge : augmente le RR cible (TP/SL), augmente la fréquence de trades pour réduire la variance, ou baisse le risque/trade.
+            </div>
+          )}
+        </div>
+
         <button onClick={() => setSeed(s => s + 1)}
           style={{ marginTop: 10, width: "100%", padding: 9, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 12, color: "#FFFFFF", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
           Nouvelle simulation
