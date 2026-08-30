@@ -11536,7 +11536,7 @@ function compressImage(file, maxDim = 900, quality = 0.72) {
   });
 }
 
-function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, journalMonthKey = null, newsSkipDays = 0, activeDays = [1,2,3,4,5], t = (k) => k, lang = "fr", realMode = false, accounts = null, accountLabel = null, activeAccountId = null, journalLocked = false, onJournalLocked = null }) {
+function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, journalMonthKey = null, newsSkipDays = 0, activeDays = [1,2,3,4,5], t = (k) => k, lang = "fr", realMode = false, accounts = null, accountLabel = null, activeAccountId = null, journalLocked = false, onJournalLocked = null, onPrevMonth = null, onNextMonth = null }) {
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [editingDay, setEditingDay] = useState(null); // jour en cours d'édition (mode journal)
   const [formWins, setFormWins] = useState(0);
@@ -11758,17 +11758,30 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
               : "Mois " + selectedMonth + " - simulation jour par jour"}
           </div>
         </div>
-        {/* En mode journal, la navigation reelle se fait via le selecteur de mois
-            externe (input type=month, au-dessus du calendrier) — ce pill interne
-            affichait "M1/1" en permanence (selectedMonth et months.length valent
-            TOUJOURS 1 dans ce mode : `months = [selectedMonth]`), avec des fleches
-            desactivees en permanence. Un controle mort et illisible, redondant
-            avec le vrai selecteur. Remplace par le vrai nom du mois, sans fleches. */}
+        {/* En mode journal, la navigation est désormais intégrée ICI (flèches
+            ‹ › de part et d'autre du nom du mois), au lieu d'un sélecteur
+            <input type="month"> natif externe peu soigné visuellement.
+            onPrevMonth/onNextMonth sont fournis par l'appelant (Dashboard,
+            Journal...) et pilotent son propre state journalMonth. */}
         {journalMode ? (
           calDateMatch && (
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>
-              {["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"][calMonth - 1]} {calYear}
-            </span>
+            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              {onPrevMonth && (
+                <button onClick={onPrevMonth} aria-label="Mois précédent"
+                  style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#6ee7b7", width: 28, height: 28, fontSize: 16, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
+                  ‹
+                </button>
+              )}
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7", minWidth: 84, textAlign: "center" }}>
+                {["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"][calMonth - 1]} {calYear}
+              </span>
+              {onNextMonth && (
+                <button onClick={onNextMonth} aria-label="Mois suivant"
+                  style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#6ee7b7", width: 28, height: 28, fontSize: 16, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
+                  ›
+                </button>
+              )}
+            </div>
           )
         ) : (
           <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
@@ -14428,63 +14441,9 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           </div>
         </div>
 
-        {/* Sélecteur de mois en mode journal */}
-        {journalMode && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <input
-              type="month"
-              value={journalMonth}
-              onChange={e => setJournalMonth(e.target.value)}
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(110,231,183,0.2)", borderRadius: 10, padding: "8px 12px", color: "#FFFFFF", fontSize: 13, fontWeight: 600, outline: "none", colorScheme: "dark" }}
-            />
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-              {Object.keys(journalMonthDataForSelectedAccount).length} {t("cal_days_entered")}
-            </span>
-          </div>
-        )}
-
-        {/* ── Partage : carte virale 9:16 ── */}
-        {journalMode && Object.keys(journalMonthDataForSelectedAccount).length > 0 && (
-          <button
-            onClick={async () => {
-              try {
-                const canvas = genererCarteVirale({
-                  monthKey: journalMonth,
-                  journalData: journalMonthDataForSelectedAccount,
-                  lang,
-                  pseudo: (profile?.pseudo || user?.displayName || "").trim(),
-                });
-                const blob = await new Promise(res => canvas.toBlob(res, "image/png", 0.95));
-                if (!blob) return;
-                const fichier = new File([blob], `performance-${journalMonth}.png`, { type: "image/png" });
-                // Partage natif (menu iOS/Android) si disponible ET si le fichier est
-                // partageable — sinon repli sur un téléchargement classique, pour que
-                // le bouton fonctionne dans tous les cas (desktop, navigateur ancien).
-                if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
-                  await navigator.share({ files: [fichier], title: "Ma performance du mois" });
-                } else {
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url; a.download = fichier.name;
-                  document.body.appendChild(a); a.click(); a.remove();
-                  setTimeout(() => URL.revokeObjectURL(url), 1000);
-                }
-              } catch (e) {
-                // L'utilisateur a annulé le menu de partage : pas une erreur à signaler
-                if (e && e.name === "AbortError") return;
-                alert("Impossible de générer la carte : " + (e?.message || "erreur inconnue"));
-              }
-            }}
-            style={{
-              width: "100%", marginBottom: 10, padding: "12px", borderRadius: 12, cursor: "pointer",
-              border: "1px solid rgba(110,231,183,0.3)",
-              background: "linear-gradient(135deg, rgba(110,231,183,0.14), rgba(110,231,183,0.06))",
-              color: "#6ee7b7", fontSize: 13, fontWeight: 800,
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            }}>
-            <span style={{ fontSize: 15 }}>📸</span> Partager ma performance
-          </button>
-        )}
+        {/* Sélecteur de mois : supprimé ici — la navigation est désormais
+            intégrée directement dans l'en-tête du calendrier ci-dessous
+            (flèches ‹ › de part et d'autre du nom du mois). */}
 
         {/* Le calendrier : mode journal OU mode simulation */}
         {journalMode ? (
@@ -14494,13 +14453,23 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
               journalMode={true}
               journalData={journalMonthDataForSelectedAccount}
               onJournalSave={saveJournalEntry}
-              journalMonthLabel={t("cal_click_day") + " · " + journalMonth}
+              journalMonthLabel={t("cal_click_day") + " · " + Object.keys(journalMonthDataForSelectedAccount).length + " " + t("cal_days_entered")}
               journalMonthKey={journalMonth}
               accounts={activeJournalAccounts}
               accountLabel={journalAccountLabel}
               activeAccountId={dashSelectedAccountId}
               journalLocked={!premiumAccess && countJournalDays(journalAll) >= FREE_JOURNAL_DAYS}
               onJournalLocked={requirePremium}
+              onPrevMonth={() => {
+                const [y, m] = journalMonth.split("-").map(Number);
+                const d = new Date(y, m - 2, 1);
+                setJournalMonth(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"));
+              }}
+              onNextMonth={() => {
+                const [y, m] = journalMonth.split("-").map(Number);
+                const d = new Date(y, m, 1);
+                setJournalMonth(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"));
+              }}
             />
           </div>
         ) : ls.funded ? (
@@ -14515,6 +14484,64 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         ) : (
           <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16,textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13}}>
             {t("dash_launch_sim_or_journal")}
+          </div>
+        )}
+
+        {/* ── Actions : Partager + Voir le journal complet — alignées sur
+            une même ligne, sous le calendrier (plus discret et cohérent
+            niveau UX qu'un gros bouton isolé tout en haut du bloc). ── */}
+        {journalMode && Object.keys(journalMonthDataForSelectedAccount).length > 0 && (
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button
+              onClick={async () => {
+                try {
+                  const canvas = genererCarteVirale({
+                    monthKey: journalMonth,
+                    journalData: journalMonthDataForSelectedAccount,
+                    lang,
+                    pseudo: (profile?.pseudo || user?.displayName || "").trim(),
+                  });
+                  const blob = await new Promise(res => canvas.toBlob(res, "image/png", 0.95));
+                  if (!blob) return;
+                  const fichier = new File([blob], `performance-${journalMonth}.png`, { type: "image/png" });
+                  // Partage natif (menu iOS/Android) si disponible ET si le fichier est
+                  // partageable — sinon repli sur un téléchargement classique, pour que
+                  // le bouton fonctionne dans tous les cas (desktop, navigateur ancien).
+                  if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
+                    await navigator.share({ files: [fichier], title: "Ma performance du mois" });
+                  } else {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url; a.download = fichier.name;
+                    document.body.appendChild(a); a.click(); a.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                  }
+                } catch (e) {
+                  // L'utilisateur a annulé le menu de partage : pas une erreur à signaler
+                  if (e && e.name === "AbortError") return;
+                  alert("Impossible de générer la carte : " + (e?.message || "erreur inconnue"));
+                }
+              }}
+              style={{
+                flex: 1, padding: "11px", borderRadius: 12, cursor: "pointer",
+                border: "1px solid rgba(110,231,183,0.3)",
+                background: "linear-gradient(135deg, rgba(110,231,183,0.14), rgba(110,231,183,0.06))",
+                color: "#6ee7b7", fontSize: 12.5, fontWeight: 800,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              }}>
+              <span style={{ fontSize: 14 }}>📸</span> Partager
+            </button>
+            <button
+              onClick={() => goto("journal")}
+              style={{
+                flex: 1, padding: "11px", borderRadius: 12, cursor: "pointer",
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.05)",
+                color: "#FFFFFF", fontSize: 12.5, fontWeight: 700,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              }}>
+              Voir le journal complet
+            </button>
           </div>
         )}
 
