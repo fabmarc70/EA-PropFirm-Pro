@@ -11763,44 +11763,22 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
 
   return (
     <div className="card" style={{ padding: 16 }}>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 15, color: "#FFFFFF" }}>
-            {journalMode ? "Journal de trading" : "Calendrier PnL"}
-          </div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginTop: 1 }}>
-            {journalMode
-              ? (journalMonthLabel || t("cal_click_day"))
-              : "Mois " + selectedMonth + " - simulation jour par jour"}
-          </div>
-        </div>
-        {/* Petite navigation intégrée au sein même de l'en-tête du calendrier —
-            utilisée quand l'appelant ne fournit PAS de barre de navigation
-            externe (MonthNavBar) au-dessus. Même palette visuelle que
-            MonthNavBar (fond rgba(255,255,255,0.06), pas de bordure), en
-            format compact pour tenir dans l'en-tête. */}
-        {journalMode ? (
-          calDateMatch && (
-            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-              {onPrevMonth && (
-                <button onClick={onPrevMonth} aria-label="Mois précédent"
-                  style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 8, color: "#6ee7b7", width: 28, height: 28, fontSize: 16, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
-                  ‹
-                </button>
-              )}
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7", minWidth: 84, textAlign: "center" }}>
-                {["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"][calMonth - 1]} {calYear}
-              </span>
-              {onNextMonth && (
-                <button onClick={onNextMonth} aria-label="Mois suivant"
-                  style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 8, color: "#6ee7b7", width: 28, height: 28, fontSize: 16, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
-                  ›
-                </button>
-              )}
+      {/* Header — masqué en mode journal : titre "Journal de trading", sous-texte
+          et date du mois y étaient TOUS redondants avec le contexte déjà affiché
+          au-dessus par l'appelant (MonthNavBar affiche déjà le mois ; le titre de
+          page/section affiche déjà "Journal de trading"). Optimisation d'espace
+          demandée explicitement — gardé uniquement pour le mode simulation
+          (non-journal), qui n'a pas de barre de navigation externe équivalente. */}
+      {!journalMode && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: "#FFFFFF" }}>
+              Calendrier PnL
             </div>
-          )
-        ) : (
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginTop: 1 }}>
+              {"Mois " + selectedMonth + " - simulation jour par jour"}
+            </div>
+          </div>
           <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
             <button onClick={() => setSelectedMonth(Math.max(1, selectedMonth - 1))}
               disabled={selectedMonth <= 1}
@@ -11816,8 +11794,8 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
               ›
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Stats resume */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 14 }}>
@@ -14004,6 +13982,30 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
   // incohérent avec l'argent réellement en jeu sur ce compte.
   // DOIT être après principalCapital — utilise principalCapital comme point de départ
   const journalAllForSelectedAccount = filterJournalByAccount(journalAll, dashSelectedAccountId);
+
+  // ── KPI du mois + jauge de maturité — mêmes calculs que la page Journal,
+  //    branchés sur le compte sélectionné du Dashboard, affichés entre le
+  //    bloc Solde du compte et le bloc calendrier. ──
+  const dashMonthDays = Object.values(journalMonthDataForSelectedAccount);
+  const dashMonthPnl = dashMonthDays.reduce((s, d) => s + (d.pnl || 0), 0);
+  const dashWinDays = dashMonthDays.filter(d => (d.pnl || 0) > 0).length;
+  const dashLossDays = dashMonthDays.filter(d => (d.pnl || 0) < 0).length;
+  const dashTotalTradesMonth = dashMonthDays.reduce((s, d) => s + (d.wins || 0) + (d.losses || 0), 0);
+  const dashIntradayDDValues = dashMonthDays.map(d => d.intradayDD).filter(v => v !== undefined && v !== null && !isNaN(v));
+  const dashMaxIntradayDDOfMonth = dashIntradayDDValues.length ? Math.max(...dashIntradayDDValues) : null;
+  const dashFirmModel = principalAccount?.firmKey && PROP_FIRMS[principalAccount.firmKey]
+    ? PROP_FIRMS[principalAccount.firmKey].models[Object.keys(PROP_FIRMS[principalAccount.firmKey].models)[0]]
+    : null;
+  const dashAccountMaturity = useMemo(() => {
+    const firmModelForMaturity = dashFirmModel ? {
+      monthlyTargetPct: (dashFirmModel.phases?.[0]?.target || 0.08) * 100,
+      maxDD: dashFirmModel.totalDD || 0.10,
+    } : null;
+    return calculateAccountMaturity(journalAllForSelectedAccount, resolveJourneyType(principalAccount), {
+      effectiveCapital: principalCapital, firmModel: firmModelForMaturity,
+    });
+  }, [journalAllForSelectedAccount, principalAccount, principalCapital, dashFirmModel]);
+
   const journalEquityCurve = (() => {
     if (!journalAllForSelectedAccount || Object.keys(journalAllForSelectedAccount).length === 0) return null;
     const sortedMonths = Object.keys(journalAllForSelectedAccount).sort();
@@ -14428,6 +14430,41 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           </div>
         );
       })()}
+
+      {/* ── KPI du mois + Jauge de maturité — entre le bloc Solde du compte et
+           le bloc calendrier, uniquement en mode journal (statistiques du
+           journal réel, pas de la simulation). Même design que la page
+           Journal de trading. ── */}
+      {journalMode && (
+        <>
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 14 }}>
+            {(() => {
+              const indicators = [
+                [t("journal_total_pnl"), (dashMonthPnl>=0?"+":"") + "$" + Math.abs(Math.round(dashMonthPnl)), dashMonthPnl>=0?"#6ee7b7":"#ef4444"],
+                [t("journal_win_days"), dashWinDays, "#6ee7b7"],
+                [t("journal_loss_days"), dashLossDays, "#ef4444"],
+                [t("journal_total_trades"), dashTotalTradesMonth, "#a78bfa"],
+                ...(dashMaxIntradayDDOfMonth !== null ? [[t("journal_max_dd_today"), dashMaxIntradayDDOfMonth.toFixed(1) + "%", "#fbbf24"]] : []),
+              ];
+              const cols = indicators.length;
+              return (
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 5 }}>
+                  {indicators.map(([label, val, color], i) => (
+                    <div key={i} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 3px", textAlign: "center", minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color, whiteSpace: "nowrap" }}>{val}</div>
+                      <div style={{ fontSize: 7, color: "rgba(255,255,255,0.4)", marginTop: 2, lineHeight: 1.2 }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <AccountMaturityGauge maturity={dashAccountMaturity} />
+          </div>
+        </>
+      )}
 
       {/* ── CALENDRIER PNL / JOURNAL DE TRADING ── */}
       <div style={{marginBottom:"14px"}}>
