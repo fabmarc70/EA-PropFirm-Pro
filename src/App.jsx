@@ -16459,64 +16459,76 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
           )}
         </div>
 
-        {/* Navigation mois + stats rapides — regroupées dans une carte standard, collée à la courbe d'équité qui suit (plus d'espace inutile entre les deux) */}
-        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 6 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <button onClick={() => shiftMonth(-1)} aria-label={t("journal_prev_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>‹</button>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>{formatMonthLabel(journalMonth, lang)}</div>
-            <button onClick={() => shiftMonth(1)} aria-label={t("journal_next_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>›</button>
+        {/* ── Bloc fusionné : navigation mois + KPI du mois + calendrier PnL,
+             tous dans le MÊME conteneur (même fond/bordure), sans espace entre
+             eux — demandé explicitement pour que le sélecteur de mois soit
+             "collé et intégré" juste au-dessus du calendrier plutôt que dans
+             une carte séparée. Note : CalendrierPnL n'applique lui-même aucun
+             fond/bordure (className="card" est une classe vide dans ce projet,
+             seul le padding:16 s'applique) — c'est TOUJOURS l'appelant qui
+             dessine le fond de carte. La fusion ne crée donc aucune double
+             bordure : un seul wrapper visible pour les deux sections. ── */}
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, overflow: "hidden", marginBottom: 16 }}>
+          <div style={{ padding: "16px 16px 14px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <button onClick={() => shiftMonth(-1)} aria-label={t("journal_prev_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>‹</button>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>{formatMonthLabel(journalMonth, lang)}</div>
+              <button onClick={() => shiftMonth(1)} aria-label={t("journal_next_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>›</button>
+            </div>
+
+            {(() => {
+              const indicators = [
+                [t("journal_total_pnl"), (monthPnl>=0?"+":"") + "$" + Math.abs(Math.round(monthPnl)), monthPnl>=0?"#6ee7b7":"#ef4444"],
+                [t("journal_win_days"), winDays, "#6ee7b7"],
+                [t("journal_loss_days"), lossDays, "#ef4444"],
+                [t("journal_total_trades"), totalTradesMonth, "#a78bfa"],
+                ...(maxIntradayDDOfMonth !== null ? [[t("journal_max_dd_today"), maxIntradayDDOfMonth.toFixed(1) + "%", "#fbbf24"]] : []),
+              ];
+              const cols = indicators.length;
+              return (
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 5 }}>
+                  {indicators.map(([label, val, color], i) => (
+                    <div key={i} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 3px", textAlign: "center", minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color, whiteSpace: "nowrap" }}>{val}</div>
+                      <div style={{ fontSize: 7, color: "rgba(255,255,255,0.4)", marginTop: 2, lineHeight: 1.2 }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
 
-          {(() => {
-            const indicators = [
-              [t("journal_total_pnl"), (monthPnl>=0?"+":"") + "$" + Math.abs(Math.round(monthPnl)), monthPnl>=0?"#6ee7b7":"#ef4444"],
-              [t("journal_win_days"), winDays, "#6ee7b7"],
-              [t("journal_loss_days"), lossDays, "#ef4444"],
-              [t("journal_total_trades"), totalTradesMonth, "#a78bfa"],
-              ...(maxIntradayDDOfMonth !== null ? [[t("journal_max_dd_today"), maxIntradayDDOfMonth.toFixed(1) + "%", "#fbbf24"]] : []),
-            ];
-            const cols = indicators.length;
-            return (
-              <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 5 }}>
-                {indicators.map(([label, val, color], i) => (
-                  <div key={i} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 3px", textAlign: "center", minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color, whiteSpace: "nowrap" }}>{val}</div>
-                    <div style={{ fontSize: 7, color: "rgba(255,255,255,0.4)", marginTop: 2, lineHeight: 1.2 }}>{label}</div>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
+          {/* Séparateur discret entre le bloc nav/KPI et le calendrier, toujours
+              dans le même conteneur visuel (pas de nouvelle carte). */}
+          <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "0 16px" }} />
+
+          <div data-coach="journal-calendar">
+            <CalendrierPnL t={t} lang={lang}
+              dailyLog={[]}
+              journalMode={true}
+              journalData={journalMonthDataFiltered}
+              onJournalSave={saveJournalEntry}
+              journalMonthLabel={t("cal_click_day") + " · " + formatMonthLabel(journalMonth, lang)}
+              journalMonthKey={journalMonth}
+              accounts={activeAccounts}
+              accountLabel={accountLabel}
+              activeAccountId={selectedAccountId}
+              journalLocked={journalQuotaReached}
+              onJournalLocked={requirePremium}
+            />
+          </div>
         </div>
 
-        {/* Jauge de maturité du compte — entre les KPI du mois et le calendrier/courbe */}
+        {/* Jauge de maturité du compte */}
         <AccountMaturityGauge maturity={accountMaturity} />
 
-        {/* Courbe Équité du mois — copie de la Home (Journal réel vs Simulation) */}
+        {/* Courbe Équité du mois — désormais SOUS le calendrier PnL, comme demandé */}
         <EquityChartCard
           t={t} lang={lang} monthKey={journalMonth}
           chartData={equityData.chartData} hasJournal={equityData.hasJournal} hasSim={equityData.hasSim}
           primaryIsJournal={equityData.primaryIsJournal} cap={equityData.cap} todayDay={equityData.todayDay}
           gradientSuffix="-journalpage" tightBottom
         />
-
-        {/* Calendrier collé juste sous la courbe d'équité, comme demandé — plus
-            besoin de descendre toute la page pour passer de l'un à l'autre */}
-        <div data-coach="journal-calendar" style={{ marginBottom: 16 }}>
-          <CalendrierPnL t={t} lang={lang}
-            dailyLog={[]}
-            journalMode={true}
-            journalData={journalMonthDataFiltered}
-            onJournalSave={saveJournalEntry}
-            journalMonthLabel={t("cal_click_day") + " · " + formatMonthLabel(journalMonth, lang)}
-            journalMonthKey={journalMonth}
-            accounts={activeAccounts}
-            accountLabel={accountLabel}
-            activeAccountId={selectedAccountId}
-            journalLocked={journalQuotaReached}
-            onJournalLocked={requirePremium}
-          />
-        </div>
 
         {/* ── GARDE-FOUS — statut a posteriori, pas de blocage live (aucune connexion
              broker temps réel ici, contrairement à EdgeFlo) : ça informe, ça ne bloque rien. ── */}
