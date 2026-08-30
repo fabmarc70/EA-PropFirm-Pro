@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser, fbLoadUserProfile, fbSaveUserProfile, fbDeleteAccount,
   fbAddWatchlistItem, fbListWatchlist, fbDeleteWatchlistItem,
   fbAddPriceAlert, fbListPriceAlerts, fbDeletePriceAlert, fbSetPriceAlertActive,
@@ -15176,6 +15176,338 @@ function filterJournalByAccount(journalData, accountId) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// JAUGE DE MATURITÉ DU COMPTE — calculateAccountMaturity()
+// ──────────────────────────────────────────────────────────────────
+// Calcule où en est un compte dans son parcours (recherche → scaling),
+// à partir de son historique RÉEL de journal (tous mois confondus pour
+// ce compte), pas seulement du temps écoulé. Conçu pour rester facile
+// à ajuster : chaque parcours est une simple liste d'étapes avec un
+// validateur (fonction "isValidated") + un calculateur de progression
+// interne (fonction "progress", 0→1) — ajouter/retirer une étape ou
+// changer un seuil ne touche qu'une entrée de PARCOURS_STAGES, jamais
+// la logique de résolution qui reste identique.
+// ══════════════════════════════════════════════════════════════════
+
+// Résout le "parcours" (EA Prop Firm / EA Bot classique / Trading manuel)
+// à partir des données déjà disponibles sur le compte, sans exiger de
+// nouveau champ dans les écrans de création de compte (non modifiés
+// pour l'instant, comme demandé). Prévu pour être affiné plus tard :
+// un futur champ explicite (ex. account.journeyType ou account.botMode)
+// prendrait le dessus automatiquement s'il apparaît un jour.
+function resolveJourneyType(account) {
+  if (account?.journeyType && PARCOURS_STAGES[account.journeyType]) return account.journeyType;
+  if (account?.botMode === true) return "eabot";
+  // Un compte rattaché à une prop firm (challenge en cours ou déjà funded)
+  // suit forcément le parcours EA Prop Firm.
+  if (account?.firmKey || account?.accountType === "challenge" || account?.accountType === "funded") return "propfirm";
+  // Par défaut : trading manuel (cas "perso" et tout compte sans info).
+  return "manual";
+}
+
+const PARCOURS_STAGES = {
+  propfirm: [
+    { key: "recherche", label: "Recherche / Backtest" },
+    { key: "forward", label: "Forward test" },
+    { key: "challenge1", label: "Challenge P1" },
+    { key: "challenge2", label: "Challenge P2" },
+    { key: "funded", label: "Stabilité" },
+    { key: "scale", label: "Scale" },
+  ],
+  eabot: [
+    { key: "backtest", label: "Backtest" },
+    { key: "forward", label: "Forward test" },
+    { key: "live", label: "Live réel" },
+    { key: "stable", label: "Stabilité" },
+    { key: "scale", label: "Scale" },
+  ],
+  manual: [
+    { key: "apprentissage", label: "Apprentissage" },
+    { key: "journal", label: "Journalisation" },
+    { key: "regularite", label: "Régularité" },
+    { key: "stable", label: "Stabilité" },
+    { key: "scale", label: "Scale" },
+  ],
+};
+
+// Aplati journalAllFiltered (format { "2026-06": { "5": entry, ... }, ... })
+// en liste de mois triée chronologiquement, chacun avec ses métriques déjà
+// agrégées (pnl, DD, winrate, trades, jours actifs, anomalies) — base commune
+// aux 3 parcours pour éviter de recalculer la même chose 3 fois.
+function buildMonthlyStats(journalAllFiltered, effectiveCapital = 25000) {
+  const months = Object.keys(journalAllFiltered || {}).sort(); // "YYYY-MM" trie chronologiquement en texte
+  return months.map(mk => {
+    const days = Object.values(journalAllFiltered[mk] || {});
+    const pnl = days.reduce((s, d) => s + (d.pnl || 0), 0);
+    const wins = days.reduce((s, d) => s + (d.wins || 0), 0);
+    const losses = days.reduce((s, d) => s + (d.losses || 0), 0);
+    const trades = wins + losses;
+    const winDays = days.filter(d => (d.pnl || 0) > 0).length;
+    const activeDays = days.length;
+    const ddValues = days.map(d => d.intradayDD).filter(v => v !== undefined && v !== null && !isNaN(v));
+    const maxDD = ddValues.length ? Math.max(...ddValues) : null;
+    const anomalies = days.filter(d => d.emotionalTrading || d.lotIncreaseAfterLoss || d.respectPlan === false || d.respectRisk === false).length;
+    return {
+      monthKey: mk, pnl, trades, winDays, activeDays,
+      winrate: trades > 0 ? wins / trades * 100 : 0,
+      returnPct: effectiveCapital ? pnl / effectiveCapital * 100 : 0,
+      maxDD, anomalies,
+      positive: pnl > 0, // un mois flat (pnl===0) n'est PAS positif, cf. bug e6068070 déjà corrigé ailleurs
+    };
+  });
+}
+
+// Fonction principale demandée. Retourne tout ce dont l'UI a besoin :
+// score 0-100, étape courante, couleur, label court, raisons affichables,
+// étape suivante + critères restants pour y accéder.
+function calculateAccountMaturity(journalAllFiltered, accountType, opts = {}) {
+  const journeyType = opts.journeyTypeOverride || accountType || "manual";
+  const stages = PARCOURS_STAGES[journeyType] || PARCOURS_STAGES.manual;
+  const effectiveCapital = opts.effectiveCapital || 25000;
+  const firmModel = opts.firmModel || null; // règles réelles de la prop firm (objectif %, DD max...) si dispo
+
+  const monthly = buildMonthlyStats(journalAllFiltered, effectiveCapital);
+  const totalMonths = monthly.length;
+  const totalTrades = monthly.reduce((s, m) => s + m.trades, 0);
+  const totalPositiveMonths = monthly.filter(m => m.positive).length;
+  const last3 = monthly.slice(-3);
+  const last6 = monthly.slice(-6);
+  const worstMaxDD = monthly.reduce((mx, m) => m.maxDD !== null ? Math.max(mx, m.maxDD) : mx, 0);
+  const totalAnomalies = monthly.reduce((s, m) => s + m.anomalies, 0);
+  const avgReturnLast3 = last3.length ? last3.reduce((s, m) => s + m.returnPct, 0) / last3.length : 0;
+  const monthlyTargetPct = firmModel?.monthlyTargetPct ?? 8; // objectif Phase 1 typique si pas de firm précisée
+  const ddLimitPct = firmModel ? (firmModel.maxDD || 10) * 100 : 10;
+
+  // Critère générique réutilisé par plusieurs étapes : DD sous contrôle
+  const ddOk = worstMaxDD === 0 ? true : worstMaxDD < ddLimitPct * 0.8; // marge de 20% sous la limite dure
+  const noAnomalies = totalAnomalies === 0;
+
+  // Chaque étape : reasons() décrit l'état ATTEINT (affichable), missing()
+  // décrit ce qu'il manque pour la VALIDER (affichable), validated:boolean.
+  let stageDefs;
+  if (journeyType === "propfirm") {
+    stageDefs = [
+      { // Recherche / Backtest
+        validated: totalMonths >= 1,
+        reasons: () => totalMonths >= 1 ? [`${totalMonths} mois de données`] : [],
+        missing: () => ["Au moins 1 mois de données réelles ou de forward test"],
+      },
+      { // Forward test : 1-3 mois de suivi réel, rythme régulier
+        validated: totalMonths >= 3 && ddOk,
+        reasons: () => [`${totalMonths} mois suivis`, ddOk ? "DD maîtrisé" : null].filter(Boolean),
+        missing: () => {
+          const m = [];
+          if (totalMonths < 3) m.push(`Encore ${3 - totalMonths} mois de suivi minimum`);
+          if (!ddOk) m.push(`DD max (${worstMaxDD.toFixed(1)}%) trop proche de la limite (${ddLimitPct.toFixed(0)}%)`);
+          return m;
+        },
+      },
+      { // Challenge Phase 1 : objectif réel de la firm atteint sur un mois, DD ok, pas d'anomalie
+        validated: totalMonths >= 3 && avgReturnLast3 >= monthlyTargetPct && ddOk && noAnomalies,
+        reasons: () => [avgReturnLast3 >= monthlyTargetPct ? `Rendement moyen ${avgReturnLast3.toFixed(1)}%/mois` : null, ddOk ? "DD maîtrisé" : null, noAnomalies ? "Aucune anomalie" : null].filter(Boolean),
+        missing: () => {
+          const m = [];
+          if (totalTrades < 10) m.push("Encore 10 trades minimum");
+          if (avgReturnLast3 < monthlyTargetPct) m.push(`Rendement moyen (${avgReturnLast3.toFixed(1)}%) < objectif (${monthlyTargetPct}%)`);
+          if (!ddOk) m.push(`DD < ${(ddLimitPct * 0.8).toFixed(0)}%`);
+          if (!noAnomalies) m.push(`${totalAnomalies} anomalie(s) d'exécution à corriger`);
+          return m;
+        },
+      },
+      { // Challenge Phase 2 : même niveau, sur une fenêtre plus longue
+        validated: totalMonths >= 4 && avgReturnLast3 >= monthlyTargetPct && ddOk && noAnomalies,
+        reasons: () => [`Phase 1 validée`, `${totalMonths} mois cumulés`].filter(Boolean),
+        missing: () => ["Reproduire les résultats de Phase 1 sur une nouvelle période"],
+      },
+      { // Funded / Stabilité : au moins 3 mois positifs
+        validated: totalPositiveMonths >= 3 && ddOk,
+        reasons: () => [`${totalPositiveMonths} mois positifs`, ddOk ? "DD maîtrisé" : null].filter(Boolean),
+        missing: () => {
+          const m = [];
+          if (totalPositiveMonths < 3) m.push(`Encore ${3 - totalPositiveMonths} mois positifs minimum`);
+          if (!ddOk) m.push("DD à stabiliser");
+          return m;
+        },
+      },
+      { // Scaling : 6 mois de stabilité, DD faible, rythme régulier
+        validated: totalMonths >= 6 && last6.every(m => m.positive || m.returnPct > -2) && worstMaxDD < ddLimitPct * 0.5 && noAnomalies,
+        reasons: () => [`${totalMonths} mois cumulés`, "Rythme régulier", "DD faible"],
+        missing: () => [`Encore ${Math.max(0, 6 - totalMonths)} mois de recul avant d'envisager le scaling`],
+      },
+    ];
+  } else if (journeyType === "eabot") {
+    stageDefs = [
+      { validated: totalMonths >= 1, reasons: () => [`${totalMonths} mois de données`], missing: () => ["Au moins 1 mois de backtest"] },
+      { validated: totalMonths >= 2, reasons: () => [`${totalMonths} mois de forward test`], missing: () => [`Encore ${Math.max(0, 2 - totalMonths)} mois de forward test`] },
+      { validated: totalMonths >= 3 && ddOk, reasons: () => ["EA en live réel", ddOk ? "DD maîtrisé" : null].filter(Boolean), missing: () => [!ddOk ? "DD à réduire" : `Encore ${Math.max(0, 3 - totalMonths)} mois de live`].filter(Boolean) },
+      { validated: totalPositiveMonths >= 3 && ddOk && noAnomalies, reasons: () => [`${totalPositiveMonths} mois positifs`, "Aucune intervention manuelle nécessaire"], missing: () => [totalPositiveMonths < 3 ? `Encore ${3 - totalPositiveMonths} mois positifs` : null, !noAnomalies ? "Réduire les interventions manuelles" : null].filter(Boolean) },
+      { validated: totalMonths >= 6 && worstMaxDD < ddLimitPct * 0.5, reasons: () => [`${totalMonths} mois de stabilité`, "DD faible"], missing: () => [`Encore ${Math.max(0, 6 - totalMonths)} mois avant scaling`] },
+    ];
+  } else {
+    // manual
+    const disciplineRate = totalMonths > 0 ? 1 - (totalAnomalies / Math.max(1, totalTrades || totalMonths)) : 0;
+    stageDefs = [
+      { validated: totalMonths >= 1, reasons: () => [`${totalMonths} mois de données`], missing: () => ["Commence à journaliser tes trades régulièrement"] },
+      { validated: monthly.filter(m => m.activeDays >= 5).length >= 1, reasons: () => ["Journalisation réelle en cours"], missing: () => ["Au moins 5 jours de saisie sur un mois"] },
+      { validated: totalMonths >= 2 && monthly.slice(-2).every(m => m.activeDays >= 8), reasons: () => ["Rythme régulier"], missing: () => ["Au moins 8 jours saisis par mois, sur 2 mois consécutifs"] },
+      { validated: totalPositiveMonths >= 3 && ddOk && noAnomalies, reasons: () => [`${totalPositiveMonths} mois positifs`, ddOk ? "DD maîtrisé" : null, noAnomalies ? "Discipline respectée" : null].filter(Boolean), missing: () => [totalPositiveMonths < 3 ? `Encore ${3 - totalPositiveMonths} mois positifs` : null, !ddOk ? "DD à réduire" : null, !noAnomalies ? `${totalAnomalies} anomalie(s) de discipline à corriger` : null].filter(Boolean) },
+      { validated: totalMonths >= 6 && worstMaxDD < ddLimitPct * 0.5 && noAnomalies, reasons: () => [`${totalMonths} mois cumulés`, "Discipline stable"], missing: () => [`Encore ${Math.max(0, 6 - totalMonths)} mois de recul avant scaling`] },
+    ];
+  }
+
+  // Étape courante = dernière étape validée dans l'ordre (jamais on ne "saute"
+  // une étape non validée : Phase 2 ne se valide jamais si Phase 1 ne l'est
+  // pas, même si les chiffres bruts de Phase 2 seraient techniquement atteints).
+  let currentIdx = -1;
+  for (let i = 0; i < stageDefs.length; i++) {
+    if (stageDefs[i].validated && (i === 0 || stageDefs[i - 1].validated)) currentIdx = i;
+    else break;
+  }
+  // Compteur à 0 si rien n'est validé (on est en train de bâtir l'étape 0)
+  const displayIdx = Math.max(0, currentIdx);
+  const isMaxStage = displayIdx === stageDefs.length - 1;
+
+  // Progression % à L'INTÉRIEUR de l'étape courante (0 fixe si première étape
+  // jamais validée, 100 si dernière étape déjà atteinte).
+  // Approximation simple et ajustable : proportion de critères "missing" déjà
+  // couverts par les reasons, sinon ratio du volume de mois/trades déjà réuni
+  // vers le prochain palier.
+  let stageProgressPct;
+  if (isMaxStage && stageDefs[displayIdx].validated) {
+    stageProgressPct = 100;
+  } else {
+    const nextStage = stageDefs[displayIdx + 1] || stageDefs[displayIdx];
+    const missingCount = (nextStage.missing() || []).length;
+    stageProgressPct = missingCount === 0 ? 100 : Math.round(Math.max(10, 100 - missingCount * 25));
+  }
+
+  const globalScore = Math.round(((displayIdx + stageProgressPct / 100) / stageDefs.length) * 100);
+
+  const nextStage = displayIdx + 1 < stageDefs.length ? stages[displayIdx + 1] : null;
+  const nextMissing = displayIdx + 1 < stageDefs.length ? (stageDefs[displayIdx + 1].missing() || []) : [];
+
+  // Couleur dominante : suit le dégradé rouge→orange→jaune→vert selon la position globale
+  const t = globalScore / 100;
+  const color = t < 0.2 ? "#ef4444" : t < 0.45 ? "#f97316" : t < 0.7 ? "#fbbf24" : "#6ee7b7";
+
+  return {
+    journeyType,
+    stages, // liste complète des labels du parcours, pour l'affichage
+    score: Math.max(0, Math.min(100, globalScore)),
+    stageIndex: displayIdx,
+    stageKey: stages[displayIdx].key,
+    stageLabel: stages[displayIdx].label,
+    stageProgressPct,
+    color,
+    shortLabel: `${stages[displayIdx].label} — ${stageProgressPct}%`,
+    reasons: stageDefs[displayIdx].reasons() || [],
+    nextStageLabel: nextStage ? nextStage.label : null,
+    nextStageMissing: nextMissing,
+    // Indicateurs courts prêts à afficher (max 3, filtrés si non pertinents)
+    quickIndicators: [
+      totalMonths > 0 ? { icon: "📈", label: monthly.slice(-2).every(m => m.activeDays >= 5) ? "Rythme régulier" : "Rythme irrégulier", ok: monthly.slice(-2).every(m => m.activeDays >= 5) } : null,
+      { icon: "✓", label: `${totalPositiveMonths} mois positif${totalPositiveMonths > 1 ? "s" : ""}`, ok: totalPositiveMonths > 0 },
+      worstMaxDD !== null ? { icon: "🛡", label: ddOk ? "DD maîtrisé" : "DD à surveiller", ok: ddOk } : null,
+    ].filter(Boolean).slice(0, 3),
+    totalMonths, totalTrades, totalPositiveMonths, worstMaxDD, avgReturnLast3,
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Composant visuel : jauge horizontale de maturité du compte.
+// Dégradé rouge→orange→jaune→vert, marqueur lumineux sur la position
+// courante, étapes en labels dessous, indicateurs courts en bas.
+// Cohérent avec le design EA PropFirm Pro (fond sombre, cartes
+// arrondies, accent vert menthe #6ee7b7, rouge/orange sur le risque).
+// ══════════════════════════════════════════════════════════════════
+function AccountMaturityGauge({ maturity }) {
+  if (!maturity) return null;
+  const { stages, stageIndex, stageProgressPct, color, stageLabel, score, reasons, nextStageLabel, nextStageMissing, quickIndicators } = maturity;
+  const n = stages.length;
+  // Position du marqueur : centré sur le segment de l'étape courante,
+  // légèrement décalé selon la progression interne à cette étape.
+  const segmentWidth = 100 / n;
+  const markerPct = segmentWidth * stageIndex + segmentWidth * (0.3 + 0.4 * (stageProgressPct / 100));
+
+  return (
+    <div data-coach="journal-maturity" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>Niveau de maturité du compte</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color, background: `${color}1a`, border: `1px solid ${color}55`, borderRadius: 20, padding: "3px 10px" }}>
+          {stageLabel} · {stageProgressPct}%
+        </div>
+      </div>
+
+      {/* Barre dégradée rouge → orange → jaune → vert */}
+      <div style={{ position: "relative", height: 10, borderRadius: 20, marginBottom: 10 }}>
+        <div style={{ position: "absolute", inset: 0, borderRadius: 20, background: "linear-gradient(90deg, #ef4444 0%, #f97316 30%, #fbbf24 55%, #6ee7b7 85%, #34d399 100%)" }} />
+        {/* Marqueur lumineux */}
+        <div style={{
+          position: "absolute", top: "50%", left: `${markerPct}%`, transform: "translate(-50%, -50%)",
+          width: 18, height: 18, borderRadius: "50%", background: "#0d1117",
+          border: `3px solid ${color}`, boxShadow: `0 0 12px 2px ${color}99`,
+        }} />
+      </div>
+
+      {/* Labels des étapes */}
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}>
+        {stages.map((s, i) => (
+          <div key={s.key} style={{
+            fontSize: 8.5, fontWeight: i === stageIndex ? 800 : 500,
+            color: i === stageIndex ? color : i < stageIndex ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.3)",
+            textAlign: "center", flex: 1, lineHeight: 1.25,
+          }}>
+            {s.label}
+          </div>
+        ))}
+      </div>
+
+      {/* Étape actuelle / progression / prochaine étape / critères restants */}
+      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: "10px 12px", marginBottom: quickIndicators.length ? 10 : 0 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
+          {stageLabel} — <span style={{ color }}>{score}%</span>
+        </div>
+        {reasons.length > 0 && (
+          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", marginTop: 3 }}>
+            {reasons.join(" · ")}
+          </div>
+        )}
+        {nextStageLabel && (
+          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", marginTop: 6, lineHeight: 1.5 }}>
+            Prochaine étape : <b style={{ color: "#fff" }}>{nextStageLabel}</b>
+            {nextStageMissing.length > 0 && (
+              <div style={{ color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+                {nextStageMissing.join(" · ")}
+              </div>
+            )}
+          </div>
+        )}
+        {!nextStageLabel && (
+          <div style={{ fontSize: 10.5, color: "#6ee7b7", marginTop: 6, fontWeight: 700 }}>
+            🏆 Étape finale du parcours atteinte
+          </div>
+        )}
+      </div>
+
+      {/* Indicateurs courts */}
+      {quickIndicators.length > 0 && (
+        <div style={{ display: "flex", gap: 6 }}>
+          {quickIndicators.map((ind, i) => (
+            <div key={i} style={{
+              flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+              background: "rgba(255,255,255,0.03)", border: `1px solid ${ind.ok ? "rgba(110,231,183,0.2)" : "rgba(239,68,68,0.2)"}`,
+              borderRadius: 10, padding: "7px 4px", fontSize: 9.5, fontWeight: 600,
+              color: ind.ok ? "#6ee7b7" : "#f87171", textAlign: "center",
+            }}>
+              <span>{ind.icon}</span> {ind.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
 // Calcule le solde d'un compte (capital + PnL cumulé jour par jour sur
 // TOUT son historique) et la série équivalente pour un sparkline.
 // Réutilisé par la carte "Solde du compte" du Journal ET par la carte
@@ -15896,6 +16228,21 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
   const selectedFirmModel = selectedAccount?.firmKey && PROP_FIRMS[selectedAccount.firmKey]
     ? PROP_FIRMS[selectedAccount.firmKey].models[Object.keys(PROP_FIRMS[selectedAccount.firmKey].models)[0]]
     : null;
+
+  // ── Jauge de maturité du compte : calculée sur TOUT l'historique du
+  //    compte sélectionné (journalAllFiltered, tous mois), pas seulement
+  //    le mois affiché — la progression ne doit pas repartir de zéro
+  //    quand on change de mois dans le calendrier. ──
+  const accountMaturity = useMemo(() => {
+    const firmModelForMaturity = selectedFirmModel ? {
+      monthlyTargetPct: (selectedFirmModel.phases?.[0]?.target || 0.08) * 100,
+      maxDD: selectedFirmModel.totalDD || 0.10,
+    } : null;
+    return calculateAccountMaturity(journalAllFiltered, resolveJourneyType(selectedAccount), {
+      effectiveCapital, firmModel: firmModelForMaturity,
+    });
+  }, [journalAllFiltered, selectedAccount, effectiveCapital, selectedFirmModel]);
+
   const todayKey = new Date().toISOString().slice(0, 10);
   const isViewingCurrentMonth = journalMonth === todayKey.slice(0, 7);
   const todayEntry = isViewingCurrentMonth ? journalMonthDataFiltered[String(new Date().getDate())] : null;
@@ -16141,6 +16488,9 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
             );
           })()}
         </div>
+
+        {/* Jauge de maturité du compte — entre les KPI du mois et le calendrier/courbe */}
+        <AccountMaturityGauge maturity={accountMaturity} />
 
         {/* Courbe Équité du mois — copie de la Home (Journal réel vs Simulation) */}
         <EquityChartCard
