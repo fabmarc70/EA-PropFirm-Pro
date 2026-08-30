@@ -7860,15 +7860,21 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             }
           </div>
 
-          {[
+          {(() => {
+            // Le champ "trades" manipule des ENTIERS dans son unité d'affichage.
+            // BUG CORRIGE : la valeur affichée était arrondie (ex: 9) mais la valeur
+            // interne restait fractionnaire (0.414/jour). Le slider HTML, dont le pas
+            // est 1, recevait donc une valeur qui ne tombait pas sur un cran — au
+            // moindre re-rendu il la normalisait vers le cran le plus proche, ce qui
+            // pouvait écraser la config vers le minimum (1 trade/mois) sans que
+            // l'utilisateur touche à rien. D'où un calendrier avec un seul trade.
+            // Fix : la valeur affichée ET la valeur interne sont désormais dérivées
+            // du MÊME entier, donc toujours cohérentes entre elles.
+            const tradesAffiches = Math.max(1, Math.round(tradesPerDayToUnit(tradesPerDay, freqUnit, includeWeekend)));
+            return [
             {
               label: freqUnit === "day" ? t("sim_trades_day") : freqUnit === "week" ? "Trades/sem" : "Trades/mois",
-              tip: t("tip_tradesday"), val: Math.round(tradesPerDayToUnit(tradesPerDay, freqUnit, includeWeekend)),
-              // Un nombre de trades est forcement ENTIER dans toutes les unites (on ne
-              // fait pas 8.7 trades) — arrondi a l'affichage ET a la saisie. La valeur
-              // interne tradesPerDay reste fractionnaire (c'est ce qui permet au moteur
-              // de repartir les trades au hasard sur les jours), mais l'utilisateur ne
-              // manipule que des entiers, dans n'importe quelle unite.
+              tip: t("tip_tradesday"), val: tradesAffiches,
               set: (v) => setTradesPerDay(unitToTradesPerDay(Math.max(1, Math.round(v)), freqUnit, includeWeekend)),
               min: 1,
               max: freqUnit === "day" ? 15 : freqUnit === "week" ? 60 : 250,
@@ -7877,16 +7883,24 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             },
             {
               label: targetUnit === "day" ? t("sim_target_day") : "Objectif/mois",
-              tip: t("tip_targetday"), val: targetUnit === "day" ? dailyTargetPct : dailyPctToMonthly(dailyTargetPct),
+              tip: t("tip_targetday"),
+              // Même précaution que pour les trades : la valeur affichée est alignée
+              // sur le pas du slider (0.05 en mode Jour, 0.01 en mode Mois) pour que
+              // le slider ne renormalise jamais la valeur de lui-même. Pas de 0.01 en
+              // mode Mois plutôt que 0.5 : un objectif mensuel de 2.06% doit rester
+              // saisissable au centième, un pas de 0.5 l'aurait écrasé à 2.0 ou 2.5.
+              val: targetUnit === "day"
+                ? +dailyTargetPct.toFixed(2)
+                : +dailyPctToMonthly(dailyTargetPct).toFixed(2),
               set: (v) => setDailyTargetPct(targetUnit === "day" ? v : monthlyPctToDaily(v)),
               min: targetUnit === "day" ? 0.05 : +dailyPctToMonthly(0.05).toFixed(2),
               max: targetUnit === "day" ? 1.5 : +dailyPctToMonthly(1.5).toFixed(2),
-              step: targetUnit === "day" ? 0.05 : 0.5,
+              step: targetUnit === "day" ? 0.05 : 0.01,
               unitToggle: { value: targetUnit, options: [["day", "Jour"], ["month", "Mois"]], onChange: setTargetUnit },
             },
             { label: t("sim_split"), tip: t("tip_split"), val: split, set: setSplit, min: 80, max: 95, step: 5 },
             { label: t("sim_funded_months"), tip: t("tip_fundedmonths"), val: fundedMonths, set: setFundedMonths, min: 1, max: 60, step: 1 },
-          ].map((f) => (
+          ]; })().map((f) => (
             <div key={f.label}>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ display: "flex", alignItems: "center" }}>{f.label}{f.tip && <InfoTip text={f.tip} />}</span>
