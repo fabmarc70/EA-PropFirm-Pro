@@ -16520,6 +16520,10 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
           )}
         </div>
 
+        {/* Jauge de maturité du compte — déplacée ici, juste en dessous du
+            bloc Solde du compte, comme demandé. */}
+        <AccountMaturityGauge maturity={accountMaturity} />
+
         {/* ── Bloc KPI du mois — carte séparée, juste en dessous du bloc
              Solde du compte (plus dans la carte Solde). ── */}
         <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
@@ -16578,9 +16582,6 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
             />
           </div>
         </div>
-
-        {/* Jauge de maturité du compte */}
-        <AccountMaturityGauge maturity={accountMaturity} />
 
         {/* Courbe Équité du mois — désormais SOUS le calendrier PnL, comme demandé */}
         <EquityChartCard
