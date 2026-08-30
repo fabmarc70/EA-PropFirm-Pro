@@ -7787,7 +7787,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           background: "rgba(6,9,15,0.98)",
           backdropFilter: "blur(10px)",
           WebkitBackdropFilter: "blur(10px)",
-          paddingTop: "env(safe-area-inset-top)", paddingBottom: "8px",
+          paddingTop: "env(safe-area-inset-top)", paddingBottom: "4px",
           paddingLeft: 16, paddingRight: 16,
           borderBottom: "1px solid rgba(110,231,183,0.1)",
           transition: "all 0.2s ease-out",
@@ -7807,7 +7807,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                   window.scrollTo({ top: 0, behavior: "instant" });
                 }
               }} style={{
-                flex: 1, padding: "12px 8px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700,
+                flex: 1, padding: "10px 8px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700,
                 background: (
                   (tg.id === "challenge" && tab === "challenge") ||
                   (tg.id === "bilan"     && tab === "bilan") ||
@@ -7825,9 +7825,14 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
       )}
 
-      {/* Spacer pour compenser le toggle fixed — hauteur EXACTE mesurée en temps réel (zéro gap, zéro recouvrement) */}
+      {/* Spacer pour compenser le toggle fixed — hauteur EXACTE mesurée en temps réel (zéro gap, zéro recouvrement).
+          Plafonnée à 110px (Math.min) : couvre large le pire cas réel (safe-area Dynamic
+          Island ~59px + barre ~46px), tout en évitant qu'une mesure aberrante (ex. police
+          pas encore chargée au premier paint, environnement de test) ne réserve un espace
+          vide disproportionné au-dessus du contenu — c'était le cas signalé (grand vide
+          au-dessus du prix du challenge). */}
       {(tab === "challenge" || tab === "bilan" || tab === "funded" || tab === "montecarlo") && (
-        <div style={{ height: simTabBarH != null ? simTabBarH : "calc(env(safe-area-inset-top, 8px) + 54px)" }} />
+        <div style={{ height: simTabBarH != null ? Math.min(simTabBarH, 110) : "calc(env(safe-area-inset-top, 8px) + 46px)" }} />
       )}
 
       {/* ══ CARTES CONFIG — vue Configuration + Funded uniquement (PAS sur l'onglet Challenge/bilan, qui est un rapport de résultats) ══ */}
@@ -7837,8 +7842,9 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           changement de palier de capital ou de firm (FIRM_FEES). Se déplace
           "par palier" exactement comme le slider Capital plus bas : seuls
           les montants réels de capitalTiers existent, donc seuls les prix
-          réels de FIRM_FEES s'affichent (pas d'interpolation). */}
-      <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
+          réels de FIRM_FEES s'affichent (pas d'interpolation). Padding
+          minimal (pas de haut) pour coller au plus près du bandeau du haut. */}
+      <div style={{ textAlign: "center", padding: "0 0 4px" }}>
         <div style={{ fontSize: 44, fontWeight: 800, color: "#6ee7b7", lineHeight: 1.1 }}>
           {fee} €
         </div>
