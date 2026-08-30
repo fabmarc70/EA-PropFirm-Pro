@@ -11536,6 +11536,23 @@ function compressImage(file, maxDim = 900, quality = 0.72) {
   });
 }
 
+// ══════════════════════════════════════════════════════════════════
+// MonthNavBar — sélecteur de mois unique (design partagé) : bouton ‹
+// pleine largeur, nom du mois centré, bouton ›. Utilisé partout où on
+// navigue un mois calendaire (Journal, Dashboard) pour garantir la même
+// apparence exacte plutôt que de dupliquer le style à chaque appelant.
+// ══════════════════════════════════════════════════════════════════
+function MonthNavBar({ label, onPrev, onNext, color = "#6ee7b7" }) {
+  const btnStyle = { width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer", fontSize: 15, fontWeight: 700, lineHeight: 1 };
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <button onClick={onPrev} aria-label="Mois précédent" style={btnStyle}>‹</button>
+      <div style={{ fontSize: 13, fontWeight: 700, color }}>{label}</div>
+      <button onClick={onNext} aria-label="Mois suivant" style={btnStyle}>›</button>
+    </div>
+  );
+}
+
 function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, journalMonthKey = null, newsSkipDays = 0, activeDays = [1,2,3,4,5], t = (k) => k, lang = "fr", realMode = false, accounts = null, accountLabel = null, activeAccountId = null, journalLocked = false, onJournalLocked = null, onPrevMonth = null, onNextMonth = null }) {
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [editingDay, setEditingDay] = useState(null); // jour en cours d'édition (mode journal)
@@ -11758,17 +11775,17 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
               : "Mois " + selectedMonth + " - simulation jour par jour"}
           </div>
         </div>
-        {/* En mode journal, la navigation est désormais intégrée ICI (flèches
-            ‹ › de part et d'autre du nom du mois), au lieu d'un sélecteur
-            <input type="month"> natif externe peu soigné visuellement.
-            onPrevMonth/onNextMonth sont fournis par l'appelant (Dashboard,
-            Journal...) et pilotent son propre state journalMonth. */}
+        {/* Petite navigation intégrée au sein même de l'en-tête du calendrier —
+            utilisée quand l'appelant ne fournit PAS de barre de navigation
+            externe (MonthNavBar) au-dessus. Même palette visuelle que
+            MonthNavBar (fond rgba(255,255,255,0.06), pas de bordure), en
+            format compact pour tenir dans l'en-tête. */}
         {journalMode ? (
           calDateMatch && (
             <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
               {onPrevMonth && (
                 <button onClick={onPrevMonth} aria-label="Mois précédent"
-                  style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#6ee7b7", width: 28, height: 28, fontSize: 16, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
+                  style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 8, color: "#6ee7b7", width: 28, height: 28, fontSize: 16, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
                   ‹
                 </button>
               )}
@@ -11777,7 +11794,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
               </span>
               {onNextMonth && (
                 <button onClick={onNextMonth} aria-label="Mois suivant"
-                  style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#6ee7b7", width: 28, height: 28, fontSize: 16, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
+                  style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 8, color: "#6ee7b7", width: 28, height: 28, fontSize: 16, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
                   ›
                 </button>
               )}
@@ -11787,7 +11804,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
           <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
             <button onClick={() => setSelectedMonth(Math.max(1, selectedMonth - 1))}
               disabled={selectedMonth <= 1}
-              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: selectedMonth <= 1 ? "rgba(255,255,255,0.2)" : "#6ee7b7", width: 32, height: 32, fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
+              style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 8, color: selectedMonth <= 1 ? "rgba(255,255,255,0.2)" : "#6ee7b7", width: 32, height: 32, fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
               ‹
             </button>
             <span style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7", minWidth: 60, textAlign: "center" }}>
@@ -11795,7 +11812,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
             </span>
             <button onClick={() => setSelectedMonth(Math.min(months.length, selectedMonth + 1))}
               disabled={selectedMonth >= months.length}
-              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: selectedMonth >= months.length ? "rgba(255,255,255,0.2)" : "#6ee7b7", width: 32, height: 32, fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
+              style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 8, color: selectedMonth >= months.length ? "rgba(255,255,255,0.2)" : "#6ee7b7", width: 32, height: 32, fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>
               ›
             </button>
           </div>
@@ -14441,13 +14458,30 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           </div>
         </div>
 
-        {/* Sélecteur de mois : supprimé ici — la navigation est désormais
-            intégrée directement dans l'en-tête du calendrier ci-dessous
-            (flèches ‹ › de part et d'autre du nom du mois). */}
-
-        {/* Le calendrier : mode journal OU mode simulation */}
+        {/* Le calendrier : mode journal OU mode simulation.
+            Mode journal : même design fusionné que la page Journal — MonthNavBar
+            (barre externe) + calendrier collé dans le MÊME conteneur, directement
+            sous le bloc Solde du compte. CalendrierPnL n'applique lui-même aucun
+            fond/bordure (voir note détaillée dans JournalScreen), donc pas de
+            double bordure ici non plus. */}
         {journalMode ? (
-          <div data-coach="dash-calendar" style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,overflow:"hidden"}}>
+          <div data-coach="dash-calendar" style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:16,overflow:"hidden"}}>
+            <div style={{ padding: "16px 16px 14px" }}>
+              <MonthNavBar
+                label={formatMonthLabel(journalMonth, lang)}
+                onPrev={() => {
+                  const [y, m] = journalMonth.split("-").map(Number);
+                  const d = new Date(y, m - 2, 1);
+                  setJournalMonth(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"));
+                }}
+                onNext={() => {
+                  const [y, m] = journalMonth.split("-").map(Number);
+                  const d = new Date(y, m, 1);
+                  setJournalMonth(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"));
+                }}
+              />
+            </div>
+            <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "0 16px" }} />
             <CalendrierPnL t={t} lang={lang}
               dailyLog={[]}
               journalMode={true}
@@ -14460,16 +14494,6 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
               activeAccountId={dashSelectedAccountId}
               journalLocked={!premiumAccess && countJournalDays(journalAll) >= FREE_JOURNAL_DAYS}
               onJournalLocked={requirePremium}
-              onPrevMonth={() => {
-                const [y, m] = journalMonth.split("-").map(Number);
-                const d = new Date(y, m - 2, 1);
-                setJournalMonth(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"));
-              }}
-              onNextMonth={() => {
-                const [y, m] = journalMonth.split("-").map(Number);
-                const d = new Date(y, m, 1);
-                setJournalMonth(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"));
-              }}
             />
           </div>
         ) : ls.funded ? (
@@ -16457,9 +16481,11 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
               </ResponsiveContainer>
             </div>
           )}
+        </div>
 
-          {/* Bloc KPI du mois — déplacé ici, SOUS la courbe d'équité de CETTE
-              première carte (Solde du compte), comme demandé. */}
+        {/* ── Bloc KPI du mois — carte séparée, juste en dessous du bloc
+             Solde du compte (plus dans la carte Solde). ── */}
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
           {(() => {
             const indicators = [
               [t("journal_total_pnl"), (monthPnl>=0?"+":"") + "$" + Math.abs(Math.round(monthPnl)), monthPnl>=0?"#6ee7b7":"#ef4444"],
@@ -16470,7 +16496,7 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
             ];
             const cols = indicators.length;
             return (
-              <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 5, marginTop: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 5 }}>
                 {indicators.map(([label, val, color], i) => (
                   <div key={i} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 3px", textAlign: "center", minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color, whiteSpace: "nowrap" }}>{val}</div>
@@ -16482,24 +16508,20 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
           })()}
         </div>
 
-        {/* ── Bloc fusionné : navigation mois + calendrier PnL, dans le MÊME
-             conteneur (même fond/bordure), sans espace entre eux — le bloc KPI
-             a été déplacé sous la courbe d'équité de la carte "Solde du compte"
-             ci-dessus. Note : CalendrierPnL n'applique lui-même aucun
-             fond/bordure (className="card" est une classe vide dans ce projet,
-             seul le padding:16 s'applique) — c'est TOUJOURS l'appelant qui
-             dessine le fond de carte. La fusion ne crée donc aucune double
-             bordure : un seul wrapper visible pour les deux sections. ── */}
+        {/* ── Bloc fusionné : navigation mois (MonthNavBar, design partagé
+             avec le Dashboard) + calendrier PnL, dans le MÊME conteneur
+             (même fond/bordure), sans espace entre eux. Note : CalendrierPnL
+             n'applique lui-même aucun fond/bordure (className="card" est une
+             classe vide dans ce projet, seul le padding:16 s'applique) —
+             c'est TOUJOURS l'appelant qui dessine le fond de carte. La
+             fusion ne crée donc aucune double bordure : un seul wrapper
+             visible pour les deux sections. ── */}
         <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, overflow: "hidden", marginBottom: 16 }}>
           <div style={{ padding: "16px 16px 14px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <button onClick={() => shiftMonth(-1)} aria-label={t("journal_prev_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>‹</button>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#6ee7b7" }}>{formatMonthLabel(journalMonth, lang)}</div>
-              <button onClick={() => shiftMonth(1)} aria-label={t("journal_next_month")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", cursor: "pointer" }}>›</button>
-            </div>
+            <MonthNavBar label={formatMonthLabel(journalMonth, lang)} onPrev={() => shiftMonth(-1)} onNext={() => shiftMonth(1)} />
           </div>
 
-          {/* Séparateur discret entre le bloc nav/KPI et le calendrier, toujours
+          {/* Séparateur discret entre le bloc nav et le calendrier, toujours
               dans le même conteneur visuel (pas de nouvelle carte). */}
           <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "0 16px" }} />
 
