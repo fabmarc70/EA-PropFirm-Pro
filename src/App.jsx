@@ -6804,7 +6804,14 @@ function simulateFunded(capital, months, model, p, split) {
     }
 
     const pnl = equity - monthStart;
-    const profitable = pnl >= 0;
+    // BUG CORRIGE : "pnl >= 0" comptait un mois PLAT (0 trade déclenché sur le mois,
+    // statistiquement rare mais possible avec une faible fréquence de trades/mois,
+    // OU un mois où gains et pertes s'annulent) comme "profitable". Résultat visible :
+    // le streak de mois consécutifs profitables grimpait au-delà de 4 (5/4, 6/4...)
+    // sans jamais déclencher le scaling, car payoutsInStreak ne suivait pas (un mois
+    // plat ne génère aucun payout). Un mois à profit NUL n'est pas un mois gagnant :
+    // il doit casser le streak, exactement comme un mois perdant.
+    const profitable = pnl > 0;
     if (profitable) winMonths++; else lossMonths++;
 
     if (profitable) {
