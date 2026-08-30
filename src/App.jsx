@@ -13983,16 +13983,9 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
   // DOIT être après principalCapital — utilise principalCapital comme point de départ
   const journalAllForSelectedAccount = filterJournalByAccount(journalAll, dashSelectedAccountId);
 
-  // ── KPI du mois + jauge de maturité — mêmes calculs que la page Journal,
-  //    branchés sur le compte sélectionné du Dashboard, affichés entre le
-  //    bloc Solde du compte et le bloc calendrier. ──
-  const dashMonthDays = Object.values(journalMonthDataForSelectedAccount);
-  const dashMonthPnl = dashMonthDays.reduce((s, d) => s + (d.pnl || 0), 0);
-  const dashWinDays = dashMonthDays.filter(d => (d.pnl || 0) > 0).length;
-  const dashLossDays = dashMonthDays.filter(d => (d.pnl || 0) < 0).length;
-  const dashTotalTradesMonth = dashMonthDays.reduce((s, d) => s + (d.wins || 0) + (d.losses || 0), 0);
-  const dashIntradayDDValues = dashMonthDays.map(d => d.intradayDD).filter(v => v !== undefined && v !== null && !isNaN(v));
-  const dashMaxIntradayDDOfMonth = dashIntradayDDValues.length ? Math.max(...dashIntradayDDValues) : null;
+  // ── Jauge de maturité (mode compact) — branchée sur le compte sélectionné
+  //    du Dashboard, affichée entre le bloc Solde du compte et le bloc
+  //    calendrier. Le bloc KPI a été retiré (doublon, cf. demande utilisateur).
   const dashFirmModel = principalAccount?.firmKey && PROP_FIRMS[principalAccount.firmKey]
     ? PROP_FIRMS[principalAccount.firmKey].models[Object.keys(PROP_FIRMS[principalAccount.firmKey].models)[0]]
     : null;
@@ -14431,39 +14424,16 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         );
       })()}
 
-      {/* ── KPI du mois + Jauge de maturité — entre le bloc Solde du compte et
-           le bloc calendrier, uniquement en mode journal (statistiques du
-           journal réel, pas de la simulation). Même design que la page
-           Journal de trading. ── */}
+      {/* ── Jauge de maturité (visuel raccourci uniquement) — entre le bloc
+           Solde du compte et le bloc calendrier, en mode journal. Le bloc KPI
+           a été retiré d'ici (doublon avec le calendrier/Journal, erreur
+           d'ajout précédente). Mode compact : juste la barre + les labels
+           d'étapes, sans pill de statut ni carte de détail — le détail complet
+           reste dans la page Journal, ce raccourci est uniquement visuel. ── */}
       {journalMode && (
-        <>
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 14 }}>
-            {(() => {
-              const indicators = [
-                [t("journal_total_pnl"), (dashMonthPnl>=0?"+":"") + "$" + Math.abs(Math.round(dashMonthPnl)), dashMonthPnl>=0?"#6ee7b7":"#ef4444"],
-                [t("journal_win_days"), dashWinDays, "#6ee7b7"],
-                [t("journal_loss_days"), dashLossDays, "#ef4444"],
-                [t("journal_total_trades"), dashTotalTradesMonth, "#a78bfa"],
-                ...(dashMaxIntradayDDOfMonth !== null ? [[t("journal_max_dd_today"), dashMaxIntradayDDOfMonth.toFixed(1) + "%", "#fbbf24"]] : []),
-              ];
-              const cols = indicators.length;
-              return (
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 5 }}>
-                  {indicators.map(([label, val, color], i) => (
-                    <div key={i} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 3px", textAlign: "center", minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color, whiteSpace: "nowrap" }}>{val}</div>
-                      <div style={{ fontSize: 7, color: "rgba(255,255,255,0.4)", marginTop: 2, lineHeight: 1.2 }}>{label}</div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-          </div>
-
-          <div style={{ marginBottom: 14 }}>
-            <AccountMaturityGauge maturity={dashAccountMaturity} />
-          </div>
-        </>
+        <div style={{ marginBottom: 14 }}>
+          <AccountMaturityGauge maturity={dashAccountMaturity} compact />
+        </div>
       )}
 
       {/* ── CALENDRIER PNL / JOURNAL DE TRADING ── */}
@@ -15480,7 +15450,7 @@ function calculateAccountMaturity(journalAllFiltered, accountType, opts = {}) {
 // Cohérent avec le design EA PropFirm Pro (fond sombre, cartes
 // arrondies, accent vert menthe #6ee7b7, rouge/orange sur le risque).
 // ══════════════════════════════════════════════════════════════════
-function AccountMaturityGauge({ maturity }) {
+function AccountMaturityGauge({ maturity, compact = false }) {
   if (!maturity) return null;
   const { stages, stageIndex, stageProgressPct, color, stageLabel, score, reasons, nextStageLabel, nextStageMissing, quickIndicators } = maturity;
   const n = stages.length;
@@ -15488,6 +15458,40 @@ function AccountMaturityGauge({ maturity }) {
   // légèrement décalé selon la progression interne à cette étape.
   const segmentWidth = 100 / n;
   const markerPct = segmentWidth * stageIndex + segmentWidth * (0.3 + 0.4 * (stageProgressPct / 100));
+
+  // Mode compact : visuel "raccourci" uniquement — titre + barre + labels
+  // d'étapes, SANS le pill de statut, SANS la carte de détail (étape/raisons/
+  // prochaine étape), SANS les indicateurs courts. Le détail complet reste
+  // dans la page Journal ; ce mode sert juste à visualiser d'un coup d'œil,
+  // pas à interagir ou lire le détail depuis le Dashboard.
+  if (compact) {
+    return (
+      <div data-coach="dash-maturity" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#fff", marginBottom: 14 }}>Niveau de maturité du compte</div>
+
+        <div style={{ position: "relative", height: 10, borderRadius: 20, marginBottom: 10 }}>
+          <div style={{ position: "absolute", inset: 0, borderRadius: 20, background: "linear-gradient(90deg, #ef4444 0%, #f97316 30%, #fbbf24 55%, #6ee7b7 85%, #34d399 100%)" }} />
+          <div style={{
+            position: "absolute", top: "50%", left: `${markerPct}%`, transform: "translate(-50%, -50%)",
+            width: 18, height: 18, borderRadius: "50%", background: "#0d1117",
+            border: `3px solid ${color}`, boxShadow: `0 0 12px 2px ${color}99`,
+          }} />
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          {stages.map((s, i) => (
+            <div key={s.key} style={{
+              fontSize: 8.5, fontWeight: i === stageIndex ? 800 : 500,
+              color: i === stageIndex ? color : i < stageIndex ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.3)",
+              textAlign: "center", flex: 1, lineHeight: 1.25,
+            }}>
+              {s.label}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div data-coach="journal-maturity" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 16, padding: 16, marginBottom: 10 }}>
