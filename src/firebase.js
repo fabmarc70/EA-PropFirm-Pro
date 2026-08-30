@@ -177,6 +177,38 @@ export async function fbLoadJournalAccounts(uid) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// SAUVEGARDE CLOUD GÉNÉRIQUE — étend le même filet de sécurité à toutes
+// les autres données jusqu'ici uniquement locales (progression et
+// préférences) : Mes Trades importés, configs sauvegardées, historique de
+// backtest, plans de trading par compte, jours actifs/news, dernière
+// config simulateur… Un seul couple lire/écrire réutilisable au lieu de
+// dupliquer fbSaveXxx/fbLoadXxx pour chacun. Même document users/{uid}
+// (merge:true), un champ Firestore par "cloudField" fourni par l'appelant.
+// ══════════════════════════════════════════════════════════════════
+export async function fbSaveField(uid, cloudField, value) {
+  if (!uid || !cloudField) return false;
+  try {
+    await setDoc(doc(db, "users", uid), { [cloudField]: value, [cloudField + "UpdatedAt"]: Date.now() }, { merge: true });
+    return true;
+  } catch (e) {
+    console.warn(`Firestore save failed for ${cloudField} (offline?):`, e.message);
+    return false;
+  }
+}
+export async function fbLoadField(uid, cloudField) {
+  if (!uid || !cloudField) return null;
+  try {
+    const snap = await getDoc(doc(db, "users", uid));
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    return data && data[cloudField] !== undefined ? data[cloudField] : null;
+  } catch (e) {
+    console.warn(`Firestore load failed for ${cloudField} (offline?):`, e.message);
+    return null;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
 // SUPPRESSION DE COMPTE (RGPD) — efface le document Firestore PUIS le
 // compte Auth. Ordre important : une fois le compte Auth supprimé,
 // les règles RLS empêcheraient d'effacer le document.

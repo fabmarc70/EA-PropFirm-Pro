@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthChange, fbSignOut, fbUserToAppUser, fbLoadUserProfile, fbSaveUserProfile, fbDeleteAccount,
-  fbSaveJournalData, fbLoadJournalData, fbSaveJournalAccounts, fbLoadJournalAccounts,
+  fbSaveJournalData, fbLoadJournalData, fbSaveJournalAccounts, fbLoadJournalAccounts, fbSaveField, fbLoadField,
   fbAddWatchlistItem, fbListWatchlist, fbDeleteWatchlistItem,
   fbAddPriceAlert, fbListPriceAlerts, fbDeletePriceAlert, fbSetPriceAlertActive,
   fbAddOpenPosition, fbListOpenPositions, fbCloseOpenPositionManually, fbDeleteOpenPosition,
@@ -3915,6 +3915,23 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
   const [optProgress, setOptProgress] = useState(null);
   const [varianteAppliquee, setVarianteAppliquee] = useState(null);
   const [history, setHistory] = useState(() => { try { return JSON.parse(localStorage.getItem("eapropfirm_backtest_history") || "[]"); } catch (e) { return []; } });
+  // Filet de sécurité cloud (historique de backtest) — ajouté le 30/08/2026.
+  useEffect(() => {
+    const uid = getCurrentUid();
+    if (!uid) return;
+    fbLoadField(uid, "backtestHistory").then(cloud => {
+      if (!cloud) return;
+      setHistory(prevLocal => {
+        const merged = mergeArrayById(prevLocal, cloud);
+        if (JSON.stringify(merged) !== JSON.stringify(prevLocal)) {
+          try { localStorage.setItem("eapropfirm_backtest_history", JSON.stringify(merged)); } catch (e) {}
+          return merged;
+        }
+        return prevLocal;
+      });
+    });
+  }, []);
+
   const [showHistory, setShowHistory] = useState(false);
   const [tipIdx, setTipIdx] = useState(0);
 
@@ -4109,11 +4126,15 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
     const next = [entry, ...history].slice(0, 30);
     setHistory(next);
     try { localStorage.setItem("eapropfirm_backtest_history", JSON.stringify(next)); } catch (e) {}
+    const uid = getCurrentUid();
+    if (uid) fbSaveField(uid, "backtestHistory", next);
   };
   const deleteArchive = (id) => {
     const next = history.filter(h => h.id !== id);
     setHistory(next);
     try { localStorage.setItem("eapropfirm_backtest_history", JSON.stringify(next)); } catch (e) {}
+    const uid = getCurrentUid();
+    if (uid) fbSaveField(uid, "backtestHistory", next);
   };
 
   const tier = (v, good, mid) => v >= good ? "#6ee7b7" : v >= mid ? "#fbbf24" : "#ef4444";
@@ -7754,7 +7775,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       const raw = localStorage.getItem("eapropfirm_saved_configs");
       const list = raw ? JSON.parse(raw) : [];
       list.unshift(cfg);
-      localStorage.setItem("eapropfirm_saved_configs", JSON.stringify(list.slice(0, 3)));
+      const trimmed = list.slice(0, 3);
+      localStorage.setItem("eapropfirm_saved_configs", JSON.stringify(trimmed));
+      const uid = getCurrentUid();
+      if (uid) fbSaveField(uid, "savedConfigs", trimmed);
       setSaveStatus(t("sim_config_saved"));
       setLastSavedCfgKey(currentCfgKey);
       setTimeout(() => setSaveStatus(""), 2500);
@@ -10180,8 +10204,35 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   const geminiDecisionRef = useRef(null);
   const [alerts, setAlerts] = useState([]);
 
+  // ── Filet de sécurité cloud (Mes Trades) — ajouté le 30/08/2026. Ne
+  // restaure QUE si aucune donnée locale n'existe déjà (jamais d'écrasement
+  // d'un import local plus récent). Les dates (parsedDate) sont resérialisées
+  // comme dans loadTrades() ci-dessus, pour la même raison (JSON.parse ne
+  // reconstruit pas les objets Date). ──
+  const mesTradesPushTimer = useRef(null);
+  useEffect(() => {
+    const uid = getCurrentUid();
+    if (!uid || trades.length > 0) return;
+    fbLoadField(uid, "trades").then(cloud => {
+      if (!cloud || !Array.isArray(cloud.trades) || !cloud.trades.length) return;
+      const restored = cloud.trades.map(tr => ({ ...tr, parsedDate: tr.parsedDate ? new Date(tr.parsedDate) : null }));
+      setTrades(restored);
+      setFilename(cloud.filename || null);
+      setInitBalance(cloud.initBalance || null);
+      setBalanceReconstructed(!!cloud.balanceReconstructed);
+      setManualDD(cloud.manualDD ?? null);
+    });
+  }, []);
+
   useEffect(() => {
     try { localStorage.setItem("eapropfirm_trades", JSON.stringify({ trades, filename, initBalance, balanceReconstructed, manualDD })); } catch (e) {}
+    const uid = getCurrentUid();
+    if (!uid) return;
+    if (mesTradesPushTimer.current) clearTimeout(mesTradesPushTimer.current);
+    mesTradesPushTimer.current = setTimeout(() => {
+      fbSaveField(uid, "trades", { trades, filename, initBalance, balanceReconstructed, manualDD });
+    }, 1500);
+    return () => { if (mesTradesPushTimer.current) clearTimeout(mesTradesPushTimer.current); };
   }, [trades, filename, initBalance, balanceReconstructed, manualDD]);
 
 
@@ -11372,6 +11423,17 @@ function mergeJournalData(local, cloud) {
 
 // Même principe pour la liste des comptes journal : union par id, local
 // prioritaire en cas de conflit.
+// Fusion générique par "id" pour des tableaux d'entrées (historique de
+// backtest, etc.) — union par id, local prioritaire en cas de conflit.
+function mergeArrayById(local, cloud) {
+  if (!Array.isArray(cloud) || !cloud.length) return local || [];
+  if (!Array.isArray(local) || !local.length) return cloud;
+  const byId = new Map();
+  cloud.forEach(item => { if (item && item.id != null) byId.set(item.id, item); });
+  local.forEach(item => { if (item && item.id != null) byId.set(item.id, item); });
+  return Array.from(byId.values()).sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || ""));
+}
+
 function mergeJournalAccounts(local, cloud) {
   if (!Array.isArray(cloud) || !cloud.length) return local || [];
   if (!Array.isArray(local) || !local.length) return cloud;
@@ -11379,6 +11441,64 @@ function mergeJournalAccounts(local, cloud) {
   cloud.forEach(acc => { if (acc && acc.id) byId.set(acc.id, acc); });
   local.forEach(acc => { if (acc && acc.id) byId.set(acc.id, acc); }); // local écrase cloud sur conflit
   return Array.from(byId.values());
+}
+
+// ══════════════════════════════════════════════════════════════════
+// useCloudSyncedState — même filet de sécurité que journal/comptes
+// (voir plus haut), généralisé à n'importe quel state persistant en
+// localStorage : Mes Trades importés, configs sauvegardées, historique de
+// backtest, plans de trading, préférences (jours actifs, news, dernière
+// config)… Ajouté le 30/08/2026, en complément du fix journal, pour
+// couvrir TOUTE la progression/les préférences de l'utilisateur — pas
+// seulement le journal — après la perte de données du même jour.
+//
+// - Lecture initiale : localStorage (comme avant, comportement inchangé
+//   hors connexion).
+// - Au montage, si connecté : pull Firestore + fusion via mergeFn (par
+//   défaut : le cloud ne remplace le local QUE si le local est vide/null —
+//   sûr par défaut pour des données qui n'ont pas de notion naturelle de
+//   fusion élément par élément, contrairement au journal).
+// - À chaque changement (hors tout premier rendu) : persiste en
+//   localStorage comme avant, ET pousse vers Firestore en debounce 1.5s
+//   si connecté.
+// ══════════════════════════════════════════════════════════════════
+function useCloudSyncedState(storageKey, cloudField, initialValue, mergeFn = null) {
+  const [value, setValue] = useState(() => {
+    try {
+      const r = localStorage.getItem(storageKey);
+      return r ? JSON.parse(r) : initialValue;
+    } catch (e) { return initialValue; }
+  });
+  const synced = useRef(false);
+  useEffect(() => {
+    const uid = getCurrentUid();
+    if (!uid || synced.current) return;
+    synced.current = true;
+    fbLoadField(uid, cloudField).then(cloud => {
+      if (cloud === null || cloud === undefined) return;
+      setValue(prevLocal => {
+        const isLocalEmpty = prevLocal == null || (Array.isArray(prevLocal) && prevLocal.length === 0) || (typeof prevLocal === "object" && !Array.isArray(prevLocal) && Object.keys(prevLocal).length === 0);
+        const merged = mergeFn ? mergeFn(prevLocal, cloud) : (isLocalEmpty ? cloud : prevLocal);
+        if (JSON.stringify(merged) !== JSON.stringify(prevLocal)) {
+          try { localStorage.setItem(storageKey, JSON.stringify(merged)); } catch (e) {}
+          return merged;
+        }
+        return prevLocal;
+      });
+    });
+  }, []);
+  const pushTimer = useRef(null);
+  const firstRender = useRef(true);
+  useEffect(() => {
+    try { localStorage.setItem(storageKey, JSON.stringify(value)); } catch (e) {}
+    if (firstRender.current) { firstRender.current = false; return; }
+    const uid = getCurrentUid();
+    if (!uid) return;
+    if (pushTimer.current) clearTimeout(pushTimer.current);
+    pushTimer.current = setTimeout(() => { fbSaveField(uid, cloudField, value); }, 1500);
+    return () => { if (pushTimer.current) clearTimeout(pushTimer.current); };
+  }, [value]);
+  return [value, setValue];
 }
 
 function useJournal() {
@@ -11522,25 +11642,48 @@ function useJournal() {
 // ══════════════════════════════════════════════════════════════════
 function useTradingPlan(accountId) {
   const key = "eapropfirm_trading_plan_" + (accountId || "default");
+  const defaultPlan = { rules: [], maxDailyLossPct: 5, maxTradesPerDay: 6, riskPerTradePct: 1 };
   const [plan, setPlanRaw] = useState(() => {
     try {
       const r = localStorage.getItem(key);
       if (r) return JSON.parse(r);
     } catch (e) {}
-    return { rules: [], maxDailyLossPct: 5, maxTradesPerDay: 6, riskPerTradePct: 1 };
+    return defaultPlan;
   });
   // Recharge si le compte actif change (chaque compte a son propre plan)
   useEffect(() => {
     try {
       const r = localStorage.getItem(key);
-      setPlanRaw(r ? JSON.parse(r) : { rules: [], maxDailyLossPct: 5, maxTradesPerDay: 6, riskPerTradePct: 1 });
+      setPlanRaw(r ? JSON.parse(r) : defaultPlan);
     } catch (e) {
-      setPlanRaw({ rules: [], maxDailyLossPct: 5, maxTradesPerDay: 6, riskPerTradePct: 1 });
+      setPlanRaw(defaultPlan);
     }
+  }, [accountId]);
+  // Filet de sécurité cloud (plans de trading) — ajouté le 30/08/2026. Tous
+  // les plans (un par compte) sont stockés dans UN SEUL champ Firestore
+  // "tradingPlans" = { [accountId]: plan }. Ne restaure que si ce compte n'a
+  // encore AUCUNE valeur locale (jamais d'écrasement d'une modif locale).
+  useEffect(() => {
+    const uid = getCurrentUid();
+    if (!uid) return;
+    if (localStorage.getItem(key)) return;
+    fbLoadField(uid, "tradingPlans").then(cloudMap => {
+      const cloudPlan = cloudMap && cloudMap[accountId || "default"];
+      if (!cloudPlan) return;
+      setPlanRaw(cloudPlan);
+      try { localStorage.setItem(key, JSON.stringify(cloudPlan)); } catch (e) {}
+    });
   }, [accountId]);
   const setPlan = (next) => {
     setPlanRaw(next);
     try { localStorage.setItem(key, JSON.stringify(next)); } catch (e) {}
+    const uid = getCurrentUid();
+    if (uid) {
+      fbLoadField(uid, "tradingPlans").then(cloudMap => {
+        const merged = { ...(cloudMap || {}), [accountId || "default"]: next };
+        fbSaveField(uid, "tradingPlans", merged);
+      });
+    }
   };
   return [plan, setPlan];
 }
@@ -14073,6 +14216,22 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
   const [configs, setConfigs] = useState(() => {
     try { const r=localStorage.getItem("eapropfirm_saved_configs"); return r?JSON.parse(r):[]; } catch(e){return [];}
   });
+  // Filet de sécurité cloud (configs sauvegardées) — ajouté le 30/08/2026.
+  useEffect(() => {
+    const uid = getCurrentUid();
+    if (!uid) return;
+    fbLoadField(uid, "savedConfigs").then(cloud => {
+      if (!cloud) return;
+      setConfigs(prevLocal => {
+        const merged = mergeArrayById(prevLocal, cloud);
+        if (JSON.stringify(merged) !== JSON.stringify(prevLocal)) {
+          try { localStorage.setItem("eapropfirm_saved_configs", JSON.stringify(merged)); } catch (e) {}
+          return merged;
+        }
+        return prevLocal;
+      });
+    });
+  }, []);
   const [renamingId, setRenamingId] = useState(null);
   const [renameVal, setRenameVal] = useState("");
   // ── Journal de trading (hook partagé avec Mes Trades) ──
@@ -14134,12 +14293,13 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
     setNotifPref(next); saveNotifPref(next);
   };
 
-  const deleteConfig=(id)=>{ const n=configs.filter(c=>c.id!==id); setConfigs(n); try{localStorage.setItem("eapropfirm_saved_configs",JSON.stringify(n));}catch(e){} };
+  const deleteConfig=(id)=>{ const n=configs.filter(c=>c.id!==id); setConfigs(n); try{localStorage.setItem("eapropfirm_saved_configs",JSON.stringify(n));}catch(e){} const uid=getCurrentUid(); if(uid) fbSaveField(uid,"savedConfigs",n); };
   const startRename=(cfg)=>{ setRenamingId(cfg.id); setRenameVal(cfg.name); };
   const applyRename=(id)=>{
     const n=configs.map(c=>c.id===id?{...c,name:renameVal.trim()||c.name}:c);
     setConfigs(n); setRenamingId(null);
     try{localStorage.setItem("eapropfirm_saved_configs",JSON.stringify(n));}catch(e){}
+    const uid=getCurrentUid(); if(uid) fbSaveField(uid,"savedConfigs",n);
   };
   const fmtMoney=(v,decimals=0)=>"$"+Math.abs(Number(v)).toLocaleString("en-US",{maximumFractionDigits:decimals});
   const ls = lastSim || {};
