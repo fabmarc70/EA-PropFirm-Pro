@@ -6988,6 +6988,20 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const [firmKey, setFirmKey] = useState(saved.firmKey ?? "fundednext");
   const [modelKey, setModelKey] = useState(saved.modelKey ?? "2step");
   const [capital, setCapital] = useState(saved.capital ?? 25000);
+
+  // Quand on change de firm, le capital doit rester sur un palier VALIDE pour
+  // cette firm (les paliers diffèrent d'une firm à l'autre — ex. FTMO démarre
+  // à 10k, pas 6k). Sans ce recalage, un palier hérité de l'ancienne firm
+  // pourrait afficher un prix incohérent (repli sur challengeFee générique).
+  useEffect(() => {
+    const tiers = FIRM_CAPITALS[firmKey] || FIRM_CAPITALS.fundednext;
+    if (!tiers.includes(capital)) {
+      const nearest = tiers.reduce((best, t) => Math.abs(t - capital) < Math.abs(best - capital) ? t : best, tiers[0]);
+      setCapital(nearest);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firmKey]);
+
   const [riskPct, setRiskPct] = useState(saved.riskPct ?? 0.2);
   const [dailyTargetPct, setDailyTargetPct] = useState(saved.dailyTargetPct ?? 0.25);
   const [winrate, setWinrate] = useState(saved.winrate ?? 55);
@@ -7233,7 +7247,12 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const dailyTarget = dailyTargetPct / 100;
   const splitRate = split / 100;
   const clustering = clusteringPct / 100;
-  const fee = challengeFee(capital);
+  // Paliers de capital réels de la firm sélectionnée (FIRM_CAPITALS) et frais
+  // réels associés (FIRM_FEES) — plus précis que la table générique FEES
+  // (qui ne reflétait que les tarifs FundedNext, même pour les autres firms).
+  // Repli sur challengeFee(capital) si la firm/capital n'a pas d'entrée dédiée.
+  const capitalTiers = FIRM_CAPITALS[firmKey] || FIRM_CAPITALS.fundednext;
+  const fee = (FIRM_FEES[firmKey] && FIRM_FEES[firmKey][capital] != null) ? FIRM_FEES[firmKey][capital] : challengeFee(capital);
   const w = winrate / 100;
   // Calcul des jours de trading effectifs par mois selon récurrence EA
   // newsSkipDays = jours évités PAR SEMAINE (pas par mois)
@@ -7814,6 +7833,20 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       {/* ══ CARTES CONFIG — vue Configuration + Funded uniquement (PAS sur l'onglet Challenge/bilan, qui est un rapport de résultats) ══ */}
       {(tab === "challenge" || tab === "funded") && (<>
 
+      {/* PRIX DE PASSAGE — grand affichage dynamique, recalculé à chaque
+          changement de palier de capital ou de firm (FIRM_FEES). Se déplace
+          "par palier" exactement comme le slider Capital plus bas : seuls
+          les montants réels de capitalTiers existent, donc seuls les prix
+          réels de FIRM_FEES s'affichent (pas d'interpolation). */}
+      <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
+        <div style={{ fontSize: 44, fontWeight: 800, color: "#6ee7b7", lineHeight: 1.1 }}>
+          {fee} €
+        </div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
+          Prix du challenge · {fmt(capital)} · {firm.name}
+        </div>
+      </div>
+
       {/* MODELE */}
       <div className="card">
         <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.75)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1.2 }}>
@@ -7864,8 +7897,22 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           {/* Capital */}
           <div>
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginBottom: 3, fontWeight: 700 }}>{t("sim_capital_label")}</div>
-            <input type="number" value={capital} min={6000} max={200000} step={1000} onChange={e => setCapital(parseFloat(e.target.value) || 0)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#FFFFFF", padding: "5px 8px", width: "100%", fontSize: 13 }} />
-            <input type="range" min={6000} max={200000} step={1000} value={capital} onChange={e => setCapital(parseFloat(e.target.value))} />
+            <input type="number" value={capital} min={capitalTiers[0]} max={capitalTiers[capitalTiers.length - 1]} step={1000} onChange={e => setCapital(parseFloat(e.target.value) || 0)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#FFFFFF", padding: "5px 8px", width: "100%", fontSize: 13 }} />
+            {/* Jauge par PALIER — au lieu d'un pas continu (1000$), l'index du
+                slider correspond directement à un palier réel de la firm
+                (capitalTiers). Le curseur "saute" d'un palier à l'autre plutôt
+                que de glisser en continu — plus cohérent avec le fait que
+                seuls ces montants précis existent réellement chez la firm. */}
+            <input type="range" min={0} max={capitalTiers.length - 1} step={1}
+              value={Math.max(0, capitalTiers.indexOf(capital) !== -1 ? capitalTiers.indexOf(capital) : capitalTiers.reduce((bi, t, i) => Math.abs(t - capital) < Math.abs(capitalTiers[bi] - capital) ? i : bi, 0))}
+              onChange={e => setCapital(capitalTiers[parseInt(e.target.value, 10)])} />
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 2 }}>
+              {capitalTiers.map(tVal => (
+                <span key={tVal} style={{ fontSize: 8, color: tVal === capital ? "#6ee7b7" : "rgba(255,255,255,0.3)", fontWeight: tVal === capital ? 700 : 400 }}>
+                  {tVal >= 1000 ? (tVal / 1000) + "k" : tVal}
+                </span>
+              ))}
+            </div>
           </div>
 
           {/* Risque/trade - C7 débutant + C2 hiérarchie */}
