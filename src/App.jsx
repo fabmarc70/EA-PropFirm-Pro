@@ -7825,14 +7825,16 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
       )}
 
-      {/* Spacer pour compenser le toggle fixed — hauteur EXACTE mesurée en temps réel (zéro gap, zéro recouvrement).
-          Plafonnée à 110px (Math.min) : couvre large le pire cas réel (safe-area Dynamic
-          Island ~59px + barre ~46px), tout en évitant qu'une mesure aberrante (ex. police
-          pas encore chargée au premier paint, environnement de test) ne réserve un espace
-          vide disproportionné au-dessus du contenu — c'était le cas signalé (grand vide
-          au-dessus du prix du challenge). */}
+      {/* Spacer pour compenser le toggle fixed — hauteur EXACTE mesurée en temps réel
+          (zéro gap, zéro recouvrement). PAS de plafond arbitraire : en mode PWA "standalone"
+          (installée, plein écran), l'app doit réserver elle-même tout le safe-area-inset-top
+          (encoche/Dynamic Island) puisqu'il n'y a plus de barre d'adresse Safari pour
+          l'absorber — cette hauteur réelle peut légitimement dépasser ce qu'on verrait dans
+          un onglet Safari. Un plafond forcerait alors un recouvrement du contenu sous
+          l'encoche en mode standalone. La mesure réelle (getBoundingClientRect) s'adapte
+          déjà correctement aux deux contextes — inutile et risqué de la limiter. */}
       {(tab === "challenge" || tab === "bilan" || tab === "funded" || tab === "montecarlo") && (
-        <div style={{ height: simTabBarH != null ? Math.min(simTabBarH, 110) : "calc(env(safe-area-inset-top, 8px) + 46px)" }} />
+        <div style={{ height: simTabBarH != null ? simTabBarH : "calc(env(safe-area-inset-top, 8px) + 46px)" }} />
       )}
 
       {/* ══ CARTES CONFIG — vue Configuration + Funded uniquement (PAS sur l'onglet Challenge/bilan, qui est un rapport de résultats) ══ */}
