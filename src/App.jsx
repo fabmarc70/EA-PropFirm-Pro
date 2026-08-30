@@ -7863,11 +7863,16 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           {[
             {
               label: freqUnit === "day" ? t("sim_trades_day") : freqUnit === "week" ? "Trades/sem" : "Trades/mois",
-              tip: t("tip_tradesday"), val: tradesPerDayToUnit(tradesPerDay, freqUnit, includeWeekend),
-              set: (v) => setTradesPerDay(freqUnit === "day" ? Math.round(v) : unitToTradesPerDay(v, freqUnit, includeWeekend)),
-              min: freqUnit === "day" ? 1 : freqUnit === "week" ? 1 : 1,
+              tip: t("tip_tradesday"), val: Math.round(tradesPerDayToUnit(tradesPerDay, freqUnit, includeWeekend)),
+              // Un nombre de trades est forcement ENTIER dans toutes les unites (on ne
+              // fait pas 8.7 trades) — arrondi a l'affichage ET a la saisie. La valeur
+              // interne tradesPerDay reste fractionnaire (c'est ce qui permet au moteur
+              // de repartir les trades au hasard sur les jours), mais l'utilisateur ne
+              // manipule que des entiers, dans n'importe quelle unite.
+              set: (v) => setTradesPerDay(unitToTradesPerDay(Math.max(1, Math.round(v)), freqUnit, includeWeekend)),
+              min: 1,
               max: freqUnit === "day" ? 15 : freqUnit === "week" ? 60 : 250,
-              step: freqUnit === "day" ? 1 : 1,
+              step: 1,
               unitToggle: { value: freqUnit, options: [["day", "Jour"], ["week", "Sem"], ["month", "Mois"]], onChange: setFreqUnit },
             },
             {
@@ -11773,8 +11778,19 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                   <span style={{ fontSize: 14, color: "rgba(255,255,255,0.15)", lineHeight: 1 }}>—</span>
                 </div>
               )}
+              {/* Jour de trading SANS aucun trade déclenché (fréquence < 1 trade/jour :
+                  le moteur répartit les trades au hasard, donc beaucoup de jours restent
+                  sans signal). Distingué visuellement d'un jour non-tradé : un point
+                  discret plutôt qu'un tiret, pour que l'utilisateur voie que le jour
+                  était bien actif mais qu'aucun trade n'est tombé — sinon le calendrier
+                  parait "vide/casse" alors qu'il est mathematiquement correct. */}
+              {!journalMode && cell.trading && hasData && cell.data.wins === 0 && cell.data.losses === 0 && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flex: 1 }}>
+                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", lineHeight: 1 }}>·</span>
+                </div>
+              )}
               {/* Case avec données (simulation OU journal rempli) */}
-              {cell.trading && hasData && (
+              {cell.trading && hasData && !(!journalMode && cell.data.wins === 0 && cell.data.losses === 0) && (
                 <>
                   <div style={{ fontSize: 11, color: c.fg, fontWeight: 700, textAlign: "center", lineHeight: 1.2 }}>
                     {cell.data.pnl >= 0 ? "+" : ""}
@@ -12133,6 +12149,23 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
           </button>
         </div>
       )}
+
+      {/* Résumé explicite du mois en simulation — sans ça, un calendrier majoritairement
+          vide (normal quand la fréquence est < 1 trade/jour : le moteur répartit les
+          trades au hasard) donne l'impression d'un affichage cassé. On dit clairement
+          combien de jours ont réellement déclenché un trade, et combien sont restés sans
+          signal, pour que ce soit lisible côté humain et pas juste correct côté moteur. */}
+      {!journalMode && !realMode && monthDays.length > 0 && (() => {
+        const joursAvecTrade = monthDays.filter(d => (d.wins || 0) + (d.losses || 0) > 0).length;
+        const joursSansTrade = monthDays.length - joursAvecTrade;
+        const totalTrades = monthDays.reduce((s, d) => s + (d.wins || 0) + (d.losses || 0), 0);
+        return (
+          <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", textAlign: "center", marginTop: 10, lineHeight: 1.5 }}>
+            {totalTrades} trade{totalTrades > 1 ? "s" : ""} ce mois-ci sur {joursAvecTrade} jour{joursAvecTrade > 1 ? "s" : ""}
+            {joursSansTrade > 0 && ` · ${joursSansTrade} jour${joursSansTrade > 1 ? "s" : ""} actif${joursSansTrade > 1 ? "s" : ""} sans signal (·)`}
+          </div>
+        );
+      })()}
 
       {/* Legende */}
       <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
