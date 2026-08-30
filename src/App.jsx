@@ -13543,6 +13543,260 @@ function EquityChartCard({ t, lang = "fr", monthKey, chartData, hasJournal, hasS
   );
 }
 
+// ══════════════════════════════════════════════════════════════════
+// CARTE VIRALE PARTAGEABLE (9:16) — dessinée directement sur un <canvas>
+// plutôt que capturée depuis le DOM (html2canvas ferait ~200 Ko de
+// dépendance et rend mal les dégradés/ombres/glow de ce design). Ici on
+// contrôle chaque pixel, et le rendu est identique sur tous les appareils.
+//
+// Format 1080x1920 (9:16) = format natif des stories Instagram/TikTok.
+// ══════════════════════════════════════════════════════════════════
+function genererCarteVirale({ monthKey, journalData, lang = "fr", pseudo = "" }) {
+  const W = 1080, H = 1920;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+
+  const VERT = "#6ee7b7", VERT_VIF = "#22c55e", ROUGE = "#ef4444";
+  const jours = Object.entries(journalData || {})
+    .map(([d, e]) => ({ jour: parseInt(d), ...e }))
+    .filter(d => d && typeof d.pnl === "number")
+    .sort((a, b) => a.jour - b.jour);
+
+  const pnlMois = jours.reduce((s, d) => s + (d.pnl || 0), 0);
+  const joursGagnants = jours.filter(d => d.pnl > 0).length;
+  const joursPerdants = jours.filter(d => d.pnl < 0).length;
+  const meilleur = jours.length ? Math.max(...jours.map(d => d.pnl)) : 0;
+  const pire = jours.length ? Math.min(...jours.map(d => d.pnl)) : 0;
+  const positif = pnlMois >= 0;
+
+  // ── Fond ──
+  ctx.fillStyle = "#05070d";
+  ctx.fillRect(0, 0, W, H);
+  const halo = ctx.createRadialGradient(W / 2, 260, 40, W / 2, 260, 620);
+  halo.addColorStop(0, positif ? "rgba(34,197,94,0.22)" : "rgba(239,68,68,0.18)");
+  halo.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = halo;
+  ctx.fillRect(0, 0, W, 700);
+
+  const carte = (x, y, w, h, r = 28) => {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  };
+
+  // ── Titre + montant ──
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(255,255,255,0.75)";
+  ctx.font = "700 34px Helvetica, Arial, sans-serif";
+  ctx.letterSpacing = "3px";
+  ctx.fillText("PERFORMANCE DU MOIS", W / 2, 100);
+  ctx.letterSpacing = "0px";
+
+  const montant = (positif ? "+$" : "-$") + Math.abs(Math.round(pnlMois)).toLocaleString("en-US");
+  ctx.save();
+  ctx.shadowColor = positif ? "rgba(110,231,183,0.75)" : "rgba(239,68,68,0.7)";
+  ctx.shadowBlur = 55;
+  ctx.fillStyle = positif ? VERT : ROUGE;
+  ctx.font = "800 150px Helvetica, Arial, sans-serif";
+  ctx.fillText(montant, W / 2, 250);
+  ctx.restore();
+
+  // Trait + mois
+  const moisNoms = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  const [an, mo] = (monthKey || "").split("-").map(Number);
+  const labelMois = (moisNoms[(mo || 1) - 1] || "") + " " + (an || "");
+  ctx.fillStyle = positif ? VERT : ROUGE;
+  ctx.font = "700 40px Helvetica, Arial, sans-serif";
+  ctx.fillText(labelMois, W / 2, 320);
+  ctx.strokeStyle = positif ? "rgba(110,231,183,0.35)" : "rgba(239,68,68,0.3)";
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(W / 2 - 300, 308); ctx.lineTo(W / 2 - 160, 308); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W / 2 + 160, 308); ctx.lineTo(W / 2 + 300, 308); ctx.stroke();
+
+  // ── Bandeau de stats ──
+  const statsY = 370, statsH = 130;
+  ctx.fillStyle = "rgba(255,255,255,0.03)";
+  carte(60, statsY, W - 120, statsH); ctx.fill();
+  ctx.strokeStyle = "rgba(110,231,183,0.12)"; ctx.lineWidth = 2;
+  carte(60, statsY, W - 120, statsH); ctx.stroke();
+
+  const stats = [
+    { l: "P&L mois", v: (positif ? "+$" : "-$") + Math.abs(Math.round(pnlMois)), c: positif ? VERT : ROUGE },
+    { l: "Jours +/-", v: joursGagnants + "j / " + joursPerdants + "j", c: "#fff" },
+    { l: "Meilleur", v: "+$" + Math.round(meilleur), c: VERT },
+    { l: "Pire", v: (pire < 0 ? "-$" : "+$") + Math.abs(Math.round(pire)), c: pire < 0 ? ROUGE : VERT },
+  ];
+  stats.forEach((s, i) => {
+    const cx = 60 + (W - 120) / 4 * (i + 0.5);
+    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    ctx.font = "500 26px Helvetica, Arial, sans-serif";
+    ctx.fillText(s.l, cx, statsY + 48);
+    ctx.fillStyle = s.c;
+    ctx.font = "800 40px Helvetica, Arial, sans-serif";
+    ctx.fillText(s.v, cx, statsY + 98);
+    if (i < 3) {
+      ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(60 + (W - 120) / 4 * (i + 1), statsY + 30);
+      ctx.lineTo(60 + (W - 120) / 4 * (i + 1), statsY + statsH - 30);
+      ctx.stroke();
+    }
+  });
+
+  // ── Calendrier ──
+  const calY = 545, calH = 720;
+  ctx.fillStyle = "rgba(255,255,255,0.02)";
+  carte(60, calY, W - 120, calH); ctx.fill();
+  ctx.strokeStyle = "rgba(110,231,183,0.12)"; ctx.lineWidth = 2;
+  carte(60, calY, W - 120, calH); ctx.stroke();
+
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#fff";
+  ctx.font = "800 42px Helvetica, Arial, sans-serif";
+  ctx.fillText("Journal de trading", 100, calY + 68);
+  ctx.fillStyle = "rgba(255,255,255,0.4)";
+  ctx.font = "400 24px Helvetica, Arial, sans-serif";
+  ctx.fillText(labelMois, 100, calY + 105);
+
+  // Grille : positionnement calendaire réel (lundi = 1re colonne)
+  const jsDow = new Date(an, (mo || 1) - 1, 1).getDay();
+  const firstDow = (jsDow + 6) % 7;
+  const nbJours = new Date(an, mo || 1, 0).getDate();
+  const cellW = (W - 200) / 7, cellH = 88, gridX = 100, gridY = calY + 145;
+
+  ctx.textAlign = "center";
+  ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].forEach((j, i) => {
+    ctx.fillStyle = i >= 5 ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.45)";
+    ctx.font = "600 24px Helvetica, Arial, sans-serif";
+    ctx.fillText(j, gridX + cellW * (i + 0.5), gridY);
+  });
+
+  const maxAbs = Math.max(...jours.map(d => Math.abs(d.pnl)), 1);
+  for (let n = 1; n <= nbJours; n++) {
+    const idx = firstDow + n - 1;
+    const col = idx % 7, row = Math.floor(idx / 7);
+    const x = gridX + col * cellW + 4, y = gridY + 22 + row * cellH;
+    const w = cellW - 8, h = cellH - 8;
+    const jour = jours.find(d => d.jour === n);
+
+    if (jour) {
+      const fort = Math.abs(jour.pnl) / maxAbs >= 0.5;
+      if (jour.pnl > 0) ctx.fillStyle = fort ? VERT_VIF : "rgba(5,46,22,0.9)";
+      else if (jour.pnl < 0) ctx.fillStyle = fort ? "#dc2626" : "rgba(239,68,68,0.12)";
+      else ctx.fillStyle = "rgba(255,255,255,0.04)";
+      carte(x, y, w, h, 14); ctx.fill();
+      const txt = jour.pnl > 0 ? (fort ? "#fff" : "#4ade80") : (fort ? "#fff" : "#f87171");
+      ctx.textAlign = "left";
+      ctx.fillStyle = fort ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.5)";
+      ctx.font = "700 20px Helvetica, Arial, sans-serif";
+      ctx.fillText(String(n), x + 10, y + 26);
+      ctx.textAlign = "center";
+      ctx.fillStyle = txt;
+      ctx.font = "800 26px Helvetica, Arial, sans-serif";
+      ctx.fillText((jour.pnl >= 0 ? "+$" : "-$") + Math.abs(Math.round(jour.pnl)), x + w / 2, y + 58);
+    } else {
+      ctx.strokeStyle = "rgba(255,255,255,0.07)"; ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 4]);
+      carte(x, y, w, h, 14); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.textAlign = "left";
+      ctx.fillStyle = "rgba(255,255,255,0.2)";
+      ctx.font = "600 20px Helvetica, Arial, sans-serif";
+      ctx.fillText(String(n), x + 10, y + 26);
+    }
+  }
+
+  // ── Courbe d'équité ──
+  const chY = calY + calH + 35, chH = 380;
+  ctx.fillStyle = "rgba(255,255,255,0.02)";
+  carte(60, chY, W - 120, chH); ctx.fill();
+  ctx.strokeStyle = "rgba(110,231,183,0.12)"; ctx.lineWidth = 2;
+  carte(60, chY, W - 120, chH); ctx.stroke();
+
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#fff";
+  ctx.font = "800 36px Helvetica, Arial, sans-serif";
+  ctx.fillText("ÉQUITÉ DU MOIS", 100, chY + 60);
+
+  // Série cumulée jour par jour
+  const serie = [];
+  let cumul = 0;
+  for (let n = 1; n <= nbJours; n++) {
+    const j = jours.find(d => d.jour === n);
+    if (j) cumul += j.pnl;
+    serie.push(cumul);
+  }
+  const minS = Math.min(...serie, 0), maxS = Math.max(...serie, 0);
+  const amp = (maxS - minS) || 1;
+  const gx = 110, gw = W - 220, gy = chY + 100, gh = chH - 160;
+
+  ctx.strokeStyle = "rgba(255,255,255,0.05)"; ctx.lineWidth = 1;
+  for (let i = 0; i <= 3; i++) {
+    const y = gy + (gh / 3) * i;
+    ctx.beginPath(); ctx.moveTo(gx, y); ctx.lineTo(gx + gw, y); ctx.stroke();
+  }
+
+  const px = (i) => gx + (gw / Math.max(1, serie.length - 1)) * i;
+  const py = (v) => gy + gh - ((v - minS) / amp) * gh;
+
+  const grad = ctx.createLinearGradient(0, gy, 0, gy + gh);
+  grad.addColorStop(0, positif ? "rgba(110,231,183,0.35)" : "rgba(239,68,68,0.3)");
+  grad.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.beginPath();
+  ctx.moveTo(px(0), gy + gh);
+  serie.forEach((v, i) => ctx.lineTo(px(i), py(v)));
+  ctx.lineTo(px(serie.length - 1), gy + gh);
+  ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+
+  ctx.save();
+  ctx.shadowColor = positif ? "rgba(110,231,183,0.6)" : "rgba(239,68,68,0.5)";
+  ctx.shadowBlur = 18;
+  ctx.beginPath();
+  serie.forEach((v, i) => i === 0 ? ctx.moveTo(px(i), py(v)) : ctx.lineTo(px(i), py(v)));
+  ctx.strokeStyle = positif ? VERT : ROUGE;
+  ctx.lineWidth = 5; ctx.lineJoin = "round";
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(255,255,255,0.3)";
+  ctx.font = "500 22px Helvetica, Arial, sans-serif";
+  [1, Math.round(nbJours / 2), nbJours].forEach(d => {
+    ctx.fillText("J" + d, px(d - 1), gy + gh + 40);
+  });
+
+  // ── Pied de page ──
+  const footY = H - 130;
+  // Pied : les deux moitiés sont mesurées puis centrées ensemble (des décalages
+  // fixes se chevauchaient dès que la largeur de police changeait légèrement)
+  const p1 = "TRADE BETTER. ", p2 = "EVERY DAY.";
+  ctx.font = "800 40px Helvetica, Arial, sans-serif";
+  const w1 = ctx.measureText(p1).width, w2 = ctx.measureText(p2).width;
+  const debut = (W - (w1 + w2)) / 2;
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#fff";
+  ctx.fillText(p1, debut, footY);
+  ctx.fillStyle = VERT;
+  ctx.fillText(p2, debut + w1, footY);
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(255,255,255,0.35)";
+  ctx.font = "400 26px Helvetica, Arial, sans-serif";
+  ctx.fillText("Discipline. Données. Performance.", W / 2, footY + 45);
+  if (pseudo) {
+    ctx.fillStyle = "rgba(255,255,255,0.25)";
+    ctx.font = "500 24px Helvetica, Arial, sans-serif";
+    ctx.fillText("@" + pseudo, W / 2, footY + 88);
+  }
+
+  return canvas;
+}
+
 function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, premiumAccess = true, daysLeft = 0, requirePremium = () => {} }) {
   setALLang(lang); // requis pour AL() — traduit les libellés d'événements économiques, etc.
   const firm = PROP_FIRMS[profile.firmKey] || PROP_FIRMS.fundednext;
@@ -14098,6 +14352,49 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
               {Object.keys(journalMonthDataForSelectedAccount).length} {t("cal_days_entered")}
             </span>
           </div>
+        )}
+
+        {/* ── Partage : carte virale 9:16 ── */}
+        {journalMode && Object.keys(journalMonthDataForSelectedAccount).length > 0 && (
+          <button
+            onClick={async () => {
+              try {
+                const canvas = genererCarteVirale({
+                  monthKey: journalMonth,
+                  journalData: journalMonthDataForSelectedAccount,
+                  lang,
+                  pseudo: (profile?.pseudo || user?.displayName || "").trim(),
+                });
+                const blob = await new Promise(res => canvas.toBlob(res, "image/png", 0.95));
+                if (!blob) return;
+                const fichier = new File([blob], `performance-${journalMonth}.png`, { type: "image/png" });
+                // Partage natif (menu iOS/Android) si disponible ET si le fichier est
+                // partageable — sinon repli sur un téléchargement classique, pour que
+                // le bouton fonctionne dans tous les cas (desktop, navigateur ancien).
+                if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
+                  await navigator.share({ files: [fichier], title: "Ma performance du mois" });
+                } else {
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url; a.download = fichier.name;
+                  document.body.appendChild(a); a.click(); a.remove();
+                  setTimeout(() => URL.revokeObjectURL(url), 1000);
+                }
+              } catch (e) {
+                // L'utilisateur a annulé le menu de partage : pas une erreur à signaler
+                if (e && e.name === "AbortError") return;
+                alert("Impossible de générer la carte : " + (e?.message || "erreur inconnue"));
+              }
+            }}
+            style={{
+              width: "100%", marginBottom: 10, padding: "12px", borderRadius: 12, cursor: "pointer",
+              border: "1px solid rgba(110,231,183,0.3)",
+              background: "linear-gradient(135deg, rgba(110,231,183,0.14), rgba(110,231,183,0.06))",
+              color: "#6ee7b7", fontSize: 13, fontWeight: 800,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            }}>
+            <span style={{ fontSize: 15 }}>📸</span> Partager ma performance
+          </button>
         )}
 
         {/* Le calendrier : mode journal OU mode simulation */}
