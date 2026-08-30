@@ -6997,8 +6997,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   // le moteur (des dizaines de calculs en dépendent déjà) — ces deux modes ne
   // sont qu'une couche de saisie qui convertit vers/depuis ces deux valeurs,
   // sans rien changer au calcul de simulation lui-même.
-  const [targetUnit, setTargetUnit] = useState("day"); // "day" | "month"
-  const [freqUnit, setFreqUnit] = useState("day"); // "day" | "week" | "month"
+  const [targetUnit, setTargetUnit] = useState(saved.targetUnit ?? "day"); // "day" | "month"
+  const [freqUnit, setFreqUnit] = useState(saved.freqUnit ?? "day"); // "day" | "week" | "month"
   const [clusteringPct, setClusteringPct] = useState(saved.clusteringPct ?? 40);
   const [maxConsecLosses, setMaxConsecLosses] = useState(saved.maxConsecLosses ?? 4);
   const [split, setSplit] = useState(saved.split ?? 80);
@@ -7211,14 +7211,20 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       const configToSave = {
         firmKey, modelKey, capital, riskPct: useFixedLot ? lotRiskPct : riskPct, dailyTargetPct, winrate,
         tradesPerDay, clusteringPct, maxConsecLosses, split, fundedMonths, includeWeekend,
-        instrument, lotSize, slPips, useFixedLot, newsImpact, activePreset
+        instrument, lotSize, slPips, useFixedLot, newsImpact, activePreset,
+        // BUG CORRIGE : targetUnit/freqUnit n'etaient PAS sauvegardes. La valeur
+        // convertie (ex: 0.29 trade/jour) l'etait bien, mais pas l'unite choisie —
+        // au rechargement l'app repassait en mode "Jour" et affichait 0.29 au lieu
+        // de "8.7 trades/mois", donnant l'impression que la saisie etait perdue
+        // alors qu'elle etait juste affichee dans la mauvaise unite.
+        targetUnit, freqUnit,
       };
       localStorage.setItem("eapropfirm_config", JSON.stringify(configToSave));
       setSaveStatus("Enregistre");
       const t = setTimeout(() => setSaveStatus(""), 1500);
       return () => clearTimeout(t);
     } catch (e) { /* localStorage indisponible (artefact) - ignore */ }
-  }, [firmKey, modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, split, fundedMonths, instrument, lotSize, slPips, useFixedLot, includeWeekend, activeDays.join(","), newsSkipDays]);
+  }, [firmKey, modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, split, fundedMonths, instrument, lotSize, slPips, useFixedLot, includeWeekend, activeDays.join(","), newsSkipDays, targetUnit, freqUnit]);
 
   const firm = PROP_FIRMS[firmKey] || PROP_FIRMS.fundednext;
   const firmModels = firm.models;
