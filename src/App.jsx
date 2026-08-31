@@ -15639,6 +15639,19 @@ function calculateAccountMaturity(journalAllFiltered, accountType, opts = {}) {
   const monthlyTargetPct = firmModel?.monthlyTargetPct ?? 8; // objectif Phase 1 typique si pas de firm précisée
   const ddLimitPct = firmModel ? (firmModel.maxDD || 10) * 100 : 10;
 
+  // Mois calendaires RÉELLEMENT terminés (tout sauf le mois civil en cours) —
+  // utilisé pour les critères qui exigent qu'un mois soit "bien rempli"
+  // (ex. Régularité : 8 jours saisis). Le mois en cours ne peut, PAR
+  // DÉFINITION, jamais avoir atteint son quota de jours dès sa première
+  // entrée (il vient de commencer) — l'inclure dans ce genre de vérification
+  // causait une régression artificielle du niveau de maturité à chaque
+  // début de mois, y compris quand l'utilisateur venait de saisir une
+  // journée POSITIVE. Un mois refermera cette exclusion automatiquement dès
+  // que le calendrier réel passe au mois suivant (comparaison sur la date du
+  // jour, pas sur la position dans le tableau).
+  const todayMonthKey = new Date().toISOString().slice(0, 7);
+  const closedMonths = monthly.filter(m => m.monthKey !== todayMonthKey);
+
   // Critère générique réutilisé par plusieurs étapes : DD sous contrôle
   const ddOk = worstMaxDD === 0 ? true : worstMaxDD < ddLimitPct * 0.8; // marge de 20% sous la limite dure
   const noAnomalies = totalAnomalies === 0;
@@ -15710,7 +15723,12 @@ function calculateAccountMaturity(journalAllFiltered, accountType, opts = {}) {
     stageDefs = [
       { validated: totalMonths >= 1, reasons: () => [`${totalMonths} mois de données`], missing: () => ["Commence à journaliser tes trades régulièrement"] },
       { validated: monthly.filter(m => m.activeDays >= 5).length >= 1, reasons: () => ["Journalisation réelle en cours"], missing: () => ["Au moins 5 jours de saisie sur un mois"] },
-      { validated: totalMonths >= 2 && monthly.slice(-2).every(m => m.activeDays >= 8), reasons: () => ["Rythme régulier"], missing: () => ["Au moins 8 jours saisis par mois, sur 2 mois consécutifs"] },
+      { validated: closedMonths.length >= 2 && closedMonths.slice(-2).every(m => m.activeDays >= 8), reasons: () => ["Rythme régulier"], missing: () => {
+          const inProgress = totalMonths > closedMonths.length;
+          const base = ["Au moins 8 jours saisis par mois, sur 2 mois consécutifs TERMINÉS"];
+          if (inProgress) base.push("(le mois en cours ne compte pas encore dans ce calcul)");
+          return base;
+        } },
       { validated: totalPositiveMonths >= 3 && ddOk && noAnomalies, reasons: () => [`${totalPositiveMonths} mois positifs`, ddOk ? "DD maîtrisé" : null, noAnomalies ? "Discipline respectée" : null].filter(Boolean), missing: () => [totalPositiveMonths < 3 ? `Encore ${3 - totalPositiveMonths} mois positifs` : null, !ddOk ? "DD à réduire" : null, !noAnomalies ? `${totalAnomalies} anomalie(s) de discipline à corriger` : null].filter(Boolean) },
       { validated: totalMonths >= 6 && worstMaxDD < ddLimitPct * 0.5 && noAnomalies, reasons: () => [`${totalMonths} mois cumulés`, "Discipline stable"], missing: () => [`Encore ${Math.max(0, 6 - totalMonths)} mois de recul avant scaling`] },
     ];
