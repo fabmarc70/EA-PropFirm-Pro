@@ -14345,52 +14345,53 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
     });
   })();
 
-  // ── COURBE MENSUELLE (mois courant, jour par jour) ──
+  // ── COURBE ÉQUITÉ DASHBOARD — CUMULATIVE depuis le tout premier jour de
+  // données du compte sélectionné (tous mois confondus), et non plus limitée
+  // au mois calendaire en cours. Corrige la même limitation que
+  // buildMonthlyEquityChart (page Journal) — cette implémentation-ci est une
+  // copie séparée spécifique au Dashboard, découverte lors d'un audit après
+  // un signalement utilisateur : elle n'avait jamais été mise à jour lors du
+  // premier correctif (30/08/2026) car elle ne passe pas par la fonction
+  // partagée buildMonthlyEquityChart. "day" est un INDEX SÉQUENTIEL de jour
+  // de trading à travers tout l'historique (1, 2, 3…), pas un jour du mois.
   const now = new Date();
   const currentMonthKey = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
-  const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
   // Source simulation : dailyLog du funded, filtré sur le mois courant (M1 par défaut si 1 mois)
   // On prend les jours du premier mois de la simulation funded
   const simDailyLog = ls.funded?.dailyLog || [];
   const simMonth1Days = simDailyLog.filter(d => d.month === 1); // M1
 
-  // Source journal : mois courant, compte sélectionné uniquement
-  const journalCurrentMonth = journalAllForSelectedAccount[currentMonthKey] || {};
-  const journalCurrentDays = Object.entries(journalCurrentMonth)
-    .map(([day, data]) => ({ day: parseInt(day), pnl: data?.pnl || 0, wins: data?.wins || 0, losses: data?.losses || 0 }))
-    .sort((a, b) => a.day - b.day);
-  const hasJournalCurrentMonth = journalCurrentDays.length > 0;
+  // Source journal : TOUS les mois du compte sélectionné, triés chronologiquement.
+  const journalAllMonthKeys = Object.keys(journalAllForSelectedAccount || {}).sort();
+  const journalAllEntriesSorted = [];
+  journalAllMonthKeys.forEach(mk => {
+    const days = Object.keys(journalAllForSelectedAccount[mk] || {}).map(Number).sort((a, b) => a - b);
+    days.forEach(d => journalAllEntriesSorted.push(journalAllForSelectedAccount[mk][String(d)]?.pnl || 0));
+  });
+  const hasJournalCurrentMonth = journalAllEntriesSorted.length > 0;
 
-  // Construire les données du graphique mensuel :
-  // - Mode simulation → courbe COMPLÈTE du mois M1 simulé (tous les jours, pas juste jusqu'à aujourd'hui)
-  // - Mode journal → jusqu'à aujourd'hui (données réelles saisies)
-  const todayDay = now.getDate();
-  const lastSimDay = simMonth1Days.length > 0
-    ? Math.max(...simMonth1Days.map(d => d.dayOfMonth))
-    : todayDay;
-  const chartEndDay = journalMode ? todayDay : Math.max(todayDay, lastSimDay);
+  const todayDay = Math.max(journalAllEntriesSorted.length, simMonth1Days.length);
 
   const monthlyChartData = (() => {
     const result = [];
     let simEquity = cap; // capital du Simulateur — légitime, c'est CETTE courbe qui compare à la simulation
     let journalEquity = principalCapital; // capital RÉEL du compte journal sélectionné — corrigé (voir plus haut)
 
-    for (let day = 1; day <= chartEndDay; day++) {
+    for (let day = 1; day <= todayDay; day++) {
       // Simulation : trouver le jour correspondant (dayOfMonth)
       const simDay = simMonth1Days.find(d => d.dayOfMonth === day);
       if (simDay) simEquity = simDay.equity;
 
-      // Journal : cumuler le PnL jusqu'à ce jour (uniquement jours réels)
-      const journalDay = journalCurrentDays.find(d => d.day === day);
-      if (journalDay) journalEquity += journalDay.pnl;
+      // Journal : cumuler le PnL jusqu'à ce jour (tous mois confondus)
+      if (day <= journalAllEntriesSorted.length) journalEquity += journalAllEntriesSorted[day - 1];
 
       result.push({
         day,
         simEquity: simMonth1Days.length > 0 ? simEquity : null,
         journalEquity: hasJournalCurrentMonth ? journalEquity : null,
-        hasJournalEntry: !!journalDay,
-        isFuture: day > todayDay, // pour distinguer projection vs données réelles si besoin
+        hasJournalEntry: day <= journalAllEntriesSorted.length,
+        isFuture: false,
       });
     }
     return result;
@@ -14949,7 +14950,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         {/* Titre + légende */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div>
-            <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1}}>Équité — {currentMonthKey}</div>
+            <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:1}}>Équité — Depuis le début</div>
             <div style={{fontSize:9,color:"rgba(255,255,255,0.3)",marginTop:2}}>
               {monthlyPrimaryIsJournal ? t("cal_journal_active") : t("cal_sim_active")} · J1 → J{todayDay}
             </div>
@@ -15019,7 +15020,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           <div style={{height:140,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.2)"}}>
             
             <div style={{fontSize:12}}>{t("an_run_or_enter")}</div>
-            <div style={{fontSize:10,marginTop:4,color:"rgba(255,255,255,0.15)"}}>pour voir la courbe du mois courant</div>
+            <div style={{fontSize:10,marginTop:4,color:"rgba(255,255,255,0.15)"}}>pour voir la courbe</div>
           </div>
         )}
       </div>
