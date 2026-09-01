@@ -6644,11 +6644,19 @@ const TRADING_DAYS_PER_MONTH = 21; // convention standard (5j/semaine × ~4.33 s
 
 // Objectif : conversion COMPOSÉE (un rendement journalier composé sur 21
 // jours ouvrés donne le rendement mensuel — et inversement).
+// Conversion jour ↔ mois pour le champ "Objectif" éditable — LINÉAIRE
+// (dailyPct × TRADING_DAYS_PER_MONTH), volontairement alignée sur la même
+// formule que `monthlyTarget` (utilisée partout ailleurs : frais, RR, alerte
+// marge de sécurité, "Profit equiv."). Avant : formule composée
+// ((1+dailyPct)^jours - 1), qui produisait un chiffre légèrement différent
+// affiché simultanément à l'écran (ex. 1.7%/mois ici vs 1.6%/mois plus bas
+// pour la même config) — incohérence réelle signalée par l'utilisateur.
+// Une seule formule maintenant, dans tout le fichier.
 function dailyPctToMonthly(dailyPct) {
-  return (Math.pow(1 + dailyPct / 100, TRADING_DAYS_PER_MONTH) - 1) * 100;
+  return dailyPct * TRADING_DAYS_PER_MONTH;
 }
 function monthlyPctToDaily(monthlyPct) {
-  return (Math.pow(1 + monthlyPct / 100, 1 / TRADING_DAYS_PER_MONTH) - 1) * 100;
+  return monthlyPct / TRADING_DAYS_PER_MONTH;
 }
 
 // Fréquence : conversion LINÉAIRE (un nombre de trades s'additionne, ne se
@@ -7241,6 +7249,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   }, [tab]);
   const [copied, setCopied] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
+  const [marginAlertExpanded, setMarginAlertExpanded] = useState(false);
 
   useEffect(() => {
     try {
@@ -8048,7 +8057,14 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             obligation de cocher des jours précis : le moteur tire déjà les
             jours de trading au hasard selon cette fréquence. */}
         <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 6, lineHeight: 1.4 }}>
-          Moteur : {tradesPerDay.toFixed(2)} trade{tradesPerDay >= 2 ? "s" : ""}/jour (réparti au hasard sur le mois, aucun jour précis à choisir) · objectif {dailyTargetPct.toFixed(2)}%/jour ≈ {dailyPctToMonthly(dailyTargetPct).toFixed(1)}%/mois.
+          {/* "≈ {monthlyTarget*100}%/mois" — unifié avec la même source que
+              "Profit equiv." et le calcul des frais/RR plus bas (monthlyTarget,
+              formule linéaire), au lieu de l'ancien dailyPctToMonthly() (formule
+              composée) qui produisait un chiffre légèrement différent affiché
+              en même temps à l'écran — incohérence réelle signalée par
+              l'utilisateur (ex. 1.7%/mois ici vs 1.6%/mois plus bas pour la
+              même config, jamais identiques). Une seule formule maintenant. */}
+          Moteur : {tradesPerDay.toFixed(2)} trade{tradesPerDay >= 2 ? "s" : ""}/jour (réparti au hasard sur le mois, aucun jour précis à choisir) · objectif {dailyTargetPct.toFixed(2)}%/jour ≈ {(monthlyTarget * 100).toFixed(1)}%/mois.
         </div>
 
         {/* Résumé paramètres */}
@@ -8072,47 +8088,75 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             winrate déclaré (marge brute ≈ 0% TOUJOURS, par
             construction de la formule). Ce bloc applique la friction
             réelle (spread/slippage, cf. disclaimer plus bas) et
-            alerte si l'objectif devient intenable AVANT le challenge. */}
+            alerte si l'objectif devient intenable AVANT le challenge.
+            Replié par défaut : seul un résumé factuel (chiffres clés,
+            pas de phrases) reste visible sans clic — le détail complet
+            (paragraphes explicatifs) ne s'affiche qu'au clic sur
+            "Voir le détail". ── */}
         <div style={{
           marginTop: 10, borderRadius: 12, padding: "10px 12px",
           background: marginSeverity === "danger" ? "rgba(239,68,68,0.10)" : marginSeverity === "warning" ? "rgba(251,191,36,0.10)" : "rgba(110,231,183,0.08)",
           border: `1px solid ${marginSeverity === "danger" ? "rgba(239,68,68,0.35)" : marginSeverity === "warning" ? "rgba(251,191,36,0.35)" : "rgba(110,231,183,0.25)"}`,
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 800, color: marginSeverity === "danger" ? "#ef4444" : marginSeverity === "warning" ? "#fbbf24" : "#6ee7b7" }}>
-            {marginSeverity === "ok" ? "✅ Marge de sécurité correcte" : marginSeverity === "warning" ? "⚠️ Marge de sécurité insuffisante" : "🛑 Objectif intenable avec cette config"}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 800, color: marginSeverity === "danger" ? "#ef4444" : marginSeverity === "warning" ? "#fbbf24" : "#6ee7b7" }}>
+              {marginSeverity === "ok" ? "✅ Marge de sécurité correcte" : marginSeverity === "warning" ? "⚠️ Marge de sécurité insuffisante" : "🛑 Objectif intenable avec cette config"}
+            </div>
+            <button
+              onClick={() => setMarginAlertExpanded(v => !v)}
+              style={{ background: "none", border: "none", padding: 0, color: "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 3, flexShrink: 0 }}
+            >
+              {marginAlertExpanded ? "Masquer" : "Détail"}
+              <span style={{ fontSize: 9, transform: marginAlertExpanded ? "rotate(180deg)" : "none", transition: "transform .15s" }}>▾</span>
+            </button>
           </div>
 
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 5, lineHeight: 1.5 }}>
-            Marge brute (au WR déclaré, sans friction) : <b style={{ color: "#fbbf24" }}>{rawMarginPct >= 0 ? "+" : ""}{rawMarginPct}%</b>
-            <span style={{ color: "rgba(255,255,255,0.45)" }}> — ta config est calée pile sur l'objectif, jamais au-dessus.</span>
+          {/* Résumé factuel — TOUJOURS visible, même replié. Chiffres seuls,
+              pas de phrases explicatives. */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px", marginTop: 6, fontSize: 11 }}>
+            <span style={{ color: "rgba(255,255,255,0.5)" }}>Marge brute : <b style={{ color: "#fbbf24" }}>{rawMarginPct >= 0 ? "+" : ""}{rawMarginPct}%</b></span>
+            <span style={{ color: "rgba(255,255,255,0.5)" }}>
+              Avec friction : <b style={{ color: degradedMarginPct >= 0 ? "#6ee7b7" : "#ef4444" }}>{degradedMarginPct >= 0 ? "+" : ""}{degradedMarginPct}%</b>
+              {degradedMarginPct < 0 && <span style={{ color: "#ef4444" }}> ({fmt2(degradedShortfall)}/mois)</span>}
+            </span>
+            <span style={{ color: "rgba(255,255,255,0.5)" }}>
+              WR requis : <b style={{ color: requiredWPct > winrate ? "#ef4444" : "#6ee7b7" }}>{requiredWPct}%</b> / déclaré {winrate}%
+            </span>
           </div>
 
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 3, lineHeight: 1.5 }}>
-            Avec friction réelle (-{(FRICTION_HAIRCUT * 100).toFixed(0)}% sur le WR, spread/slippage) :{" "}
-            <b style={{ color: degradedMarginPct >= 0 ? "#6ee7b7" : "#ef4444" }}>
-              {fmt2(degradedMonthlyPnL)}/mois vs objectif {fmt2(monthlyTargetDollar)}
-            </b>
-            {degradedMarginPct < 0 && (
-              <span style={{ color: "#ef4444" }}> → manque {fmt2(degradedShortfall)} ({degradedMarginPct}%)</span>
+          {marginAlertExpanded && (<>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.08)", lineHeight: 1.5 }}>
+              Marge brute (au WR déclaré, sans friction) : <b style={{ color: "#fbbf24" }}>{rawMarginPct >= 0 ? "+" : ""}{rawMarginPct}%</b>
+              <span style={{ color: "rgba(255,255,255,0.45)" }}> — ta config est calée pile sur l'objectif, jamais au-dessus.</span>
+            </div>
+
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 3, lineHeight: 1.5 }}>
+              Avec friction réelle (-{(FRICTION_HAIRCUT * 100).toFixed(0)}% sur le WR, spread/slippage) :{" "}
+              <b style={{ color: degradedMarginPct >= 0 ? "#6ee7b7" : "#ef4444" }}>
+                {fmt2(degradedMonthlyPnL)}/mois vs objectif {fmt2(monthlyTargetDollar)}
+              </b>
+              {degradedMarginPct < 0 && (
+                <span style={{ color: "#ef4444" }}> → manque {fmt2(degradedShortfall)} ({degradedMarginPct}%)</span>
+              )}
+            </div>
+
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 3, lineHeight: 1.5 }}>
+              Winrate minimum réellement requis : <b style={{ color: requiredWPct > winrate ? "#ef4444" : "#6ee7b7" }}>{requiredWPct}%</b>
+              <span style={{ color: "rgba(255,255,255,0.45)" }}> (ton WR déclaré : {winrate}%)</span>
+            </div>
+
+            {rrBelowOne && (
+              <div style={{ fontSize: 11, color: "#fbbf24", marginTop: 5, paddingTop: 5, borderTop: "1px solid rgba(255,255,255,0.08)", lineHeight: 1.5 }}>
+                ⚠️ RR &lt; 1 : tu perds plus par trade perdant que tu ne gagnes par trade gagnant. Ta réussite dépend à 100% du winrate exact, aucune place pour l'erreur.
+              </div>
             )}
-          </div>
 
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 3, lineHeight: 1.5 }}>
-            Winrate minimum réellement requis : <b style={{ color: requiredWPct > winrate ? "#ef4444" : "#6ee7b7" }}>{requiredWPct}%</b>
-            <span style={{ color: "rgba(255,255,255,0.45)" }}> (ton WR déclaré : {winrate}%)</span>
-          </div>
-
-          {rrBelowOne && (
-            <div style={{ fontSize: 11, color: "#fbbf24", marginTop: 5, paddingTop: 5, borderTop: "1px solid rgba(255,255,255,0.08)", lineHeight: 1.5 }}>
-              ⚠️ RR &lt; 1 : tu perds plus par trade perdant que tu ne gagnes par trade gagnant. Ta réussite dépend à 100% du winrate exact, aucune place pour l'erreur.
-            </div>
-          )}
-
-          {marginSeverity !== "ok" && (
-            <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", marginTop: 5, lineHeight: 1.5 }}>
-              Avant de payer ce challenge : augmente le RR cible (TP/SL), augmente la fréquence de trades pour réduire la variance, ou baisse le risque/trade.
-            </div>
-          )}
+            {marginSeverity !== "ok" && (
+              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", marginTop: 5, lineHeight: 1.5 }}>
+                Avant de payer ce challenge : augmente le RR cible (TP/SL), augmente la fréquence de trades pour réduire la variance, ou baisse le risque/trade.
+              </div>
+            )}
+          </>)}
         </div>
 
         <button onClick={() => setSeed(s => s + 1)}
