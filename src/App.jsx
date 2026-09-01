@@ -13847,11 +13847,19 @@ function buildMonthlyEquityChart({ monthKey, journalAll, lastSim, capital, journ
   const simMonth1Days = simDailyLog.filter(d => d.month === 1);
 
   // Toutes les entrées du journal, tous mois confondus, triées chronologiquement.
+  // "dates" garde la VRAIE date calendaire de chaque entrée (YYYY-MM-DD), pour
+  // afficher des noms de mois sur l'axe et la date exacte au survol/tap —
+  // "day" reste un index séquentiel utilisé uniquement pour le positionnement
+  // (espacement égal entre points), jamais affiché tel quel à l'utilisateur.
   const months = Object.keys(journalAll || {}).sort();
   const journalEntries = [];
+  const journalDates = [];
   months.forEach(mk => {
     const days = Object.keys(journalAll[mk] || {}).map(Number).sort((a, b) => a - b);
-    days.forEach(d => journalEntries.push(journalAll[mk][String(d)]?.pnl || 0));
+    days.forEach(d => {
+      journalEntries.push(journalAll[mk][String(d)]?.pnl || 0);
+      journalDates.push(mk + "-" + String(d).padStart(2, "0"));
+    });
   });
   const hasJournal = journalEntries.length > 0;
   const hasSim = simMonth1Days.length > 0;
@@ -13865,6 +13873,7 @@ function buildMonthlyEquityChart({ monthKey, journalAll, lastSim, capital, journ
     if (i <= journalEntries.length) journalEquity += journalEntries[i - 1];
     chartData.push({
       day: i,
+      date: i <= journalDates.length ? journalDates[i - 1] : null,
       simEquity: hasSim ? simEquity : null,
       journalEquity: hasJournal ? journalEquity : null,
     });
@@ -13875,12 +13884,51 @@ function buildMonthlyEquityChart({ monthKey, journalAll, lastSim, capital, journ
 }
 
 // ══════════════════════════════════════════════════════════════════
+// Formatage des dates pour les courbes d'équité — axe X = noms de mois
+// (un seul tick au changement de mois, pas un par jour) ; tooltip =
+// date calendaire exacte au survol/tap. Les dates réelles viennent du
+// champ "date" (YYYY-MM-DD) attaché à chaque point par
+// buildMonthlyEquityChart (et son équivalent Dashboard) — "day" ne sert
+// plus qu'au positionnement, jamais affiché tel quel.
+// ══════════════════════════════════════════════════════════════════
+const FR_MONTHS_SHORT = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
+const FR_MONTHS_FULL = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+
+// Indices ("day") où le mois change dans chartData — à passer tel quel à la
+// prop `ticks` de XAxis pour n'afficher qu'un tick par mois (pas un par jour).
+function computeMonthBoundaryTicks(chartData) {
+  const ticks = [];
+  let lastMonth = null;
+  (chartData || []).forEach(pt => {
+    if (!pt.date) return;
+    const mk = pt.date.slice(0, 7);
+    if (mk !== lastMonth) { ticks.push(pt.day); lastMonth = mk; }
+  });
+  return ticks;
+}
+// Label court (nom du mois) pour un point de l'axe X.
+function monthAxisLabel(chartData, day) {
+  const pt = chartData[day - 1];
+  if (!pt || !pt.date) return "J" + day;
+  const m = Number(pt.date.slice(5, 7));
+  return FR_MONTHS_SHORT[m - 1];
+}
+// Date complète (ex. "5 juillet 2026") pour le tooltip.
+function fullDateLabel(chartData, day) {
+  const pt = chartData[day - 1];
+  if (!pt || !pt.date) return "Jour " + day;
+  const [y, m, d] = pt.date.split("-").map(Number);
+  return d + " " + FR_MONTHS_FULL[m - 1] + " " + y;
+}
+
+// ══════════════════════════════════════════════════════════════════
 // Composant visuel — Carte "Équité" (Journal réel vs Simulation)
 // Réplique exacte du graphique de la Home, réutilisée dans JournalScreen.
 // ══════════════════════════════════════════════════════════════════
 function EquityChartCard({ t, lang = "fr", monthKey, chartData, hasJournal, hasSim, primaryIsJournal, cap, todayDay, gradientSuffix = "", tightBottom = false }) {
   const gradJournal = "grad-journal-eq" + gradientSuffix;
   const gradSim = "grad-sim-eq" + gradientSuffix;
+  const monthTicks = computeMonthBoundaryTicks(chartData);
   return (
     <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, padding: 16, marginBottom: tightBottom ? 6 : 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -13924,10 +13972,10 @@ function EquityChartCard({ t, lang = "fr", monthKey, chartData, hasJournal, hasS
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-            <XAxis dataKey="day" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "J" + v} interval={4} />
+            <XAxis dataKey="day" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} ticks={monthTicks.length ? monthTicks : undefined} tickFormatter={v => monthAxisLabel(chartData, v)} />
             <YAxis tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => "$" + (v / 1000).toFixed(0) + "k"} domain={["auto", "auto"]} width={40} />
             <Tooltip
-              labelFormatter={v => "Jour " + v}
+              labelFormatter={v => fullDateLabel(chartData, v)}
               formatter={(v, name) => [fmt(v), name === "journalEquity" ? "Journal réel" : name === "simEquity" ? "Simulation" : name]}
               contentStyle={{ background: "rgba(10,12,22,0.97)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, fontSize: 11 }}
             />
@@ -14363,11 +14411,17 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
   const simMonth1Days = simDailyLog.filter(d => d.month === 1); // M1
 
   // Source journal : TOUS les mois du compte sélectionné, triés chronologiquement.
+  // journalAllDatesSorted garde la vraie date calendaire (YYYY-MM-DD) de chaque
+  // entrée, même principe que buildMonthlyEquityChart (page Journal).
   const journalAllMonthKeys = Object.keys(journalAllForSelectedAccount || {}).sort();
   const journalAllEntriesSorted = [];
+  const journalAllDatesSorted = [];
   journalAllMonthKeys.forEach(mk => {
     const days = Object.keys(journalAllForSelectedAccount[mk] || {}).map(Number).sort((a, b) => a - b);
-    days.forEach(d => journalAllEntriesSorted.push(journalAllForSelectedAccount[mk][String(d)]?.pnl || 0));
+    days.forEach(d => {
+      journalAllEntriesSorted.push(journalAllForSelectedAccount[mk][String(d)]?.pnl || 0);
+      journalAllDatesSorted.push(mk + "-" + String(d).padStart(2, "0"));
+    });
   });
   const hasJournalCurrentMonth = journalAllEntriesSorted.length > 0;
 
@@ -14388,6 +14442,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
 
       result.push({
         day,
+        date: day <= journalAllDatesSorted.length ? journalAllDatesSorted[day - 1] : null,
         simEquity: simMonth1Days.length > 0 ? simEquity : null,
         journalEquity: hasJournalCurrentMonth ? journalEquity : null,
         hasJournalEntry: day <= journalAllEntriesSorted.length,
@@ -14992,10 +15047,10 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false}/>
-              <XAxis dataKey="day" tick={{fontSize:10,fill:"rgba(255,255,255,0.3)"}} tickFormatter={v=>"J"+v} interval={4}/>
+              <XAxis dataKey="day" tick={{fontSize:10,fill:"rgba(255,255,255,0.3)"}} ticks={computeMonthBoundaryTicks(monthlyChartData).length ? computeMonthBoundaryTicks(monthlyChartData) : undefined} tickFormatter={v=>monthAxisLabel(monthlyChartData, v)}/>
               <YAxis tick={{fontSize:10,fill:"rgba(255,255,255,0.3)"}} tickFormatter={v=>"$"+(v/1000).toFixed(0)+"k"} domain={["auto","auto"]} width={40}/>
               <Tooltip
-                labelFormatter={v=>"Jour "+v}
+                labelFormatter={v=>fullDateLabel(monthlyChartData, v)}
                 formatter={(v,name)=>[fmt(v),name==="journalEquity"?"Journal réel":name==="simEquity"?"Simulation":name]}
                 contentStyle={{background:"rgba(10,12,22,0.97)",border:"1px solid rgba(110,231,183,0.15)",borderRadius:12,fontSize:11}}
               />
