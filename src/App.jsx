@@ -13833,43 +13833,45 @@ function checkDailyReminder() {
 // Construit les données de la courbe Équité (Journal réel vs Simulation)
 // pour un mois donné — réutilisé par DashboardScreen ET JournalScreen.
 // ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// Construit la courbe Équité — CUMULATIVE depuis le tout premier jour de
+// données du journal (tous mois confondus), et non plus limitée au mois
+// affiché. "day" est un INDEX SÉQUENTIEL de jour de trading à travers tout
+// l'historique (1, 2, 3…), pas un jour calendaire du mois.
+// ══════════════════════════════════════════════════════════════════
 function buildMonthlyEquityChart({ monthKey, journalAll, lastSim, capital, journalMode }) {
   const ls = lastSim || {};
   const cap = capital || ls.capital || 25000;
-  const [y, m] = monthKey.split("-").map(Number);
-  const isCurrentMonth = (() => {
-    const n = new Date();
-    return n.getFullYear() === y && (n.getMonth() + 1) === m;
-  })();
-  const lastDayOfMonth = new Date(y, m, 0).getDate();
-  const upToDay = isCurrentMonth ? new Date().getDate() : lastDayOfMonth;
 
   const simDailyLog = ls.funded?.dailyLog || [];
   const simMonth1Days = simDailyLog.filter(d => d.month === 1);
 
-  const journalMonthData = journalAll?.[monthKey] || {};
-  const journalDays = Object.entries(journalMonthData)
-    .map(([day, data]) => ({ day: parseInt(day), pnl: data?.pnl || 0 }))
-    .sort((a, b) => a.day - b.day);
-  const hasJournal = journalDays.length > 0;
+  // Toutes les entrées du journal, tous mois confondus, triées chronologiquement.
+  const months = Object.keys(journalAll || {}).sort();
+  const journalEntries = [];
+  months.forEach(mk => {
+    const days = Object.keys(journalAll[mk] || {}).map(Number).sort((a, b) => a - b);
+    days.forEach(d => journalEntries.push(journalAll[mk][String(d)]?.pnl || 0));
+  });
+  const hasJournal = journalEntries.length > 0;
   const hasSim = simMonth1Days.length > 0;
 
+  const totalPoints = Math.max(journalEntries.length, simMonth1Days.length);
   const chartData = [];
   let simEquity = cap, journalEquity = cap;
-  for (let day = 1; day <= upToDay; day++) {
-    const simDay = simMonth1Days.find(d => d.dayOfMonth === day);
+  for (let i = 1; i <= totalPoints; i++) {
+    const simDay = simMonth1Days.find(d => d.dayOfMonth === i);
     if (simDay) simEquity = simDay.equity;
-    const journalDay = journalDays.find(d => d.day === day);
-    if (journalDay) journalEquity += journalDay.pnl;
+    if (i <= journalEntries.length) journalEquity += journalEntries[i - 1];
     chartData.push({
-      day,
+      day: i,
       simEquity: hasSim ? simEquity : null,
       journalEquity: hasJournal ? journalEquity : null,
     });
   }
 
   const primaryIsJournal = journalMode && hasJournal;
-  return { chartData, hasJournal, hasSim, primaryIsJournal, cap, todayDay: upToDay };
+  return { chartData, hasJournal, hasSim, primaryIsJournal, cap, todayDay: totalPoints };
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -13883,7 +13885,7 @@ function EquityChartCard({ t, lang = "fr", monthKey, chartData, hasJournal, hasS
     <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, padding: 16, marginBottom: tightBottom ? 6 : 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>Équité — {formatMonthLabel(monthKey, lang)}</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>Équité — Depuis le début</div>
           <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
             {primaryIsJournal ? t("cal_journal_active") : t("cal_sim_active")} · J1 → J{todayDay}
           </div>
@@ -13947,7 +13949,7 @@ function EquityChartCard({ t, lang = "fr", monthKey, chartData, hasJournal, hasS
       ) : (
         <div style={{ height: 140, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.2)" }}>
           <div style={{ fontSize: 12 }}>{t("an_run_or_enter")}</div>
-          <div style={{ fontSize: 10, marginTop: 4, color: "rgba(255,255,255,0.15)" }}>pour voir la courbe du mois</div>
+          <div style={{ fontSize: 10, marginTop: 4, color: "rgba(255,255,255,0.15)" }}>pour voir la courbe</div>
         </div>
       )}
     </div>
@@ -14631,9 +14633,18 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         const now = new Date();
         const realMonthKey = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
 
-        // Journal : courbe + chiffres restreints au MOIS EN COURS (cohérent avec le Simulateur "Mois 1")
+        // Journal : courbe + chiffres CUMULÉS depuis le tout premier jour de
+        // données du compte (tous mois confondus) — demandé explicitement,
+        // remplace l'ancien scope "mois en cours uniquement". On adapte le
+        // résultat de computeAccountBalanceSeries (balance/series/allTimePnl/
+        // changePct) vers les mêmes noms de champs qu'utilisait l'ancienne
+        // fonction scopée au mois (opening/monthPnl/monthPct/hasEntries), pour
+        // ne rien casser plus bas où ces champs sont consommés.
         const principalData = journalMode
-          ? computeCurrentMonthBalanceSeries(journalAll, principalAccount?.id || "default", principalCapital, realMonthKey)
+          ? (() => {
+              const r = computeAccountBalanceSeries(journalAll, principalAccount?.id || "default", principalCapital);
+              return { balance: r.balance, series: r.series, opening: principalCapital, monthPnl: r.allTimePnl, monthPct: r.changePct, hasEntries: r.series.length > 1 };
+            })()
           : null;
 
         // ── Courbe simulateur : vue GRANDE ÉCHELLE (tout le compte Funded, comme
