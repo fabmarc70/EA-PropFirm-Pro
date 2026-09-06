@@ -7,6 +7,7 @@ import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthCh
   fbSavePushSubscription, fbListPendingJournalEntries, fbDeletePendingJournalEntry,
   fbAddSetupWatch, fbListSetupWatches, fbDeleteSetupWatch, fbGetSetupConfig, fbSaveSetupConfig } from "./firebase.js";
 import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedData, loadRange, monthsInRange, getCoverage } from "./historicalData.js";
+import { runInvestmentProjection, aggregateByYear, compareStrategies as compareInvestmentStrategies } from "./investmentEngine.js";
 import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS, listConfluenceFilters, WEEKDAYS, runWalkForward, analyzeFailure, optimizeStrategy } from "./backtestEngine.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
@@ -5823,6 +5824,539 @@ function LabScreen({ t, lang, profile, onBack }) {
   );
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// MODULE INVESTISSEMENT — simulateur visuel de stratégies d'investissement
+// (cahier des charges "SIMULATEUR PROFIL" / chantier "Investissement").
+// Le moteur de calcul (runInvestmentProjection, aggregateByYear,
+// compareStrategies) vit dans investmentEngine.js, séparé de l'UI (section 16
+// du cahier des charges) — testé indépendamment via investmentEngine.test.js.
+//
+// Stockage : localStorage "eapropfirm_investments" (tableau de stratégies),
+// synchronisé sur Firestore via useCloudSyncedState — même filet de sécurité
+// que le journal (fusion additive, jamais d'écrasement, voir ce hook plus haut
+// dans ce fichier).
+// ══════════════════════════════════════════════════════════════════════════
+
+const INVESTMENT_ACCENT = "#f472b6";
+
+function newInvestmentStrategy() {
+  return {
+    id: "inv_" + Date.now(),
+    name: "",
+    investmentType: "dca", // "initial" | "dca" | "hybrid"
+    initialCapital: 5000,
+    dcaAmount: 300,
+    dcaFrequency: "monthly",
+    dcaGrowthPct: 0,
+    annualReturnPct: 7,
+    durationYears: 10,
+    reinvest: true,
+    compoundingFrequency: "monthly",
+    fees: { fixed: 0, annualPct: 0, perContribution: 0 },
+    inflationPct: 0,
+    monthlyPayout: 0,
+    reinvestRatio: 1,
+    contributions: [],
+    startDate: new Date().toISOString().slice(0, 10),
+    createdAt: Date.now(),
+  };
+}
+
+function InvestmentScreen({ t, lang, onBack }) {
+  const [strategies, setStrategies] = useCloudSyncedState("eapropfirm_investments", "investments", [], (local, cloud) => {
+    // Fusion additive par id — jamais d'écrasement d'une stratégie locale plus récente.
+    if (!Array.isArray(cloud) || !cloud.length) return local || [];
+    if (!Array.isArray(local) || !local.length) return cloud;
+    const byId = new Map();
+    cloud.forEach(s => { if (s && s.id) byId.set(s.id, s); });
+    local.forEach(s => { if (s && s.id) byId.set(s.id, s); });
+    return Array.from(byId.values());
+  });
+
+  const [view, setView] = useState("list"); // "list" | "form" | "detail" | "compare"
+  const [form, setForm] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [compareIds, setCompareIds] = useState([]);
+  const [chartRangeYears, setChartRangeYears] = useState("max");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [selectedYearDetail, setSelectedYearDetail] = useState(null);
+
+  const saveStrategy = (s) => {
+    const exists = strategies.some(x => x.id === s.id);
+    const next = exists ? strategies.map(x => x.id === s.id ? s : x) : [...strategies, s];
+    setStrategies(next);
+    setSelectedId(s.id);
+    setView("detail");
+  };
+  const deleteStrategy = (id) => {
+    if (!confirm("Supprimer cette stratégie ?")) return;
+    setStrategies(strategies.filter(x => x.id !== id));
+    setCompareIds(compareIds.filter(x => x !== id));
+    if (selectedId === id) { setSelectedId(null); setView("list"); }
+  };
+  const duplicateStrategy = (s) => {
+    const copy = { ...s, id: "inv_" + Date.now(), name: s.name + " (copie)", createdAt: Date.now() };
+    setStrategies([...strategies, copy]);
+  };
+
+  const selected = strategies.find(s => s.id === selectedId) || null;
+  const projection = selected ? runInvestmentProjection(selected) : null;
+
+  // Filtre la période affichée selon la vue choisie (1/3/5/10/20/Max ans).
+  const filteredPeriods = (() => {
+    if (!projection) return [];
+    if (chartRangeYears === "max") return projection.periods;
+    const maxMonths = Number(chartRangeYears) * 12;
+    return projection.periods.filter(p => p.monthIndex <= maxMonths);
+  })();
+  const yearlyRows = projection ? aggregateByYear(filteredPeriods) : [];
+
+  const disclaimer = "Simulation indicative basée sur les hypothèses sélectionnées. Les performances futures ne sont pas garanties.";
+
+  // ── Écran : LISTE + DASHBOARD GLOBAL ──────────────────────────────────
+  if (view === "list") {
+    const globalTotals = strategies.reduce((acc, s) => {
+      const p = runInvestmentProjection(s);
+      acc.finalCapital += p.summary.finalCapital;
+      acc.invested += p.summary.netInvested;
+      acc.gains += p.summary.totalGain;
+      return acc;
+    }, { finalCapital: 0, invested: 0, gains: 0 });
+    const globalPerf = globalTotals.invested > 0 ? (globalTotals.gains / globalTotals.invested * 100) : 0;
+
+    return (
+      <div style={{ fontFamily: "-apple-system, sans-serif", color: "#fff" }}>
+        <ReportHeader title="Investissement" subtitle="Simulez et comparez vos stratégies dans le temps" onBack={onBack} />
+        <div style={{ padding: "0 16px 24px" }}>
+          {strategies.length > 0 && (
+            <div style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${INVESTMENT_ACCENT}33`, borderRadius: 16, padding: 16, marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1 }}>Capital projeté</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: INVESTMENT_ACCENT }}>{fmt(globalTotals.finalCapital)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1 }}>Total investi</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: "#fff" }}>{fmt(globalTotals.invested)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1 }}>Gains estimés</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: "#6ee7b7" }}>+{fmt(globalTotals.gains)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1 }}>Performance</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: "#6ee7b7" }}>+{globalPerf.toFixed(1)}%</div>
+                </div>
+              </div>
+              <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.3)", marginTop: 10, lineHeight: 1.4 }}>{disclaimer}</div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+            <button onClick={() => { setForm(newInvestmentStrategy()); setView("form"); }}
+              style={{ flex: 1, padding: 12, borderRadius: 12, background: INVESTMENT_ACCENT, border: "none", color: "#000", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
+              + Nouvelle stratégie
+            </button>
+            {strategies.length >= 2 && (
+              <button onClick={() => { setCompareIds(strategies.slice(0, 2).map(s => s.id)); setView("compare"); }}
+                style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                Comparer
+              </button>
+            )}
+          </div>
+
+          {strategies.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "40px 16px", color: "rgba(255,255,255,0.4)" }}>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>📈</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 4 }}>Aucune stratégie pour l'instant</div>
+              <div style={{ fontSize: 11.5, lineHeight: 1.5 }}>Crée ta première stratégie (ETF, DCA, crypto, épargne...) pour voir sa projection dans le temps.</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {strategies.map(s => {
+                const p = runInvestmentProjection(s);
+                return (
+                  <button key={s.id} onClick={() => { setSelectedId(s.id); setChartRangeYears("max"); setView("detail"); }}
+                    style={{ textAlign: "left", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 14, cursor: "pointer" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{s.name || "Sans nom"}</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: INVESTMENT_ACCENT }}>{fmt(p.summary.finalCapital)}</div>
+                    </div>
+                    <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)", marginTop: 3 }}>
+                      {s.investmentType === "initial" ? "Capital seul" : s.dcaAmount > 0 ? fmt(s.dcaAmount) + "/" + ({ weekly: "sem", monthly: "mois", quarterly: "trim", yearly: "an" }[s.dcaFrequency] || "mois") : "Capital seul"}
+                      {" · "}{s.annualReturnPct}% estimé{" · "}{s.durationYears} ans
+                    </div>
+                    <div style={{ fontSize: 10.5, marginTop: 3, color: p.summary.performancePct >= 0 ? "#6ee7b7" : "#ef4444" }}>
+                      +{fmt(p.summary.totalGain)} de gains ({p.summary.performancePct >= 0 ? "+" : ""}{p.summary.performancePct.toFixed(1)}%)
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Écran : FORMULAIRE (création / édition) ───────────────────────────
+  if (view === "form" && form) {
+    const set = (patch) => setForm({ ...form, ...patch });
+    const preview = runInvestmentProjection(form);
+    return (
+      <div style={{ fontFamily: "-apple-system, sans-serif", color: "#fff" }}>
+        <ReportHeader title={strategies.some(s => s.id === form.id) ? "Modifier la stratégie" : "Nouvelle stratégie"} subtitle="Simule ta stratégie en direct" onBack={() => setView(selected ? "detail" : "list")} />
+        <div style={{ padding: "0 16px 32px" }}>
+
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 5, fontWeight: 700 }}>NOM DE LA STRATÉGIE</div>
+            <input value={form.name} onChange={e => set({ name: e.target.value })} placeholder="ex. ETF Monde, Bitcoin DCA, PEA..."
+              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px", color: "#fff", fontSize: 14 }} />
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 5, fontWeight: 700 }}>TYPE D'INVESTISSEMENT</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {[["initial", "Capital seul"], ["dca", "DCA"], ["hybrid", "Hybride"]].map(([k, label]) => (
+                <button key={k} onClick={() => set({ investmentType: k, dcaAmount: k === "initial" ? 0 : (form.dcaAmount || 300) })}
+                  style={{ flex: 1, padding: "9px 6px", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                    background: form.investmentType === k ? INVESTMENT_ACCENT : "rgba(255,255,255,0.05)",
+                    color: form.investmentType === k ? "#000" : "rgba(255,255,255,0.6)", border: "none" }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+            <div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 5, fontWeight: 700 }}>CAPITAL INITIAL</div>
+              <input type="number" value={form.initialCapital} onChange={e => set({ initialCapital: parseFloat(e.target.value) || 0 })}
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "9px 10px", color: "#fff", fontSize: 14 }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 5, fontWeight: 700 }}>DURÉE (ANS)</div>
+              <input type="number" value={form.durationYears} onChange={e => set({ durationYears: parseFloat(e.target.value) || 0 })}
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "9px 10px", color: "#fff", fontSize: 14 }} />
+            </div>
+          </div>
+
+          {form.investmentType !== "initial" && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+              <div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 5, fontWeight: 700 }}>VERSEMENT RÉGULIER</div>
+                <input type="number" value={form.dcaAmount} onChange={e => set({ dcaAmount: parseFloat(e.target.value) || 0 })}
+                  style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "9px 10px", color: "#fff", fontSize: 14 }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 5, fontWeight: 700 }}>FRÉQUENCE</div>
+                <select value={form.dcaFrequency} onChange={e => set({ dcaFrequency: e.target.value })}
+                  style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "9px 10px", color: "#fff", fontSize: 13 }}>
+                  <option value="weekly">Hebdomadaire</option>
+                  <option value="monthly">Mensuelle</option>
+                  <option value="quarterly">Trimestrielle</option>
+                  <option value="yearly">Annuelle</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+            <div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 5, fontWeight: 700 }}>RENDEMENT ANNUEL EST. (%)</div>
+              <input type="number" step="0.1" value={form.annualReturnPct} onChange={e => set({ annualReturnPct: parseFloat(e.target.value) || 0 })}
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "9px 10px", color: "#fff", fontSize: 14 }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 5, fontWeight: 700 }}>RÉINVESTIR LES GAINS</div>
+              <button onClick={() => set({ reinvest: !form.reinvest })}
+                style={{ width: "100%", padding: "9px 10px", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700,
+                  background: form.reinvest ? "rgba(110,231,183,0.15)" : "rgba(239,68,68,0.15)", color: form.reinvest ? "#6ee7b7" : "#ef4444" }}>
+                {form.reinvest ? "OUI (composés)" : "NON (séparés)"}
+              </button>
+            </div>
+          </div>
+
+          {/* Accordéon Paramètres avancés — évite un formulaire à 15 champs d'un coup (section 15) */}
+          <button onClick={() => setShowAdvanced(v => !v)}
+            style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.04)", border: "none", borderRadius: 10, padding: "10px 12px", color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 700, cursor: "pointer", marginBottom: showAdvanced ? 10 : 14 }}>
+            Paramètres avancés
+            <span style={{ transform: showAdvanced ? "rotate(180deg)" : "none", transition: "transform .15s" }}>▾</span>
+          </button>
+
+          {showAdvanced && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 5 }}>Fréquence de capitalisation</div>
+                  <select value={form.compoundingFrequency} onChange={e => set({ compoundingFrequency: e.target.value })}
+                    style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "9px 10px", color: "#fff", fontSize: 13 }}>
+                    <option value="monthly">Mensuelle</option>
+                    <option value="quarterly">Trimestrielle</option>
+                    <option value="yearly">Annuelle</option>
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 5 }}>Augmentation DCA annuelle (%)</div>
+                  <input type="number" step="0.5" value={form.dcaGrowthPct} onChange={e => set({ dcaGrowthPct: parseFloat(e.target.value) || 0 })}
+                    style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "9px 10px", color: "#fff", fontSize: 13 }} />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.5)", marginBottom: 5 }}>Frais fixes</div>
+                  <input type="number" value={form.fees.fixed} onChange={e => set({ fees: { ...form.fees, fixed: parseFloat(e.target.value) || 0 } })}
+                    style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "8px", color: "#fff", fontSize: 12 }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.5)", marginBottom: 5 }}>Frais annuels %</div>
+                  <input type="number" step="0.1" value={form.fees.annualPct} onChange={e => set({ fees: { ...form.fees, annualPct: parseFloat(e.target.value) || 0 } })}
+                    style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "8px", color: "#fff", fontSize: 12 }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.5)", marginBottom: 5 }}>Inflation %</div>
+                  <input type="number" step="0.1" value={form.inflationPct} onChange={e => set({ inflationPct: parseFloat(e.target.value) || 0 })}
+                    style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "8px", color: "#fff", fontSize: 12 }} />
+                </div>
+              </div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 5 }}>Revenus trading / Prop Firm (optionnel)</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginBottom: 5 }}>Payout mensuel</div>
+                  <input type="number" value={form.monthlyPayout} onChange={e => set({ monthlyPayout: parseFloat(e.target.value) || 0 })}
+                    style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "8px", color: "#fff", fontSize: 12 }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginBottom: 5 }}>% réinvesti du payout</div>
+                  <input type="number" min="0" max="100" value={form.reinvestRatio * 100} onChange={e => set({ reinvestRatio: Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)) / 100 })}
+                    style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "8px", color: "#fff", fontSize: 12 }} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Aperçu en direct — recalcul immédiat à chaque changement (section 15) */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${INVESTMENT_ACCENT}33`, borderRadius: 14, padding: 14, marginBottom: 16 }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Aperçu</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div><div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)" }}>Capital final</div><div style={{ fontSize: 17, fontWeight: 800, color: INVESTMENT_ACCENT }}>{fmt(preview.summary.finalCapital)}</div></div>
+              <div><div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)" }}>Total investi</div><div style={{ fontSize: 17, fontWeight: 800 }}>{fmt(preview.summary.netInvested)}</div></div>
+              <div><div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)" }}>Gains estimés</div><div style={{ fontSize: 17, fontWeight: 800, color: "#6ee7b7" }}>+{fmt(preview.summary.totalGain)}</div></div>
+              <div><div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)" }}>Performance</div><div style={{ fontSize: 17, fontWeight: 800, color: "#6ee7b7" }}>+{preview.summary.performancePct.toFixed(1)}%</div></div>
+            </div>
+          </div>
+
+          <button onClick={() => { if (!form.name.trim()) { alert("Donne un nom à ta stratégie"); return; } saveStrategy(form); }}
+            style={{ width: "100%", padding: 13, borderRadius: 12, background: INVESTMENT_ACCENT, border: "none", color: "#000", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>
+            Sauvegarder cette stratégie
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Écran : DÉTAIL D'UNE STRATÉGIE (dashboard complet) ────────────────
+  if (view === "detail" && selected && projection) {
+    const chartData = filteredPeriods.map(p => ({ ...p }));
+    // Un tick par ANNÉE pleine uniquement (multiples de 12 mois) — sans ça,
+    // Recharts choisit des index arbitraires qui, une fois divisés par 12 et
+    // arrondis, produisent des libellés dupliqués ("1a 1a 2a 3a 3a").
+    const maxMonthIdx = chartData.length ? chartData[chartData.length - 1].monthIndex : 0;
+    const yearTicks = [];
+    for (let m = 0; m <= maxMonthIdx; m += 12) yearTicks.push(m);
+    return (
+      <div style={{ fontFamily: "-apple-system, sans-serif", color: "#fff" }}>
+        <ReportHeader title={selected.name} subtitle={disclaimer} onBack={() => setView("list")} />
+        <div style={{ padding: "0 16px 32px" }}>
+
+          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+            <button onClick={() => { setForm(selected); setShowAdvanced(false); setView("form"); }}
+              style={{ flex: 1, padding: 9, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✏️ Modifier</button>
+            <button onClick={() => duplicateStrategy(selected)}
+              style={{ flex: 1, padding: 9, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>⧉ Dupliquer</button>
+            <button onClick={() => deleteStrategy(selected.id)}
+              style={{ flex: 1, padding: 9, borderRadius: 10, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🗑 Supprimer</button>
+          </div>
+
+          {/* KPI */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+            {[
+              ["Capital final projeté", fmt(projection.summary.finalCapital), INVESTMENT_ACCENT],
+              ["Apports personnels", fmt(projection.summary.netInvested), "#fff"],
+              ["Gains générés", "+" + fmt(projection.summary.totalGain), "#6ee7b7"],
+              ["Rendement cumulé", (projection.summary.performancePct >= 0 ? "+" : "") + projection.summary.performancePct.toFixed(1) + "%", projection.summary.performancePct >= 0 ? "#6ee7b7" : "#ef4444"],
+            ].map(([label, val, color]) => (
+              <div key={label} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 12 }}>
+                <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>{label}</div>
+                <div style={{ fontSize: 17, fontWeight: 800, color }}>{val}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Courbe d'évolution */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 14, marginBottom: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 0.5 }}>Courbe d'évolution</div>
+              <div style={{ display: "flex", gap: 8, fontSize: 9.5 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 3, color: "rgba(255,255,255,0.5)" }}><span style={{ width: 8, height: 8, borderRadius: 2, background: "rgba(255,255,255,0.4)" }} />Versé</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 3, color: INVESTMENT_ACCENT }}><span style={{ width: 8, height: 8, borderRadius: 2, background: INVESTMENT_ACCENT }} />Projeté</span>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={180}>
+              <ComposedChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="grad-inv-capital" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={INVESTMENT_ACCENT} stopOpacity={0.25} />
+                    <stop offset="100%" stopColor={INVESTMENT_ACCENT} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                <XAxis dataKey="monthIndex" type="number" domain={[0, "dataMax"]} ticks={yearTicks} tick={{ fontSize: 9, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => (v / 12) + "a"} />
+                <YAxis tick={{ fontSize: 9, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => (v / 1000).toFixed(0) + "k"} width={36} />
+                <Tooltip
+                  labelFormatter={v => { const p = chartData.find(x => x.monthIndex === v); return p ? p.date : v; }}
+                  formatter={(v, name) => [fmt(v), name === "endingCapital" ? "Capital projeté" : name === "totalContributed" ? "Capital versé" : name]}
+                  contentStyle={{ background: "rgba(10,12,22,0.97)", border: `1px solid ${INVESTMENT_ACCENT}44`, borderRadius: 12, fontSize: 11 }}
+                />
+                <Line type="monotone" dataKey="totalContributed" stroke="rgba(255,255,255,0.4)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} name="totalContributed" />
+                <Area type="monotone" dataKey="endingCapital" stroke={INVESTMENT_ACCENT} strokeWidth={2.5} fill="url(#grad-inv-capital)" dot={false} name="endingCapital" />
+              </ComposedChart>
+            </ResponsiveContainer>
+            <div style={{ display: "flex", gap: 5, marginTop: 10, flexWrap: "wrap" }}>
+              {[["1", "1 an"], ["3", "3 ans"], ["5", "5 ans"], ["10", "10 ans"], ["20", "20 ans"], ["max", "Max"]].map(([v, label]) => (
+                <button key={v} onClick={() => setChartRangeYears(v)}
+                  disabled={v !== "max" && Number(v) > selected.durationYears}
+                  style={{
+                    padding: "5px 10px", borderRadius: 8, fontSize: 10.5, fontWeight: 700, cursor: "pointer", border: "none",
+                    background: chartRangeYears === v ? INVESTMENT_ACCENT : "rgba(255,255,255,0.05)",
+                    color: chartRangeYears === v ? "#000" : (v !== "max" && Number(v) > selected.durationYears) ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.6)",
+                  }}>{label}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Histogramme annuel */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 14, marginBottom: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>Progression annuelle</div>
+            <ResponsiveContainer width="100%" height={160}>
+              <BarChart data={yearlyRows} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} onClick={(e) => { if (e && e.activeLabel) setSelectedYearDetail(e.activeLabel); }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                <XAxis dataKey="year" tick={{ fontSize: 9, fill: "rgba(255,255,255,0.3)" }} />
+                <YAxis tick={{ fontSize: 9, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => (v / 1000).toFixed(0) + "k"} width={36} />
+                <Tooltip
+                  formatter={(v, name) => [fmt(v), name === "contributions" ? "Apports" : "Gains"]}
+                  contentStyle={{ background: "rgba(10,12,22,0.97)", border: `1px solid ${INVESTMENT_ACCENT}44`, borderRadius: 12, fontSize: 11 }}
+                />
+                <Bar dataKey="contributions" stackId="a" fill="rgba(255,255,255,0.35)" radius={[0, 0, 0, 0]} name="contributions" />
+                <Bar dataKey="gains" stackId="a" fill={INVESTMENT_ACCENT} radius={[4, 4, 0, 0]} name="gains" />
+              </BarChart>
+            </ResponsiveContainer>
+            {selectedYearDetail && yearlyRows.find(y => y.year === selectedYearDetail) && (() => {
+              const y = yearlyRows.find(r => r.year === selectedYearDetail);
+              return (
+                <div style={{ marginTop: 10, padding: 10, background: "rgba(255,255,255,0.04)", borderRadius: 10, fontSize: 11.5 }}>
+                  <b>{y.year}</b> — Apports : {fmt(y.contributions)} · Gains : {fmt(y.gains)} · Capital fin d'année : <b style={{ color: INVESTMENT_ACCENT }}>{fmt(y.endingCapital)}</b>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Tableau d'évolution */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>Détail annuel</div>
+            <div style={{ display: "grid", gridTemplateColumns: "0.8fr 1fr 1fr 1fr", gap: 4, fontSize: 9.5, color: "rgba(255,255,255,0.4)", fontWeight: 700, marginBottom: 6 }}>
+              <div>Année</div><div style={{ textAlign: "right" }}>Apports cumulés</div><div style={{ textAlign: "right" }}>Gains cumulés</div><div style={{ textAlign: "right" }}>Capital</div>
+            </div>
+            {yearlyRows.map(y => (
+              <div key={y.year} style={{ display: "grid", gridTemplateColumns: "0.8fr 1fr 1fr 1fr", gap: 4, fontSize: 11.5, padding: "6px 0", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                <div style={{ color: "rgba(255,255,255,0.7)" }}>{y.year}</div>
+                <div style={{ textAlign: "right" }}>{fmt(y.totalContributed)}</div>
+                <div style={{ textAlign: "right", color: "#6ee7b7" }}>{fmt(y.totalGain)}</div>
+                <div style={{ textAlign: "right", fontWeight: 700 }}>{fmt(y.endingCapital)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Écran : COMPARATEUR ───────────────────────────────────────────────
+  if (view === "compare") {
+    const compareData = compareIds.map(id => {
+      const s = strategies.find(x => x.id === id);
+      return { name: s.name, projection: runInvestmentProjection(s) };
+    });
+    const rows = compareInvestmentStrategies(compareData);
+    const maxMonths = Math.max(...compareIds.map(id => Math.round((strategies.find(x => x.id === id)?.durationYears || 0) * 12)));
+    const overlayData = [];
+    for (let m = 0; m <= maxMonths; m++) {
+      const point = { monthIndex: m };
+      compareData.forEach(({ name, projection: p }) => { point[name] = p.periods[m]?.endingCapital ?? null; });
+      overlayData.push(point);
+    }
+    // Même logique de ticks annuels que l'écran détail (voir commentaire là-bas).
+    const yearTicks = [];
+    for (let m = 0; m <= maxMonths; m += 12) yearTicks.push(m);
+    const colors = [INVESTMENT_ACCENT, "#6ee7b7", "#fbbf24", "#a78bfa", "#22d3ee"];
+
+    return (
+      <div style={{ fontFamily: "-apple-system, sans-serif", color: "#fff" }}>
+        <ReportHeader title="Comparer" subtitle="Sélectionne les stratégies à comparer" onBack={() => setView("list")} />
+        <div style={{ padding: "0 16px 32px" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+            {strategies.map(s => (
+              <button key={s.id} onClick={() => setCompareIds(ids => ids.includes(s.id) ? ids.filter(x => x !== s.id) : [...ids, s.id])}
+                style={{
+                  padding: "7px 12px", borderRadius: 10, fontSize: 11.5, fontWeight: 700, cursor: "pointer",
+                  background: compareIds.includes(s.id) ? INVESTMENT_ACCENT : "rgba(255,255,255,0.05)",
+                  color: compareIds.includes(s.id) ? "#000" : "rgba(255,255,255,0.6)", border: "none",
+                }}>{s.name}</button>
+            ))}
+          </div>
+
+          {compareIds.length >= 2 && (<>
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 14, marginBottom: 14 }}>
+              <ResponsiveContainer width="100%" height={200}>
+                <ComposedChart data={overlayData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                  <XAxis dataKey="monthIndex" type="number" domain={[0, "dataMax"]} ticks={yearTicks} tick={{ fontSize: 9, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => (v / 12) + "a"} />
+                  <YAxis tick={{ fontSize: 9, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => (v / 1000).toFixed(0) + "k"} width={36} />
+                  <Tooltip
+                    labelFormatter={v => "Année " + Math.floor(v / 12) + " · mois " + (v % 12)}
+                    contentStyle={{ background: "rgba(10,12,22,0.97)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12, fontSize: 11 }} formatter={v => fmt(v)} />
+                  {compareData.map(({ name }, i) => (
+                    <Line key={name} type="monotone" dataKey={name} stroke={colors[i % colors.length]} strokeWidth={2} dot={false} connectNulls />
+                  ))}
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr", gap: 4, fontSize: 9.5, color: "rgba(255,255,255,0.4)", fontWeight: 700, marginBottom: 6 }}>
+                <div>Stratégie</div><div style={{ textAlign: "right" }}>Investi</div><div style={{ textAlign: "right" }}>Gains</div><div style={{ textAlign: "right" }}>Capital final</div>
+              </div>
+              {rows.map((r, i) => (
+                <div key={r.name} style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr", gap: 4, fontSize: 11.5, padding: "7px 0", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: colors[i % colors.length] }} />{r.name}</div>
+                  <div style={{ textAlign: "right" }}>{fmt(r.invested)}</div>
+                  <div style={{ textAlign: "right", color: "#6ee7b7" }}>{fmt(r.gains)}</div>
+                  <div style={{ textAlign: "right", fontWeight: 800 }}>{fmt(r.finalCapital)}</div>
+                </div>
+              ))}
+              <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", marginTop: 10, lineHeight: 1.4 }}>
+                ⚠️ Le capital final le plus élevé ne signifie pas la meilleure performance si davantage de capital a été injecté — compare aussi le montant investi et le rendement cumulé.
+              </div>
+            </div>
+          </>)}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, requirePremium = () => {} }) {
   const [mode, setMode] = useState(null); // null | 'simulation' | 'journal' | 'backtest' | 'comparator'
   const [gemini, setGemini] = useState(null);
@@ -6028,6 +6562,27 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         dataLabel: (() => { try { const p = JSON.parse(localStorage.getItem("eapropfirm_lab_profile") || "null"); return p && p.bot ? t('an_lab_saved') : t('an_lab_new'); } catch(e) { return t('an_lab_new'); } })(),
         cta: t('an_lab_cta'),
         ctaGoto: 'trades',
+      },
+      {
+        // ── Carte "Investissement" — nouveau module (cahier des charges section 1).
+        // Toujours accessible (comme "lab") : le module EST son propre point d'entrée,
+        // pas besoin de données préalables pour créer une première stratégie.
+        key:'investment', accent:'#f472b6', bg:'rgba(244,114,182,0.06)', border:'rgba(244,114,182,0.2)',
+        icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 19V10M9.5 19V5M15 19V13M20 19V8" stroke="#f472b6" strokeWidth="1.8" strokeLinecap="round"/><path d="M3 19h18" stroke="#f472b6" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+        title: "Investissement",
+        subtitle: "Simulez et comparez vos stratégies",
+        desc: "Simulez et comparez vos stratégies dans le temps",
+        chips: ['DCA', 'Intérêts composés', 'Comparateur', 'Projection'],
+        hasData: true,
+        dataLabel: (() => {
+          try {
+            const list = JSON.parse(localStorage.getItem("eapropfirm_investments") || "[]");
+            if (!Array.isArray(list) || !list.length) return "Créer ta première stratégie";
+            return `${list.length} stratégie${list.length > 1 ? "s" : ""} sauvegardée${list.length > 1 ? "s" : ""}`;
+          } catch (e) { return "Créer ta première stratégie"; }
+        })(),
+        cta: "Ouvrir",
+        ctaGoto: 'investment',
       },
     ];
     return (
@@ -6382,6 +6937,10 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
 
   if (mode === 'lab') {
     return <LabScreen t={t} lang={lang} profile={profile} onBack={() => setMode(null)} />;
+  }
+
+  if (mode === 'investment') {
+    return <InvestmentScreen t={t} lang={lang} onBack={() => setMode(null)} />;
   }
 
   if (mode === 'comparator') {
