@@ -5874,6 +5874,30 @@ function newInvestmentStrategy() {
   };
 }
 
+// ── Préréglages "type de placement" — PURE COMMODITÉ DE SAISIE : chaque
+// préréglage ne fait que pré-remplir le formulaire existant (nom, type,
+// rendement indicatif, fréquence, réinvestissement) avec des valeurs de
+// départ raisonnables et 100% modifiables ensuite. Aucune logique de calcul
+// spécifique par produit — le moteur (investmentEngine.js) reste générique et
+// inchangé, un PEA et un ETF Monde sont simulés exactement de la même façon
+// une fois les paramètres saisis. Les rendements indicatifs sont volontairement
+// arrondis et amenés à être ajustés par l'utilisateur — jamais présentés comme
+// garantis (disclaimer déjà affiché partout dans l'écran).
+const INVESTMENT_PRESETS = [
+  { key: "pea", icon: "📈", label: "PEA", note: "Actions européennes, avantage fiscal après 5 ans", investmentType: "dca", annualReturnPct: 7, dcaFrequency: "monthly", reinvest: true },
+  { key: "cto", icon: "📊", label: "Compte-titres (CTO)", note: "Actions/ETF monde entier, sans plafond ni avantage fiscal", investmentType: "dca", annualReturnPct: 7, dcaFrequency: "monthly", reinvest: true },
+  { key: "etf_monde", icon: "🌍", label: "ETF Monde", note: "Indiciel diversifié, capitalisant", investmentType: "dca", annualReturnPct: 7, dcaFrequency: "monthly", reinvest: true },
+  { key: "assurance_vie", icon: "🛡️", label: "Assurance-vie", note: "Fonds euros + unités de compte, fiscalité avantageuse après 8 ans", investmentType: "dca", annualReturnPct: 4, dcaFrequency: "monthly", reinvest: true },
+  { key: "per", icon: "🏦", label: "PER (retraite)", note: "Épargne retraite, versements souvent déductibles à l'entrée", investmentType: "dca", annualReturnPct: 5, dcaFrequency: "monthly", reinvest: true },
+  { key: "livret_a", icon: "💶", label: "Livret A", note: "Épargne garantie, taux réglementé (à ajuster au taux en vigueur)", investmentType: "dca", annualReturnPct: 3, dcaFrequency: "monthly", reinvest: true },
+  { key: "ldds", icon: "🌱", label: "LDDS", note: "Même profil que le Livret A, plafond différent", investmentType: "dca", annualReturnPct: 3, dcaFrequency: "monthly", reinvest: true },
+  { key: "pel", icon: "🏠", label: "PEL", note: "Épargne logement, taux fixé à l'ouverture", investmentType: "dca", annualReturnPct: 2.25, dcaFrequency: "monthly", reinvest: true },
+  { key: "scpi", icon: "🏢", label: "SCPI / Immobilier papier", note: "Revenus locatifs mutualisés, rendement net de charges", investmentType: "dca", annualReturnPct: 4.5, dcaFrequency: "monthly", reinvest: false },
+  { key: "crypto", icon: "₿", label: "Crypto (DCA)", note: "Très volatil — rendement indicatif large fourchette, ajuste selon ta conviction", investmentType: "dca", annualReturnPct: 12, dcaFrequency: "monthly", reinvest: true },
+  { key: "or", icon: "🥇", label: "Or / métaux précieux", note: "Valeur refuge, faible rendement mais décorrélé des marchés", investmentType: "dca", annualReturnPct: 5, dcaFrequency: "monthly", reinvest: false },
+  { key: "epargne_projet", icon: "🎯", label: "Épargne long terme", note: "Capital de côté pour un projet, sans versement régulier", investmentType: "initial", annualReturnPct: 3, dcaFrequency: "monthly", reinvest: true },
+];
+
 function InvestmentScreen({ t, lang, onBack }) {
   const [strategies, setStrategies] = useCloudSyncedState("eapropfirm_investments", "investments", [], (local, cloud) => {
     // Fusion additive par id — jamais d'écrasement d'une stratégie locale plus récente.
@@ -5885,7 +5909,7 @@ function InvestmentScreen({ t, lang, onBack }) {
     return Array.from(byId.values());
   });
 
-  const [view, setView] = useState("list"); // "list" | "form" | "detail" | "compare"
+  const [view, setView] = useState("list"); // "list" | "presets" | "form" | "detail" | "compare"
   const [form, setForm] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [compareIds, setCompareIds] = useState([]);
@@ -5965,7 +5989,7 @@ function InvestmentScreen({ t, lang, onBack }) {
           )}
 
           <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-            <button onClick={() => { setForm(newInvestmentStrategy()); setView("form"); }}
+            <button onClick={() => setView("presets")}
               style={{ flex: 1, padding: 12, borderRadius: 12, background: INVESTMENT_ACCENT, border: "none", color: "#000", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
               + Nouvelle stratégie
             </button>
@@ -6006,6 +6030,54 @@ function InvestmentScreen({ t, lang, onBack }) {
               })}
             </div>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Écran : PRÉRÉGLAGES (choix du type de placement) ──────────────────
+  // Pure commodité de saisie (voir commentaire sur INVESTMENT_PRESETS) : pré-
+  // remplit le formulaire existant, ne modifie ni le moteur ni la structure
+  // de la stratégie. "Stratégie personnalisée" garde le comportement d'avant
+  // (formulaire vierge).
+  if (view === "presets") {
+    return (
+      <div style={{ fontFamily: "-apple-system, sans-serif", color: "#fff" }}>
+        <ReportHeader title="Nouvelle stratégie" subtitle="Choisis un type de placement pour partir d'un réglage courant" onBack={() => setView("list")} />
+        <div style={{ padding: "0 16px 32px" }}>
+          <button onClick={() => { setForm(newInvestmentStrategy()); setView("form"); }}
+            style={{ width: "100%", textAlign: "left", background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.15)", borderRadius: 14, padding: 14, cursor: "pointer", marginBottom: 12, color: "#fff" }}>
+            <div style={{ fontSize: 13, fontWeight: 800 }}>✏️ Stratégie personnalisée</div>
+            <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>Formulaire vierge, tu règles tout toi-même</div>
+          </button>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {INVESTMENT_PRESETS.map(p => (
+              <button key={p.key} onClick={() => {
+                const base = newInvestmentStrategy();
+                setForm({
+                  ...base,
+                  name: p.label,
+                  investmentType: p.investmentType,
+                  annualReturnPct: p.annualReturnPct,
+                  dcaFrequency: p.dcaFrequency,
+                  reinvest: p.reinvest,
+                  dcaAmount: p.investmentType === "initial" ? 0 : base.dcaAmount,
+                });
+                setView("form");
+              }}
+                style={{ textAlign: "left", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 12, cursor: "pointer" }}>
+                <div style={{ fontSize: 20, marginBottom: 4 }}>{p.icon}</div>
+                <div style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{p.label}</div>
+                <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginTop: 3, lineHeight: 1.35 }}>{p.note}</div>
+                <div style={{ fontSize: 9.5, color: INVESTMENT_ACCENT, marginTop: 5, fontWeight: 700 }}>~{p.annualReturnPct}% indicatif/an</div>
+              </button>
+            ))}
+          </div>
+
+          <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.3)", marginTop: 14, lineHeight: 1.4 }}>
+            Rendements indicatifs, à ajuster librement — chaque valeur reste 100% modifiable à l'étape suivante. Simulation, pas une garantie de performance.
+          </div>
         </div>
       </div>
     );
