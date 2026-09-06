@@ -5837,7 +5837,19 @@ function LabScreen({ t, lang, profile, onBack }) {
 // dans ce fichier).
 // ══════════════════════════════════════════════════════════════════════════
 
-const INVESTMENT_ACCENT = "#f472b6";
+// Couleur d'accent du module — alignée sur le code couleur DÉJÀ EN PLACE dans
+// toute l'application (vert menthe #6ee7b7 : équité, CTA, valeurs positives),
+// et non plus une couleur rose introduite hors charte.
+const INVESTMENT_ACCENT = "#6ee7b7";
+
+// Formatage adaptatif des montants sur les axes Y du module — le format "Xk"
+// devient illisible ("0k" partout) pour de petites stratégies (ex. quelques
+// centaines d'euros) : affiche le montant en clair sous 10 000, en "k"
+// au-delà seulement.
+function investmentAxisFmt(v) {
+  if (Math.abs(v) < 10000) return fmt(v);
+  return (v / 1000).toFixed(0) + "k";
+}
 
 function newInvestmentStrategy() {
   return {
@@ -6212,7 +6224,7 @@ function InvestmentScreen({ t, lang, onBack }) {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
                 <XAxis dataKey="monthIndex" type="number" domain={[0, "dataMax"]} ticks={yearTicks} tick={{ fontSize: 9, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => (v / 12) + "a"} />
-                <YAxis tick={{ fontSize: 9, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => (v / 1000).toFixed(0) + "k"} width={36} />
+                <YAxis tick={{ fontSize: 9, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => investmentAxisFmt(v)} width={36} />
                 <Tooltip
                   labelFormatter={v => { const p = chartData.find(x => x.monthIndex === v); return p ? p.date : v; }}
                   formatter={(v, name) => [fmt(v), name === "endingCapital" ? "Capital projeté" : name === "totalContributed" ? "Capital versé" : name]}
@@ -6242,7 +6254,7 @@ function InvestmentScreen({ t, lang, onBack }) {
               <BarChart data={yearlyRows} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} onClick={(e) => { if (e && e.activeLabel) setSelectedYearDetail(e.activeLabel); }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
                 <XAxis dataKey="year" tick={{ fontSize: 9, fill: "rgba(255,255,255,0.3)" }} />
-                <YAxis tick={{ fontSize: 9, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => (v / 1000).toFixed(0) + "k"} width={36} />
+                <YAxis tick={{ fontSize: 9, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => investmentAxisFmt(v)} width={36} />
                 <Tooltip
                   formatter={(v, name) => [fmt(v), name === "contributions" ? "Apports" : "Gains"]}
                   contentStyle={{ background: "rgba(10,12,22,0.97)", border: `1px solid ${INVESTMENT_ACCENT}44`, borderRadius: 12, fontSize: 11 }}
@@ -6298,7 +6310,7 @@ function InvestmentScreen({ t, lang, onBack }) {
     // Même logique de ticks annuels que l'écran détail (voir commentaire là-bas).
     const yearTicks = [];
     for (let m = 0; m <= maxMonths; m += 12) yearTicks.push(m);
-    const colors = [INVESTMENT_ACCENT, "#6ee7b7", "#fbbf24", "#a78bfa", "#22d3ee"];
+    const colors = [INVESTMENT_ACCENT, "#fbbf24", "#a78bfa", "#22d3ee", "#f472b6"];
 
     return (
       <div style={{ fontFamily: "-apple-system, sans-serif", color: "#fff" }}>
@@ -6321,7 +6333,7 @@ function InvestmentScreen({ t, lang, onBack }) {
                 <ComposedChart data={overlayData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
                   <XAxis dataKey="monthIndex" type="number" domain={[0, "dataMax"]} ticks={yearTicks} tick={{ fontSize: 9, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => (v / 12) + "a"} />
-                  <YAxis tick={{ fontSize: 9, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => (v / 1000).toFixed(0) + "k"} width={36} />
+                  <YAxis tick={{ fontSize: 9, fill: "rgba(255,255,255,0.3)" }} tickFormatter={v => investmentAxisFmt(v)} width={36} />
                   <Tooltip
                     labelFormatter={v => "Année " + Math.floor(v / 12) + " · mois " + (v % 12)}
                     contentStyle={{ background: "rgba(10,12,22,0.97)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12, fontSize: 11 }} formatter={v => fmt(v)} />
@@ -6567,8 +6579,8 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         // ── Carte "Investissement" — nouveau module (cahier des charges section 1).
         // Toujours accessible (comme "lab") : le module EST son propre point d'entrée,
         // pas besoin de données préalables pour créer une première stratégie.
-        key:'investment', accent:'#f472b6', bg:'rgba(244,114,182,0.06)', border:'rgba(244,114,182,0.2)',
-        icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 19V10M9.5 19V5M15 19V13M20 19V8" stroke="#f472b6" strokeWidth="1.8" strokeLinecap="round"/><path d="M3 19h18" stroke="#f472b6" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+        key:'investment', accent:'#6ee7b7', bg:'rgba(110,231,183,0.06)', border:'rgba(110,231,183,0.2)',
+        icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 19V10M9.5 19V5M15 19V13M20 19V8" stroke="#6ee7b7" strokeWidth="1.8" strokeLinecap="round"/><path d="M3 19h18" stroke="#6ee7b7" strokeWidth="1.8" strokeLinecap="round"/></svg>,
         title: "Investissement",
         subtitle: "Simulez et comparez vos stratégies",
         desc: "Simulez et comparez vos stratégies dans le temps",
