@@ -157,5 +157,53 @@ test("arrondis monétaires — pas de dérive cumulée sur une longue simulation
   });
 });
 
+test("plafond de versements — les apports s'arrêtent au plafond, le capital continue de produire", () => {
+  // Livret A : plafond 22 950 €, DCA 1000/mois sur 5 ans (60 000 € tentés)
+  const { summary } = runInvestmentProjection({
+    initialCapital: 0, dcaAmount: 1000, annualReturnPct: 1.7, durationYears: 5,
+    contributionCap: 22950, reinvest: true,
+  });
+  // Les versements ne doivent JAMAIS dépasser le plafond
+  assert.ok(summary.totalContributed <= 22950 + 0.01, `versé ${summary.totalContributed} > plafond 22950`);
+  assert.ok(summary.capReached, "le plafond aurait dû être signalé comme atteint");
+  // Mais le capital final doit dépasser le plafond (les intérêts continuent de courir)
+  assert.ok(summary.finalCapital > 22950, `capital final ${summary.finalCapital} devrait dépasser le plafond grâce aux intérêts`);
+});
+
+test("plafond de versements — sans plafond (0), aucun blocage des apports", () => {
+  const { summary } = runInvestmentProjection({
+    initialCapital: 0, dcaAmount: 1000, annualReturnPct: 0, durationYears: 5, contributionCap: 0,
+  });
+  assert.equal(summary.totalContributed, 60000);
+  assert.equal(summary.capReached, false);
+});
+
+test("fiscalité de sortie — l'impôt porte sur les gains uniquement, jamais sur le capital versé", () => {
+  const { summary } = runInvestmentProjection({
+    initialCapital: 10000, annualReturnPct: 7, durationYears: 10, reinvest: true, taxOnGainsPct: 30,
+  });
+  const expectedTax = summary.totalGain * 0.30;
+  assert.ok(Math.abs(summary.taxDue - expectedTax) < 0.05, `impôt attendu ~${expectedTax.toFixed(2)}, obtenu ${summary.taxDue}`);
+  assert.ok(Math.abs(summary.netFinalCapital - (summary.finalCapital - summary.taxDue)) < 0.05);
+  // Le net doit rester supérieur au capital versé (gain positif même après impôt)
+  assert.ok(summary.netFinalCapital > summary.netInvested);
+});
+
+test("fiscalité de sortie — 0% (Livret A/LDDS exonérés) : net = brut", () => {
+  const { summary } = runInvestmentProjection({
+    initialCapital: 10000, annualReturnPct: 1.7, durationYears: 5, taxOnGainsPct: 0,
+  });
+  assert.equal(summary.taxDue, 0);
+  assert.equal(summary.netFinalCapital, summary.finalCapital);
+});
+
+test("fiscalité de sortie — aucune imposition si le résultat est en moins-value", () => {
+  const { summary } = runInvestmentProjection({
+    initialCapital: 10000, annualReturnPct: -5, durationYears: 5, taxOnGainsPct: 30,
+  });
+  assert.ok(summary.totalGain < 0, "ce scénario doit bien produire une perte");
+  assert.equal(summary.taxDue, 0, "une moins-value ne doit générer aucun impôt");
+});
+
 console.log(`\n${passed} test(s) réussi(s), ${failed} échec(s).\n`);
 if (failed > 0) process.exit(1);

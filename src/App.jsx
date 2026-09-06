@@ -5871,31 +5871,113 @@ function newInvestmentStrategy() {
     contributions: [],
     startDate: new Date().toISOString().slice(0, 10),
     createdAt: Date.now(),
+    // Caractéristiques produit (renseignées par le préréglage choisi, toutes
+    // modifiables ensuite) — voir INVESTMENT_PRESETS pour la portée et les limites.
+    presetKey: null,
+    contributionCap: 0,
+    taxOnGainsPct: 0,
+    capLabel: null,
+    taxLabel: null,
+    availability: null,
   };
 }
 
-// ── Préréglages "type de placement" — PURE COMMODITÉ DE SAISIE : chaque
-// préréglage ne fait que pré-remplir le formulaire existant (nom, type,
-// rendement indicatif, fréquence, réinvestissement) avec des valeurs de
-// départ raisonnables et 100% modifiables ensuite. Aucune logique de calcul
-// spécifique par produit — le moteur (investmentEngine.js) reste générique et
-// inchangé, un PEA et un ETF Monde sont simulés exactement de la même façon
-// une fois les paramètres saisis. Les rendements indicatifs sont volontairement
-// arrondis et amenés à être ajustés par l'utilisateur — jamais présentés comme
-// garantis (disclaimer déjà affiché partout dans l'écran).
+// ── Préréglages "type de placement" — pré-remplissent le formulaire avec les
+// caractéristiques RÉELLES de chaque enveloppe : plafond légal de versements,
+// fiscalité de sortie, frais typiques, disponibilité des fonds, et si les
+// revenus sont distribués ou capitalisés.
+//
+// PORTÉE ET LIMITES (important) : le moteur reste un simulateur de projection,
+// pas un outil fiscal. Ce qui est modélisé : le plafond de versements et un
+// taux d'imposition unique appliqué aux gains à la sortie. Ce qui n'est PAS
+// modélisé : abattements annuels (assurance-vie 4 600/9 200 €), TMI et
+// déductibilité à l'entrée du PER, régime des revenus fonciers SCPI, sortie
+// anticipée, prorata temporis. Les valeurs sont des points de départ à ajuster,
+// jamais des garanties ni un conseil fiscal.
+//
+// Taux réglementés vérifiés au 1er août 2026 (Livret A / LDDS 1,70 %,
+// LEP 2,50 %, CEL 1,25 %, PEL ouvert en 2026 ~2 % brut). Ces taux sont revus
+// périodiquement par l'État : à revalider si l'écart devient significatif.
 const INVESTMENT_PRESETS = [
-  { key: "pea", icon: "📈", label: "PEA", note: "Actions européennes, avantage fiscal après 5 ans", investmentType: "dca", annualReturnPct: 7, dcaFrequency: "monthly", reinvest: true },
-  { key: "cto", icon: "📊", label: "Compte-titres (CTO)", note: "Actions/ETF monde entier, sans plafond ni avantage fiscal", investmentType: "dca", annualReturnPct: 7, dcaFrequency: "monthly", reinvest: true },
-  { key: "etf_monde", icon: "🌍", label: "ETF Monde", note: "Indiciel diversifié, capitalisant", investmentType: "dca", annualReturnPct: 7, dcaFrequency: "monthly", reinvest: true },
-  { key: "assurance_vie", icon: "🛡️", label: "Assurance-vie", note: "Fonds euros + unités de compte, fiscalité avantageuse après 8 ans", investmentType: "dca", annualReturnPct: 4, dcaFrequency: "monthly", reinvest: true },
-  { key: "per", icon: "🏦", label: "PER (retraite)", note: "Épargne retraite, versements souvent déductibles à l'entrée", investmentType: "dca", annualReturnPct: 5, dcaFrequency: "monthly", reinvest: true },
-  { key: "livret_a", icon: "💶", label: "Livret A", note: "Épargne garantie, taux réglementé (à ajuster au taux en vigueur)", investmentType: "dca", annualReturnPct: 3, dcaFrequency: "monthly", reinvest: true },
-  { key: "ldds", icon: "🌱", label: "LDDS", note: "Même profil que le Livret A, plafond différent", investmentType: "dca", annualReturnPct: 3, dcaFrequency: "monthly", reinvest: true },
-  { key: "pel", icon: "🏠", label: "PEL", note: "Épargne logement, taux fixé à l'ouverture", investmentType: "dca", annualReturnPct: 2.25, dcaFrequency: "monthly", reinvest: true },
-  { key: "scpi", icon: "🏢", label: "SCPI / Immobilier papier", note: "Revenus locatifs mutualisés, rendement net de charges", investmentType: "dca", annualReturnPct: 4.5, dcaFrequency: "monthly", reinvest: false },
-  { key: "crypto", icon: "₿", label: "Crypto (DCA)", note: "Très volatil — rendement indicatif large fourchette, ajuste selon ta conviction", investmentType: "dca", annualReturnPct: 12, dcaFrequency: "monthly", reinvest: true },
-  { key: "or", icon: "🥇", label: "Or / métaux précieux", note: "Valeur refuge, faible rendement mais décorrélé des marchés", investmentType: "dca", annualReturnPct: 5, dcaFrequency: "monthly", reinvest: false },
-  { key: "epargne_projet", icon: "🎯", label: "Épargne long terme", note: "Capital de côté pour un projet, sans versement régulier", investmentType: "initial", annualReturnPct: 3, dcaFrequency: "monthly", reinvest: true },
+  { key: "pea", icon: "📈", label: "PEA", note: "Actions européennes, exonéré d'IR après 5 ans",
+    investmentType: "dca", annualReturnPct: 7, dcaFrequency: "monthly", reinvest: true,
+    contributionCap: 150000, capLabel: "150 000 € de versements",
+    taxOnGainsPct: 17.2, taxLabel: "17,2 % de prélèvements sociaux après 5 ans (exonéré d'IR)",
+    availability: "Retrait avant 5 ans = clôture du plan", fees: { annualPct: 0.5 } },
+
+  { key: "cto", icon: "📊", label: "Compte-titres (CTO)", note: "Actions/ETF monde entier, sans plafond",
+    investmentType: "dca", annualReturnPct: 7, dcaFrequency: "monthly", reinvest: true,
+    contributionCap: 0, capLabel: "Aucun plafond",
+    taxOnGainsPct: 30, taxLabel: "PFU (flat tax) 30 % sur les plus-values",
+    availability: "Disponible à tout moment", fees: { annualPct: 0.5 } },
+
+  { key: "etf_monde", icon: "🌍", label: "ETF Monde", note: "Indiciel diversifié, capitalisant",
+    investmentType: "dca", annualReturnPct: 7, dcaFrequency: "monthly", reinvest: true,
+    contributionCap: 0, capLabel: "Dépend de l'enveloppe (PEA ou CTO)",
+    taxOnGainsPct: 30, taxLabel: "Selon l'enveloppe : 30 % en CTO, 17,2 % en PEA +5 ans",
+    availability: "Disponible à tout moment", fees: { annualPct: 0.25 } },
+
+  { key: "assurance_vie", icon: "🛡️", label: "Assurance-vie", note: "Fonds euros + unités de compte",
+    investmentType: "dca", annualReturnPct: 4, dcaFrequency: "monthly", reinvest: true,
+    contributionCap: 0, capLabel: "Aucun plafond de versement",
+    taxOnGainsPct: 24.7, taxLabel: "24,7 % après 8 ans (7,5 % + 17,2 %), hors abattement annuel",
+    availability: "Rachat possible à tout moment", fees: { annualPct: 0.8, perContribution: 0 } },
+
+  { key: "per", icon: "🏦", label: "PER (retraite)", note: "Versements déductibles, capital bloqué",
+    investmentType: "dca", annualReturnPct: 5, dcaFrequency: "monthly", reinvest: true,
+    contributionCap: 0, capLabel: "Plafond de déduction lié à tes revenus",
+    taxOnGainsPct: 30, taxLabel: "Imposé à la sortie (capital à la TMI, gains au PFU 30 %)",
+    availability: "⚠️ Bloqué jusqu'à la retraite (sauf achat RP et accidents de la vie)",
+    fees: { annualPct: 0.8 } },
+
+  { key: "livret_a", icon: "💶", label: "Livret A", note: "Garanti par l'État, totalement défiscalisé",
+    investmentType: "dca", annualReturnPct: 1.7, dcaFrequency: "monthly", reinvest: true,
+    contributionCap: 22950, capLabel: "22 950 € de versements",
+    taxOnGainsPct: 0, taxLabel: "Totalement exonéré (ni impôt ni prélèvements sociaux)",
+    availability: "Disponible immédiatement", fees: { annualPct: 0 } },
+
+  { key: "ldds", icon: "🌱", label: "LDDS", note: "Même taux que le Livret A, plafond plus bas",
+    investmentType: "dca", annualReturnPct: 1.7, dcaFrequency: "monthly", reinvest: true,
+    contributionCap: 12000, capLabel: "12 000 € de versements",
+    taxOnGainsPct: 0, taxLabel: "Totalement exonéré", availability: "Disponible immédiatement",
+    fees: { annualPct: 0 } },
+
+  { key: "lep", icon: "🤝", label: "LEP", note: "Meilleur taux garanti, sous conditions de revenus",
+    investmentType: "dca", annualReturnPct: 2.5, dcaFrequency: "monthly", reinvest: true,
+    contributionCap: 10000, capLabel: "10 000 € de versements",
+    taxOnGainsPct: 0, taxLabel: "Totalement exonéré",
+    availability: "Disponible immédiatement · éligibilité selon revenu fiscal", fees: { annualPct: 0 } },
+
+  { key: "pel", icon: "🏠", label: "PEL", note: "Épargne logement, taux fixé à l'ouverture",
+    investmentType: "dca", annualReturnPct: 2, dcaFrequency: "monthly", reinvest: true,
+    contributionCap: 61200, capLabel: "61 200 € de versements",
+    taxOnGainsPct: 30, taxLabel: "PFU 30 % (plans ouverts depuis 2018)",
+    availability: "Bloqué 4 ans minimum · versement annuel min. 540 €", fees: { annualPct: 0 } },
+
+  { key: "scpi", icon: "🏢", label: "SCPI / Immobilier papier", note: "Revenus locatifs distribués",
+    investmentType: "dca", annualReturnPct: 4.5, dcaFrequency: "quarterly", reinvest: false,
+    contributionCap: 0, capLabel: "Aucun plafond",
+    taxOnGainsPct: 30, taxLabel: "Revenus fonciers : TMI + 17,2 % (30 % pris ici en approximation)",
+    availability: "Revente lente (plusieurs semaines à mois)",
+    fees: { perContribution: 0, annualPct: 1 } },
+
+  { key: "crypto", icon: "₿", label: "Crypto (DCA)", note: "Très volatil — ajuste selon ta conviction",
+    investmentType: "dca", annualReturnPct: 12, dcaFrequency: "monthly", reinvest: true,
+    contributionCap: 0, capLabel: "Aucun plafond",
+    taxOnGainsPct: 30, taxLabel: "PFU 30 % à la cession en euros",
+    availability: "Disponible en permanence · forte volatilité", fees: { annualPct: 0 } },
+
+  { key: "or", icon: "🥇", label: "Or / métaux précieux", note: "Valeur refuge, décorrélée des marchés",
+    investmentType: "dca", annualReturnPct: 5, dcaFrequency: "monthly", reinvest: false,
+    contributionCap: 0, capLabel: "Aucun plafond",
+    taxOnGainsPct: 36.2, taxLabel: "Taxe forfaitaire 11,5 % OU 36,2 % sur plus-value (au choix)",
+    availability: "Revente selon le support (physique ou papier)", fees: { annualPct: 0 } },
+
+  { key: "epargne_projet", icon: "🎯", label: "Épargne long terme", note: "Capital de côté, sans versement régulier",
+    investmentType: "initial", annualReturnPct: 3, dcaFrequency: "monthly", reinvest: true,
+    contributionCap: 0, capLabel: "Aucun plafond",
+    taxOnGainsPct: 30, taxLabel: "PFU 30 % (selon le support retenu)",
+    availability: "Selon le support choisi", fees: { annualPct: 0 } },
 ];
 
 function InvestmentScreen({ t, lang, onBack }) {
@@ -6063,6 +6145,14 @@ function InvestmentScreen({ t, lang, onBack }) {
                   dcaFrequency: p.dcaFrequency,
                   reinvest: p.reinvest,
                   dcaAmount: p.investmentType === "initial" ? 0 : base.dcaAmount,
+                  // Caractéristiques réelles du produit
+                  presetKey: p.key,
+                  contributionCap: p.contributionCap || 0,
+                  taxOnGainsPct: p.taxOnGainsPct || 0,
+                  capLabel: p.capLabel || null,
+                  taxLabel: p.taxLabel || null,
+                  availability: p.availability || null,
+                  fees: { ...base.fees, ...(p.fees || {}) },
                 });
                 setView("form");
               }}
@@ -6111,6 +6201,36 @@ function InvestmentScreen({ t, lang, onBack }) {
               ))}
             </div>
           </div>
+
+          {/* Fiche produit — n'apparaît que si la stratégie vient d'un préréglage.
+              Rappelle les caractéristiques RÉELLES de l'enveloppe (plafond légal,
+              fiscalité de sortie, disponibilité des fonds) qui, elles, sont bien
+              prises en compte par le moteur (plafond + taux d'imposition). */}
+          {form.presetKey && (form.capLabel || form.taxLabel || form.availability) && (
+            <div style={{ background: `${INVESTMENT_ACCENT}0f`, border: `1px solid ${INVESTMENT_ACCENT}33`, borderRadius: 12, padding: 12, marginBottom: 14 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: INVESTMENT_ACCENT, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 7 }}>
+                Caractéristiques de l'enveloppe
+              </div>
+              {form.capLabel && (
+                <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.7)", marginBottom: 4, lineHeight: 1.45 }}>
+                  <b style={{ color: "#fff" }}>Plafond :</b> {form.capLabel}
+                </div>
+              )}
+              {form.taxLabel && (
+                <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.7)", marginBottom: 4, lineHeight: 1.45 }}>
+                  <b style={{ color: "#fff" }}>Fiscalité :</b> {form.taxLabel}
+                </div>
+              )}
+              {form.availability && (
+                <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.7)", lineHeight: 1.45 }}>
+                  <b style={{ color: "#fff" }}>Disponibilité :</b> {form.availability}
+                </div>
+              )}
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 7, lineHeight: 1.4 }}>
+                Le plafond et le taux d'imposition ci-dessous sont appliqués au calcul. Abattements, TMI et sorties anticipées ne sont pas modélisés. Informatif, pas un conseil fiscal.
+              </div>
+            </div>
+          )}
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
             <div>
@@ -6203,6 +6323,21 @@ function InvestmentScreen({ t, lang, onBack }) {
                     style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "8px", color: "#fff", fontSize: 12 }} />
                 </div>
               </div>
+              {/* Plafond de versements + fiscalité de sortie — pré-remplis par le
+                  préréglage produit, mais entièrement modifiables : un PEA peut
+                  avoir un plafond différent selon les cas, un taux peut évoluer. */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.5)", marginBottom: 5 }}>Plafond de versements (0 = aucun)</div>
+                  <input type="number" value={form.contributionCap || 0} onChange={e => set({ contributionCap: parseFloat(e.target.value) || 0 })}
+                    style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "8px", color: "#fff", fontSize: 12 }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.5)", marginBottom: 5 }}>Impôt sur les gains à la sortie (%)</div>
+                  <input type="number" step="0.1" value={form.taxOnGainsPct || 0} onChange={e => set({ taxOnGainsPct: parseFloat(e.target.value) || 0 })}
+                    style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "8px", color: "#fff", fontSize: 12 }} />
+                </div>
+              </div>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 5 }}>Revenus trading / Prop Firm (optionnel)</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
@@ -6228,6 +6363,17 @@ function InvestmentScreen({ t, lang, onBack }) {
               <div><div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)" }}>Gains estimés</div><div style={{ fontSize: 17, fontWeight: 800, color: "#6ee7b7" }}>+{fmt(preview.summary.totalGain)}</div></div>
               <div><div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)" }}>Performance</div><div style={{ fontSize: 17, fontWeight: 800, color: "#6ee7b7" }}>+{preview.summary.performancePct.toFixed(1)}%</div></div>
             </div>
+            {preview.summary.taxOnGainsPct > 0 && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.08)", fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+                Après impôt ({preview.summary.taxOnGainsPct}% sur les gains) : <b style={{ color: "#fff" }}>{fmt(preview.summary.netFinalCapital)}</b>
+                <span style={{ color: "#ef4444" }}> (−{fmt(preview.summary.taxDue)})</span>
+              </div>
+            )}
+            {preview.summary.capReached && (
+              <div style={{ marginTop: 8, fontSize: 10.5, color: "#fbbf24", lineHeight: 1.45 }}>
+                ⚠️ Plafond de versements atteint ({fmt(preview.summary.contributionCap)}) — les versements s'arrêtent, le capital continue de produire des intérêts.
+              </div>
+            )}
           </div>
 
           <button onClick={() => { if (!form.name.trim()) { alert("Donne un nom à ta stratégie"); return; } saveStrategy(form); }}
@@ -6276,6 +6422,28 @@ function InvestmentScreen({ t, lang, onBack }) {
               </div>
             ))}
           </div>
+
+          {/* Fiscalité de sortie + plafond — n'apparaît que si pertinent pour ce produit */}
+          {(projection.summary.taxOnGainsPct > 0 || projection.summary.capReached) && (
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 12, marginBottom: 14 }}>
+              {projection.summary.taxOnGainsPct > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
+                  <span style={{ color: "rgba(255,255,255,0.6)" }}>Net après impôt ({projection.summary.taxOnGainsPct}% des gains)</span>
+                  <span style={{ fontWeight: 800, color: INVESTMENT_ACCENT }}>{fmt(projection.summary.netFinalCapital)}</span>
+                </div>
+              )}
+              {projection.summary.taxOnGainsPct > 0 && (
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>
+                  Impôt estimé : {fmt(projection.summary.taxDue)} {selected.taxLabel ? "· " + selected.taxLabel : ""}
+                </div>
+              )}
+              {projection.summary.capReached && (
+                <div style={{ fontSize: 10.5, color: "#fbbf24", marginTop: projection.summary.taxOnGainsPct > 0 ? 8 : 0, lineHeight: 1.45 }}>
+                  ⚠️ Plafond de versements atteint ({fmt(projection.summary.contributionCap)}) — les versements sont stoppés, les intérêts continuent.
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Courbe d'évolution */}
           <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 14, marginBottom: 14 }}>

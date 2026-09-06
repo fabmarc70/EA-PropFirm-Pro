@@ -90,6 +90,19 @@ export function runInvestmentProjection(strategy) {
   const fees = { fixed: 0, annualPct: 0, perContribution: 0, ...(s.fees || {}) };
   const inflationPct = Number(s.inflationPct) || 0;
   const monthlyPayout = Number(s.monthlyPayout) || 0;
+  // Plafond de VERSEMENTS (pas de valorisation) — ex. PEA 150 000 €, Livret A
+  // 22 950 €, LDDS 12 000 €, PEL 61 200 €. Une fois atteint, plus aucun apport
+  // n'est accepté ; le capital déjà placé continue en revanche de produire du
+  // rendement (c'est bien le fonctionnement réel de ces enveloppes).
+  // 0 ou absent = aucun plafond (CTO, assurance-vie, SCPI, crypto...).
+  const contributionCap = Number(s.contributionCap) || 0;
+  // Fiscalité appliquée À LA SORTIE sur les GAINS uniquement (jamais sur le
+  // capital versé) : PFU 30 % (CTO/crypto/PEL), 17,2 % de prélèvements sociaux
+  // pour un PEA de plus de 5 ans, 24,7 % pour une assurance-vie de plus de
+  // 8 ans, 0 % pour Livret A/LDDS/LEP. Purement indicatif et entièrement
+  // paramétrable — ne modélise ni les abattements annuels, ni la TMI, ni les
+  // cas de sortie anticipée.
+  const taxOnGainsPct = Number(s.taxOnGainsPct) || 0;
   const reinvestRatio = s.reinvestRatio != null ? Math.max(0, Math.min(1, Number(s.reinvestRatio))) : 1;
   const startDate = s.startDate ? new Date(s.startDate) : new Date();
 
@@ -111,6 +124,7 @@ export function runInvestmentProjection(strategy) {
   let totalContributed = initialCapital;
   let totalWithdrawn = 0;
   let totalFees = fees.fixed || 0;
+  let capReachedMonth = null; // index du mois où le plafond de versements a été atteint
 
   const periods = [];
   let cursor = new Date(startDate);
@@ -137,6 +151,17 @@ export function runInvestmentProjection(strategy) {
       if (monthlyPayout > 0) {
         contribution += monthlyPayout * reinvestRatio;
         withdrawal += monthlyPayout * (1 - reinvestRatio);
+      }
+      // Plafond de versements — applique AVANT les frais par apport : on ne
+      // peut pas verser au-delà du plafond légal de l'enveloppe. L'apport du
+      // mois est rogné (voire annulé) pour ne jamais dépasser le plafond
+      // cumulé ; le capital déjà en place continue de produire du rendement.
+      if (contributionCap > 0 && contribution > 0) {
+        const roomLeft = Math.max(0, contributionCap - totalContributed);
+        if (contribution > roomLeft) {
+          contribution = roomLeft;
+          if (capReachedMonth === null && roomLeft <= 0) capReachedMonth = m;
+        }
       }
       // Frais fixes par apport
       if (contribution > 0 && fees.perContribution) {
@@ -191,6 +216,12 @@ export function runInvestmentProjection(strategy) {
   const netInvestedFinal = (last.totalContributed || 0) - (last.totalWithdrawn || 0);
   const performancePct = netInvestedFinal > 0 ? ((last.endingCapital - netInvestedFinal) / netInvestedFinal) * 100 : 0;
 
+  // Fiscalité de sortie — appliquée uniquement sur les GAINS positifs, jamais
+  // sur le capital versé (une moins-value ne génère pas d'impôt ici).
+  const gainForTax = Math.max(0, last.totalGain || 0);
+  const taxDue = round2(gainForTax * (taxOnGainsPct / 100));
+  const netFinalCapital = round2((last.endingCapital || 0) - taxDue);
+
   const summary = {
     finalCapital: last.endingCapital || 0,
     totalContributed: last.totalContributed || 0,
@@ -201,6 +232,14 @@ export function runInvestmentProjection(strategy) {
     performancePct: round2(performancePct),
     durationYears,
     finalRealValue: last.realValueAdjustedForInflation || 0,
+    // Fiscalité (indicative)
+    taxOnGainsPct,
+    taxDue,
+    netFinalCapital,
+    // Plafond de versements
+    contributionCap,
+    capReached: contributionCap > 0 && (last.totalContributed || 0) >= contributionCap - 0.01,
+    capReachedMonth,
   };
 
   return { periods, summary };
