@@ -14867,7 +14867,7 @@ function EquityChartCard({ t, lang = "fr", monthKey, chartData, hasJournal, hasS
 //
 // Format 1080x1920 (9:16) = format natif des stories Instagram/TikTok.
 // ══════════════════════════════════════════════════════════════════
-function genererCarteVirale({ monthKey, journalData, lang = "fr", pseudo = "" }) {
+function genererCarteVirale({ monthKey, journalData, journalAllData = null, lang = "fr", pseudo = "" }) {
   const W = 1080, H = 1920;
   const canvas = document.createElement("canvas");
   canvas.width = W; canvas.height = H;
@@ -15057,18 +15057,45 @@ function genererCarteVirale({ monthKey, journalData, lang = "fr", pseudo = "" })
   ctx.strokeStyle = "rgba(110,231,183,0.12)"; ctx.lineWidth = 2;
   carte(60, chY, W - 120, chH); ctx.stroke();
 
+  // Déclarés AVANT le titre : celui-ci dépend de la présence d'un historique
+  // multi-mois, et les utiliser avant leur déclaration levait une ReferenceError
+  // (zone morte temporelle) silencieusement avalée par le try/catch du bouton.
+  const moisCourts = ["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Août","Sep","Oct","Nov","Déc"];
+  const moisHisto = Object.keys(journalAllData || {}).sort();
+  const courbeDepuisDebut = moisHisto.length > 0;
+
   ctx.textAlign = "left";
   ctx.fillStyle = "#fff";
   ctx.font = "800 36px Helvetica, Arial, sans-serif";
-  ctx.fillText("ÉQUITÉ DU MOIS", 100, chY + 60);
+  ctx.fillText(courbeDepuisDebut ? "ÉQUITÉ — DEPUIS LE DÉBUT" : "ÉQUITÉ DU MOIS", 100, chY + 60);
 
-  // Série cumulée jour par jour
+  // Série cumulée — sur TOUT l'historique du compte si on l'a reçu (identique à
+  // la courbe "Équité — depuis le début" affichée dans l'application), sinon
+  // repli sur le seul mois courant (ancien comportement).
+  // Les libellés d'axe suivent : noms de mois sur l'historique complet, "J1/J15/J30"
+  // sur le repli mensuel.
   const serie = [];
+  const serieLabels = [];   // libellé d'axe par point (null = pas de tick ici)
   let cumul = 0;
-  for (let n = 1; n <= nbJours; n++) {
-    const j = jours.find(d => d.jour === n);
-    if (j) cumul += j.pnl;
-    serie.push(cumul);
+  if (courbeDepuisDebut) {
+    let dernierMois = null;
+    moisHisto.forEach(mk => {
+      const joursMois = Object.keys(journalAllData[mk] || {}).map(Number).sort((a, b) => a - b);
+      joursMois.forEach(d => {
+        cumul += (journalAllData[mk][String(d)]?.pnl || 0);
+        serie.push(cumul);
+        // Un tick au premier point de chaque mois
+        serieLabels.push(mk !== dernierMois ? moisCourts[Number(mk.slice(5, 7)) - 1] : null);
+        dernierMois = mk;
+      });
+    });
+  } else {
+    for (let n = 1; n <= nbJours; n++) {
+      const j = jours.find(d => d.jour === n);
+      if (j) cumul += j.pnl;
+      serie.push(cumul);
+      serieLabels.push(null);
+    }
   }
   const minS = Math.min(...serie, 0), maxS = Math.max(...serie, 0);
   const amp = (maxS - minS) || 1;
@@ -15126,9 +15153,22 @@ function genererCarteVirale({ monthKey, journalData, lang = "fr", pseudo = "" })
   ctx.textAlign = "center";
   ctx.fillStyle = "rgba(255,255,255,0.3)";
   ctx.font = "500 22px Helvetica, Arial, sans-serif";
-  [1, Math.round(nbJours / 2), nbJours].forEach(d => {
-    ctx.fillText("J" + d, px(d - 1), gy + gh + 40);
-  });
+  if (courbeDepuisDebut) {
+    // Un libellé par mois, et on saute ceux qui se chevaucheraient sur une
+    // longue période (la carte est étroite, mieux vaut moins de ticks lisibles).
+    let dernierX = -Infinity;
+    serieLabels.forEach((lab, i) => {
+      if (!lab) return;
+      const x = px(i);
+      if (x - dernierX < 90) return;
+      ctx.fillText(lab, x, gy + gh + 40);
+      dernierX = x;
+    });
+  } else {
+    [1, Math.round(nbJours / 2), nbJours].forEach(d => {
+      ctx.fillText("J" + d, px(d - 1), gy + gh + 40);
+    });
+  }
 
   // ── Pied de page ──
   const footY = H - 110;
@@ -15832,6 +15872,10 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
                   const canvas = genererCarteVirale({
                     monthKey: journalMonth,
                     journalData: journalMonthDataForSelectedAccount,
+                    // Tout l'historique du compte : la courbe d'équité de la carte
+                    // doit montrer la MÊME chose que celle affichée dans l'app
+                    // (cumulé depuis le début), pas seulement le mois courant.
+                    journalAllData: journalAllForSelectedAccount,
                     lang,
                     pseudo: (profile?.pseudo || user?.displayName || "").trim(),
                   });
