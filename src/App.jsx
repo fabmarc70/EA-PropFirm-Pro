@@ -14944,7 +14944,9 @@ function genererCarteVirale({ monthKey, journalData, lang = "fr", pseudo = "" })
   const stats = [
     { l: "P&L mois", v: (positif ? "+$" : "-$") + Math.abs(Math.round(pnlMois)), c: positif ? VERT : ROUGE },
     { l: "Jours +/-", v: joursGagnants + "j / " + joursPerdants + "j", c: "#fff" },
-    { l: "Meilleur", v: "+$" + Math.round(meilleur), c: VERT },
+    // Le signe suit la VALEUR : sur un mois entièrement perdant, le meilleur
+    // jour reste négatif — l'ancien "+$" en dur produisait "+$-167".
+    { l: "Meilleur", v: (meilleur < 0 ? "-$" : "+$") + Math.abs(Math.round(meilleur)), c: meilleur < 0 ? ROUGE : VERT },
     { l: "Pire", v: (pire < 0 ? "-$" : "+$") + Math.abs(Math.round(pire)), c: pire < 0 ? ROUGE : VERT },
   ];
   stats.forEach((s, i) => {
@@ -14983,7 +14985,15 @@ function genererCarteVirale({ monthKey, journalData, lang = "fr", pseudo = "" })
   const jsDow = new Date(an, (mo || 1) - 1, 1).getDay();
   const firstDow = (jsDow + 6) % 7;
   const nbJours = new Date(an, mo || 1, 0).getDate();
-  const cellW = (W - 200) / 7, cellH = 88, gridX = 100, gridY = calY + 145;
+  // Cellules CARRÉES (et non plus 125x88 étirées en largeur) : la taille est
+  // bornée par la hauteur disponible dans la carte, qui est la contrainte
+  // réelle (6 lignes max à loger). La grille résultante est plus étroite que
+  // la carte, donc on la CENTRE horizontalement au lieu de la coller à gauche.
+  const CELL = 88;                       // côté du carré
+  const gridW = CELL * 7;
+  const gridX = (W - gridW) / 2;         // centrage horizontal
+  const cellW = CELL, cellH = CELL;      // conservés pour le reste du tracé
+  const gridY = calY + 145;
 
   ctx.textAlign = "center";
   ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].forEach((j, i) => {
@@ -15089,6 +15099,13 @@ function genererCarteVirale({ monthKey, journalData, lang = "fr", pseudo = "" })
 
   // ── Pied de page ──
   const footY = H - 130;
+  // Nom de l'application — absent jusqu'ici (seuls le slogan et la baseline
+  // apparaissaient), une carte partagée ne permettait donc pas d'identifier
+  // l'app d'où elle vient.
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  ctx.font = "800 34px Helvetica, Arial, sans-serif";
+  ctx.fillText("EA PropFirm Pro", W / 2, footY - 52);
   // Pied : les deux moitiés sont mesurées puis centrées ensemble (des décalages
   // fixes se chevauchaient dès que la largeur de police changeait légèrement)
   const p1 = "TRADE BETTER. ", p2 = "EVERY DAY.";
