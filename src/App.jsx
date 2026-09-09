@@ -14935,7 +14935,7 @@ function genererCarteVirale({ monthKey, journalData, lang = "fr", pseudo = "" })
   ctx.beginPath(); ctx.moveTo(W / 2 + 160, 308); ctx.lineTo(W / 2 + 300, 308); ctx.stroke();
 
   // ── Bandeau de stats ──
-  const statsY = 370, statsH = 130;
+  const statsY = 355, statsH = 125;
   ctx.fillStyle = "rgba(255,255,255,0.03)";
   carte(60, statsY, W - 120, statsH); ctx.fill();
   ctx.strokeStyle = "rgba(110,231,183,0.12)"; ctx.lineWidth = 2;
@@ -14967,7 +14967,30 @@ function genererCarteVirale({ monthKey, journalData, lang = "fr", pseudo = "" })
   });
 
   // ── Calendrier ──
-  const calY = 545, calH = 720;
+  // La carte est volontairement HAUTE et la grille occupe presque toute sa
+  // largeur : le cadre ne sert qu'à délimiter, il ne doit pas rogner l'espace
+  // utile. Les cellules restent carrées mais sont dimensionnées au MAXIMUM que
+  // la carte autorise, au lieu d'une taille fixe qui laissait de larges marges
+  // vides à gauche/droite et rendait les montants illisibles.
+  const calY = 505;
+  // Grille : positionnement calendaire réel (lundi = 1re colonne)
+  const jsDow0 = new Date(an, (mo || 1) - 1, 1).getDay();
+  const firstDow = (jsDow0 + 6) % 7;
+  const nbJours = new Date(an, mo || 1, 0).getDate();
+  // Nombre de lignes RÉELLEMENT nécessaires (5 pour la plupart des mois, 6
+  // quand le mois déborde). La hauteur de la carte en découle : plus de bande
+  // vide sous la grille sur un mois à 5 lignes.
+  const nbLignes = Math.ceil((firstDow + nbJours) / 7);
+  const gridAvailW = W - 150;            // carte 60→1020, marge interne 15
+  const gridHeaderH = 150;               // titre + mois + noms de jours
+  const CAL_H_MAX = 880;
+  const CELL = Math.floor(Math.min(gridAvailW / 7, (CAL_H_MAX - gridHeaderH + 20) / nbLignes));
+  const gridW = CELL * 7;
+  const gridX = (W - gridW) / 2;         // centrage horizontal du reliquat
+  const cellW = CELL, cellH = CELL;      // conservés pour le reste du tracé
+  const calH = gridHeaderH - 20 + nbLignes * CELL + 26;
+  const gridY = calY + gridHeaderH - 20;
+
   ctx.fillStyle = "rgba(255,255,255,0.02)";
   carte(60, calY, W - 120, calH); ctx.fill();
   ctx.strokeStyle = "rgba(110,231,183,0.12)"; ctx.lineWidth = 2;
@@ -14976,24 +14999,10 @@ function genererCarteVirale({ monthKey, journalData, lang = "fr", pseudo = "" })
   ctx.textAlign = "left";
   ctx.fillStyle = "#fff";
   ctx.font = "800 42px Helvetica, Arial, sans-serif";
-  ctx.fillText("Journal de trading", 100, calY + 68);
+  ctx.fillText("Journal de trading", 90, calY + 62);
   ctx.fillStyle = "rgba(255,255,255,0.4)";
   ctx.font = "400 24px Helvetica, Arial, sans-serif";
-  ctx.fillText(labelMois, 100, calY + 105);
-
-  // Grille : positionnement calendaire réel (lundi = 1re colonne)
-  const jsDow = new Date(an, (mo || 1) - 1, 1).getDay();
-  const firstDow = (jsDow + 6) % 7;
-  const nbJours = new Date(an, mo || 1, 0).getDate();
-  // Cellules CARRÉES (et non plus 125x88 étirées en largeur) : la taille est
-  // bornée par la hauteur disponible dans la carte, qui est la contrainte
-  // réelle (6 lignes max à loger). La grille résultante est plus étroite que
-  // la carte, donc on la CENTRE horizontalement au lieu de la coller à gauche.
-  const CELL = 88;                       // côté du carré
-  const gridW = CELL * 7;
-  const gridX = (W - gridW) / 2;         // centrage horizontal
-  const cellW = CELL, cellH = CELL;      // conservés pour le reste du tracé
-  const gridY = calY + 145;
+  ctx.fillText(labelMois, 90, calY + 98);
 
   ctx.textAlign = "center";
   ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].forEach((j, i) => {
@@ -15019,12 +15028,12 @@ function genererCarteVirale({ monthKey, journalData, lang = "fr", pseudo = "" })
       const txt = jour.pnl > 0 ? (fort ? "#fff" : "#4ade80") : (fort ? "#fff" : "#f87171");
       ctx.textAlign = "left";
       ctx.fillStyle = fort ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.5)";
-      ctx.font = "700 20px Helvetica, Arial, sans-serif";
-      ctx.fillText(String(n), x + 10, y + 26);
+      ctx.font = `700 ${Math.round(CELL * 0.20)}px Helvetica, Arial, sans-serif`;
+      ctx.fillText(String(n), x + 12, y + Math.round(CELL * 0.26));
       ctx.textAlign = "center";
       ctx.fillStyle = txt;
-      ctx.font = "800 26px Helvetica, Arial, sans-serif";
-      ctx.fillText((jour.pnl >= 0 ? "+$" : "-$") + Math.abs(Math.round(jour.pnl)), x + w / 2, y + 58);
+      ctx.font = `800 ${Math.round(CELL * 0.24)}px Helvetica, Arial, sans-serif`;
+      ctx.fillText((jour.pnl >= 0 ? "+$" : "-$") + Math.abs(Math.round(jour.pnl)), x + w / 2, y + Math.round(CELL * 0.62));
     } else {
       ctx.strokeStyle = "rgba(255,255,255,0.07)"; ctx.lineWidth = 1.5;
       ctx.setLineDash([5, 4]);
@@ -15032,13 +15041,17 @@ function genererCarteVirale({ monthKey, journalData, lang = "fr", pseudo = "" })
       ctx.setLineDash([]);
       ctx.textAlign = "left";
       ctx.fillStyle = "rgba(255,255,255,0.2)";
-      ctx.font = "600 20px Helvetica, Arial, sans-serif";
-      ctx.fillText(String(n), x + 10, y + 26);
+      ctx.font = `600 ${Math.round(CELL * 0.20)}px Helvetica, Arial, sans-serif`;
+      ctx.fillText(String(n), x + 12, y + Math.round(CELL * 0.26));
     }
   }
 
   // ── Courbe d'équité ──
-  const chY = calY + calH + 35, chH = 380;
+  const chY = calY + calH + 28;
+  // Hauteur adaptative : la carte s'étire jusqu'au pied de page, quel que soit
+  // le nombre de lignes du calendrier au-dessus — pas de trou variable.
+  const footAppY = H - 158;
+  const chH = Math.max(250, Math.min(400, footAppY - 45 - chY));
   ctx.fillStyle = "rgba(255,255,255,0.02)";
   carte(60, chY, W - 120, chH); ctx.fill();
   ctx.strokeStyle = "rgba(110,231,183,0.12)"; ctx.lineWidth = 2;
@@ -15059,7 +15072,7 @@ function genererCarteVirale({ monthKey, journalData, lang = "fr", pseudo = "" })
   }
   const minS = Math.min(...serie, 0), maxS = Math.max(...serie, 0);
   const amp = (maxS - minS) || 1;
-  const gx = 110, gw = W - 220, gy = chY + 100, gh = chH - 160;
+  const gx = 100, gw = W - 200, gy = chY + 92, gh = chH - 152;
 
   ctx.strokeStyle = "rgba(255,255,255,0.05)"; ctx.lineWidth = 1;
   for (let i = 0; i <= 3; i++) {
@@ -15070,13 +15083,33 @@ function genererCarteVirale({ monthKey, journalData, lang = "fr", pseudo = "" })
   const px = (i) => gx + (gw / Math.max(1, serie.length - 1)) * i;
   const py = (v) => gy + gh - ((v - minS) / amp) * gh;
 
+  // Tracé LISSÉ : la courbe était en lignes droites, ce qui produisait des
+  // angles vifs à chaque jour (marches d'escalier très visibles quand plusieurs
+  // jours consécutifs sont plats). On relie désormais les points par des
+  // courbes quadratiques passant par les milieux de segments — même méthode
+  // que les graphiques "monotone" du reste de l'app, sans dépassement possible
+  // au-delà des valeurs réelles.
+  const pts = serie.map((v, i) => ({ x: px(i), y: py(v) }));
+  const tracerLisse = () => {
+    if (!pts.length) return;
+    ctx.moveTo(pts[0].x, pts[0].y);
+    if (pts.length === 1) return;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const mx = (pts[i].x + pts[i + 1].x) / 2;
+      const my = (pts[i].y + pts[i + 1].y) / 2;
+      ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+    }
+    const last = pts[pts.length - 1];
+    ctx.quadraticCurveTo(last.x, last.y, last.x, last.y);
+  };
+
   const grad = ctx.createLinearGradient(0, gy, 0, gy + gh);
   grad.addColorStop(0, positif ? "rgba(110,231,183,0.35)" : "rgba(239,68,68,0.3)");
   grad.addColorStop(1, "rgba(0,0,0,0)");
   ctx.beginPath();
-  ctx.moveTo(px(0), gy + gh);
-  serie.forEach((v, i) => ctx.lineTo(px(i), py(v)));
+  tracerLisse();
   ctx.lineTo(px(serie.length - 1), gy + gh);
+  ctx.lineTo(px(0), gy + gh);
   ctx.closePath();
   ctx.fillStyle = grad; ctx.fill();
 
@@ -15084,9 +15117,9 @@ function genererCarteVirale({ monthKey, journalData, lang = "fr", pseudo = "" })
   ctx.shadowColor = positif ? "rgba(110,231,183,0.6)" : "rgba(239,68,68,0.5)";
   ctx.shadowBlur = 18;
   ctx.beginPath();
-  serie.forEach((v, i) => i === 0 ? ctx.moveTo(px(i), py(v)) : ctx.lineTo(px(i), py(v)));
+  tracerLisse();
   ctx.strokeStyle = positif ? VERT : ROUGE;
-  ctx.lineWidth = 5; ctx.lineJoin = "round";
+  ctx.lineWidth = 5; ctx.lineJoin = "round"; ctx.lineCap = "round";
   ctx.stroke();
   ctx.restore();
 
@@ -15098,14 +15131,14 @@ function genererCarteVirale({ monthKey, journalData, lang = "fr", pseudo = "" })
   });
 
   // ── Pied de page ──
-  const footY = H - 130;
+  const footY = H - 110;
   // Nom de l'application — absent jusqu'ici (seuls le slogan et la baseline
   // apparaissaient), une carte partagée ne permettait donc pas d'identifier
   // l'app d'où elle vient.
   ctx.textAlign = "center";
   ctx.fillStyle = "rgba(255,255,255,0.9)";
   ctx.font = "800 34px Helvetica, Arial, sans-serif";
-  ctx.fillText("EA PropFirm Pro", W / 2, footY - 52);
+  ctx.fillText("EA PropFirm Pro", W / 2, footAppY);
   // Pied : les deux moitiés sont mesurées puis centrées ensemble (des décalages
   // fixes se chevauchaient dès que la largeur de police changeait légèrement)
   const p1 = "TRADE BETTER. ", p2 = "EVERY DAY.";
