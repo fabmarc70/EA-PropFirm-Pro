@@ -60,6 +60,76 @@
            colonnes ; sur 3 colonnes elle donnerait une tuile bancale. */
         .an-grid > *:last-child { grid-column: auto !important; width: 100% !important; }
       }
+
+      /* ══════════════════════════════════════════════════════════════
+         MODE TABLETTE LARGE (>= 1024px) — disposition "bureau"
+         La navigation passe du bas vers un RAIL LATERAL gauche, et la
+         colonne de contenu s'elargit pour exploiter l'ecran. Tout est
+         pilote en CSS : aucun composant n'est duplique, aucune logique
+         de navigation n'est modifiee, donc zero risque de divergence de
+         comportement entre les deux dispositions.
+         ══════════════════════════════════════════════════════════════ */
+      @media (min-width: 1024px) {
+        :root { --app-max-w: 1180px; --rail-w: 216px; }
+
+        /* Rail lateral : la meme barre de nav, repositionnee et passee en
+           colonne. Les boutons enfants sont retournes en ligne (icone +
+           libelle cote a cote) pour un rail lisible. */
+        [data-coach="nav-bar"] {
+          top: 0 !important; bottom: 0 !important;
+          left: 0 !important; right: auto !important;
+          width: var(--rail-w) !important; max-width: var(--rail-w) !important;
+          margin: 0 !important;
+          border-top: none !important;
+          border-right: 1px solid rgba(110,231,183,0.12) !important;
+          padding-top: calc(24px + env(safe-area-inset-top)) !important;
+          padding-bottom: calc(24px + env(safe-area-inset-bottom)) !important;
+          overflow-y: auto;
+        }
+        [data-coach="nav-bar"] > div {
+          flex-direction: column !important;
+          justify-content: flex-start !important;
+          align-items: stretch !important;
+          gap: 4px; padding: 0 12px;
+        }
+        [data-coach="nav-bar"] button {
+          flex: 0 0 auto !important;
+          flex-direction: row !important;
+          align-items: center !important;
+          justify-content: flex-start !important;
+          gap: 12px !important;
+          padding: 12px 14px !important;
+          border-radius: 12px;
+          transition: background .15s;
+        }
+        [data-coach="nav-bar"] button:hover { background: rgba(255,255,255,0.04) !important; }
+        [data-coach="nav-bar"] button span { font-size: 14px !important; }
+        /* Le liseré d'onglet actif (barre horizontale au-dessus de l'icone en
+           mode mobile) devient un liseré vertical a gauche du rail. */
+        [data-coach="nav-bar"] button > div:first-child {
+          top: 50% !important; left: -12px !important;
+          width: 3px !important; height: 26px !important;
+          transform: translateY(-50%);
+        }
+
+        /* Le contenu se decale a droite du rail. Le calcul garde la colonne
+           centree dans l'espace restant. */
+        #root > div { padding-left: var(--rail-w); }
+        #root > div > div:nth-child(2) {
+          padding-bottom: 32px !important;   /* plus de barre en bas a eviter */
+        }
+
+        /* Bandeaux fixed (toggle simulateur, barre wizard) : decales du rail */
+        [data-coach="sim-toggle"] { left: var(--rail-w) !important; }
+
+        /* Flux de cartes sur 2 colonnes — "tout voir en meme temps".
+           column-count plutot que grid : les cartes gardent leur ordre de
+           lecture naturel et ne sont jamais coupees (break-inside: avoid). */
+        .tablet-2col { columns: 2; column-gap: 14px; }
+        .tablet-2col > * { break-inside: avoid; page-break-inside: avoid; margin-bottom: 14px; }
+        /* Le bloc de tete (prix du challenge) reste sur toute la largeur */
+        .tablet-2col > *:first-child { column-span: all; }
+      }
       /* Scrollbar discrète */
       ::-webkit-scrollbar { width: 2px; }
       ::-webkit-scrollbar-track { background: transparent; }

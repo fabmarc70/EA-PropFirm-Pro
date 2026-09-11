@@ -8675,7 +8675,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       )}
 
       {/* ══ CARTES CONFIG — vue Configuration + Funded uniquement (PAS sur l'onglet Challenge/bilan, qui est un rapport de résultats) ══ */}
-      {(tab === "challenge" || tab === "funded") && (<>
+      {/* className "tablet-2col" : sur tablette large (>= 1024px), ces cartes
+          se repartissent en 2 colonnes pour tout voir sans defiler. Aucun effet
+          sous 1024px — la regle CSS n'existe qu'au-dela (voir index.html). */}
+      {(tab === "challenge" || tab === "funded") && (<div className="tablet-2col">
 
       {/* PRIX DE PASSAGE — grand affichage dynamique, recalculé à chaque
           changement de palier de capital ou de firm (FIRM_FEES). Se déplace
@@ -9400,7 +9403,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </>
         )}
       </button>
-      </>)}
+      </div>)}
 
       {!finalRRValid && (
         <div className="card" style={{ textAlign: "center", padding: 24, color: "#ef4444", fontWeight: 700, fontSize: 13 }}>
