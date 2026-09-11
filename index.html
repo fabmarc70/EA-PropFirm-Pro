@@ -70,7 +70,11 @@
          comportement entre les deux dispositions.
          ══════════════════════════════════════════════════════════════ */
       @media (min-width: 1024px) {
-        :root { --app-max-w: 1180px; --rail-w: 216px; }
+        /* Pleine largeur d'ecran (moins le rail) : en tour de controle on ne
+           veut plus une colonne centree mais exploiter tout l'espace. La
+           densite est assuree par la largeur de colonne des cartes, pas par
+           un plafond global. */
+        :root { --app-max-w: 100%; --rail-w: 208px; }
 
         /* Rail lateral : la meme barre de nav, repositionnee et passee en
            colonne. Les boutons enfants sont retournes en ligne (icone +
@@ -117,18 +121,36 @@
         #root > div { padding-left: var(--rail-w); }
         #root > div > div:nth-child(2) {
           padding-bottom: 32px !important;   /* plus de barre en bas a eviter */
+          padding-left: 20px !important; padding-right: 20px !important;
         }
 
         /* Bandeaux fixed (toggle simulateur, barre wizard) : decales du rail */
         [data-coach="sim-toggle"] { left: var(--rail-w) !important; }
 
-        /* Flux de cartes sur 2 colonnes — "tout voir en meme temps".
-           column-count plutot que grid : les cartes gardent leur ordre de
-           lecture naturel et ne sont jamais coupees (break-inside: avoid). */
-        .tablet-2col { columns: 2; column-gap: 14px; }
-        .tablet-2col > * { break-inside: avoid; page-break-inside: avoid; margin-bottom: 14px; }
+        /* Flux de cartes multi-colonnes — "tour de controle".
+           LARGEUR DE COLONNE FIXE (et non un nombre de colonnes fixe) : chaque
+           carte garde une largeur proche du mobile (~350px) et le navigateur
+           cree autant de colonnes que l'ecran permet. C'est ce qui evite des
+           blocs enormes et etires : a 1180px on obtient 3 colonnes denses,
+           a 1366px aussi, sans jamais deformer une carte.
+           column-count plutot que grid : ordre de lecture naturel conserve et
+           cartes jamais coupees (break-inside: avoid). */
+        .tablet-2col { columns: 330px; column-gap: 12px; }
+        .tablet-2col > * { break-inside: avoid; page-break-inside: avoid; margin-bottom: 12px; }
         /* Le bloc de tete (prix du challenge) reste sur toute la largeur */
         .tablet-2col > *:first-child { column-span: all; }
+
+        /* Les trois onglets du simulateur etant affiches simultanement en
+           disposition tour de controle, le selecteur d'onglets n'a plus d'objet
+           et masquerait du contenu en haut d'ecran. */
+        [data-coach="sim-toggle"] { display: none !important; }
+
+        /* Cellules du calendrier PnL : sur un conteneur pleine largeur, le
+           ratio carre produisait des cases de ~140px, disproportionnees. On
+           plafonne la hauteur et on libere le ratio au-dela de 1024px : les
+           cases restent larges mais basses, donc beaucoup plus d'un mois
+           tient a l'ecran. */
+        .cal-days > * { aspect-ratio: auto !important; min-height: 72px !important; max-height: 86px; }
       }
       /* Scrollbar discrète */
       ::-webkit-scrollbar { width: 2px; }

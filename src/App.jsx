@@ -7818,6 +7818,27 @@ function InfoTip({ text }) {
   );
 }
 
+// ══════════════════════════════════════════════════════════════════
+// useIsWide — vrai/faux selon que l'on est en disposition "tour de
+// contrôle" (tablette large). Repose sur matchMedia, donc strictement
+// le même seuil que les règles CSS d'index.html : impossible que le JS
+// et le CSS divergent. Réactif au changement d'orientation.
+// ══════════════════════════════════════════════════════════════════
+function useIsWide(minWidth = 1024) {
+  const [isWide, setIsWide] = useState(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return false;
+    return window.matchMedia(`(min-width: ${minWidth}px)`).matches;
+  });
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia(`(min-width: ${minWidth}px)`);
+    const onChange = (e) => setIsWide(e.matches);
+    mq.addEventListener ? mq.addEventListener("change", onChange) : mq.addListener(onChange);
+    return () => { mq.removeEventListener ? mq.removeEventListener("change", onChange) : mq.removeListener(onChange); };
+  }, [minWidth]);
+  return isWide;
+}
+
 function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab = () => {}, onSimResult = () => {}, displayMode = "advanced", usageType = "propfirm", premiumAccess = true, requirePremium = () => {} }) {
   // Mode avancé = premium. Sans accès → forcé en mode simple (débutant).
   const isSimple = displayMode === "simple" || !premiumAccess;
@@ -8063,6 +8084,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   }, [tab]);
   const [copied, setCopied] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
+  // Disposition "tour de contrôle" : sur tablette large, les trois onglets
+  // (Configuration / Challenge / Funded) sont affichés SIMULTANÉMENT au lieu
+  // d'être exclusifs — il y a la place, et c'est tout l'intérêt du grand écran.
+  const isWide = useIsWide(1024);
 
   useEffect(() => {
     try {
@@ -8671,14 +8696,14 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           l'encoche en mode standalone. La mesure réelle (getBoundingClientRect) s'adapte
           déjà correctement aux deux contextes — inutile et risqué de la limiter. */}
       {(tab === "challenge" || tab === "bilan" || tab === "funded" || tab === "montecarlo") && (
-        <div style={{ height: simTabBarH != null ? simTabBarH : "calc(env(safe-area-inset-top, 8px) + 46px)" }} />
+        <div style={{ height: isWide ? 0 : (simTabBarH != null ? simTabBarH : "calc(env(safe-area-inset-top, 8px) + 46px)") }} />
       )}
 
       {/* ══ CARTES CONFIG — vue Configuration + Funded uniquement (PAS sur l'onglet Challenge/bilan, qui est un rapport de résultats) ══ */}
       {/* className "tablet-2col" : sur tablette large (>= 1024px), ces cartes
           se repartissent en 2 colonnes pour tout voir sans defiler. Aucun effet
           sous 1024px — la regle CSS n'existe qu'au-dela (voir index.html). */}
-      {(tab === "challenge" || tab === "funded") && (<div className="tablet-2col">
+      {(tab === "challenge" || tab === "funded" || isWide) && (<div className="tablet-2col">
 
       {/* PRIX DE PASSAGE — grand affichage dynamique, recalculé à chaque
           changement de palier de capital ou de firm (FIRM_FEES). Se déplace
@@ -9413,7 +9438,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       )}
 
       {/* ════════ TAB BILAN ════════ */}
-      {tab === "bilan" && (
+      {(tab === "bilan" || isWide) && (
         <div style={{ paddingBottom: 24 }}>
           {!sim || !bilan ? (
             <div className="card" style={{ textAlign: "center", padding: 28 }}>
@@ -9592,7 +9617,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       )}
 
       {/* ════════ TAB CHALLENGE ════════ */}
-      {tab === "challenge" && (
+      {(tab === "challenge" || isWide) && (
         <div>
           {!sim ? (
             <div className="card" style={{ textAlign: "center", padding: 28 }}>
@@ -9661,7 +9686,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       )}
 
       {/* TAB FUNDED */}
-      {(tab === "funded" || tab === "montecarlo") && (
+      {(tab === "funded" || tab === "montecarlo" || isWide) && (
         // En montecarlo : on n'affiche le Funded QUE s'il existe (sinon rien, le MC s'affiche seul)
         !sim ? (
           tab === "montecarlo" ? null : (
@@ -12936,7 +12961,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
       </div>
 
       {/* Grille calendrier */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+      <div className="cal-days" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
         {grid.map((cell, i) => {
           // Cellule de padding : vide invisible avant le 1er du mois
           if (cell.isPadding) {
