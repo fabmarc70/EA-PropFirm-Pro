@@ -37,6 +37,29 @@
         min-height: -webkit-fill-available;
         background: #06090f;
       }
+      /* ── LARGEUR DE LA COLONNE DE CONTENU (responsive tablette) ──
+         Une seule source de vérité, lue par tous les conteneurs de l'app
+         (racine, barre de navigation, bandeaux fixed) via var(--app-max-w).
+         - Téléphone  : 480px, strictement identique à avant (zéro changement).
+         - Tablette   : 680px en portrait, 760px en paysage / grand écran.
+         Pourquoi pas la pleine largeur ? L'app est un flux vertical de cartes
+         pensé pour le pouce : étirées à 1180px, les cartes deviendraient
+         immenses avec du texte minuscule au milieu. Une colonne de ~700px est
+         la largeur de lecture confortable standard sur iPad (même choix que
+         les apps de lecture/finance natives). Les grilles internes (KPI 2 col,
+         calendrier 7 col) et les graphiques (ResponsiveContainer) sont déjà
+         fluides et occupent naturellement l'espace supplémentaire. */
+      :root { --app-max-w: 480px; }
+      @media (min-width: 768px)  { :root { --app-max-w: 680px; } }
+      @media (min-width: 1024px) { :root { --app-max-w: 760px; } }
+      /* Grille du Centre d'Analyse : 3 colonnes sur tablette (tuiles ~210px,
+         comme sur mobile) au lieu de 2 carres de 320px a moitie vides. */
+      @media (min-width: 768px) {
+        .an-grid { grid-template-columns: 1fr 1fr 1fr !important; }
+        /* La regle 'derniere tuile impaire etalee a 50%' est pensee pour 2
+           colonnes ; sur 3 colonnes elle donnerait une tuile bancale. */
+        .an-grid > *:last-child { grid-column: auto !important; width: 100% !important; }
+      }
       /* Scrollbar discrète */
       ::-webkit-scrollbar { width: 2px; }
       ::-webkit-scrollbar-track { background: transparent; }

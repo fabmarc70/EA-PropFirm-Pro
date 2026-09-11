@@ -5390,7 +5390,7 @@ function LabScreen({ t, lang, profile, onBack }) {
               style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: 12, color: "#fff", fontSize: 13, outline: "none", resize: "vertical" }} />
           </>)}
         </div>
-        <div style={{ position: "fixed", bottom: 70, left: 0, right: 0, padding: "0 16px 8px", zIndex: 50, background: "linear-gradient(0deg, rgba(6,9,15,1) 80%, rgba(6,9,15,0) 100%)" }}>
+        <div style={{ position: "fixed", bottom: 70, left: 0, right: 0, maxWidth: "var(--app-max-w)", margin: "0 auto", padding: "0 16px 8px", zIndex: 50, background: "linear-gradient(0deg, rgba(6,9,15,1) 80%, rgba(6,9,15,0) 100%)" }}>
           <button onClick={() => setStep(step + 1 >= 6 ? 99 : step + 1)} disabled={!stepDone(step)}
             style={{ width: "100%", padding: 14, borderRadius: 13, border: "none", cursor: "pointer",
               background: !stepDone(step) ? "rgba(255,255,255,0.07)" : "linear-gradient(135deg,#6ee7b7,#34d399)",
@@ -6858,7 +6858,10 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         </div>
 
         {/* ── Grille Stream Deck : 2 colonnes, tuiles uniformes (toutes carrées, même forme) ── */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9}}>
+        {/* className 'an-grid' : passe a 3 colonnes sur tablette (voir index.html)
+            pour garder des tuiles ~210px, comme sur mobile, au lieu de carres de
+            320px a moitie vides. */}
+        <div className="an-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9}}>
           {cards.map((card, idx) => {
             const scorePct = card.hasData && card.dataLabel ? (card.dataLabel.match(/Score (\d+)%/) || card.dataLabel.match(/(\d+)%/)) : null;
             const scoreVal = scorePct ? parseInt(scorePct[1], 10) : null;
@@ -8614,6 +8617,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       {(tab === "challenge" || tab === "bilan" || tab === "funded" || tab === "montecarlo") && (
         <div data-coach="sim-toggle" ref={simTabBarRef} style={{
           position: "fixed", top: 0, left: 0, right: 0, zIndex: 20,
+          // Aligné sur la colonne de contenu (même mécanisme que la barre de
+          // navigation) : sans ça, sur tablette, ce bandeau s'étirait sur tout
+          // l'écran alors que le contenu en dessous ne fait que ~700px.
+          maxWidth: "var(--app-max-w)", margin: "0 auto",
           background: "rgba(6,9,15,0.98)",
           backdropFilter: "blur(10px)",
           WebkitBackdropFilter: "blur(10px)",
@@ -12930,7 +12937,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
         {grid.map((cell, i) => {
           // Cellule de padding : vide invisible avant le 1er du mois
           if (cell.isPadding) {
-            return <div key={`pad-${i}`} style={{ background: "transparent", border: "none", borderRadius: 8, padding: "5px 4px", minHeight: 52 }} />;
+            return <div key={`pad-${i}`} style={{ background: "transparent", border: "none", borderRadius: 8, padding: "5px 4px", minHeight: 52, aspectRatio: "1 / 1" }} />;
           }
           const hasData = cell.data && (cell.data.pnl !== undefined && cell.data.pnl !== null);
           // Style : jour tradé (données) | jour vide ouvrable | weekend
@@ -12973,6 +12980,11 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 borderRadius: 8,
                 padding: "5px 4px",
                 minHeight: 52,
+                // Cellules toujours CARRÉES quelle que soit la largeur de la
+                // colonne : sur tablette (colonne 680-760px), une hauteur fixe
+                // donnait des rectangles 85x52. Sur mobile l'effet est nul
+                // (57x52 -> 57x57). minHeight reste le plancher.
+                aspectRatio: "1 / 1",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
@@ -13601,7 +13613,7 @@ function LanguagePickerScreen({ onPick }) {
     <div style={{
       minHeight: "100vh", background: "#06090f",
       display: "flex", flexDirection: "column",
-      maxWidth: 480, margin: "0 auto",
+      maxWidth: "var(--app-max-w)", margin: "0 auto",
       fontFamily: "-apple-system, sans-serif",
       paddingBottom: "calc(28px + env(safe-area-inset-bottom))",
     }}>
@@ -13981,7 +13993,7 @@ function OnboardingScreen({ t, lang, setLang, onDone }) {
     <div style={{
       height: "100dvh",
       background: "#06090f", position: "relative",
-      maxWidth: 480, margin: "0 auto",
+      maxWidth: "var(--app-max-w)", margin: "0 auto",
       fontFamily: "-apple-system, sans-serif", color: "#FFFFFF",
       overflow: "hidden", display: "flex", flexDirection: "column",
     }}>
@@ -14070,7 +14082,7 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
   };
 
   return (
-    <div style={{ minHeight:"100vh", background:"#06090f", display:"flex", flexDirection:"column", maxWidth:480, margin:"0 auto", fontFamily:"-apple-system, sans-serif", position:"relative", overflow:"hidden" }}>
+    <div style={{ minHeight:"100vh", background:"#06090f", display:"flex", flexDirection:"column", maxWidth:"var(--app-max-w)", margin:"0 auto", fontFamily:"-apple-system, sans-serif", position:"relative", overflow:"hidden" }}>
 
       {/* Halo ambré Capital.com style */}
       <div style={{ position:"absolute", top:"15%", left:"50%", transform:"translateX(-50%)", width:300, height:300, borderRadius:"50%", background:"radial-gradient(circle, rgba(52,211,153,0.28) 0%, rgba(16,185,129,0.12) 45%, transparent 70%)", pointerEvents:"none", zIndex:0 }} />
@@ -18532,7 +18544,7 @@ function NavBar({ t, active, goto }) {
 
   return (
     <div data-coach="nav-bar" style={{
-      position:"fixed",bottom:0,left:0,right:0,zIndex:100,maxWidth:480,margin:"0 auto",
+      position:"fixed",bottom:0,left:0,right:0,zIndex:100,maxWidth:"var(--app-max-w)",margin:"0 auto",
       background:"rgba(20,15,5,0.95)",
       borderTop:"1px solid rgba(110,231,183,0.12)",
       backdropFilter:"blur(20px)",
@@ -19033,7 +19045,7 @@ function PaywallScreen({ t, lang, daysLeft, onSubscribe, onClose, canClose = tru
     <div style={{
       height: "100dvh", minHeight: "100vh",
       background: "#06090f",
-      maxWidth: 480, margin: "0 auto",
+      maxWidth: "var(--app-max-w)", margin: "0 auto",
       position: "relative", overflow: "hidden",
       fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
       display: "flex", flexDirection: "column",
@@ -19535,7 +19547,7 @@ export default function App() {
   };
 
   return (
-    <div style={{ background: "#06090f", minHeight: "100vh", maxWidth: 480, margin: "0 auto", position: "relative" }}>
+    <div style={{ background: "#06090f", minHeight: "100vh", maxWidth: "var(--app-max-w)", margin: "0 auto", position: "relative" }}>
       {/* Halo ambré subtil en arrière-plan */}
       <div style={{ position:"fixed", top:"-5%", left:"50%", transform:"translateX(-50%)", width:400, height:300, borderRadius:"50%", background:"radial-gradient(ellipse, rgba(16,185,129,0.12) 0%, transparent 70%)", pointerEvents:"none", zIndex:0 }} />
       <div style={{
