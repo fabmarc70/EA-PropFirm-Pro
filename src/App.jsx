@@ -9795,7 +9795,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                  que ce composant est monte, on ancre sur un mois FIXE et neutre (janvier 2024 :
                  31 jours, commence un lundi) pour un rendu de grille toujours propre et stable,
                  quelle que soit la date reelle d'utilisation de l'app. */}
-            <CalendrierPnL t={t} lang={lang} dailyLog={sim.funded.dailyLog} newsSkipDays={newsSkipDays} activeDays={activeDays} journalMonthKey="2024-01" />
+            <CalendrierPnL t={t} lang={lang} dailyLog={sim.funded.dailyLog} newsSkipDays={newsSkipDays} activeDays={activeDays} capitalBase={capital} journalMonthKey="2024-01" />
 
             <div className="card">
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: "#fbbf24" }}>{t("sim_detail_monthly")}</div>
@@ -12694,7 +12694,7 @@ function MonthNavBar({ label, onPrev, onNext, color = "#6ee7b7" }) {
   );
 }
 
-function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, journalMonthKey = null, newsSkipDays = 0, activeDays = [1,2,3,4,5], t = (k) => k, lang = "fr", realMode = false, accounts = null, accountLabel = null, activeAccountId = null, journalLocked = false, onJournalLocked = null, onPrevMonth = null, onNextMonth = null }) {
+function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, journalMonthKey = null, newsSkipDays = 0, activeDays = [1,2,3,4,5], t = (k) => k, lang = "fr", realMode = false, accounts = null, accountLabel = null, activeAccountId = null, journalLocked = false, onJournalLocked = null, onPrevMonth = null, onNextMonth = null, capitalBase = null }) {
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [editingDay, setEditingDay] = useState(null); // jour en cours d'édition (mode journal)
   const [formWins, setFormWins] = useState(0);
@@ -12740,6 +12740,34 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
   const lossDays = statsSource.filter(d => (d.pnl || 0) < 0).length;
   const bestDay = statsSource.length ? Math.max(...statsSource.map(d => d.pnl || 0)) : 0;
   const worstDay = statsSource.length ? Math.min(...statsSource.map(d => d.pnl || 0)) : 0;
+
+  // ── Indicateurs du bandeau au-dessus du calendrier ──────────────────
+  // WINRATE DU MOIS — calculé au niveau des TRADES (wins/losses saisis ou
+  // simulés), pas des journées : deux notions différentes, et c'est bien le
+  // winrate de trades qui est la mesure usuelle. Repli sur le ratio de
+  // journées gagnantes si aucun compte de trades n'est disponible (anciennes
+  // entrées de journal sans wins/losses), avec un libellé distinct pour ne
+  // pas faire passer une mesure pour l'autre.
+  const totalWins = statsSource.reduce((s, d) => s + (d.wins || 0), 0);
+  const totalLosses = statsSource.reduce((s, d) => s + (d.losses || 0), 0);
+  const totalTradesMois = totalWins + totalLosses;
+  const winrateMois = totalTradesMois > 0 ? (totalWins / totalTradesMois) * 100 : null;
+  const winrateJours = (winDays + lossDays) > 0 ? (winDays / (winDays + lossDays)) * 100 : null;
+
+  // PROGRESSION DU CAPITAL — P&L du mois rapporté au capital de référence du
+  // compte (ou du modèle simulé). Sans capital connu, on n'invente pas de
+  // pourcentage : on affiche un tiret.
+  const progressionPct = (capitalBase && capitalBase > 0) ? (monthPnl / capitalBase) * 100 : null;
+
+  // PROFIT FACTOR — somme des gains / somme des pertes (en valeur absolue).
+  // Calculé sur les P&L JOURNALIERS, seule granularité disponible ici (le
+  // détail trade par trade n'existe pas dans le journal) : c'est donc un PF
+  // journalier, cohérent d'un mois à l'autre. Sans aucune journée perdante,
+  // le ratio est mathématiquement infini — on affiche le symbole plutôt qu'un
+  // nombre trompeur.
+  const grossProfit = statsSource.reduce((s, d) => s + ((d.pnl || 0) > 0 ? d.pnl : 0), 0);
+  const grossLoss = Math.abs(statsSource.reduce((s, d) => s + ((d.pnl || 0) < 0 ? d.pnl : 0), 0));
+  const profitFactor = grossLoss > 0 ? (grossProfit / grossLoss) : (grossProfit > 0 ? Infinity : null);
 
   // ── Vrai positionnement calendaire ──
   // BUG CORRIGE : journalMonthLabel est un texte D'AFFICHAGE ("Août 2026"), pas
@@ -12942,9 +12970,15 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 14 }}>
         {[
           { label: t("cal_pnl_month"), val: (monthPnl >= 0 ? "+$" : "-$") + Math.abs(monthPnl).toFixed(0), color: monthPnl >= 0 ? "#4ade80" : "#f87171" },
-          { label: "Jours +/-", val: winDays + "j / " + lossDays + "j", color: "#FFFFFF" },
-          { label: t("cal_best"), val: (bestDay >= 0 ? "+$" : "-$") + Math.abs(bestDay).toFixed(0), color: bestDay >= 0 ? "#4ade80" : "#f87171" },
-          { label: t("cal_worst"), val: (worstDay >= 0 ? "+$" : "-$") + Math.abs(worstDay).toFixed(0), color: worstDay >= 0 ? "#4ade80" : "#f87171" },
+          // Winrate de TRADES si disponible, sinon winrate de JOURNÉES (libellé
+          // explicite pour ne pas confondre les deux mesures).
+          winrateMois !== null
+            ? { label: "Winrate", val: winrateMois.toFixed(0) + "%", color: winrateMois >= 50 ? "#4ade80" : "#f87171" }
+            : { label: "WR jours", val: winrateJours !== null ? winrateJours.toFixed(0) + "%" : "—", color: (winrateJours ?? 0) >= 50 ? "#4ade80" : "#f87171" },
+          { label: "Progression", val: progressionPct !== null ? (progressionPct >= 0 ? "+" : "") + progressionPct.toFixed(2) + "%" : "—",
+            color: progressionPct === null ? "rgba(255,255,255,0.4)" : progressionPct >= 0 ? "#4ade80" : "#f87171" },
+          { label: "Profit Factor", val: profitFactor === null ? "—" : (profitFactor === Infinity ? "∞" : profitFactor.toFixed(2)),
+            color: profitFactor === null ? "rgba(255,255,255,0.4)" : (profitFactor === Infinity || profitFactor >= 1) ? "#4ade80" : "#f87171" },
         ].map(s => (
           <div key={s.label} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "7px 6px", textAlign: "center" }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginBottom: 3 }}>{s.label}</div>
@@ -15819,6 +15853,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
               accounts={activeJournalAccounts}
               accountLabel={journalAccountLabel}
               activeAccountId={dashSelectedAccountId}
+              capitalBase={principalCapital}
               journalLocked={!premiumAccess && countJournalDays(journalAll) >= FREE_JOURNAL_DAYS}
               onJournalLocked={requirePremium}
             />
@@ -15829,6 +15864,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
             <CalendrierPnL t={t} lang={lang} dailyLog={ls.funded.dailyLog}
               newsSkipDays={ls.newsSkipDays || 0}
               activeDays={ls.activeDays || [1,2,3,4,5]}
+              capitalBase={ls.capital || null}
               journalMonthLabel={currentMonthKey}
             />
           </div>
@@ -17973,6 +18009,7 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
               accounts={activeAccounts}
               accountLabel={accountLabel}
               activeAccountId={selectedAccountId}
+              capitalBase={effectiveCapital}
               journalLocked={journalQuotaReached}
               onJournalLocked={requirePremium}
             />
