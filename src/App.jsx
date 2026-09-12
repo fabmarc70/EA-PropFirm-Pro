@@ -12733,7 +12733,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
 
   // P&L et stats : en mode journal, basé sur journalData ; sinon sur monthDays
   const statsSource = journalMode
-    ? journalDays.map(d => ({ pnl: d.pnl, wins: d.wins, losses: d.losses }))
+    ? journalDays.map(d => ({ pnl: d.pnl, wins: d.wins, losses: d.losses, intradayDD: d.intradayDD }))
     : monthDays;
   const monthPnl = statsSource.reduce((s, d) => s + (d.pnl || 0), 0);
   const winDays = statsSource.filter(d => (d.pnl || 0) > 0).length;
@@ -12759,15 +12759,29 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
   // pourcentage : on affiche un tiret.
   const progressionPct = (capitalBase && capitalBase > 0) ? (monthPnl / capitalBase) * 100 : null;
 
-  // PROFIT FACTOR — somme des gains / somme des pertes (en valeur absolue).
-  // Calculé sur les P&L JOURNALIERS, seule granularité disponible ici (le
-  // détail trade par trade n'existe pas dans le journal) : c'est donc un PF
-  // journalier, cohérent d'un mois à l'autre. Sans aucune journée perdante,
-  // le ratio est mathématiquement infini — on affiche le symbole plutôt qu'un
-  // nombre trompeur.
-  const grossProfit = statsSource.reduce((s, d) => s + ((d.pnl || 0) > 0 ? d.pnl : 0), 0);
-  const grossLoss = Math.abs(statsSource.reduce((s, d) => s + ((d.pnl || 0) < 0 ? d.pnl : 0), 0));
-  const profitFactor = grossLoss > 0 ? (grossProfit / grossLoss) : (grossProfit > 0 ? Infinity : null);
+  // DD (drawdown) DU MOIS — TOUJOURS le plus grand relevé, jamais une somme
+  // ni la dernière valeur saisie. Concrètement : si un jour tu saisis 0.34%
+  // puis un autre jour 0.27%, l'indicateur continue d'afficher 0.34% — le pire
+  // creux du mois reste le pire creux du mois même après une meilleure séance.
+  // Priorité aux valeurs saisies manuellement (intradayDD, mode journal) ;
+  // à défaut, reconstitution depuis la courbe d'équité simulée (mode
+  // simulation, où chaque jour porte un solde de fin de journée) : on suit le
+  // sommet glissant et on retient le creux relatif le plus profond.
+  const manualDDValues = statsSource.map(d => d.intradayDD).filter(v => v !== undefined && v !== null && !isNaN(v));
+  let ddMonth = manualDDValues.length ? Math.max(...manualDDValues) : null;
+  if (ddMonth === null && statsSource.some(d => typeof d.equity === "number")) {
+    let peak = (capitalBase && capitalBase > 0) ? capitalBase : -Infinity;
+    let worstFromEquity = null;
+    statsSource.forEach(d => {
+      if (typeof d.equity !== "number") return;
+      if (d.equity > peak) peak = d.equity;
+      if (peak > 0) {
+        const ddPct = ((peak - d.equity) / peak) * 100;
+        if (worstFromEquity === null || ddPct > worstFromEquity) worstFromEquity = ddPct;
+      }
+    });
+    ddMonth = worstFromEquity;
+  }
 
   // ── Vrai positionnement calendaire ──
   // BUG CORRIGE : journalMonthLabel est un texte D'AFFICHAGE ("Août 2026"), pas
@@ -12977,8 +12991,8 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
             : { label: "WR jours", val: winrateJours !== null ? winrateJours.toFixed(0) + "%" : "—", color: (winrateJours ?? 0) >= 50 ? "#4ade80" : "#f87171" },
           { label: "Progression", val: progressionPct !== null ? (progressionPct >= 0 ? "+" : "") + progressionPct.toFixed(2) + "%" : "—",
             color: progressionPct === null ? "rgba(255,255,255,0.4)" : progressionPct >= 0 ? "#4ade80" : "#f87171" },
-          { label: "Profit Factor", val: profitFactor === null ? "—" : (profitFactor === Infinity ? "∞" : profitFactor.toFixed(2)),
-            color: profitFactor === null ? "rgba(255,255,255,0.4)" : (profitFactor === Infinity || profitFactor >= 1) ? "#4ade80" : "#f87171" },
+          { label: "DD", val: ddMonth === null ? "—" : ddMonth.toFixed(2) + "%",
+            color: ddMonth === null ? "rgba(255,255,255,0.4)" : ddMonth >= 5 ? "#f87171" : ddMonth >= 2 ? "#fbbf24" : "#4ade80" },
         ].map(s => (
           <div key={s.label} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "7px 6px", textAlign: "center" }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginBottom: 3 }}>{s.label}</div>
