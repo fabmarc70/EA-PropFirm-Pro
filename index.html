@@ -150,7 +150,67 @@
            plafonne la hauteur et on libere le ratio au-dela de 1024px : les
            cases restent larges mais basses, donc beaucoup plus d'un mois
            tient a l'ecran. */
-        .cal-days > * { aspect-ratio: auto !important; min-height: 72px !important; max-height: 86px; }
+        /* (plafond .cal-days retire : le calendrier vit desormais dans une colonne etroite, ses cellules restent carrees) */
+
+        /* ── SIMULATEUR — grille explicite à 3 colonnes (>= 1024px) ──
+           Colonne 1 : Configuration (+ carte résumé Challenge en dessous).
+           Colonne 2 : résultats Challenge (Phase 1/2, courbes).
+           Colonne 3 : compte Funded + calendrier PnL.
+           Remplace le flux "masonry" précédent qui mélangeait tout dans
+           l'ordre du DOM sans respecter cette logique de colonnes. En dessous
+           de 1024px (mobile/tablette portrait), ces règles ne s'appliquent
+           pas : chaque bloc reste un simple <div>, DANS L'ORDRE DU DOM ET LE
+           COMPORTEMENT EXACTS D'AVANT (un seul bloc visible à la fois selon
+           l'onglet actif) — zéro changement en dessous du seuil. */
+        @media (min-width: 1024px) {
+          .sim-wide-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; align-items: start; }
+          .sim-col-config  { grid-column: 1; grid-row: 1; }
+          .sim-col-config2 { grid-column: 1; grid-row: 2; }
+          .sim-col-challenge { grid-column: 2; grid-row: 1 / span 2; }
+          .sim-col-funded    { grid-column: 3; grid-row: 1 / span 2; }
+          /* Dans la colonne Configuration, plus de multi-colonnes internes
+             (le "masonry" tablet-2col) : la colonne fait déjà ~1/3 de l'écran,
+             un flux simple empilé reste lisible sans se re-subdiviser. */
+          .sim-col-config.tablet-2col { columns: 1 !important; }
+        }
+
+        /* ── CALENDRIERS PnL ET GRAPHIQUES — Dashboard / Journal / Mes Trades ──
+           Signalé comme "trop grands, mode zoom" sur tablette : ces blocs
+           s'étiraient sur toute la largeur de l'écran (jusqu'à 100vw en mode
+           tour de contrôle), avec des cellules et des courbes proportionnées
+           en conséquence. Corrigé en les bornant à une largeur de lecture
+           raisonnable et en les centrant, comme le ferait une vraie appli de
+           bureau — le calendrier et les courbes restent des BLOCS denses, pas
+           des éléments plein écran. */
+        /* ── DASHBOARD / JOURNAL en "tour de controle" (>= 1024px) ──
+           Les cartes coulent en colonnes de largeur fixe (~340px), comme le
+           simulateur : chaque bloc — calendrier PnL, courbe, KPI, comptes —
+           garde une taille proche du mobile au lieu de s'etirer sur tout
+           l'ecran. C'est ce qui corrige le "mode zoom" signale : la largeur
+           d'un calendrier est bornee par sa colonne, pas par la page. Les deux
+           premiers enfants (en-tete + bandeau) restent pleine largeur. */
+        @media (min-width: 1024px) {
+          .tablet-flow { columns: 340px; column-gap: 14px; }
+          .tablet-flow > * { break-inside: avoid; page-break-inside: avoid; margin-bottom: 14px; }
+          .tablet-flow > *:nth-child(-n+2) { column-span: all; }
+          /* Variante sans en-tete dans le flux (Journal : le header est hors
+             du conteneur) — seul le bandeau "Mes comptes" reste pleine largeur */
+          .tablet-flow--nohead > *:nth-child(2) { column-span: none; }
+        }
+
+        /* ── JAUGES / SLIDERS RESPONSIVE (tablette et au-dela) ──
+           Cause du debordement observe : une cellule de grille CSS a
+           min-width:auto par defaut, donc un contenu insecable (pilules
+           "Jour Sem Mois", libelles longs) force la colonne a depasser la
+           carte, et le slider en width:100% suit. min-width:0 sur les enfants
+           de grille/flex retablit le comportement attendu : la colonne se
+           partage l'espace, le slider s'y adapte. Les selecteurs d'attribut
+           ciblent les styles inline poses par React, sans toucher au JSX. */
+        @media (min-width: 768px) {
+          [style*="grid-template-columns"] > * { min-width: 0; }
+          [style*="display: flex"] > * { min-width: 0; }
+          input[type=range] { width: 100% !important; max-width: 100%; min-width: 0; box-sizing: border-box; }
+        }
       }
       /* Scrollbar discrète */
       ::-webkit-scrollbar { width: 2px; }

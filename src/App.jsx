@@ -3131,7 +3131,7 @@ function StatusDot({ kind }) {
   return <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 4, background: color, flexShrink: 0 }} />;
 }
 
-// ── Icône de niveau (étoile à N branches selon le rang) — remplace les émojis 👑🏆🎯🌱 ──
+// ── Icône de niveau (étoile à N branches selon le rang) — remplace les émojis ──
 function LevelIcon({ level, color, size = 20 }) {
   const points = level === 'elite' ? 8 : level === 'professional' ? 6 : level === 'disciplined' ? 5 : 4;
   const cx = size/2, cy = size/2, rOuter = size/2 - 1, rInner = rOuter * 0.45;
@@ -3645,12 +3645,12 @@ function ReportHeader({ title, subtitle, onBack }) {
 // la page (pas de position absolute/fixed/z-index) — plus aucun risque de
 // superposition invisible ou de recouvrement raté sur mobile.
 const PAIR_ICONS = {
-  EURUSD: "💶", GBPUSD: "💷", USDJPY: "💴", USDCHF: "🇨🇭", AUDUSD: "🇦🇺", USDCAD: "🇨🇦", NZDUSD: "🇳🇿",
-  EURGBP: "💶", EURCHF: "💶", EURJPY: "💶", GBPJPY: "💷", AUDJPY: "🇦🇺", CHFJPY: "🇨🇭",
-  XAUUSD: "🥇", XAGUSD: "🥈", USOIL: "🛢️", UKOIL: "🛢️", NATGAS: "🔥", COPPER: "🟠",
-  US30: "🇺🇸", NAS100: "💻", SPX500: "📊", GER40: "🇩🇪", GER30: "🇩🇪", UK100: "🇬🇧", JPN225: "🇯🇵",
+  EURUSD: "", GBPUSD: "", USDJPY: "", USDCHF: "", AUDUSD: "", USDCAD: "", NZDUSD: "",
+  EURGBP: "", EURCHF: "", EURJPY: "", GBPJPY: "", AUDJPY: "", CHFJPY: "",
+  XAUUSD: "", XAGUSD: "", USOIL: "", UKOIL: "", NATGAS: "", COPPER: "",
+  US30: "", NAS100: "", SPX500: "", GER40: "", GER30: "", UK100: "", JPN225: "",
   BTCUSD: "₿", ETHUSD: "Ξ", SOLUSD: "◎", XRPUSD: "✕",
-  SPY: "📦", QQQ: "📦", GLD: "📦",
+  SPY: "", QQQ: "", GLD: "",
 };
 
 // Explications affichées au clic sur le point "i" à côté de chaque outil
@@ -4321,7 +4321,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
           <SectionHeader n="1" title="Résultats" />
           {result.ruined && (
             <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.35)", borderRadius: 11, padding: 11, marginBottom: 10 }}>
-              <div style={{ fontSize: 11.5, fontWeight: 800, color: "#ef4444", marginBottom: 4 }}>🛑 Compte ruiné en cours de période</div>
+              <div style={{ fontSize: 11.5, fontWeight: 800, color: "#ef4444", marginBottom: 4 }}>Compte ruiné en cours de période</div>
               <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
                 Le capital est tombé sous 20% de sa valeur initiale le {result.ruinedAtDate ? new Date(result.ruinedAtDate).toLocaleDateString() : ""}. Le backtest s'arrête là : en réel, le compte aurait été fermé bien avant. Les chiffres ci-dessous ne couvrent que la période jusqu'à cet instant.
               </div>
@@ -4364,7 +4364,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
             </div>
           )}
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            <button onClick={archiveResult} style={{ flex: 1, padding: 11, borderRadius: 10, border: "1px solid " + ACCENT + "55", background: ACCENT + "12", color: ACCENT, fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>📥 Archiver</button>
+            <button onClick={archiveResult} style={{ flex: 1, padding: 11, borderRadius: 10, border: "1px solid " + ACCENT + "55", background: ACCENT + "12", color: ACCENT, fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>Archiver</button>
             <button onClick={resetAllConfig} style={{ flex: 1, padding: 11, borderRadius: 10, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>↺ Réinitialiser</button>
           </div>
         </div>
@@ -4376,7 +4376,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
           padding: "10px 14px", borderRadius: 12, marginTop: 12, cursor: "pointer",
           background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff",
         }}>
-          <span style={{ fontSize: 12, fontWeight: 700 }}>📂 Backtests archivés</span>
+          <span style={{ fontSize: 12, fontWeight: 700 }}>Backtests archivés</span>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{history.length} →</span>
         </button>
       )}
@@ -4438,7 +4438,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
         {analysisMode === "walkforward" && (
           <div style={{ background: "rgba(110,231,183,0.04)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, padding: 12, marginBottom: 10 }}>
             <div style={{ fontSize: 9.5, fontWeight: 700, color: ACCENT, textTransform: "uppercase", marginBottom: 8 }}>
-              🔬 Fenêtres d'analyse<InfoDot id="walkforward" openInfo={openInfo} setOpenInfo={setOpenInfo} accent={ACCENT} />
+              Fenêtres d'analyse<InfoDot id="walkforward" openInfo={openInfo} setOpenInfo={setOpenInfo} accent={ACCENT} />
             </div>
             <InfoPanel id="walkforward" openInfo={openInfo} accent={ACCENT} />
             <div style={{ marginBottom: 9 }}>
@@ -4469,7 +4469,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
         {periodList.length > 0 && (
         <div style={{ background: "rgba(110,231,183,0.04)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, padding: 12, marginBottom: 10 }}>
           <div style={{ fontSize: 9.5, fontWeight: 700, color: ACCENT, textTransform: "uppercase", marginBottom: 10 }}>
-            📅 Période à backtester<InfoDot id="period" openInfo={openInfo} setOpenInfo={setOpenInfo} accent={ACCENT} />
+            Période à backtester<InfoDot id="period" openInfo={openInfo} setOpenInfo={setOpenInfo} accent={ACCENT} />
           </div>
           <InfoPanel id="period" openInfo={openInfo} accent={ACCENT} />
 
@@ -4517,40 +4517,40 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
         )}
 
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
-          <BacktestSelect id="pair" label="📈 Actif" value={selectedPair || ""} onChange={setSelectedPair}
-            options={pairs.map(p => ({ value: p, label: (PAIR_ICONS[p] || "💱") + " " + p }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
-          <BacktestSelect id="timeframe" label="⏱ Timeframe" value={timeframeKey} onChange={setTimeframeKey}
+          <BacktestSelect id="pair" label="Actif" value={selectedPair || ""} onChange={setSelectedPair}
+            options={pairs.map(p => ({ value: p, label: p }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
+          <BacktestSelect id="timeframe" label="Timeframe" value={timeframeKey} onChange={setTimeframeKey}
             options={availableTimeframes.map(tf => ({ value: tf.key, label: tf.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
-          <BacktestSelect id="firm" label="🏢 Prop firm" value={firmKey} onChange={v => { setFirmKey(v); setModelKey(Object.keys(PROP_FIRMS[v].models)[0]); }}
+          <BacktestSelect id="firm" label="Prop firm" value={firmKey} onChange={v => { setFirmKey(v); setModelKey(Object.keys(PROP_FIRMS[v].models)[0]); }}
             options={Object.keys(PROP_FIRMS).map(k => ({ value: k, label: PROP_FIRMS[k].name }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
-          <BacktestSelect id="model" label="🎯 Type de challenge" value={modelKey} onChange={setModelKey}
+          <BacktestSelect id="model" label="Type de challenge" value={modelKey} onChange={setModelKey}
             options={modelsForFirm.map(k => ({ value: k, label: firm.models[k].name }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
-          <BacktestSelect id="capital" label="💰 Solde du challenge" value={capital} onChange={v => setCapital(parseInt(v))}
+          <BacktestSelect id="capital" label="Solde du challenge" value={capital} onChange={v => setCapital(parseInt(v))}
             options={CAPITAL_OPTIONS.map(c => ({ value: c, label: "$" + c.toLocaleString() }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
-          <BacktestSelect id="strategy" label="📊 Stratégie" value={strategyKey} onChange={setStrategyKey}
+          <BacktestSelect id="strategy" label="Stratégie" value={strategyKey} onChange={setStrategyKey}
             options={strategies.map(s => ({ value: s.key, label: (s.category ? "[" + s.category + "] " : "") + s.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
-          <BacktestSelect id="mmmode" label="⚖️ Gestion du risque" value={mmMode} onChange={setMmMode}
+          <BacktestSelect id="mmmode" label="Gestion du risque" value={mmMode} onChange={setMmMode}
             options={MONEY_MANAGEMENT_MODES.map(m => ({ value: m.key, label: m.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
-          <BacktestSelect id="riskpct" label="🛡 Risque par trade (%)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
+          <BacktestSelect id="riskpct" label="Risque par trade (%)" value={riskPct} onChange={v => setRiskPct(parseFloat(v))}
             options={[0.25, 0.5, 1, 1.5, 2, 3, 5].map(r => ({ value: r, label: r + "%" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
-          <BacktestSelect id="slippage" label="💸 Frais & slippage" value={slippagePips} onChange={v => setSlippagePips(parseFloat(v))}
+          <BacktestSelect id="slippage" label="Frais & slippage" value={slippagePips} onChange={v => setSlippagePips(parseFloat(v))}
             options={[0, 0.2, 0.5, 1].map(s => ({ value: s, label: s === 0 ? "Aucun (idéal)" : "Spread + " + s + " pip" }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
           {isGridStrategy ? <div /> : (
-            <BacktestSelect id="direction" label="↕️ Sens autorisé" value={tradeDirection} onChange={setTradeDirection}
+            <BacktestSelect id="direction" label="↕ Sens autorisé" value={tradeDirection} onChange={setTradeDirection}
               options={TRADE_DIRECTIONS.map(d => ({ value: d.key, label: d.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
           )}
         </div>
         {!isGridStrategy && (
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
-            <BacktestSelect id="session" label="🕐 Heures de trading" value={sessionKey} onChange={setSessionKey}
+            <BacktestSelect id="session" label="Heures de trading" value={sessionKey} onChange={setSessionKey}
               options={SESSIONS.map(s => ({ value: s.key, label: s.label }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
             <div />
           </div>
@@ -4587,12 +4587,12 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
         {mmMode === "martingale" && !isGridStrategy && (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, marginBottom: 8 }}>
-              <BacktestSelect id="martmult" label="🎲 Multiplicateur martingale" value={martingaleMultiplier} onChange={v => setMartingaleMultiplier(parseFloat(v))}
+              <BacktestSelect id="martmult" label="Multiplicateur martingale" value={martingaleMultiplier} onChange={v => setMartingaleMultiplier(parseFloat(v))}
                 options={[1.5, 2, 2.5, 3].map(m => ({ value: m, label: "×" + m }))} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} accent={ACCENT} openInfo={openInfo} setOpenInfo={setOpenInfo} />
               <div />
             </div>
             <div style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 12, padding: 10, marginBottom: 8, fontSize: 10, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
-              ⚠️ La Martingale amplifie mécaniquement le risque de ruine. Plafond de doublements : {martingaleMaxSteps}.
+              La Martingale amplifie mécaniquement le risque de ruine. Plafond de doublements : {martingaleMaxSteps}.
             </div>
           </>
         )}
@@ -4627,7 +4627,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
                 }}>{d.l}</button>
               ))}
             </div>
-            <div style={{ fontSize: 9.5, color: "rgba(239,68,68,0.75)", marginTop: 8, lineHeight: 1.4 }}>⚠️ Pas de stop loss par niveau — le risque est dans le drawdown flottant, affiché dans les résultats.</div>
+            <div style={{ fontSize: 9.5, color: "rgba(239,68,68,0.75)", marginTop: 8, lineHeight: 1.4 }}>Pas de stop loss par niveau — le risque est dans le drawdown flottant, affiché dans les résultats.</div>
           </div>
         ) : currentStrategyDef && (
           <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: 12, marginBottom: 8 }}>
@@ -4665,7 +4665,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
         {!isGridStrategy && (
           <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: 12, marginBottom: 8 }}>
             <div style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 8 }}>
-              📆 Jours de trading<InfoDot id="tradingdays" openInfo={openInfo} setOpenInfo={setOpenInfo} accent={ACCENT} />
+              Jours de trading<InfoDot id="tradingdays" openInfo={openInfo} setOpenInfo={setOpenInfo} accent={ACCENT} />
             </div>
             <InfoPanel id="tradingdays" openInfo={openInfo} accent={ACCENT} />
             <div style={{ display: "flex", gap: 5 }}>
@@ -4686,7 +4686,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
             </div>
             <div style={{ fontSize: 9.5, color: tradingDays.length ? "rgba(255,255,255,0.35)" : "#fbbf24", marginTop: 7 }}>
               {tradingDays.length === 0
-                ? "⚠️ Aucun jour sélectionné : aucune position ne pourra s'ouvrir."
+                ? "Aucun jour sélectionné : aucune position ne pourra s'ouvrir."
                 : `${tradingDays.length} jour${tradingDays.length > 1 ? "s" : ""} actif${tradingDays.length > 1 ? "s" : ""} (heure UTC).`}
             </div>
           </div>
@@ -4697,7 +4697,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
           <div style={{ background: "rgba(110,231,183,0.04)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, padding: 12, marginBottom: 8 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
               <div style={{ fontSize: 9.5, fontWeight: 700, color: ACCENT, textTransform: "uppercase" }}>
-                🧩 Filtres de confluence<InfoDot id="confluence" openInfo={openInfo} setOpenInfo={setOpenInfo} accent={ACCENT} />
+                Filtres de confluence<InfoDot id="confluence" openInfo={openInfo} setOpenInfo={setOpenInfo} accent={ACCENT} />
               </div>
               {confluence.length > 0 && (
                 <span style={{ fontSize: 9.5, fontWeight: 800, color: ACCENT, background: ACCENT + "18", borderRadius: 100, padding: "2px 8px" }}>{confluence.length} actif{confluence.length > 1 ? "s" : ""}</span>
@@ -4881,8 +4881,8 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
         return (
           <div className="card">
             <SectionHeader n="3" title="Diagnostic" />
-            <Bloc titre="🛑 Bloquant" items={diag.bloquants} couleur="#ef4444" fond="rgba(239,68,68,0.06)" />
-            <Bloc titre="⚠️ À corriger" items={diag.importants} couleur="#fbbf24" fond="rgba(251,191,36,0.05)" />
+            <Bloc titre="Bloquant" items={diag.bloquants} couleur="#ef4444" fond="rgba(239,68,68,0.06)" />
+            <Bloc titre="À corriger" items={diag.importants} couleur="#fbbf24" fond="rgba(251,191,36,0.05)" />
             <Bloc titre="✓ Points forts" items={diag.forces} couleur={ACCENT} fond="rgba(110,231,183,0.05)" />
             <Bloc titre="◆ Pistes d'optimisation" items={diag.optim} couleur="rgba(255,255,255,0.75)" fond="rgba(255,255,255,0.03)" />
             <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", lineHeight: 1.4 }}>
@@ -4898,7 +4898,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: "#fff", marginBottom: 3 }}>
-                🔍 Pourquoi ce résultat ?
+                Pourquoi ce résultat ?
               </div>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", lineHeight: 1.45 }}>
                 Autopsie de tes {result.totalTrades} trades : où les pertes se concentrent, si tes perdants étaient gagnants avant de se retourner, dans quel régime de marché la stratégie échoue.
@@ -4966,7 +4966,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
         <div className="card">
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: "#fff", marginBottom: 3 }}>⚗️ Optimiseur de stratégie</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#fff", marginBottom: 3 }}>Optimiseur de stratégie</div>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", lineHeight: 1.45 }}>
                 Explore des variantes de ta configuration (paramètres, filtres, TP/SL, sens) et ne retient que celles qui tiennent sur une tranche de données jamais utilisée pendant la recherche.
               </div>
@@ -5159,7 +5159,7 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
               width: "100%", marginTop: 10, padding: 12, borderRadius: 10, border: "1px solid " + ACCENT + "55",
               background: copied ? ACCENT : ACCENT + "12", color: copied ? "#000" : ACCENT,
               fontSize: 12, fontWeight: 800, cursor: "pointer", transition: "all .2s",
-            }}>{copied ? "✓ Copié dans le presse-papiers" : "📋 Copier la configuration"}</button>
+            }}>{copied ? "✓ Copié dans le presse-papiers" : "Copier la configuration"}</button>
           </div>
         );
       })()}
@@ -5395,7 +5395,7 @@ function LabScreen({ t, lang, profile, onBack }) {
             style={{ width: "100%", padding: 14, borderRadius: 13, border: "none", cursor: "pointer",
               background: !stepDone(step) ? "rgba(255,255,255,0.07)" : "linear-gradient(135deg,#6ee7b7,#34d399)",
               color: !stepDone(step) ? "rgba(255,255,255,0.3)" : "#000", fontSize: 14, fontWeight: 800 }}>
-            {step + 1 >= 6 ? "⚗ Analyser" : "Suivant →"}
+            {step + 1 >= 6 ? "Analyser" : "Suivant →"}
           </button>
         </div>
       </div>
@@ -5564,7 +5564,7 @@ function LabScreen({ t, lang, profile, onBack }) {
             <span style={{ fontSize: 8, color: "rgba(255,255,255,0.35)" }}>/100</span>
           </div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{analysis.global >= 65 ? "✓ Profil viable prop firm" : analysis.global >= 40 ? "⚠ Profil à consolider" : "✕ Restructuration nécessaire"}</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{analysis.global >= 65 ? "✓ Profil viable prop firm" : analysis.global >= 40 ? "Profil à consolider" : "✕ Restructuration nécessaire"}</div>
             <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>WR {displayWR}% · RR 1:{displayRR} · Espérance {analysis.expectancy.toFixed(2)}R/trade</div>
           </div>
         </div>
@@ -5609,7 +5609,7 @@ function LabScreen({ t, lang, profile, onBack }) {
 
       {/* ── SLIDERS INTERACTIFS ── */}
       <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 14, padding: 14, marginBottom: 14 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: "#6ee7b7", marginBottom: 10 }}>⚡ Simulation interactive — modifie et vois l'impact en temps réel</div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#6ee7b7", marginBottom: 10 }}>Simulation interactive — modifie et vois l'impact en temps réel</div>
         <SliderRow label="Winrate %" val={displayWR} setVal={setOvWR} min={15} max={85} step={1} format={v => v + "%"} />
         <SliderRow label="Risk Reward (1:x)" val={displayRR} setVal={setOvRR} min={0.4} max={5} step={0.1} format={v => "1:" + v.toFixed(1)} />
         <SliderRow label="Risque / trade" val={displayRisk} setVal={setOvRisk} min={0.1} max={3} step={0.05} format={v => v.toFixed(2) + "%"} />
@@ -5651,7 +5651,7 @@ function LabScreen({ t, lang, profile, onBack }) {
 
       {/* ── ARBRE INTERACTIF ── */}
       <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 14, padding: 14 }}>
-        <div style={{ fontSize: 12, fontWeight: 800, color: "#fbbf24", marginBottom: 4 }}>🔬 Arbre de décision stratégique</div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "#fbbf24", marginBottom: 4 }}>Arbre de décision stratégique</div>
         <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)", marginBottom: 12 }}>Clique sur n'importe quel nœud pour explorer ses métriques en détail.</div>
         {!research ? (
           <button onClick={runResearch} disabled={researching} style={{ width: "100%", padding: 13, borderRadius: 13, border: "none", cursor: researching ? "default" : "pointer",
@@ -5781,9 +5781,9 @@ function LabScreen({ t, lang, profile, onBack }) {
           {/* ── BARRE DE CONCLUSION BACKTESTING ── */}
           {(() => {
             const pr = research.root.mc.passRate;
-            const verdict = pr >= 65 ? { icon: "✅", color: "#6ee7b7", txt: "Stratégie viable", action: "Commence par un forward test de 30 jours minimum avec un capital fictif avant de payer le moindre challenge." }
-              : pr >= 40 ? { icon: "⚠️", color: "#fbbf24", txt: "Améliorations requises", action: "Tu dois accumuler au moins 200 trades réels ou démo pour valider la statistique, puis relancer cette simulation." }
-              : { icon: "🛑", color: "#ef4444", txt: "Non viable en l'état", action: "Stop. Cette stratégie ne peut pas passer un challenge dans l'état actuel. Retravaille le RR ou le winrate, puis recommence." };
+            const verdict = pr >= 65 ? { icon: "", color: "#6ee7b7", txt: "Stratégie viable", action: "Commence par un forward test de 30 jours minimum avec un capital fictif avant de payer le moindre challenge." }
+              : pr >= 40 ? { icon: "", color: "#fbbf24", txt: "Améliorations requises", action: "Tu dois accumuler au moins 200 trades réels ou démo pour valider la statistique, puis relancer cette simulation." }
+              : { icon: "", color: "#ef4444", txt: "Non viable en l'état", action: "Stop. Cette stratégie ne peut pas passer un challenge dans l'état actuel. Retravaille le RR ou le winrate, puis recommence." };
             const checklist = [
               { ok: research.root.mc.passRate >= 50, txt: `Passage MC ≥ 50% (tu as ${research.root.mc.passRate}%)` },
               { ok: research.root.mc.ruinRate < 20, txt: `Ruine < 20% (tu as ${research.root.mc.ruinRate}%)` },
@@ -5899,62 +5899,62 @@ function newInvestmentStrategy() {
 // LEP 2,50 %, CEL 1,25 %, PEL ouvert en 2026 ~2 % brut). Ces taux sont revus
 // périodiquement par l'État : à revalider si l'écart devient significatif.
 const INVESTMENT_PRESETS = [
-  { key: "pea", icon: "📈", label: "PEA", note: "Actions européennes, exonéré d'IR après 5 ans",
+  { key: "pea", icon: "", label: "PEA", note: "Actions européennes, exonéré d'IR après 5 ans",
     investmentType: "dca", annualReturnPct: 7, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 150000, capLabel: "150 000 € de versements",
     taxOnGainsPct: 17.2, taxLabel: "17,2 % de prélèvements sociaux après 5 ans (exonéré d'IR)",
     availability: "Retrait avant 5 ans = clôture du plan", fees: { annualPct: 0.5 } },
 
-  { key: "cto", icon: "📊", label: "Compte-titres (CTO)", note: "Actions/ETF monde entier, sans plafond",
+  { key: "cto", icon: "", label: "Compte-titres (CTO)", note: "Actions/ETF monde entier, sans plafond",
     investmentType: "dca", annualReturnPct: 7, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 0, capLabel: "Aucun plafond",
     taxOnGainsPct: 30, taxLabel: "PFU (flat tax) 30 % sur les plus-values",
     availability: "Disponible à tout moment", fees: { annualPct: 0.5 } },
 
-  { key: "etf_monde", icon: "🌍", label: "ETF Monde", note: "Indiciel diversifié, capitalisant",
+  { key: "etf_monde", icon: "", label: "ETF Monde", note: "Indiciel diversifié, capitalisant",
     investmentType: "dca", annualReturnPct: 7, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 0, capLabel: "Dépend de l'enveloppe (PEA ou CTO)",
     taxOnGainsPct: 30, taxLabel: "Selon l'enveloppe : 30 % en CTO, 17,2 % en PEA +5 ans",
     availability: "Disponible à tout moment", fees: { annualPct: 0.25 } },
 
-  { key: "assurance_vie", icon: "🛡️", label: "Assurance-vie", note: "Fonds euros + unités de compte",
+  { key: "assurance_vie", icon: "", label: "Assurance-vie", note: "Fonds euros + unités de compte",
     investmentType: "dca", annualReturnPct: 4, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 0, capLabel: "Aucun plafond de versement",
     taxOnGainsPct: 24.7, taxLabel: "24,7 % après 8 ans (7,5 % + 17,2 %), hors abattement annuel",
     availability: "Rachat possible à tout moment", fees: { annualPct: 0.8, perContribution: 0 } },
 
-  { key: "per", icon: "🏦", label: "PER (retraite)", note: "Versements déductibles, capital bloqué",
+  { key: "per", icon: "", label: "PER (retraite)", note: "Versements déductibles, capital bloqué",
     investmentType: "dca", annualReturnPct: 5, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 0, capLabel: "Plafond de déduction lié à tes revenus",
     taxOnGainsPct: 30, taxLabel: "Imposé à la sortie (capital à la TMI, gains au PFU 30 %)",
-    availability: "⚠️ Bloqué jusqu'à la retraite (sauf achat RP et accidents de la vie)",
+    availability: "Bloqué jusqu'à la retraite (sauf achat RP et accidents de la vie)",
     fees: { annualPct: 0.8 } },
 
-  { key: "livret_a", icon: "💶", label: "Livret A", note: "Garanti par l'État, totalement défiscalisé",
+  { key: "livret_a", icon: "", label: "Livret A", note: "Garanti par l'État, totalement défiscalisé",
     investmentType: "dca", annualReturnPct: 1.7, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 22950, capLabel: "22 950 € de versements",
     taxOnGainsPct: 0, taxLabel: "Totalement exonéré (ni impôt ni prélèvements sociaux)",
     availability: "Disponible immédiatement", fees: { annualPct: 0 } },
 
-  { key: "ldds", icon: "🌱", label: "LDDS", note: "Même taux que le Livret A, plafond plus bas",
+  { key: "ldds", icon: "", label: "LDDS", note: "Même taux que le Livret A, plafond plus bas",
     investmentType: "dca", annualReturnPct: 1.7, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 12000, capLabel: "12 000 € de versements",
     taxOnGainsPct: 0, taxLabel: "Totalement exonéré", availability: "Disponible immédiatement",
     fees: { annualPct: 0 } },
 
-  { key: "lep", icon: "🤝", label: "LEP", note: "Meilleur taux garanti, sous conditions de revenus",
+  { key: "lep", icon: "", label: "LEP", note: "Meilleur taux garanti, sous conditions de revenus",
     investmentType: "dca", annualReturnPct: 2.5, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 10000, capLabel: "10 000 € de versements",
     taxOnGainsPct: 0, taxLabel: "Totalement exonéré",
     availability: "Disponible immédiatement · éligibilité selon revenu fiscal", fees: { annualPct: 0 } },
 
-  { key: "pel", icon: "🏠", label: "PEL", note: "Épargne logement, taux fixé à l'ouverture",
+  { key: "pel", icon: "", label: "PEL", note: "Épargne logement, taux fixé à l'ouverture",
     investmentType: "dca", annualReturnPct: 2, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 61200, capLabel: "61 200 € de versements",
     taxOnGainsPct: 30, taxLabel: "PFU 30 % (plans ouverts depuis 2018)",
     availability: "Bloqué 4 ans minimum · versement annuel min. 540 €", fees: { annualPct: 0 } },
 
-  { key: "scpi", icon: "🏢", label: "SCPI / Immobilier papier", note: "Revenus locatifs distribués",
+  { key: "scpi", icon: "", label: "SCPI / Immobilier papier", note: "Revenus locatifs distribués",
     investmentType: "dca", annualReturnPct: 4.5, dcaFrequency: "quarterly", reinvest: false,
     contributionCap: 0, capLabel: "Aucun plafond",
     taxOnGainsPct: 30, taxLabel: "Revenus fonciers : TMI + 17,2 % (30 % pris ici en approximation)",
@@ -5967,13 +5967,13 @@ const INVESTMENT_PRESETS = [
     taxOnGainsPct: 30, taxLabel: "PFU 30 % à la cession en euros",
     availability: "Disponible en permanence · forte volatilité", fees: { annualPct: 0 } },
 
-  { key: "or", icon: "🥇", label: "Or / métaux précieux", note: "Valeur refuge, décorrélée des marchés",
+  { key: "or", icon: "", label: "Or / métaux précieux", note: "Valeur refuge, décorrélée des marchés",
     investmentType: "dca", annualReturnPct: 5, dcaFrequency: "monthly", reinvest: false,
     contributionCap: 0, capLabel: "Aucun plafond",
     taxOnGainsPct: 36.2, taxLabel: "Taxe forfaitaire 11,5 % OU 36,2 % sur plus-value (au choix)",
     availability: "Revente selon le support (physique ou papier)", fees: { annualPct: 0 } },
 
-  { key: "epargne_projet", icon: "🎯", label: "Épargne long terme", note: "Capital de côté, sans versement régulier",
+  { key: "epargne_projet", icon: "", label: "Épargne long terme", note: "Capital de côté, sans versement régulier",
     investmentType: "initial", annualReturnPct: 3, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 0, capLabel: "Aucun plafond",
     taxOnGainsPct: 30, taxLabel: "PFU 30 % (selon le support retenu)",
@@ -6085,7 +6085,7 @@ function InvestmentScreen({ t, lang, onBack }) {
 
           {strategies.length === 0 ? (
             <div style={{ textAlign: "center", padding: "40px 16px", color: "rgba(255,255,255,0.4)" }}>
-              <div style={{ fontSize: 32, marginBottom: 10 }}>📈</div>
+              <div style={{ fontSize: 32, marginBottom: 10 }}></div>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 4 }}>Aucune stratégie pour l'instant</div>
               <div style={{ fontSize: 11.5, lineHeight: 1.5 }}>Crée ta première stratégie (ETF, DCA, crypto, épargne...) pour voir sa projection dans le temps.</div>
             </div>
@@ -6129,7 +6129,7 @@ function InvestmentScreen({ t, lang, onBack }) {
         <div style={{ padding: "0 16px 32px" }}>
           <button onClick={() => { setForm(newInvestmentStrategy()); setView("form"); }}
             style={{ width: "100%", textAlign: "left", background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.15)", borderRadius: 14, padding: 14, cursor: "pointer", marginBottom: 12, color: "#fff" }}>
-            <div style={{ fontSize: 13, fontWeight: 800 }}>✏️ Stratégie personnalisée</div>
+            <div style={{ fontSize: 13, fontWeight: 800 }}>✏ Stratégie personnalisée</div>
             <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>Formulaire vierge, tu règles tout toi-même</div>
           </button>
 
@@ -6371,7 +6371,7 @@ function InvestmentScreen({ t, lang, onBack }) {
             )}
             {preview.summary.capReached && (
               <div style={{ marginTop: 8, fontSize: 10.5, color: "#fbbf24", lineHeight: 1.45 }}>
-                ⚠️ Plafond de versements atteint ({fmt(preview.summary.contributionCap)}) — les versements s'arrêtent, le capital continue de produire des intérêts.
+                Plafond de versements atteint ({fmt(preview.summary.contributionCap)}) — les versements s'arrêtent, le capital continue de produire des intérêts.
               </div>
             )}
           </div>
@@ -6401,11 +6401,11 @@ function InvestmentScreen({ t, lang, onBack }) {
 
           <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
             <button onClick={() => { setForm(selected); setShowAdvanced(false); setView("form"); }}
-              style={{ flex: 1, padding: 9, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✏️ Modifier</button>
+              style={{ flex: 1, padding: 9, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✏ Modifier</button>
             <button onClick={() => duplicateStrategy(selected)}
               style={{ flex: 1, padding: 9, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>⧉ Dupliquer</button>
             <button onClick={() => deleteStrategy(selected.id)}
-              style={{ flex: 1, padding: 9, borderRadius: 10, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🗑 Supprimer</button>
+              style={{ flex: 1, padding: 9, borderRadius: 10, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Supprimer</button>
           </div>
 
           {/* KPI */}
@@ -6439,7 +6439,7 @@ function InvestmentScreen({ t, lang, onBack }) {
               )}
               {projection.summary.capReached && (
                 <div style={{ fontSize: 10.5, color: "#fbbf24", marginTop: projection.summary.taxOnGainsPct > 0 ? 8 : 0, lineHeight: 1.45 }}>
-                  ⚠️ Plafond de versements atteint ({fmt(projection.summary.contributionCap)}) — les versements sont stoppés, les intérêts continuent.
+                  Plafond de versements atteint ({fmt(projection.summary.contributionCap)}) — les versements sont stoppés, les intérêts continuent.
                 </div>
               )}
             </div>
@@ -6597,7 +6597,7 @@ function InvestmentScreen({ t, lang, onBack }) {
                 </div>
               ))}
               <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", marginTop: 10, lineHeight: 1.4 }}>
-                ⚠️ Le capital final le plus élevé ne signifie pas la meilleure performance si davantage de capital a été injecté — compare aussi le montant investi et le rendement cumulé.
+                Le capital final le plus élevé ne signifie pas la meilleure performance si davantage de capital a été injecté — compare aussi le montant investi et le rendement cumulé.
               </div>
             </div>
           </>)}
@@ -8703,7 +8703,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       {/* className "tablet-2col" : sur tablette large (>= 1024px), ces cartes
           se repartissent en 2 colonnes pour tout voir sans defiler. Aucun effet
           sous 1024px — la regle CSS n'existe qu'au-dela (voir index.html). */}
-      {(tab === "challenge" || tab === "funded" || isWide) && (<div className="tablet-2col">
+      <div className="sim-wide-grid"><div className="sim-col-config">{(tab === "challenge" || tab === "funded" || isWide) && (<div className="tablet-2col">
 
       {/* PRIX DE PASSAGE — grand affichage dynamique, recalculé à chaque
           changement de palier de capital ou de firm (FIRM_FEES). Se déplace
@@ -8925,10 +8925,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             border: `1px solid ${rrRealisme === "ambitieux" ? "rgba(251,191,36,0.35)" : "rgba(239,68,68,0.35)"}`,
           }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: rrRealisme === "ambitieux" ? "#fbbf24" : "#ef4444" }}>
-              {rrRealisme === "impossible" ? "🛑 Objectif hors d'atteinte"
-                : rrRealisme === "irrealiste" ? "🛑 RR requis irréaliste"
-                : rrRealisme === "ambitieux" ? "⚠️ RR requis ambitieux"
-                : "⚠️ RR inférieur à 1"}
+              {rrRealisme === "impossible" ? "Objectif hors d'atteinte"
+                : rrRealisme === "irrealiste" ? "RR requis irréaliste"
+                : rrRealisme === "ambitieux" ? "RR requis ambitieux"
+                : "RR inférieur à 1"}
             </div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 5, lineHeight: 1.5 }}>
               {rrRealisme === "impossible"
@@ -9428,7 +9428,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
           </>
         )}
       </button>
-      </div>)}
+      </div>)}</div>
 
       {!finalRRValid && (
         <div className="card" style={{ textAlign: "center", padding: 24, color: "#ef4444", fontWeight: 700, fontSize: 13 }}>
@@ -9438,11 +9438,11 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       )}
 
       {/* ════════ TAB BILAN ════════ */}
-      {(tab === "bilan" || isWide) && (
+      <div className="sim-col-challenge">{(tab === "bilan" || isWide) && (
         <div style={{ paddingBottom: 24 }}>
           {!sim || !bilan ? (
             <div className="card" style={{ textAlign: "center", padding: 28 }}>
-              <div style={{ fontSize: 16, marginBottom: 6 }}>📊</div>
+              <div style={{ fontSize: 16, marginBottom: 6 }}></div>
               <div style={{ fontWeight: 700, color: "rgba(255,255,255,0.75)", marginBottom: 4 }}>Lance une simulation</div>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
                 Configure tes paramètres dans l'onglet Challenge, puis reviens ici.
@@ -9470,10 +9470,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                 {t("sim_balance_net")}
               </div>
               {[
-                { label: t("sim_reward_challenge") + " (" + (model.rewardPct||15) + "%)", val: "+" + fmt2(bilan.reward), color: "#6ee7b7", icon: "🏆" },
-                { label: t("sim_payouts_paid"), val: "+" + fmt2(bilan.payout), color: "#6ee7b7", icon: "💸" },
-                { label: t("sim_pending_unpaid"), val: "+" + fmt2(bilan.pending), color: "rgba(255,255,255,0.55)", icon: "⏳" },
-                { label: t("sim_challenge_fees"), val: "-" + fmt2(bilan.fee), color: "#ef4444", icon: "💳" },
+                { label: t("sim_reward_challenge") + " (" + (model.rewardPct||15) + "%)", val: "+" + fmt2(bilan.reward), color: "#6ee7b7", icon: "" },
+                { label: t("sim_payouts_paid"), val: "+" + fmt2(bilan.payout), color: "#6ee7b7", icon: "" },
+                { label: t("sim_pending_unpaid"), val: "+" + fmt2(bilan.pending), color: "rgba(255,255,255,0.55)", icon: "" },
+                { label: t("sim_challenge_fees"), val: "-" + fmt2(bilan.fee), color: "#ef4444", icon: "" },
               ].map(k => (
                 <div key={k.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                   <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>{k.icon} {k.label}</span>
@@ -9614,14 +9614,14 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             </div>
           </>)}
         </div>
-      )}
+      )}</div>
 
       {/* ════════ TAB CHALLENGE ════════ */}
-      {(tab === "challenge" || isWide) && (
+      <div className="sim-col-config2">{(tab === "challenge" || isWide) && (
         <div>
           {!sim ? (
             <div className="card" style={{ textAlign: "center", padding: 28 }}>
-              <div style={{ fontSize: 16, marginBottom: 6 }}>⚙️</div>
+              <div style={{ fontSize: 16, marginBottom: 6 }}></div>
               <div style={{ fontWeight: 700, color: "rgba(255,255,255,0.75)", marginBottom: 4 }}>
                 Configure tes paramètres ci-dessus
               </div>
@@ -9683,10 +9683,10 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             )}
           </>)}
         </div>
-      )}
+      )}</div>
 
       {/* TAB FUNDED */}
-      {(tab === "funded" || tab === "montecarlo" || isWide) && (
+      <div className="sim-col-funded">{(tab === "funded" || tab === "montecarlo" || isWide) && (
         // En montecarlo : on n'affiche le Funded QUE s'il existe (sinon rien, le MC s'affiche seul)
         !sim ? (
           tab === "montecarlo" ? null : (
@@ -9873,7 +9873,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             </div>
           </>
         )
-      )}
+      )}</div></div>
 
       {/* TAB MONTE CARLO — affiché sous le Funded */}
       {tab === "montecarlo" && finalRRValid && (
@@ -10083,12 +10083,12 @@ const ECON_EVENT_LABELS = {
 
 // Drapeaux des pays émetteurs par type d'événement (emoji unicode — rendu natif sur iOS/Android)
 const ECON_FLAGS = {
-  NFP:  "🇺🇸",  // Etats-Unis
-  CPI:  "🇺🇸",  // Etats-Unis (Fed)
-  FOMC: "🇺🇸",  // Etats-Unis (Fed)
-  RATE: "🇪🇺",  // Zone Euro (BCE) / Banque d'Angleterre selon le mois
-  PMI:  "🌍",   // Multi-zones (US + EU + UK)
-  GDP:  "🇺🇸",  // Etats-Unis en priorité
+  NFP:  "",  // Etats-Unis
+  CPI:  "",  // Etats-Unis (Fed)
+  FOMC: "",  // Etats-Unis (Fed)
+  RATE: "",  // Zone Euro (BCE) / Banque d'Angleterre selon le mois
+  PMI:  "",   // Multi-zones (US + EU + UK)
+  GDP:  "",  // Etats-Unis en priorité
 };
 
 // Génère les prochains événements économiques récurrents à partir d'aujourd'hui (best-effort, dates réalistes)
@@ -10204,7 +10204,7 @@ function economicAnalyze(trades, windowMin = 30) {
     type, label: ECON_EVENT_LABELS[type] || type, ...calcStats(arr),
   })).sort((a,b) => b.n - a.n);
 
-  // ── Niveau de risque global 🟢🟡🔴 ──
+  // ── Niveau de risque global ──
   let riskLevel, riskColor;
   if (pfDropPct >= 40 || lossIncreasePct >= 35) { riskLevel = "high"; riskColor = "#ef4444"; }
   else if (pfDropPct >= 15 || lossIncreasePct >= 15) { riskLevel = "medium"; riskColor = "#fbbf24"; }
@@ -10397,7 +10397,7 @@ function mt5Analyze(trades, initBalance) {
 // ══════════════════════════════════════════════════════════════════
 // MOTEUR DE DÉCISION — "Puis-je lancer ce challenge ?"
 // Synthétise verdict (Monte Carlo/PF/WR/DD/échantillon) en un verdict
-// final 🟢🟡🔴 avec raisons précises et score /100.
+// final avec raisons précises et score /100.
 // Fonctionne avec tout résultat de computeVerdictSync (CSV ou backtest).
 // ══════════════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════════
@@ -10800,7 +10800,7 @@ function canLaunchChallenge(verdict) {
 
   score = Math.round(Math.max(0, Math.min(100, score)));
 
-  // ── Verdict final 🟢🟡🔴 ──
+  // ── Verdict final ──
   let verdictLevel, verdictLabel, verdictColor, verdictEmoji;
   // Blocages immédiats : DD réel trop élevé, DD inconnu, ou échantillon trop faible pour décider
   const hasBlockingIssue = (dd !== null && dd > 10) || dd === null || tooFewTrades || nTrades < 20;
@@ -11670,7 +11670,7 @@ function MesTradesTab({ sim, capital, fundedMonths, winrate, riskPct, dailyTarge
   const verdict = trades.length > 0 && stats
     ? computeVerdictSync(trades, effectiveInitBalance, !balanceReconstructed, manualDD)
     : null;
-  // ── "Puis-je lancer ce challenge ?" — décision finale 🟢🟡🔴 ──
+  // ── "Puis-je lancer ce challenge ?" — décision finale ──
   const decision = verdict ? canLaunchChallenge(verdict) : null;
 
   const alertColor = (l) => l === "danger" ? "#ef4444" : l === "warning" ? "#fbbf24" : l === "ok" ? "#6ee7b7" : "rgba(255,255,255,0.55)";
@@ -12945,7 +12945,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
   };
 
   return (
-    <div className="card" style={{ padding: 16 }}>
+    <div className="card cal-pnl-block" style={{ padding: 16 }}>
       {/* Header — masqué en mode journal : titre "Journal de trading", sous-texte
           et date du mois y étaient TOUS redondants avec le contexte déjà affiché
           au-dessus par l'appelant (MonthNavBar affiche déjà le mois ; le titre de
@@ -13116,7 +13116,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                     )}
                     {journalMode && cell.journalEntry && cell.journalEntry.mood && (
                       <span style={{ fontSize: 8 }}>
-                        {{ calme: "😌", confiant: "💪", anxieux: "😰", fomo: "🎯", revenge: "😤" }[cell.journalEntry.mood]}
+                        {{ calme: "", confiant: "", anxieux: "", fomo: "", revenge: "" }[cell.journalEntry.mood]}
                       </span>
                     )}
                   </div>
@@ -13290,11 +13290,11 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                 </div>
                 <div style={{ display: "flex", gap: 4, flexWrap: "nowrap" }}>
                   {[
-                    { key: "calme", label: "😌 Calme" },
-                    { key: "confiant", label: "💪 Confiant" },
-                    { key: "anxieux", label: "😰 Anxieux" },
-                    { key: "fomo", label: "🎯 FOMO" },
-                    { key: "revenge", label: "😤 Revenge" },
+                    { key: "calme", label: "Calme" },
+                    { key: "confiant", label: "Confiant" },
+                    { key: "anxieux", label: "Anxieux" },
+                    { key: "fomo", label: "FOMO" },
+                    { key: "revenge", label: "Revenge" },
                   ].map(m => {
                     const active = formMood === m.key;
                     return (
@@ -13362,7 +13362,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                   ))}
                   {formImages.length < 3 && (
                     <label style={{ width: 64, height: 64, flexShrink: 0, borderRadius: 10, border: "1.5px dashed rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "rgba(255,255,255,0.02)", flexDirection: "column", gap: 3 }}>
-                      <span style={{ fontSize: 18, color: imgLoading ? "#6ee7b7" : "rgba(255,255,255,0.3)", lineHeight: 1 }}>{imgLoading ? "⏳" : "+"}</span>
+                      <span style={{ fontSize: 18, color: imgLoading ? "#6ee7b7" : "rgba(255,255,255,0.3)", lineHeight: 1 }}>{imgLoading ? "" : "+"}</span>
                       <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)", textTransform: "uppercase" }}>{imgLoading ? "" : "photo"}</span>
                       <input type="file" accept="image/*" style={{ display: "none" }}
                         onChange={async (e) => {
@@ -13623,9 +13623,9 @@ function LanguagePickerScreen({ onPick }) {
   const [selected, setSelected] = useState("fr");
 
   const LANGS = [
-    { k: "en", label: "English", sub: "Continue in English", flag: "🇺🇸" },
-    { k: "fr", label: "Français", sub: "Continuer en français", flag: "🇫🇷" },
-    { k: "es", label: "Español", sub: "Continuar en español", flag: "🇪🇸" },
+    { k: "en", label: "English", sub: "Continue in English", flag: "" },
+    { k: "fr", label: "Français", sub: "Continuer en français", flag: "" },
+    { k: "es", label: "Español", sub: "Continuar en español", flag: "" },
   ];
 
   // Globe SVG — globe pointillé avec glow vert
@@ -14810,7 +14810,7 @@ function EquityChartCard({ t, lang = "fr", monthKey, chartData, hasJournal, hasS
   const gradSim = "grad-sim-eq" + gradientSuffix;
   const monthTicks = computeMonthBoundaryTicks(chartData);
   return (
-    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, padding: 16, marginBottom: tightBottom ? 6 : 16 }}>
+    <div className="equity-chart-block" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, padding: 16, marginBottom: tightBottom ? 6 : 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>Équité — Depuis le début</div>
@@ -15484,7 +15484,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
   const chartMax = equityVals.length ? Math.max(...equityVals)*1.002 : cap*1.05;
 
   return (
-    <div style={{fontFamily:"-apple-system, sans-serif",color:"#FFFFFF"}}>
+    <div className="tablet-flow" style={{fontFamily:"-apple-system, sans-serif",color:"#FFFFFF"}}>
 
       {/* ── HEADER ── */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px 14px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
@@ -15589,7 +15589,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
             border: "1px solid rgba(255,255,255,0.07)",
             marginRight: 8,
           }}>
-            <span style={{ fontSize: 12, lineHeight: 1, flexShrink: 0 }}>{ECON_FLAGS[ev.type] || "🌐"}</span>
+            <span style={{ fontSize: 12, lineHeight: 1, flexShrink: 0 }}>{ECON_FLAGS[ev.type] || ""}</span>
             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", fontWeight: 500, whiteSpace: "nowrap" }}>{t('econ_' + ev.type.toLowerCase())}</span>
             <span style={{ fontSize: 9.5, color: "rgba(251,191,36,0.65)", fontWeight: 600, whiteSpace: "nowrap" }}>· {fmtDelay(ev.date)}</span>
           </div>
@@ -15634,7 +15634,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
           border: "1px solid " + (freeSimsLeft() > 0 ? "rgba(251,191,36,0.25)" : "rgba(239,68,68,0.3)"),
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 15 }}>{freeSimsLeft() > 0 ? "⚡" : "🔒"}</span>
+            <span style={{ fontSize: 15 }}>{freeSimsLeft() > 0 ? "" : ""}</span>
             <span style={{ fontSize: 12, fontWeight: 700, color: freeSimsLeft() > 0 ? "#fbbf24" : "#f87171" }}>
               {freeSimsLeft() > 0
                 ? freeSimsLeft() + " " + (freeSimsLeft() > 1 ? t("dash_sims_left_plural") : t("dash_sims_left_singular"))
@@ -15934,7 +15934,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
                 color: "#6ee7b7", fontSize: 12.5, fontWeight: 800,
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
               }}>
-              <span style={{ fontSize: 14 }}>📸</span> Partager
+              <span style={{ fontSize: 14 }}></span> Partager
             </button>
             <button
               onClick={() => goto("journal")}
@@ -15977,7 +15977,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
         )}
       </div>
       {/* ── APERÇU ÉQUITÉ — Mois courant, jour par jour ── */}
-      <div style={{marginBottom:"14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16}}>
+      <div className="equity-chart-block" style={{marginBottom:"14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(110,231,183,0.10)",borderRadius:20,padding:16}}>
         {/* Titre + légende */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div>
@@ -16504,7 +16504,7 @@ function TwelveDataTestPanel() {
   return (
     <div style={{ marginTop: 24, padding: 14, borderRadius: 14, border: "1px dashed rgba(251,191,36,0.35)", background: "rgba(251,191,36,0.04)" }}>
       <div style={{ fontSize: 10, fontWeight: 800, color: "#fbbf24", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 }}>
-        🧪 Test interne · Proxy données historiques
+        Test interne · Proxy données historiques
       </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
         <select value={symbol} onChange={e => setSymbol(e.target.value)} style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", padding: "8px 10px", fontSize: 12 }}>
@@ -16827,9 +16827,9 @@ function calculateAccountMaturity(journalAllFiltered, accountType, opts = {}) {
     nextStageMissing: nextMissing,
     // Indicateurs courts prêts à afficher (max 3, filtrés si non pertinents)
     quickIndicators: [
-      totalMonths > 0 ? { icon: "📈", label: monthly.slice(-2).every(m => m.activeDays >= 5) ? "Rythme régulier" : "Rythme irrégulier", ok: monthly.slice(-2).every(m => m.activeDays >= 5) } : null,
+      totalMonths > 0 ? { icon: "", label: monthly.slice(-2).every(m => m.activeDays >= 5) ? "Rythme régulier" : "Rythme irrégulier", ok: monthly.slice(-2).every(m => m.activeDays >= 5) } : null,
       { icon: "✓", label: `${totalPositiveMonths} mois positif${totalPositiveMonths > 1 ? "s" : ""}`, ok: totalPositiveMonths > 0 },
-      worstMaxDD !== null ? { icon: "🛡", label: ddOk ? "DD maîtrisé" : "DD à surveiller", ok: ddOk } : null,
+      worstMaxDD !== null ? { icon: "", label: ddOk ? "DD maîtrisé" : "DD à surveiller", ok: ddOk } : null,
     ].filter(Boolean).slice(0, 3),
     totalMonths, totalTrades, totalPositiveMonths, worstMaxDD, avgReturnLast3,
   };
@@ -16961,7 +16961,7 @@ function AccountMaturityGauge({ maturity, compact = false }) {
             )}
             {!nextStageLabel && (
               <div style={{ fontSize: 10.5, color: "#6ee7b7", marginTop: 6, fontWeight: 700 }}>
-                🏆 Étape finale du parcours atteinte
+                Étape finale du parcours atteinte
               </div>
             )}
           </div>
@@ -17151,7 +17151,7 @@ function TradingViewChartModal({ pair, onClose }) {
 
       {isGuessUncertain && !editingSymbol && (
         <div style={{ fontSize: 9.5, color: "#fbbf24", background: "rgba(251,191,36,0.08)", padding: "8px 14px", lineHeight: 1.4 }}>
-          ⚠️ Symbole deviné automatiquement ({symbol}) — si le graphique ne charge rien, appuie sur « Symbole » pour le corriger.
+          Symbole deviné automatiquement ({symbol}) — si le graphique ne charge rien, appuie sur « Symbole » pour le corriger.
         </div>
       )}
       {editingSymbol && (
@@ -17327,7 +17327,7 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
       <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, padding: 16, marginBottom: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>
-            📌 Mes paires & stratégies
+            Mes paires & stratégies
           </div>
           <button onClick={() => setShowAddPair(v => !v)} style={{ padding: "5px 11px", borderRadius: 8, border: "1px solid " + ACCENT + "55", background: ACCENT + "12", color: ACCENT, fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>
             {showAddPair ? "Annuler" : "+ Ajouter"}
@@ -17346,7 +17346,7 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
               </div>
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <button onClick={() => setChartPair(w.pair)} style={{ background: "none", border: "none", color: ACCENT, fontSize: 10.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
-                  📈 Graphique
+                  Graphique
                 </button>
                 <button onClick={() => deleteWatchlistItem(w.id)} style={{ background: "none", border: "none", color: "#ef4444", fontSize: 11, cursor: "pointer" }}>✕</button>
               </div>
@@ -17382,14 +17382,14 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
                         background: active ? ACCENT + "22" : "rgba(255,255,255,0.04)",
                         color: active ? ACCENT : "rgba(255,255,255,0.6)",
                         border: "1px solid " + (active ? ACCENT : "rgba(255,255,255,0.1)"),
-                      }}>{(PAIR_ICONS[p] || "💱") + " " + p}</button>
+                      }}>{(PAIR_ICONS[p] || "") + " " + p}</button>
                     );
                   })}
                 </div>
               </div>
             ) : (newCategory === "crypto") && (
               <div style={{ fontSize: 9.5, color: "#fbbf24", marginBottom: 9, lineHeight: 1.4 }}>
-                ⚠️ Aucune donnée crypto n'est actuellement publiée dans l'app — tu peux suivre une paire crypto ici (texte libre), mais elle ne sera pas testable en Backtest Réel pour l'instant.
+                Aucune donnée crypto n'est actuellement publiée dans l'app — tu peux suivre une paire crypto ici (texte libre), mais elle ne sera pas testable en Backtest Réel pour l'instant.
               </div>
             )}
 
@@ -17409,7 +17409,7 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
       <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, padding: 16, marginBottom: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>
-            🔔 Alertes de prix
+            Alertes de prix
           </div>
           <button onClick={() => setShowAddAlert(v => !v)} style={{ padding: "5px 11px", borderRadius: 8, border: "1px solid " + ACCENT + "55", background: ACCENT + "12", color: ACCENT, fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>
             {showAddAlert ? "Annuler" : "+ Ajouter"}
@@ -17421,7 +17421,7 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
             width: "100%", padding: 10, borderRadius: 10, marginBottom: 10, cursor: "pointer",
             border: "1px solid rgba(251,191,36,0.3)", background: "rgba(251,191,36,0.08)", color: "#fbbf24", fontSize: 11, fontWeight: 700,
           }}>
-            {pushStatus === "subscribing" ? "Activation…" : pushStatus === "denied" ? "Notifications refusées — active-les dans les réglages du navigateur" : pushStatus === "unsupported" ? "Notifications non supportées sur cet appareil" : "🔔 Activer les notifications (même app fermée)"}
+            {pushStatus === "subscribing" ? "Activation…" : pushStatus === "denied" ? "Notifications refusées — active-les dans les réglages du navigateur" : pushStatus === "unsupported" ? "Notifications non supportées sur cet appareil" : "Activer les notifications (même app fermée)"}
           </button>
         )}
         {pushStatus === "subscribed" && (
@@ -17469,7 +17469,7 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
                     style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", padding: "9px 10px", fontSize: 12.5, boxSizing: "border-box" }}>
                     <option value="">— Choisir —</option>
                     {watchlist.map(w => (
-                      <option key={w.id} value={w.pair}>{(PAIR_ICONS[w.pair] || "💱") + " " + w.pair}{w.strategy ? " — " + w.strategy.slice(0, 30) : ""}</option>
+                      <option key={w.id} value={w.pair}>{(PAIR_ICONS[w.pair] || "") + " " + w.pair}{w.strategy ? " — " + w.strategy.slice(0, 30) : ""}</option>
                     ))}
                   </select>
                 </div>
@@ -17501,7 +17501,7 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
       <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, padding: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>
-            📷 Positions surveillées
+            Positions surveillées
           </div>
           <button onClick={() => setShowScreenshotFlow(v => !v)} style={{ padding: "5px 11px", borderRadius: 8, border: "1px solid " + ACCENT + "55", background: ACCENT + "12", color: ACCENT, fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>
             {showScreenshotFlow ? "Annuler" : "+ Capture"}
@@ -17537,7 +17537,7 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
             {!screenshotDraft && (
               <label style={{ display: "block", padding: 20, borderRadius: 12, border: "1.5px dashed rgba(255,255,255,0.15)", textAlign: "center", cursor: "pointer", background: "rgba(255,255,255,0.02)" }}>
                 <div style={{ fontSize: 11, color: screenshotLoading ? ACCENT : "rgba(255,255,255,0.5)", fontWeight: 700 }}>
-                  {screenshotLoading ? "Analyse en cours…" : "📷 Choisir une capture d'écran"}
+                  {screenshotLoading ? "Analyse en cours…" : "Choisir une capture d'écran"}
                 </div>
                 <input type="file" accept="image/*" style={{ display: "none" }} disabled={screenshotLoading}
                   onChange={e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) handleScreenshot(f); }} />
@@ -17549,7 +17549,7 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
               <div style={{ marginTop: 4 }}>
                 {screenshotDraft.confidence !== "high" && (
                   <div style={{ fontSize: 10, color: "#fbbf24", background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 8, padding: 8, marginBottom: 8, lineHeight: 1.4 }}>
-                    ⚠️ Confiance {screenshotDraft.confidence} — vérifie/corrige les valeurs avant de valider. {screenshotDraft.notes || ""}
+                    Confiance {screenshotDraft.confidence} — vérifie/corrige les valeurs avant de valider. {screenshotDraft.notes || ""}
                   </div>
                 )}
                 <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 7, marginBottom: 7 }}>
@@ -17594,7 +17594,7 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
       <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, padding: 16, marginTop: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 }}>
-            🎯 Détection de setup — EMA200 Pullback
+            Détection de setup — EMA200 Pullback
           </div>
           <button onClick={() => setShowAddSetup(v => !v)} style={{ padding: "5px 11px", borderRadius: 8, border: "1px solid " + ACCENT + "55", background: ACCENT + "12", color: ACCENT, fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>
             {showAddSetup ? "Annuler" : "+ Ajouter"}
@@ -17602,14 +17602,14 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
         </div>
 
         <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 10, lineHeight: 1.5 }}>
-          Contrôle toutes les 30 minutes (H1 fixe — plus coûteux en quota qu'une simple alerte de prix, donc espacé davantage). 🟡 = cassure EMA200 + pullback en cours. 🟢 = reprise confirmée, avec entrée/SL/TP/risque calculés.
+          Contrôle toutes les 30 minutes (H1 fixe — plus coûteux en quota qu'une simple alerte de prix, donc espacé davantage). = cassure EMA200 + pullback en cours. = reprise confirmée, avec entrée/SL/TP/risque calculés.
         </div>
 
         <button onClick={() => setShowSetupConfig(v => !v)} style={{
           width: "100%", padding: "9px", borderRadius: 9, cursor: "pointer", marginBottom: 10,
           border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.55)", fontSize: 10.5, fontWeight: 700,
         }}>
-          ⚙️ Capital & risque dédiés à ce système ({setupConfig.capital}$ · {setupConfig.riskPct}%)
+          Capital & risque dédiés à ce système ({setupConfig.capital}$ · {setupConfig.riskPct}%)
         </button>
         {showSetupConfig && (
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 7, marginBottom: 10 }}>
@@ -17846,7 +17846,7 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
         </button>
       </div>
 
-      <div style={{ padding: "14px 16px 100px" }}>
+      <div className="tablet-flow tablet-flow--nohead" style={{ padding: "14px 16px 100px" }}>
         {/* ══════════════════════════════════════════════════════════
             MES COMPTES — chaque compte est une session de journal
             totalement isolée (entrées, stats, capital indépendants)
@@ -18042,7 +18042,7 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
              broker temps réel ici, contrairement à EdgeFlo) : ça informe, ça ne bloque rien. ── */}
         <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.10)", borderRadius: 20, padding: 16, marginBottom: 16 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>
-            🛡 Garde-fous {selectedFirmModel ? `— règles ${PROP_FIRMS[selectedAccount.firmKey]?.name}` : "— plan personnel"}
+            Garde-fous {selectedFirmModel ? `— règles ${PROP_FIRMS[selectedAccount.firmKey]?.name}` : "— plan personnel"}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 8, marginBottom: 10 }}>
             <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "10px 11px" }}>
@@ -18077,7 +18077,7 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
 
           {(guardrails.dailyBreached || guardrails.totalBreached || guardrails.tradesOver) && (
             <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 11, padding: 11, marginBottom: 8 }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: "#ef4444", marginBottom: 3 }}>⚠️ Limite dépassée</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#ef4444", marginBottom: 3 }}>Limite dépassée</div>
               <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
                 {guardrails.dailyBreached && "Ta perte du jour dépasse la limite journalière. "}
                 {guardrails.totalBreached && "Le drawdown du mois dépasse la limite totale. "}
@@ -18088,7 +18088,7 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
           {!guardrails.dailyBreached && !guardrails.totalBreached && (guardrails.dailyNear || guardrails.totalNear) && (
             <div style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 11, padding: 11, marginBottom: 8 }}>
               <div style={{ fontSize: 10.5, color: "#fbbf24", lineHeight: 1.5 }}>
-                ⚠️ Tu approches d'une limite ({guardrails.dailyNear ? "perte du jour" : "drawdown du mois"}). Encore une perte similaire et tu la dépasses.
+                Tu approches d'une limite ({guardrails.dailyNear ? "perte du jour" : "drawdown du mois"}). Encore une perte similaire et tu la dépasses.
               </div>
             </div>
           )}
@@ -18098,7 +18098,7 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
             border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.55)",
             fontSize: 10.5, fontWeight: 700,
           }}>
-            {showPlanEditor ? "Masquer" : "📋 Mon plan de trading"} {tradingPlan.rules.length > 0 ? `(${tradingPlan.rules.length} règle${tradingPlan.rules.length > 1 ? "s" : ""})` : ""}
+            {showPlanEditor ? "Masquer" : "Mon plan de trading"} {tradingPlan.rules.length > 0 ? `(${tradingPlan.rules.length} règle${tradingPlan.rules.length > 1 ? "s" : ""})` : ""}
           </button>
 
           {showPlanEditor && (
@@ -18881,9 +18881,9 @@ const COACH_TOURS = {
       en: ["Your month at a glance", "Each cell = one day. In journal mode, tap a day to log your trades."],
       es: ["Tu mes de un vistazo", "Cada celda = un día. En modo diario, toca un día para registrar tus trades."] },
     { target: "nav-bar",
-      fr: ["Tout est là", "Simulateur, Journal, Mes Trades et Analyse. Bonne route 🚀"],
-      en: ["Everything is here", "Simulator, Journal, My Trades and Analysis. Enjoy 🚀"],
-      es: ["Todo está aquí", "Simulador, Diario, Mis Trades y Análisis. Buen viaje 🚀"] },
+      fr: ["Tout est là", "Simulateur, Journal, Mes Trades et Analyse. Bonne route "],
+      en: ["Everything is here", "Simulator, Journal, My Trades and Analysis. Enjoy "],
+      es: ["Todo está aquí", "Simulador, Diario, Mis Trades y Análisis. Buen viaje "] },
   ],
   journal: [
     { target: "journal-accounts",
