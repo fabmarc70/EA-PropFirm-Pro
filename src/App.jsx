@@ -7705,6 +7705,7 @@ function simulateFunded(capital, months, model, p, split) {
       cumul: +cumulPayout.toFixed(2),
       status: monthFailed ? "fail" : "active",
       profitPct: +((pnl / monthStart) * 100).toFixed(2),
+      monthStart: +monthStart.toFixed(2), // base du %, necessaire pour agreger plusieurs comptes
       ddPct: +(Math.max(0, (currentCapital - equity) / currentCapital * 100)).toFixed(2),
       scalingNote,
       currentSplit: Math.round(currentSplit * 100),
@@ -7725,6 +7726,98 @@ function simulateFunded(capital, months, model, p, split) {
     maxDDAmount: maxDD * currentCapital,
     finalSplit: Math.round(currentSplit * 100),
     dailyLog,
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// aggregateFunded — fusionne N comptes funded (multi-comptes) en UN objet
+// de MEME FORME que le retour de simulateFunded, pour que tous les
+// consommateurs (tuiles, courbe, calendrier, detail mensuel, rapport)
+// fonctionnent sans changement de code.
+//   - Mois : equity/payout sommes ; cumul PORTE EN AVANT pour un compte
+//     ferme plus tot (un payout encaisse reste encaisse) ; % de profit
+//     recalcule exactement = Somme(pnl) / Somme(capital de debut de mois),
+//     jamais une moyenne de pourcentages ; DD = le pire des comptes.
+//   - Jours : pnl / wins / losses / equity sommes par (mois, jour).
+//   - Mois gagnants recomptes sur le resultat AGREGE.
+// Un seul compte -> renvoye tel quel (aucune difference avec avant).
+// ══════════════════════════════════════════════════════════════════
+function aggregateFunded(list) {
+  const fs = (list || []).filter(Boolean);
+  if (fs.length === 0) return null;
+  if (fs.length === 1) return fs[0];
+
+  const maxMonth = Math.max(...fs.map(f => f.data.length ? f.data[f.data.length - 1].month : 0));
+  const minMonth = Math.min(...fs.map(f => f.data.length ? f.data[0].month : 1));
+  const data = [];
+  for (let m = minMonth; m <= maxMonth; m++) {
+    let equity = 0, payout = 0, cumul = 0, pnl = 0, start = 0, dd = 0, anyActive = false, present = false;
+    let first = null;
+    fs.forEach(f => {
+      const row = f.data.find(r => r.month === m);
+      if (row) {
+        present = true;
+        if (!first) first = row;
+        equity += row.equity;
+        payout += row.payout || 0;
+        cumul += row.cumul || 0;
+        const base = row.monthStart != null ? row.monthStart : row.equity;
+        start += base;
+        pnl += (row.profitPct / 100) * base;
+        dd = Math.max(dd, row.ddPct || 0);
+        if (row.status !== "fail") anyActive = true;
+      } else {
+        // Compte deja ferme : ses payouts deja encaisses restent acquis
+        const last = f.data.filter(r => r.month < m).pop();
+        if (last) cumul += last.cumul || 0;
+      }
+    });
+    if (!present) continue;
+    data.push({
+      month: m,
+      equity: +equity.toFixed(2),
+      payout: +payout.toFixed(2),
+      cumul: +cumul.toFixed(2),
+      status: anyActive ? "active" : "fail",
+      profitPct: start > 0 ? +((pnl / start) * 100).toFixed(2) : 0,
+      monthStart: +start.toFixed(2),
+      ddPct: +dd.toFixed(2),
+      scalingNote: first.scalingNote,
+      currentSplit: first.currentSplit,
+      streakMonths: first.streakMonths,
+    });
+  }
+
+  const dayMap = new Map();
+  fs.forEach(f => (f.dailyLog || []).forEach(d => {
+    const key = d.month + "-" + d.dayOfMonth;
+    const cur = dayMap.get(key);
+    if (!cur) { dayMap.set(key, { ...d }); return; }
+    cur.pnl = +(cur.pnl + d.pnl).toFixed(2);
+    cur.equity = +(cur.equity + d.equity).toFixed(2);
+    cur.wins = (cur.wins || 0) + (d.wins || 0);
+    cur.losses = (cur.losses || 0) + (d.losses || 0);
+    cur.breached = cur.breached || d.breached;
+  }));
+  const dailyLog = Array.from(dayMap.values()).sort((a, b) => a.month - b.month || a.dayOfMonth - b.dayOfMonth);
+
+  const winMonths = data.filter(r => r.profitPct > 0).length;
+  const lossMonths = data.filter(r => r.profitPct <= 0).length;
+  const active = fs.some(f => f.status === "active");
+  return {
+    data,
+    finalEquity: +fs.reduce((s, f) => s + (f.finalEquity || 0), 0).toFixed(2),
+    cumulPayout: +fs.reduce((s, f) => s + (f.cumulPayout || 0), 0).toFixed(2),
+    pendingPayout: +fs.reduce((s, f) => s + (f.pendingPayout || 0), 0).toFixed(2),
+    status: active ? "active" : fs[0].status,
+    scalingCount: Math.max(...fs.map(f => f.scalingCount || 0)),
+    winrateMonth: data.length ? (winMonths / data.length) * 100 : 0,
+    winMonths, lossMonths,
+    maxDD: Math.max(...fs.map(f => f.maxDD || 0)),
+    maxDDAmount: Math.max(...fs.map(f => f.maxDDAmount || 0)),
+    finalSplit: fs[0].finalSplit,
+    dailyLog,
+    accountsFunded: fs.length,
   };
 }
 
@@ -8427,6 +8520,12 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     return { reward, payout, pending, gross, fee: feesTotal, addons: addonsTotal, net, accounts: n, passed: all.filter(x => x.allPassed).length };
   };
   const bilan = netResult();
+  // Vue Funded : compte principal seul (x1) ou agregat des comptes funded (x2/x3).
+  // Le principal peut echouer pendant qu'un compte supplementaire passe : la
+  // colonne Funded doit alors afficher les comptes qui ont passe.
+  const fundedAccounts = sim ? [sim, ...(sim.extra || [])].filter(x => x.allPassed && x.funded) : [];
+  const fundedView = sim ? (accountsCount > 1 ? aggregateFunded(fundedAccounts.map(x => x.funded)) : sim.funded) : null;
+  const fundedCapital = capital * Math.max(1, accountsCount > 1 ? fundedAccounts.length : 1);
 
   const ddAnalysis = () => {
     const maxDayLoss = tradesPerDay * effectiveRiskAmount; // perte max en 1 jour
@@ -8478,13 +8577,17 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       if (ph && ph.status === "running_ok")
         return { label: t("sim_phase_inprogress") + " - " + model.phases[i].label, color: "#fbbf24", bg: "rgba(251,191,36,0.08)", emoji: "ORANGE" };
     }
-    if (!sim.funded) return null;
-    if (sim.funded.status.startsWith("failed"))
+    if (!fundedView) return null;
+    if (fundedView.status.startsWith("failed"))
       return { label: "COMPTE FERME", color: "#ef4444", bg: "rgba(239,68,68,0.08)", emoji: "ROUGE" };
     return { label: "COMPTE ACTIF", color: "#6ee7b7", bg: "rgba(255,255,255,0.05)", emoji: "VERT" };
   };
   const gs = globalStatus();
-  const dot = (e) => e === "VERT" ? "\u{1F7E2}" : e === "ORANGE" ? "\u{1F7E0}" : "\u{1F534}";
+  // Pastille de statut : point CSS (auparavant un emoji rond de couleur)
+  const dot = (e) => {
+    const col = e === "VERT" ? "#22c55e" : e === "ORANGE" ? "#f59e0b" : "#ef4444";
+    return <span style={{ display: "inline-block", width: 22, height: 22, borderRadius: 11, background: col, boxShadow: `0 0 12px ${col}88` }} />;
+  };
 
   const phaseIcon = (s) => {
     if (s === "passed") return { icon: "\u2713", color: "#6ee7b7", bg: "rgba(255,255,255,0.05)", label: t("sim_phase_passed") };
@@ -8527,8 +8630,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         + "  |  " + ph.tradingDays + " jours\n";
     });
     txt += sep + "\n";
-    if (sim.funded) {
-      const f = sim.funded;
+    if (fundedView) {
+      const f = fundedView;
       txt += "COMPTE FUNDED (" + fundedMonths + " mois) - " + (f.status === "active" ? "ACTIF" : "FERME") + "\n";
       txt += "Payouts encaissés    : " + fmt(f.finalEquity) + "\n";
       txt += "Payout verse     : " + fmt2(f.cumulPayout) + "\n";
@@ -9729,7 +9832,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             </button>
           </div>
           )
-        ) : !sim.funded || !sim.allPassed ? (
+        ) : !fundedView ? (
           tab === "montecarlo" ? null : (
           <div className="card" style={{ textAlign: "center", padding: 32 }}>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.6, marginBottom: 14 }}>
@@ -9783,8 +9886,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                     }}>x{n}</button>
                   ))}
                 </div>
-                <span className="tag" style={{ background: sim.funded.status === "active" ? "rgba(255,255,255,0.05)" : "rgba(239,68,68,0.08)", color: sim.funded.status === "active" ? "#6ee7b7" : "#ef4444" }}>
-                  {sim.funded.status === "active" ? "ACTIF" : "FERME"}
+                <span className="tag" style={{ background: fundedView.status === "active" ? "rgba(255,255,255,0.05)" : "rgba(239,68,68,0.08)", color: fundedView.status === "active" ? "#6ee7b7" : "#ef4444" }}>
+                  {fundedView.status === "active" ? "ACTIF" : "FERME"}
                 </span>
               </div>
               {/* Impact multi-comptes : agrege les N comptes independants */}
@@ -9814,16 +9917,16 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                 );
               })()}
               <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, padding: 8, marginBottom: 12, fontSize: 11, color: "#6ee7b7" }}>
-                Capital funded = {fmt(capital)} (remis a l'initial) - Seuil retrait : $50 - Payout bi-weekly (14j)
+                Capital funded = {accountsCount > 1 && fundedAccounts.length > 1 ? `${fundedAccounts.length} x ${fmt(capital)} = ${fmt(fundedCapital)}` : fmt(capital)} (remis a l'initial) - Seuil retrait : $50 - Payout bi-weekly (14j)
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
                 {[
-                  { label: t("sim_payouts_cashed"), val: fmt(sim.funded.cumulPayout), color: "#6ee7b7" },
-                  { label: t("sim_pending"), val: fmt2(sim.funded.pendingPayout), color: "rgba(255,255,255,0.55)" },
-                  { label: t("sim_balance"), val: fmt(sim.funded.finalEquity), color: "rgba(255,255,255,0.85)" },
-                  { label: t("sim_winning_months"), val: sim.funded.winMonths + "/" + (sim.funded.winMonths + sim.funded.lossMonths), color: sim.funded.winrateMonth >= 60 ? "#6ee7b7" : "#fbbf24" },
-                  { label: t("sim_scaling"), val: sim.funded.scalingCount + "x (+40%)", color: "rgba(255,255,255,0.55)" },
-                  { label: t("sim_final_split"), val: sim.funded.finalSplit + "%", color: sim.funded.finalSplit >= 90 ? "#6ee7b7" : "#fbbf24" },
+                  { label: t("sim_payouts_cashed"), val: fmt(fundedView.cumulPayout), color: "#6ee7b7" },
+                  { label: t("sim_pending"), val: fmt2(fundedView.pendingPayout), color: "rgba(255,255,255,0.55)" },
+                  { label: t("sim_balance"), val: fmt(fundedView.finalEquity), color: "rgba(255,255,255,0.85)" },
+                  { label: t("sim_winning_months"), val: fundedView.winMonths + "/" + (fundedView.winMonths + fundedView.lossMonths), color: fundedView.winrateMonth >= 60 ? "#6ee7b7" : "#fbbf24" },
+                  { label: t("sim_scaling"), val: fundedView.scalingCount + "x (+40%)", color: "rgba(255,255,255,0.55)" },
+                  { label: t("sim_final_split"), val: fundedView.finalSplit + "%", color: fundedView.finalSplit >= 90 ? "#6ee7b7" : "#fbbf24" },
                 ].map((k) => (
                   <div key={k.label} className="kpi">
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{k.label}</div>
@@ -9832,7 +9935,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                 ))}
               </div>
               <ResponsiveContainer width="100%" height={180}>
-                <ComposedChart data={sim.funded.data}>
+                <ComposedChart data={fundedView.data}>
                   <defs>
                     <linearGradient id="gfunded" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.25} />
@@ -9860,7 +9963,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                  que ce composant est monte, on ancre sur un mois FIXE et neutre (janvier 2024 :
                  31 jours, commence un lundi) pour un rendu de grille toujours propre et stable,
                  quelle que soit la date reelle d'utilisation de l'app. */}
-            <CalendrierPnL t={t} lang={lang} dailyLog={sim.funded.dailyLog} newsSkipDays={newsSkipDays} activeDays={activeDays} capitalBase={capital} journalMonthKey="2024-01" />
+            <CalendrierPnL t={t} lang={lang} dailyLog={fundedView.dailyLog} newsSkipDays={newsSkipDays} activeDays={activeDays} capitalBase={fundedCapital} journalMonthKey="2024-01" />
 
             <div className="card">
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: "#fbbf24" }}>{t("sim_detail_monthly")}</div>
@@ -9875,8 +9978,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                   </thead>
                   <tbody>
                     {(() => {
-                      const epMap = computeEffectivePayouts(sim.funded.data);
-                      return sim.funded.data.map(r => {
+                      const epMap = computeEffectivePayouts(fundedView.data);
+                      return fundedView.data.map(r => {
                       const ep = epMap[r.month] || { checked: false, effectiveEquity: r.equity, effectivePayout: 0 };
                       const checked = ep.checked;
                       const hasPayout = r.payout > 0;
@@ -9923,7 +10026,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                           {r.currentSplit}%
                         </td>
                         <td style={{ padding: "5px 4px", textAlign: "right", color: r.streakMonths >= 4 ? "#6ee7b7" : r.streakMonths >= 2 ? "#fbbf24" : "rgba(255,255,255,0.35)" }}>
-                          {r.streakMonths}/4{r.scalingNote ? " \u{1F4C8}" : ""}
+                          {r.streakMonths}/4{r.scalingNote ? " \u2197" : ""}
                         </td>
                         <td style={{ padding: "5px 4px", textAlign: "right", fontSize: 12, fontWeight: 700, color: r.status === "active" ? "#6ee7b7" : "#ef4444" }}>
                           {r.status === "active" ? "\u2713" : "\u2717"}
