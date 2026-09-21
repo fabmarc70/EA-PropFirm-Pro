@@ -8222,8 +8222,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const addonsVpsMonthly = profileAddons.vps ? (Number(profileAddons.vpsMonthly) || 0) : 0;
   const addonsMonths = 2 + fundedMonths;
   // ── Multi-comptes : jusqu'a 3 comptes de la MEME firm et du MEME modele,
-  // achetes et lances ensemble. Chaque compte est une simulation INDEPENDANTE
-  // (RNG distinct) : certains peuvent echouer pendant que d'autres passent. ──
+  // achetes et lances ensemble avec la meme strategie : resultats identiques
+  // par compte, totaux multiplies par le nombre de comptes. ──
   const [accountsCount, setAccountsCount] = useState(1);
   const w = winrate / 100;
   // Calcul des jours de trading effectifs par mois selon récurrence EA
@@ -8411,19 +8411,15 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         if (ph && ph.profit > 0) challengeReward += capital * ph.profit * model.challengeReward;
       });
     }
-    // Comptes supplementaires (multi-comptes) : meme pipeline, RNG decale
+    // Comptes supplementaires (multi-comptes) : MEME STRATEGIE / MEME EA sur
+    // plusieurs comptes de la meme firm et du meme modele = les MEMES trades,
+    // aux memes moments, sur chaque compte. Les resultats sont donc identiques
+    // d'un compte a l'autre : x2 = exactement le double, x3 = le triple.
+    // (Version precedente : un tirage aleatoire independant par compte — faux
+    // pour ce cas d'usage, les totaux n'etaient jamais des multiples.)
     const extra = [];
     for (let k = 1; k < accountsCount; k++) {
-      const pk = { ...p, rng: mulberry32(simHash + 7919 * k) };
-      const prs = []; let ok = true;
-      for (let i = 0; i < model.phases.length; i++) {
-        if (!ok) { prs.push(null); continue; }
-        const r = simulatePhase(capital, model.phases[i], model, pk);
-        prs.push(r); if (r.status !== "passed") ok = false;
-      }
-      const fd = ok ? simulateFunded(capital, fundedMonths, model, pk, effectiveSplitRate) : null;
-      let cr = 0; if (ok) prs.forEach(ph => { if (ph && ph.profit > 0) cr += capital * ph.profit * model.challengeReward; });
-      extra.push({ phaseResults: prs, funded: fd, allPassed: ok, challengeReward: cr });
+      extra.push({ phaseResults, funded, allPassed, challengeReward });
     }
     setSim({ phaseResults, funded, allPassed, challengeReward, extra });
     // Remonter les données complètes au Dashboard
