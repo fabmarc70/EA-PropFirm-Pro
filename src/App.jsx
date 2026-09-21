@@ -8388,15 +8388,22 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       requirePremium();
       return;
     }
+    // Generateur cree ICI, dans l'effet, et non au rendu : chaque execution de
+    // l'effet repart exactement du meme etat. Auparavant p.rng etait cree au
+    // rendu puis consomme ici — une 2e execution pour le meme rendu (StrictMode
+    // en dev, re-montage) repartait d'un generateur entame et produisait un
+    // resultat different pour des parametres identiques. Consequence visible :
+    // le compte 1 n'etait pas le meme en x1 et en x3.
+    const pMain = { ...p, rng: mulberry32(simHash) };
     const phaseResults = [];
     let allPassed = true;
     for (let i = 0; i < model.phases.length; i++) {
       if (!allPassed) { phaseResults.push(null); continue; }
-      const r = simulatePhase(capital, model.phases[i], model, p);
+      const r = simulatePhase(capital, model.phases[i], model, pMain);
       phaseResults.push(r);
       if (r.status !== "passed") allPassed = false;
     }
-    const funded = allPassed ? simulateFunded(capital, fundedMonths, model, p, effectiveSplitRate) : null;
+    const funded = allPassed ? simulateFunded(capital, fundedMonths, model, pMain, effectiveSplitRate) : null;
 
     let challengeReward = 0;
     if (allPassed) {
@@ -8526,6 +8533,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const fundedAccounts = sim ? [sim, ...(sim.extra || [])].filter(x => x.allPassed && x.funded) : [];
   const fundedView = sim ? (accountsCount > 1 ? aggregateFunded(fundedAccounts.map(x => x.funded)) : sim.funded) : null;
   const fundedCapital = capital * Math.max(1, accountsCount > 1 ? fundedAccounts.length : 1);
+  // Detail mensuel ventile par compte des qu'au moins 2 comptes sont funded
+  const isMultiDetail = accountsCount > 1 && fundedAccounts.length > 1;
 
   const ddAnalysis = () => {
     const maxDayLoss = tradesPerDay * effectiveRiskAmount; // perte max en 1 jour
@@ -8642,6 +8651,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       txt += "DETAIL MENSUEL\n";
       const COL = [6, 12, 10, 10, 8];
       const pad = (s, n) => String(s).padStart(n);
+      if (isMultiDetail) txt += "(" + fundedAccounts.length + " comptes cumules - payout total ; detail par compte ci-dessous)\n";
       txt += pad("Mois", COL[0]) + pad("Equity", COL[1]) + pad("Profit%", COL[2]) + pad("Payout", COL[3]) + pad("Statut", COL[4]) + "\n";
       txt += "-".repeat(COL.reduce((a, b) => a + b, 0)) + "\n";
       f.data.forEach(r => {
@@ -9966,12 +9976,14 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             <CalendrierPnL t={t} lang={lang} dailyLog={fundedView.dailyLog} newsSkipDays={newsSkipDays} activeDays={activeDays} capitalBase={fundedCapital} journalMonthKey="2024-01" />
 
             <div className="card">
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: "#fbbf24" }}>{t("sim_detail_monthly")}</div>
-              <div style={{ overflowY: "auto", maxHeight: 300 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: "#fbbf24" }}>{t("sim_detail_monthly")}{isMultiDetail ? ` · ${fundedAccounts.length} comptes cumules` : ""}</div>
+              <div style={{ overflowY: "auto", overflowX: "auto", maxHeight: 300 }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                      {["Mois", "Equity", "Profit%", "Payout", "Split", "Streak", "Statut"].map(h => (
+                      {(isMultiDetail
+                        ? ["Mois", "Equity", "Profit%", ...fundedAccounts.map((_, k) => "C" + (k + 1)), "Total", "Actifs"]
+                        : ["Mois", "Equity", "Profit%", "Payout", "Split", "Streak", "Statut"]).map(h => (
                         <th key={h} style={{ padding: "5px 4px", color: "rgba(255,255,255,0.65)", textAlign: "right", fontWeight: 700, fontSize: 10 }}>{h}</th>
                       ))}
                     </tr>
@@ -9993,6 +10005,17 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                         <td style={{ padding: "5px 4px", textAlign: "right", color: r.profitPct >= 0 ? "#6ee7b7" : "#ef4444" }}>
                           {(r.profitPct >= 0 ? "+" : "") + r.profitPct.toFixed(2)}%
                         </td>
+                        {/* Multi-comptes : payout de CHAQUE compte ce mois-ci. Un compte
+                            deja ferme (breach) affiche "ferme" : ses payouts passes
+                            restent comptes dans le cumul, mais il ne verse plus rien. */}
+                        {isMultiDetail && fundedAccounts.map((acc, k) => {
+                          const ar = acc.funded.data.find(x => x.month === r.month);
+                          return (
+                            <td key={"c" + k} style={{ padding: "5px 4px", textAlign: "right", fontSize: 10.5, color: !ar ? "rgba(239,68,68,0.7)" : ar.payout > 0 ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.3)" }}>
+                              {!ar ? "fermé" : ar.payout > 0 ? fmt(ar.payout) : "—"}
+                            </td>
+                          );
+                        })}
                         {/* Payout — cliquable, checkbox + montant alignés */}
                         <td
                           style={{ padding: "5px 4px", cursor: hasPayout ? "pointer" : "default", userSelect: "none" }}
@@ -10022,6 +10045,14 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                             </span>
                           </div>
                         </td>
+                        {isMultiDetail ? (() => {
+                          const actifs = fundedAccounts.filter(acc => { const ar = acc.funded.data.find(x => x.month === r.month); return ar && ar.status === "active"; }).length;
+                          return (
+                            <td style={{ padding: "5px 4px", textAlign: "right", fontSize: 11, fontWeight: 700, color: actifs === fundedAccounts.length ? "#6ee7b7" : actifs > 0 ? "#fbbf24" : "#ef4444" }}>
+                              {actifs}/{fundedAccounts.length}
+                            </td>
+                          );
+                        })() : (<>
                         <td style={{ padding: "5px 4px", textAlign: "right", color: r.currentSplit >= 90 ? "#6ee7b7" : "rgba(255,255,255,0.55)" }}>
                           {r.currentSplit}%
                         </td>
@@ -10031,6 +10062,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                         <td style={{ padding: "5px 4px", textAlign: "right", fontSize: 12, fontWeight: 700, color: r.status === "active" ? "#6ee7b7" : "#ef4444" }}>
                           {r.status === "active" ? "\u2713" : "\u2717"}
                         </td>
+                                              </>)}
                       </tr>
                       );
                       });
