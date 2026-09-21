@@ -8122,6 +8122,16 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   // Repli sur challengeFee(capital) si la firm/capital n'a pas d'entrée dédiée.
   const capitalTiers = FIRM_CAPITALS[firmKey] || FIRM_CAPITALS.fundednext;
   const fee = (FIRM_FEES[firmKey] && FIRM_FEES[firmKey][capital] != null) ? FIRM_FEES[firmKey][capital] : challengeFee(capital);
+  // ── Add-ons (profil) : activation EA + VPS mensuel sur toute la duree
+  // simulee (challenge estime a 2 mois + mois funded). ──
+  const profileAddons = (() => { try { return loadApp()?.profile?.addons || {}; } catch (e) { return {}; } })();
+  const addonsEaFee = profileAddons.ea ? (Number(profileAddons.eaFee) || 0) : 0;
+  const addonsVpsMonthly = profileAddons.vps ? (Number(profileAddons.vpsMonthly) || 0) : 0;
+  const addonsMonths = 2 + fundedMonths;
+  // ── Multi-comptes : jusqu'a 3 comptes de la MEME firm et du MEME modele,
+  // achetes et lances ensemble. Chaque compte est une simulation INDEPENDANTE
+  // (RNG distinct) : certains peuvent echouer pendant que d'autres passent. ──
+  const [accountsCount, setAccountsCount] = useState(1);
   const w = winrate / 100;
   // Calcul des jours de trading effectifs par mois selon récurrence EA
   // newsSkipDays = jours évités PAR SEMAINE (pas par mois)
@@ -8301,7 +8311,21 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         if (ph && ph.profit > 0) challengeReward += capital * ph.profit * model.challengeReward;
       });
     }
-    setSim({ phaseResults, funded, allPassed, challengeReward });
+    // Comptes supplementaires (multi-comptes) : meme pipeline, RNG decale
+    const extra = [];
+    for (let k = 1; k < accountsCount; k++) {
+      const pk = { ...p, rng: mulberry32(simHash + 7919 * k) };
+      const prs = []; let ok = true;
+      for (let i = 0; i < model.phases.length; i++) {
+        if (!ok) { prs.push(null); continue; }
+        const r = simulatePhase(capital, model.phases[i], model, pk);
+        prs.push(r); if (r.status !== "passed") ok = false;
+      }
+      const fd = ok ? simulateFunded(capital, fundedMonths, model, pk, effectiveSplitRate) : null;
+      let cr = 0; if (ok) prs.forEach(ph => { if (ph && ph.profit > 0) cr += capital * ph.profit * model.challengeReward; });
+      extra.push({ phaseResults: prs, funded: fd, allPassed: ok, challengeReward: cr });
+    }
+    setSim({ phaseResults, funded, allPassed, challengeReward, extra });
     // Remonter les données complètes au Dashboard
     try {
       const reward = challengeReward || 0;
@@ -8386,16 +8410,21 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       });
     } catch (e) {}
   // activeDays (array) : on utilise join pour que React détecte les changements
-  }, [firmKey, modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, splitRate, fundedMonths, seed, useFixedLot, lotSize, slPips, instrument, newsImpact, includeWeekend, activeDays.join(","), newsSkipDays]);
+  }, [accountsCount, firmKey, modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, splitRate, fundedMonths, seed, useFixedLot, lotSize, slPips, instrument, newsImpact, includeWeekend, activeDays.join(","), newsSkipDays]);
 
   const netResult = () => {
     if (!sim) return null;
-    const reward = sim.challengeReward || 0;
-    const payout = sim.funded ? sim.funded.cumulPayout : 0;
-    const pending = sim.funded ? sim.funded.pendingPayout : 0;
+    // Agrege le compte principal + les comptes supplementaires (multi-comptes)
+    const all = [sim, ...(sim.extra || [])];
+    const reward = all.reduce((s, x) => s + (x.challengeReward || 0), 0);
+    const payout = all.reduce((s, x) => s + (x.funded ? x.funded.cumulPayout : 0), 0);
+    const pending = all.reduce((s, x) => s + (x.funded ? x.funded.pendingPayout : 0), 0);
     const gross = reward + payout + pending;
-    const net = gross - fee;
-    return { reward, payout, pending, gross, fee, net };
+    const n = all.length;
+    const feesTotal = fee * n;                                              // un challenge par compte
+    const addonsTotal = addonsEaFee * n + addonsVpsMonthly * addonsMonths;  // EA par compte, un seul VPS
+    const net = gross - feesTotal - addonsTotal;
+    return { reward, payout, pending, gross, fee: feesTotal, addons: addonsTotal, net, accounts: n, passed: all.filter(x => x.allPassed).length };
   };
   const bilan = netResult();
 
@@ -9498,7 +9527,8 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
                   { l: "Winrate simulé", v: sim.tradeWR ? (sim.tradeWR * 100).toFixed(1) + "%" : "—", c: "rgba(255,255,255,0.85)" },
                   { l: "Trades simulés", v: sim.totalTrades || "—", c: "rgba(255,255,255,0.85)" },
                   { l: "Jours de trading", v: sim.tradingDays || "—", c: "rgba(255,255,255,0.85)" },
-                  { l: "Frais challenge", v: "-" + fmt2(bilan.fee), c: "#ef4444" },
+                  { l: bilan.accounts > 1 ? `Frais challenge (x${bilan.accounts})` : "Frais challenge", v: "-" + fmt2(bilan.fee), c: "#ef4444" },
+                  ...(bilan.addons > 0 ? [{ l: "Add-ons (EA / VPS)", v: "-" + fmt2(bilan.addons), c: "#ef4444" }] : []),
                   { l: "ROI brut", v: bilan.reward > 0 ? "+" + ((bilan.reward / capital) * 100).toFixed(1) + "%" : "—", c: "#6ee7b7" },
                   { l: "ROI net", v: "+" + ((bilan.net / capital) * 100).toFixed(1) + "%", c: bilan.net >= 0 ? "#6ee7b7" : "#ef4444" },
                 ].map(item => (
@@ -9743,11 +9773,46 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             <div id="sim-funded-section" style={{ scrollMarginTop: 80 }} />
             <div className="card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>Compte Funded - {fundedMonths} mois</div>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>Compte Funded - {fundedMonths} mois{accountsCount > 1 ? ` · x${accountsCount} comptes` : ""}</div>
+                {/* Multi-comptes : jusqu'a 3 comptes de la meme firm / meme modele */}
+                <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: 3 }}>
+                  {[1, 2, 3].map(n => (
+                    <button key={n} onClick={() => setAccountsCount(n)} title={`${n} compte${n > 1 ? "s" : ""} ${PROP_FIRMS[firmKey]?.name || ""} - ${model.name}`} style={{
+                      padding: "5px 10px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 11.5, fontWeight: 800,
+                      background: accountsCount === n ? "#6ee7b7" : "transparent", color: accountsCount === n ? "#000" : "rgba(255,255,255,0.55)",
+                    }}>x{n}</button>
+                  ))}
+                </div>
                 <span className="tag" style={{ background: sim.funded.status === "active" ? "rgba(255,255,255,0.05)" : "rgba(239,68,68,0.08)", color: sim.funded.status === "active" ? "#6ee7b7" : "#ef4444" }}>
                   {sim.funded.status === "active" ? "ACTIF" : "FERME"}
                 </span>
               </div>
+              {/* Impact multi-comptes : agrege les N comptes independants */}
+              {accountsCount > 1 && bilan && (() => {
+                const all = [sim, ...(sim.extra || [])];
+                return (
+                  <div style={{ background: "rgba(110,231,183,0.06)", border: "1px solid rgba(110,231,183,0.25)", borderRadius: 12, padding: "10px 12px", marginBottom: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: "#6ee7b7" }}>Multi-comptes x{accountsCount}</span>
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{bilan.passed}/{bilan.accounts} compte{bilan.accounts > 1 ? "s" : ""} funded</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                      {all.map((x, k) => (
+                        <div key={k} style={{ flex: 1, textAlign: "center", padding: "6px 4px", borderRadius: 8, background: x.allPassed ? "rgba(110,231,183,0.12)" : "rgba(239,68,68,0.12)", border: `1px solid ${x.allPassed ? "rgba(110,231,183,0.3)" : "rgba(239,68,68,0.3)"}` }}>
+                          <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.5)" }}>Compte {k + 1}</div>
+                          <div style={{ fontSize: 11.5, fontWeight: 800, color: x.allPassed ? "#6ee7b7" : "#ef4444" }}>{x.allPassed ? "Passe" : "Echoue"}</div>
+                          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)" }}>{x.funded ? fmt(x.funded.cumulPayout) : "—"}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, fontSize: 11 }}>
+                      <div><div style={{ color: "rgba(255,255,255,0.45)", fontSize: 9.5 }}>Payouts cumules</div><div style={{ fontWeight: 800, color: "#6ee7b7" }}>{fmt(bilan.payout + bilan.pending)}</div></div>
+                      <div><div style={{ color: "rgba(255,255,255,0.45)", fontSize: 9.5 }}>Frais totaux</div><div style={{ fontWeight: 800, color: "#ef4444" }}>-{fmt(bilan.fee + bilan.addons)}</div></div>
+                      <div><div style={{ color: "rgba(255,255,255,0.45)", fontSize: 9.5 }}>Net multi</div><div style={{ fontWeight: 800, color: bilan.net >= 0 ? "#6ee7b7" : "#ef4444" }}>{fmt(bilan.net)}</div></div>
+                    </div>
+                  </div>
+                );
+              })()}
               <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, padding: 8, marginBottom: 12, fontSize: 11, color: "#6ee7b7" }}>
                 Capital funded = {fmt(capital)} (remis a l'initial) - Seuil retrait : $50 - Payout bi-weekly (14j)
               </div>
@@ -14450,6 +14515,97 @@ const FIRM_CAPITALS = {
   the5ers:    [10000, 25000, 50000, 100000],
   fundingpips:[10000, 25000, 50000, 100000, 200000],
 };
+// ══════════════════════════════════════════════════════════════════
+// ADD-ONS PAR FIRM — frais annexes qui s'ajoutent au prix du challenge :
+// activation EA (certaines firms la facturent), VPS (jamais fourni par les
+// firms, cout mensuel externe). Valeurs INDICATIVES et modifiables par
+// l'utilisateur dans le setup et dans le profil — les grilles tarifaires
+// des firms changent, ce sont des points de depart, pas des verites.
+// ══════════════════════════════════════════════════════════════════
+const FIRM_ADDONS = {
+  fundednext:  { eaFee: 0, vpsMonthly: 25, note: "EA autorise sans surcout. VPS externe conseille pour un EA (~20-30 EUR/mois)." },
+  ftmo:        { eaFee: 0, vpsMonthly: 25, note: "EA autorise sans surcout. VPS externe conseille." },
+  e8:          { eaFee: 0, vpsMonthly: 25, note: "EA autorise sans surcout. VPS externe conseille." },
+  alpha:       { eaFee: 0, vpsMonthly: 25, note: "EA autorise sans surcout. VPS externe conseille." },
+  the5ers:     { eaFee: 0, vpsMonthly: 25, note: "EA autorise sans surcout. VPS externe conseille." },
+  fundingpips: { eaFee: 0, vpsMonthly: 25, note: "EA autorise sans surcout. VPS externe conseille." },
+};
+
+// ══════════════════════════════════════════════════════════════════
+// REGLES DE TRADING PAR FIRM — rappelees apres le setup et dans le profil.
+// Interdit chez la quasi-totalite des firms : martingale, grid sans stop,
+// HFT/latence, arbitrage, copie d'un autre compte. Les nuances (news,
+// weekend) different selon la firm et le modele. Les flags eaForbidden /
+// newsForbidden de PROP_FIRMS restent la source pour ce qui est SIMULE ;
+// ceci est un rappel de conduite, a verifier sur le site de la firm.
+// ══════════════════════════════════════════════════════════════════
+const FIRM_RULES = {
+  fundednext:  { ea: true, martingale: false, grid: false, hft: false, copy: false, news: "Restreint (fenetre +/-5 min sur le funded)", weekend: "Autorise (modele Stellar)" },
+  ftmo:        { ea: true, martingale: false, grid: false, hft: false, copy: false, news: "Restreint sur le funded (2 min avant/apres)", weekend: "Interdit sauf compte Swing" },
+  e8:          { ea: true, martingale: false, grid: false, hft: false, copy: false, news: "Autorise", weekend: "Autorise" },
+  alpha:       { ea: true, martingale: false, grid: false, hft: false, copy: false, news: "Restreint", weekend: "Selon le modele" },
+  the5ers:     { ea: true, martingale: false, grid: false, hft: false, copy: false, news: "Autorise", weekend: "Autorise" },
+  fundingpips: { ea: true, martingale: false, grid: false, hft: false, copy: false, news: "Restreint sur le funded", weekend: "Interdit sur le funded" },
+};
+
+function FirmRulesCard({ firmKey, compact = false }) {
+  const r = FIRM_RULES[firmKey]; const f = PROP_FIRMS[firmKey];
+  if (!r || !f) return null;
+  const Row = ({ label, ok, text }) => (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: compact ? 11 : 12 }}>
+      <span style={{ color: "rgba(255,255,255,0.65)" }}>{label}</span>
+      <span style={{ fontWeight: 700, color: text ? "rgba(255,255,255,0.85)" : ok ? "#6ee7b7" : "#ef4444", textAlign: "right" }}>{text || (ok ? "Autorise" : "Interdit")}</span>
+    </div>
+  );
+  return (
+    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.14)", borderRadius: 14, padding: compact ? 12 : 14 }}>
+      <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: "#6ee7b7", marginBottom: 6 }}>Regles de trading — {f.name}</div>
+      <Row label="Expert Advisor (EA)" ok={r.ea} />
+      <Row label="Martingale" ok={r.martingale} />
+      <Row label="Grid sans stop" ok={r.grid} />
+      <Row label="HFT / latence / arbitrage" ok={r.hft} />
+      <Row label="Copie d'un autre compte" ok={r.copy} />
+      <Row label="Trading des news" text={r.news} />
+      <Row label="Positions le weekend" text={r.weekend} />
+      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", marginTop: 8, lineHeight: 1.4 }}>Rappel indicatif — les conditions evoluent, verifie-les sur le site de la firm avant de payer un challenge.</div>
+    </div>
+  );
+}
+
+function AddonsEditor({ firmKey, addons, onChange, compact = false }) {
+  const a = { ea: false, eaFee: 0, vps: false, vpsMonthly: 0, ...(addons || {}) };
+  const def = FIRM_ADDONS[firmKey] || { eaFee: 0, vpsMonthly: 25, note: "" };
+  const set = (patch) => onChange({ ...a, ...patch });
+  const Toggle = ({ on, onClick }) => (
+    <button onClick={onClick} style={{ width: 40, height: 22, borderRadius: 11, border: "none", cursor: "pointer", background: on ? "#6ee7b7" : "rgba(255,255,255,0.15)", position: "relative", flexShrink: 0 }}>
+      <span style={{ position: "absolute", top: 3, left: on ? 21 : 3, width: 16, height: 16, borderRadius: 8, background: on ? "#000" : "#fff", transition: "left .15s" }} />
+    </button>
+  );
+  const inputStyle = { width: 84, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "6px 8px", color: "#fff", fontSize: 12, textAlign: "right" };
+  return (
+    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: compact ? 12 : 14 }}>
+      <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: 8 }}>Add-ons (inclus dans le cout total)</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "6px 0" }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "#fff" }}>Activation EA</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>Frais unique factures par certaines firms</div>
+        </div>
+        {a.ea && <input type="number" value={a.eaFee} onChange={e => set({ eaFee: parseFloat(e.target.value) || 0 })} style={inputStyle} />}
+        <Toggle on={a.ea} onClick={() => set({ ea: !a.ea, eaFee: !a.ea && !a.eaFee ? def.eaFee : a.eaFee })} />
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "6px 0", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "#fff" }}>VPS</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>Cout mensuel, compte sur toute la duree simulee</div>
+        </div>
+        {a.vps && <input type="number" value={a.vpsMonthly} onChange={e => set({ vpsMonthly: parseFloat(e.target.value) || 0 })} style={inputStyle} />}
+        <Toggle on={a.vps} onClick={() => set({ vps: !a.vps, vpsMonthly: !a.vps && !a.vpsMonthly ? def.vpsMonthly : a.vpsMonthly })} />
+      </div>
+      {def.note && <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", marginTop: 6, lineHeight: 1.4 }}>{def.note}</div>}
+    </div>
+  );
+}
+
 const FIRM_FEES = {
   fundednext: { 6000:59, 15000:119, 25000:199, 50000:299, 100000:549, 200000:999 },
   ftmo:       { 10000:155, 25000:250, 50000:345, 100000:540, 200000:1080 },
@@ -14466,6 +14622,7 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
   const [firmKey, setFirmKey] = useState("fundednext");
   const [capital, setCapital] = useState(25000);
   const [level, setLevel]     = useState(null); // "beginner"|"experienced"|"professional"
+  const [addons, setAddons]   = useState({ ea: false, eaFee: 0, vps: false, vpsMonthly: 0 });
   const [displayMode, setDisplayMode] = useState("advanced");
 
   const firm = PROP_FIRMS[firmKey] || PROP_FIRMS.fundednext;
@@ -14480,7 +14637,7 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
   const totalSteps = 3;
 
   const finish = () => {
-    onDone({ lang, firmKey, capital, usageType: "propfirm", level, displayMode });
+    onDone({ lang, firmKey, capital, usageType: "propfirm", level, displayMode, addons });
   };
 
   const canAdvance = () => {
@@ -14566,6 +14723,11 @@ function ProfileSetupScreen({ t, lang, setLang, onDone }) {
                 </button>
               );
             })}
+          </div>
+          {/* Add-ons + rappel des regles, juste sous le choix de la firm */}
+          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+            <AddonsEditor firmKey={firmKey} addons={addons} onChange={setAddons} />
+            <FirmRulesCard firmKey={firmKey} />
           </div>
         </div>
       )}
@@ -16408,6 +16570,12 @@ function ProfileScreen({ t, lang, setLang, user, profile, setProfile, onLogout, 
               );
             })}
           </div>
+        </div>
+
+        {/* Add-ons + regles de la firm selectionnee */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
+          <AddonsEditor firmKey={profile.firmKey} addons={profile.addons} compact onChange={(a) => { const np = { ...profile, addons: a }; setProfile(np); saveApp({ profile: np }); }} />
+          <FirmRulesCard firmKey={profile.firmKey} compact />
         </div>
 
         {/* Capital */}
