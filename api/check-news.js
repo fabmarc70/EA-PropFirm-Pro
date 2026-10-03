@@ -28,39 +28,39 @@ function initFirebaseAdmin() {
   return initializeApp({ credential: cert(serviceAccount) });
 }
 
-// Libellés alignés sur ceux du bandeau de l'app
-const LABELS = {
-  NFP: "NFP (Non-Farm Payrolls)", CPI: "CPI (Inflation)", FOMC: "FOMC (Fed)",
-  RATE: "Taux directeurs", PMI: "PMI", GDP: "PIB",
-};
+// ══════════════════════════════════════════════════════════════════
+// CALENDRIER RÉEL — flux hebdomadaire public de ForexFactory, sans clé
+// API : https://nfs.faireconomy.media/ff_calendar_thisweek.json
+// Champs utilises : title, country (devise), date (ISO-8601 avec offset
+// US/Eastern), impact (High/Medium/Low/Holiday).
+//
+// REMPLACE les dates CALCULÉES de la version precedente (NFP = 1er
+// vendredi, CPI ~ le 13...), qui etaient des approximations : une
+// publication decalee par l'institut n'etait pas reflettee. Ici ce sont
+// les dates reellement publiees.
+//
+// LIMITE DE LA SOURCE : le flux ne couvre que la SEMAINE EN COURS. Une
+// annonce de la semaine suivante n'apparait qu'une fois la semaine
+// entamee — sans consequence ici, puisqu'on ne notifie qu'a 30 minutes
+// de l'evenement.
+// ══════════════════════════════════════════════════════════════════
+const FF_FEED = "https://nfs.faireconomy.media/ff_calendar_thisweek.json";
 
-// MÊMES RÈGLES que generateUpcomingEconEvents côté client (App.jsx) : si
-// l'une change là-bas, elle doit changer ici — sinon l'app annoncerait une
-// date et la notification une autre. Toutes les heures sont en UTC.
-export function generateEconEvents(fromDate, monthsAhead = 2) {
-  const events = [];
-  const d0 = new Date(fromDate);
-  const U = (y, m, d, h, mi) => new Date(Date.UTC(y, m, d, h, mi));
-  for (let m = 0; m <= monthsAhead; m++) {
-    const y = d0.getUTCFullYear(), mo = d0.getUTCMonth() + m;
-    // NFP : 1er vendredi, 13:30 UTC
-    const ref = new Date(Date.UTC(y, mo, 1));
-    while (ref.getUTCDay() !== 5) ref.setUTCDate(ref.getUTCDate() + 1);
-    events.push({ type: "NFP", date: U(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate(), 13, 30) });
-    // CPI : ~13 du mois, 13:30 UTC
-    events.push({ type: "CPI", date: U(y, mo, 13, 13, 30) });
-    // FOMC : mois pairs, ~19, 19:00 UTC
-    if (((mo % 12) + 12) % 12 % 2 === 0) events.push({ type: "FOMC", date: U(y, mo, 19, 19, 0) });
-    // Taux directeurs : mois impairs, ~14, 13:00 UTC
-    if (((mo % 12) + 12) % 12 % 2 === 1) events.push({ type: "RATE", date: U(y, mo, 14, 13, 0) });
-    // PMI : 1er jour ouvré, 9:00 UTC
-    const p = new Date(Date.UTC(y, mo, 1));
-    while (p.getUTCDay() === 0 || p.getUTCDay() === 6) p.setUTCDate(p.getUTCDate() + 1);
-    events.push({ type: "PMI", date: U(p.getUTCFullYear(), p.getUTCMonth(), p.getUTCDate(), 9, 0) });
-    // PIB : trimestriel, ~28, 13:30 UTC
-    if ((mo + 1) % 3 === 0) events.push({ type: "GDP", date: U(y, mo, 28, 13, 30) });
-  }
-  return events.sort((a, b) => a.date - b.date);
+export async function fetchEconEvents(impactMin = "High") {
+  const r = await fetch(FF_FEED, { headers: { "User-Agent": "EA-PropFirm-Pro/1.0" } });
+  if (!r.ok) throw new Error("Flux calendrier indisponible (HTTP " + r.status + ")");
+  const text = await r.text();
+  // Le flux renvoie parfois une page HTML (limitation de debit) au lieu du
+  // JSON : on le detecte explicitement plutot que de laisser JSON.parse
+  // lever une erreur illisible.
+  if (!text.trim().startsWith("[")) throw new Error("Flux calendrier : reponse inattendue (HTML ou limitation de debit)");
+  const raw = JSON.parse(text);
+  const keep = impactMin === "High" ? ["High"] : ["High", "Medium"];
+  return raw
+    .filter(e => e && e.date && keep.includes(e.impact))
+    .map(e => ({ type: e.title, currency: e.country, impact: e.impact, date: new Date(e.date) }))
+    .filter(e => !isNaN(e.date.getTime()))
+    .sort((a, b) => a.date - b.date);
 }
 
 // Sélectionne les notifications à envoyer MAINTENANT.
@@ -74,9 +74,9 @@ export function dueNotifications(now, events, windowMin = 8) {
   events.forEach(ev => {
     const before = ev.date.getTime() - 30 * 60000;   // 30 min avant
     const after = ev.date.getTime() + 30 * 60000;    // 30 min après
-    const label = LABELS[ev.type] || ev.type;
+    const label = (ev.currency ? ev.currency + " — " : "") + ev.type;
     const hhmm = ev.date.toISOString().slice(11, 16);
-    const key = ev.type + "_" + ev.date.toISOString().slice(0, 16);
+    const key = (ev.currency || "") + "_" + ev.type.replace(/[^A-Za-z0-9]/g, "").slice(0, 40) + "_" + ev.date.toISOString().slice(0, 16);
     if (Math.abs(now - before) <= W) {
       out.push({ key: key + "_pre", title: label + " dans 30 min",
         body: `Annonce à ${hhmm} UTC. Volatilité attendue — prudence sur les positions ouvertes.`, tag: "econ-news" });
@@ -139,8 +139,26 @@ export default async function handler(req, res) {
   catch (e) { return res.status(500).json({ error: "Firebase Admin indisponible.", detail: e.message }); }
 
   const now = Date.now();
-  const due = dueNotifications(now, generateEconEvents(new Date(now), 1));
-  if (!due.length) return res.status(200).json({ sent: 0, message: "Aucune annonce dans la fenêtre." });
+  const report = { testsSent: 0, newsSent: 0, skipped: 0 };
+
+  // ── A) FILE DE NOTIFICATIONS PROGRAMMÉES (test de bout en bout) ──
+  // Permet de vérifier que les notifications arrivent application FERMÉE,
+  // sans attendre une vraie annonce économique.
+  try {
+    const dueTests = await db.collection("scheduledPushes")
+      .where("sent", "==", false).where("dueAt", "<=", now).limit(50).get();
+    for (const doc of dueTests.docs) {
+      const d = doc.data();
+      report.testsSent += await sendPush(db, d.uid, { title: d.title, body: d.body, tag: "test-push", url: "/" });
+      await doc.ref.update({ sent: true, sentAt: new Date().toISOString() });
+    }
+  } catch (e) { report.testError = e.message; }
+
+  // ── B) ANNONCES ÉCONOMIQUES (calendrier réel) ──
+  let due = [];
+  try { due = dueNotifications(now, await fetchEconEvents("High")); }
+  catch (e) { return res.status(200).json({ ...report, newsError: e.message }); }
+  if (!due.length) return res.status(200).json({ ...report, message: "Aucune annonce dans la fenêtre." });
 
   // Déduplication GLOBALE : la même annonce concerne tous les utilisateurs, et
   // le cron peut repasser dans la fenêtre. Un document marqueur par
@@ -160,5 +178,6 @@ export default async function handler(req, res) {
       sentTotal += await sendPush(db, uid, { title: n.title, body: n.body, tag: n.tag, url: "/" });
     }
   }
-  return res.status(200).json({ sent: sentTotal, notifications: due.length, skipped });
+  report.newsSent = sentTotal; report.skipped = skipped;
+  return res.status(200).json({ ...report, notifications: due.length });
 }

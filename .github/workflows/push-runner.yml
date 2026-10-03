@@ -1,0 +1,32 @@
+# ═══════════════════════════════════════
+# PLANIFICATEUR DES NOTIFICATIONS — appelle /api/check-news toutes les
+# 5 minutes.
+#
+# POURQUOI ICI ET PAS DANS vercel.json : le plan Hobby de Vercel n'autorise
+# qu'UNE execution de cron par jour (erreur cron_jobs_limits_reached au
+# deploiement si on demande plus). GitHub Actions accepte une planification
+# toutes les 5 minutes et est gratuit sur un depot public — aucun compte
+# supplementaire ni changement de plan n'est necessaire.
+#
+# A SAVOIR : GitHub peut retarder une execution planifiee de quelques
+# minutes en periode de charge. La fenetre de declenchement cote serveur
+# (+/-8 min) absorbe ce decalage. Les workflows planifies sont aussi
+# desactives apres 60 jours SANS AUCUN commit sur le depot.
+# ═══════════════════════════════════════
+name: push-runner
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}   # permet aussi un declenchement manuel depuis l'onglet Actions
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Appeler le declencheur de notifications
+        run: |
+          # CRON_SECRET est facultatif : s'il est defini cote Vercel ET dans les
+          # secrets du depot, il protege l'endpoint ; sinon l'appel passe sans cle.
+          curl -sS -m 30 -w "\nHTTP %{http_code}\n" \
+            "https://ea-propfirm-pro.vercel.app/api/check-news?key=${{ secrets.CRON_SECRET }}"

@@ -17548,6 +17548,7 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
   const saveSetupConfig = async () => { await fbSaveSetupConfig(setupConfig); setShowSetupConfig(false); };
 
   // ── Abonnement Web Push : demande la permission navigateur, s'abonne, sauvegarde côté Firestore ──
+  const [testPushMsg, setTestPushMsg] = useState("");
   const subscribeToPush = async () => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) { setPushStatus("unsupported"); return; }
     setPushStatus("subscribing");
@@ -17754,9 +17755,27 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
             {pushStatus === "subscribing" ? "Activation…" : pushStatus === "denied" ? "Notifications refusées — active-les dans les réglages du navigateur" : pushStatus === "unsupported" ? "Notifications non supportées sur cet appareil" : "Activer les notifications (même app fermée)"}
           </button>
         )}
-        {pushStatus === "subscribed" && (
-          <div style={{ fontSize: 10.5, color: ACCENT, marginBottom: 10 }}>✓ Notifications activées sur cet appareil</div>
-        )}
+        {pushStatus === "subscribed" && (<>
+          <div style={{ fontSize: 10.5, color: ACCENT, marginBottom: 8 }}>✓ Notifications activées sur cet appareil</div>
+          {/* Test de bout en bout : programme 2 notifications (immédiate puis
+              +5 min) expédiées par le MÊME chemin serveur que les annonces
+              économiques. Permet de vérifier, application fermée, que la
+              chaîne complète fonctionne sans attendre une vraie annonce. */}
+          <button onClick={async () => {
+            try {
+              const uid = loadApp()?.user?.uid;
+              if (!uid) { setTestPushMsg("Connecte-toi d'abord."); return; }
+              setTestPushMsg("Programmation…");
+              const r = await fetch("/api/test-push?uid=" + encodeURIComponent(uid));
+              const d = await r.json();
+              setTestPushMsg(r.ok ? "2 notifications programmées — ferme l'app, la 1re arrive sous 5 min, la 2e 5 min après." : (d.error || "Échec."));
+            } catch (e) { setTestPushMsg("Échec : " + e.message); }
+          }} style={{
+            width: "100%", padding: 9, borderRadius: 10, marginBottom: 6, cursor: "pointer",
+            border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: 700,
+          }}>Tester les notifications (2 sur 10 min)</button>
+          {testPushMsg && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", marginBottom: 10, lineHeight: 1.4 }}>{testPushMsg}</div>}
+        </>)}
 
         <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 10, lineHeight: 1.4 }}>
           Contrôle du prix toutes les 15 minutes environ (via un déclencheur externe gratuit, hors limite du plan Vercel) — pas un flux tick par tick, ni du temps réel. Une alerte peut avoir quelques minutes de décalage avec le marché.
