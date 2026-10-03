@@ -103,7 +103,31 @@ async function sendPush(db, uid, payload) {
   return sent;
 }
 
+// FREQUENCE D'APPEL — point important.
+// Le plan Hobby de Vercel n'autorise qu'UNE execution de cron par jour
+// (erreur cron_jobs_limits_reached au deploiement si on demande plus).
+// Le cron declare dans vercel.json ne sert donc que de filet quotidien :
+// avec une seule execution par jour, SEULES les annonces qui tombent dans
+// la fenetre de cette execution sont notifiees.
+// Pour une couverture reelle, cet endpoint doit etre appele toutes les
+// ~15 minutes par un planificateur externe (cron-job.org, UptimeRobot...)
+// OU le projet doit passer en plan Pro et le cron repasser a "*/15 * * * *".
+//
+// PROTECTION : l'endpoint envoie des notifications a TOUS les utilisateurs
+// abonnes. Des lors qu'il est appelable depuis l'exterieur, il doit etre
+// protege. Si CRON_SECRET est definie cote serveur, l'appel doit porter
+// ?key=<secret> (ou l'en-tete x-cron-key). Les crons Vercel internes
+// passent sans cle grace a leur en-tete d'authentification dedie.
 export default async function handler(req, res) {
+  const secret = (process.env.CRON_SECRET || "").trim();
+  if (secret) {
+    const provided = (req.query && req.query.key) || req.headers["x-cron-key"] || "";
+    const isVercelCron = !!req.headers["x-vercel-cron"];
+    if (!isVercelCron && provided !== secret) {
+      return res.status(401).json({ error: "Non autorise." });
+    }
+  }
+
   const vapidPublic = (process.env.VAPID_PUBLIC_KEY || "").trim();
   const vapidPrivate = (process.env.VAPID_PRIVATE_KEY || "").trim();
   if (!vapidPublic || !vapidPrivate) return res.status(500).json({ error: "VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY manquantes." });
