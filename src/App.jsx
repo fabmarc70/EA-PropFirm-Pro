@@ -12890,6 +12890,24 @@ function MonthNavBar({ label, onPrev, onNext, color = "#6ee7b7" }) {
   );
 }
 
+// ══════════════════════════════════════════════════════════════════
+// MoodIcon — pictogramme d'état d'esprit en SVG (trait), pour remplacer
+// les émojis retirés de l'interface. Chaque forme traduit l'émotion :
+// ligne plate = calme, flèche montante = confiant, zigzag = anxieux,
+// éclair = FOMO, cercle barré = revenge (trading de revanche).
+// ══════════════════════════════════════════════════════════════════
+function MoodIcon({ mood, size = 14, color = "currentColor" }) {
+  const common = { width: size, height: size, viewBox: "0 0 16 16", fill: "none", stroke: color, strokeWidth: 1.7, strokeLinecap: "round", strokeLinejoin: "round" };
+  switch (mood) {
+    case "calme":    return <svg {...common}><path d="M2 8h12" /><circle cx="8" cy="8" r="6" strokeWidth="1.2" opacity="0.45" /></svg>;
+    case "confiant": return <svg {...common}><path d="M2 11l4-4 3 3 5-5" /><path d="M14 8V5h-3" /></svg>;
+    case "anxieux":  return <svg {...common}><path d="M2 8l2.5-3 2.5 6 2.5-6 2.5 6L14 8" /></svg>;
+    case "fomo":     return <svg {...common}><path d="M9 1.5L3.5 9.5H7.5L6.5 14.5L12.5 6.5H8.5L9 1.5Z" /></svg>;
+    case "revenge":  return <svg {...common}><circle cx="8" cy="8" r="6" /><path d="M4.2 11.8L11.8 4.2" /></svg>;
+    default: return null;
+  }
+}
+
 function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJournalSave = null, journalMonthLabel = null, journalMonthKey = null, newsSkipDays = 0, activeDays = [1,2,3,4,5], t = (k) => k, lang = "fr", realMode = false, accounts = null, accountLabel = null, activeAccountId = null, journalLocked = false, onJournalLocked = null, onPrevMonth = null, onNextMonth = null, capitalBase = null }) {
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [editingDay, setEditingDay] = useState(null); // jour en cours d'édition (mode journal)
@@ -13312,7 +13330,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                     )}
                     {journalMode && cell.journalEntry && cell.journalEntry.mood && (
                       <span style={{ fontSize: 8 }}>
-                        {{ calme: "", confiant: "", anxieux: "", fomo: "", revenge: "" }[cell.journalEntry.mood]}
+                        <MoodIcon mood={cell.journalEntry.mood} size={10} color="rgba(255,255,255,0.75)" />
                       </span>
                     )}
                   </div>
@@ -13500,7 +13518,7 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
                         color: active ? "#6ee7b7" : "rgba(255,255,255,0.55)",
                         border: "1px solid " + (active ? "#6ee7b7" : "rgba(255,255,255,0.1)"),
                         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                      }}>{m.label}</button>
+                      }}><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><MoodIcon mood={m.key} size={12} />{m.label}</span></button>
                     );
                   })}
                 </div>
@@ -15640,6 +15658,7 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
     } : null;
     return calculateAccountMaturity(journalAllForSelectedAccount, resolveJourneyType(principalAccount), {
       effectiveCapital: principalCapital, firmModel: firmModelForMaturity,
+      declaredAccountType: principalAccount?.accountType || null,
     });
   }, [journalAllForSelectedAccount, principalAccount, principalCapital, dashFirmModel]);
 
@@ -17085,7 +17104,19 @@ function calculateAccountMaturity(journalAllFiltered, accountType, opts = {}) {
     else break;
   }
   // Compteur à 0 si rien n'est validé (on est en train de bâtir l'étape 0)
-  const displayIdx = Math.max(0, currentIdx);
+  // PLANCHER SELON LE TYPE DE COMPTE DÉCLARÉ — si l'utilisateur a créé un
+  // compte "challenge", il est par définition DÉJÀ en Challenge P1 : le
+  // laisser affiché en "Recherche / Backtest" (parce que l'historique du
+  // journal est encore vide) était trompeur. On ne descend jamais en dessous
+  // de l'étape déclarée ; la progression réelle peut en revanche la dépasser.
+  const floorIdx = (() => {
+    if (journeyType !== "propfirm") return 0;
+    const at = opts.declaredAccountType;
+    if (at === "challenge") return stages.findIndex(s => s.key === "challenge1");
+    if (at === "funded") return stages.findIndex(s => s.key === "funded");
+    return 0;
+  })();
+  const displayIdx = Math.max(0, currentIdx, floorIdx);
   const isMaxStage = displayIdx === stageDefs.length - 1;
 
   // Progression % à L'INTÉRIEUR de l'étape courante (0 fixe si première étape
