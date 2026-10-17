@@ -67,8 +67,50 @@ export function runPropFirmProjection(plan) {
   const split = clamp(num(plan.profitSplitPct, 80), 0, 100) / 100;
   const fee = Math.max(0, num(plan.challengeFee, 0));
   const passRate = clamp(num(plan.passRatePct, 100), 0, 100) / 100;
-  const challengeMonths = Math.max(1, Math.round(num(plan.challengeMonths, 2)));
   const blowUp = clamp(num(plan.blowUpRatePct, 0), 0, 100) / 100;
+
+  // ══════════════════════════════════════════════════════════════════════
+  // DUREE REELLE D'UN CHALLENGE
+  // ----------------------------------------------------------------------
+  // Un challenge n'est pas "2 mois" par convention : c'est le temps qu'IL TE
+  // FAUT pour faire l'objectif de chaque phase a TON rythme, sans pouvoir
+  // descendre sous le nombre de jours de trading minimum impose par la firm.
+  // Avec 1,7 %/mois, une phase 1 a 8 % demande pres de 5 mois : l'ignorer
+  // revient a se mentir sur la date a laquelle on touchera le premier euro.
+  // Le mode manuel reste disponible pour qui veut forcer une duree.
+  // ══════════════════════════════════════════════════════════════════════
+  const TRADING_DAYS_MONTH = 21;
+  const phaseMonths = (targetPct, minDays) => {
+    const t = Math.max(0, num(targetPct, 0));
+    const d = Math.max(0, num(minDays, 0)) / TRADING_DAYS_MONTH;
+    if (t <= 0) return d;
+    if (!(monthlyReturnPct > 0)) return Infinity;   // objectif hors de portee
+    return Math.max(t / monthlyReturnPct, d);
+  };
+  const p1Months = phaseMonths(plan.phase1TargetPct, plan.phase1MinDays);
+  const p2Months = num(plan.phase2TargetPct, 0) > 0 || num(plan.phase2MinDays, 0) > 0
+    ? phaseMonths(plan.phase2TargetPct, plan.phase2MinDays) : 0;
+  const activationMonths = Math.max(0, num(plan.fundingDelayMonths, 0.5));
+  const autoDurationRaw = p1Months + p2Months + activationMonths;
+  const autoDuration = isFinite(autoDurationRaw) ? autoDurationRaw : null;
+
+  const useAuto = plan.autoChallengeDuration === true && autoDuration != null;
+  const challengeMonths = Math.max(1, Math.round(
+    useAuto ? autoDuration : num(plan.challengeMonths, 2)
+  ));
+
+  // ══════════════════════════════════════════════════════════════════════
+  // RYTHME D'ACHAT — la logique humaine
+  // ----------------------------------------------------------------------
+  // Un trader qui cherche a reussir n'achete pas six challenges le meme jour
+  // avec zero historique. Il en lance un, voit ce que ca donne, puis ouvre le
+  // robinet. Ces trois reglages decrivent cette prudence : combien de
+  // challenges il accepte de mener EN MEME TEMPS, le delai minimum qu'il
+  // s'impose entre deux achats, et la pause qu'il prend apres un echec.
+  // ══════════════════════════════════════════════════════════════════════
+  const maxParallel = Math.max(1, Math.round(num(plan.maxParallelChallenges, 99)));
+  const minMonthsBetweenBuys = Math.max(0, Math.round(num(plan.minMonthsBetweenBuys, 0)));
+  const pauseAfterFail = Math.max(0, Math.round(num(plan.pauseAfterFailMonths, 0)));
 
   const reinvest = clamp(num(plan.reinvestPct, 0), 0, 100) / 100;
   const maxAccounts = Math.max(0, num(plan.maxAccounts, 0)); // 0 = illimite
@@ -84,18 +126,63 @@ export function runPropFirmProjection(plan) {
   const targetIncome = Math.max(0, num(plan.targetMonthlyIncome, 0));
   const targetCapital = Math.max(0, num(plan.targetCapital, 0));
 
-  let accounts = Math.max(0, num(plan.startAccounts, 0));
+  // ══════════════════════════════════════════════════════════════════════
+  // POINT DE DEPART — ou en es-tu aujourd'hui ?
+  // ----------------------------------------------------------------------
+  //   "saving"      : rien encore, tu mets de cote pour ton premier challenge
+  //   "buying"      : tu achetes ton tout premier challenge ce mois-ci
+  //   "inChallenge" : tu as deja un challenge en cours (phase 1 ou 2)
+  //   "funded"      : tu pilotes deja un ou plusieurs comptes funded
+  // Ces quatre situations ne donnent pas du tout la meme date de premier
+  // euro : les confondre fausse toute la projection.
+  // ══════════════════════════════════════════════════════════════════════
+  const stage = ["saving", "buying", "inChallenge", "funded"].includes(plan.startStage)
+    ? plan.startStage : (num(plan.startAccounts, 0) > 0 ? "funded" : "buying");
+
+  let accounts = stage === "funded" ? Math.max(0, num(plan.startAccounts, 0)) : 0;
   let cash = Math.max(0, num(plan.startPendingFee, 0));
 
   // File des challenges en cours : index = mois restant avant resultat.
   // pipeline[i] = nombre de challenges achetes qui aboutiront dans i mois.
   const pipeline = [];
+  const enFile = () => pipeline.reduce((acc, x) => acc + x, 0);
+
+  if (stage === "inChallenge") {
+    // Challenge deja engage : on ne compte que le temps QUI RESTE.
+    const phaseEnCours = num(plan.startChallengePhase, 1) >= 2 ? 2 : 1;
+    const ecoule = Math.max(0, num(plan.startChallengeMonthsElapsed, 0));
+    const restantBrut = phaseEnCours >= 2
+      ? Math.max(0, p2Months - ecoule) + activationMonths
+      : Math.max(0, (useAuto ? autoDuration : challengeMonths) - ecoule);
+    const restant = Math.max(1, Math.round(isFinite(restantBrut) ? restantBrut : challengeMonths));
+    // Index `restant` et non `restant - 1` : un challenge auquel il reste un
+    // mois se termine A LA FIN du mois 1, donc le compte ne produit qu'a
+    // partir du mois 2. Place a l'index restant - 1, il etait deja funded des
+    // le mois 1 — un mois de revenu offert qui n'existe pas.
+    while (pipeline.length <= restant) pipeline.push(0);
+    pipeline[restant] += 1;
+  }
+
+  // Mois du prochain achat autorise (cadence et pause apres echec).
+  let prochainAchatPossible = 1;
+  let dernierAchat = -Infinity;
 
   let cumulTakeHome = 0;   // revenu net garde par le trader (apres reinvestissement)
   let cumulGross = 0;      // payouts bruts cumules
   let cumulCosts = 0;      // frais de challenges + couts recurrents
   let cumulTax = 0;
   let cumulReinvested = 0;
+
+  if (stage === "buying") {
+    // "Je demarre" veut dire que le challenge est paye MAINTENANT. L'achat est
+    // donc engage d'office, meme sans tresorerie preexistante — sinon cette
+    // situation ne declenchait jamais rien et la projection restait plate a
+    // vie, ce qui n'a aucun sens pour quelqu'un qui declare se lancer.
+    if (fee > 0) { cumulCosts += fee; cumulReinvested += fee; }
+    while (pipeline.length <= challengeMonths) pipeline.push(0);
+    pipeline[challengeMonths] += 1;
+    dernierAchat = 0;
+  }
 
   const months = [];
   let targetIncomeMonth = null;
@@ -109,7 +196,15 @@ export function runPropFirmProjection(plan) {
   for (let m = 1; m <= horizon; m++) {
     // ── 1. Les challenges arrives a echeance deviennent funded (en esperance)
     const matured = pipeline.shift() || 0;
-    if (matured > 0) accounts += matured * passRate;
+    if (matured > 0) {
+      accounts += matured * passRate;
+      // Un challenge arrive a echeance qui ne passe pas, c'est un echec : le
+      // trader souffle avant de remettre au pot. Modelise simplement par un
+      // report de la prochaine date d'achat.
+      if (pauseAfterFail > 0 && passRate < 1) {
+        prochainAchatPossible = Math.max(prochainAchatPossible, m + pauseAfterFail);
+      }
+    }
 
     // ── 2. Plafond de comptes
     if (maxAccounts > 0 && accounts > maxAccounts) accounts = maxAccounts;
@@ -153,7 +248,12 @@ export function runPropFirmProjection(plan) {
       if (missing > 0.01) {
         const needed = Math.ceil(missing / Math.max(passRate, 0.01));
         const affordable = Math.floor((cash + Math.max(0, netIncome)) / fee);
-        rebought = Math.min(needed, affordable);
+        // Le rachat obeit aux memes limites humaines que les autres achats :
+        // on ne mene pas plus de challenges en parallele que ce qu'on s'est
+        // fixe, et on respecte le delai qu'on s'impose entre deux achats.
+        const placesLibres = Math.max(0, maxParallel - enFile());
+        const cadenceOk = m >= prochainAchatPossible && (m - dernierAchat) >= minMonthsBetweenBuys;
+        rebought = cadenceOk ? Math.min(needed, affordable, placesLibres) : 0;
         rebuyCost = rebought * fee;
       }
     }
@@ -164,27 +264,38 @@ export function runPropFirmProjection(plan) {
     const incomeAfterRebuy = netIncome - fromIncome;
 
     // ── 5. Reinvestissement : une part de ce qui reste achete des challenges
+    //
+    //    BUG CORRIGE : la part reinvestie etait prelevee TOUS les mois, meme
+    //    quand le plafond de comptes ne laissait plus rien acheter. L'argent
+    //    s'empilait alors en tresorerie dormante — 5 338 $ au mois 24 sur un
+    //    plan plafonne a 6 comptes — sans jamais etre ni investi ni encaisse,
+    //    ce qui minorait d'autant le cumul encaisse affiche. On ne prelevee
+    //    desormais que ce qui peut REELLEMENT servir : s'il n'y a pas de place
+    //    pour un challenge de plus, le revenu part entierement dans ta poche.
+    const incoming = expectedIncomingNow + rebought * passRate;
+    const room = (fee > 0 && maxAccounts > 0)
+      ? Math.max(0, Math.floor((maxAccounts - accounts - incoming) / Math.max(passRate, 0.01)))
+      : (fee > 0 ? Infinity : 0);
+    // Budget plafonne au cout des challenges encore achetables, tresorerie
+    // deja disponible deduite.
+    const budgetUtile = room === Infinity ? Infinity : Math.max(0, room * fee - cash);
     let reinvestBudget = incomeAfterRebuy > 0 ? incomeAfterRebuy * reinvest : 0;
+    if (budgetUtile !== Infinity) reinvestBudget = Math.min(reinvestBudget, budgetUtile);
     const takeHome = incomeAfterRebuy - reinvestBudget;
     cumulTakeHome += takeHome;
 
     cash += reinvestBudget;
     let bought = 0;
-    if (fee > 0) {
-      // Ne pas acheter au-dela du plafond : comptes actifs + comptes attendus
-      // des challenges deja en cours (rachats de ce mois inclus). Sans ce
-      // garde-fou, un plafond de 3 comptes continuerait d'acheter
-      // indefiniment des challenges.
-      const incoming = expectedIncomingNow + rebought * passRate;
-      const room = maxAccounts > 0
-        ? Math.max(0, Math.floor((maxAccounts - accounts - incoming) / Math.max(passRate, 0.01)))
-        : Infinity;
-      bought = Math.min(Math.floor(cash / fee), room);
+    const placesApresRachat = Math.max(0, maxParallel - enFile() - rebought);
+    const cadenceOk = m >= prochainAchatPossible && (m - dernierAchat) >= minMonthsBetweenBuys;
+    if (fee > 0 && room > 0 && placesApresRachat > 0 && cadenceOk) {
+      bought = Math.min(Math.floor(cash / fee), room, placesApresRachat);
       if (bought > 0) {
         cash -= bought * fee;
         cumulReinvested += bought * fee;
       }
     }
+    if (bought + rebought > 0) dernierAchat = m;
     cumulCosts += rebuyCost + bought * fee;
     // Les challenges achetes ce mois-ci aboutiront dans challengeMonths mois.
     while (pipeline.length < challengeMonths) pipeline.push(0);
@@ -226,10 +337,34 @@ export function runPropFirmProjection(plan) {
 
   const last = months[months.length - 1] || null;
 
+  // Premiers jalons du parcours : quand un compte funded apparait, et quand
+  // le premier euro tombe reellement.
+  let firstFundedMonth = null, firstPaidMonth = null;
+  for (const mo of months) {
+    if (firstFundedMonth === null && mo.accounts > 0.001) firstFundedMonth = mo.month;
+    if (firstPaidMonth === null && mo.takeHome > 0) firstPaidMonth = mo.month;
+  }
+
   return {
     months,
+    timeline: {
+      startStage: stage,
+      phase1Months: isFinite(p1Months) ? +p1Months.toFixed(2) : null,
+      phase2Months: isFinite(p2Months) ? +p2Months.toFixed(2) : null,
+      activationMonths: +activationMonths.toFixed(2),
+      autoChallengeMonths: autoDuration != null ? +autoDuration.toFixed(2) : null,
+      challengeMonths,
+      usedAuto: useAuto,
+      maxParallel,
+      minMonthsBetweenBuys,
+      pauseAfterFail,
+      firstFundedMonth,
+      firstPaidMonth,
+    },
     summary: {
       horizonMonths: horizon,
+      firstFundedMonth,
+      firstPaidMonth,
       finalAccounts: last ? last.accounts : 0,
       finalCapitalUnderManagement: last ? last.capitalUnderManagement : 0,
       finalMonthlyNet: last ? last.netIncome : 0,

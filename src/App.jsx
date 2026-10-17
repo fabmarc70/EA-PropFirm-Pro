@@ -6301,6 +6301,30 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
     targetMonthlyIncome: 3000,
     targetCapital: 0,
     rebuyLostAccounts: true,
+    // ── Parcours reel ──
+    startStage: "buying",          // ou je suis aujourd'hui
+    startChallengePhase: 1,
+    startChallengeMonthsElapsed: 0,
+    autoChallengeDuration: true,   // duree calculee sur mon vrai rythme
+    fundingDelayMonths: 0.5,
+    maxParallelChallenges: 1,      // un trader prudent en mene un a la fois
+    minMonthsBetweenBuys: 0,
+    pauseAfterFailMonths: 1,
+    ...(() => {
+      // Objectifs de phase repris du modele de la firm choisie au profil :
+      // c'est ce qui determine le temps reellement passe en challenge.
+      try {
+        const fk = (profile && profile.firmKey) || "fundednext";
+        const fm = PROP_FIRMS[fk] && (PROP_FIRMS[fk].models["2step"] || Object.values(PROP_FIRMS[fk].models)[0]);
+        const ph = (fm && fm.phases) || [];
+        return {
+          phase1TargetPct: ph[0] ? +(ph[0].target * 100).toFixed(1) : 8,
+          phase1MinDays: ph[0] ? (ph[0].minDays || 0) : 5,
+          phase2TargetPct: ph[1] ? +(ph[1].target * 100).toFixed(1) : 0,
+          phase2MinDays: ph[1] ? (ph[1].minDays || 0) : 0,
+        };
+      } catch (e) { return { phase1TargetPct: 8, phase1MinDays: 5, phase2TargetPct: 5, phase2MinDays: 5 }; }
+    })(),
   }));
   const set = (patch) => setForm(f => ({ ...f, ...patch }));
 
@@ -6315,12 +6339,14 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
   };
 
   const result = runPropFirmProjection(effectivePlan);
+  const tl = result.timeline;
   const scenarios = buildScenarios(effectivePlan);
   const yearly = aggregateProjectionByYear(result.months);
   const s = result.summary;
 
   const [showScenarios, setShowScenarios] = useState(false);
   const [showPlan, setShowPlan] = useState(true);
+  const [detailGrain, setDetailGrain] = useState("month"); // "month" | "year" 
 
   const chartData = result.months.map(m => ({
     month: m.month,
@@ -6387,10 +6413,108 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
           )}
         </div>
 
+        {/* ── CHRONOLOGIE DU PARCOURS ──────────────────────────────
+            Le trajet reel, dans l'ordre : ou tu en es, combien de temps dure
+            le challenge a TON rythme, quand le compte devient funded, quand
+            le premier euro tombe. C'est ce qui manquait pour comprendre d'ou
+            sort la date du verdict. ── */}
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 11 }}>
+            Ton parcours
+          </div>
+          {(() => {
+            const etapeDepart = {
+              saving: "Tu épargnes encore",
+              buying: "Tu achètes ton 1er challenge",
+              inChallenge: `Challenge en cours (phase ${effectivePlan.startChallengePhase || 1})`,
+              funded: `${effectivePlan.startAccounts} compte${effectivePlan.startAccounts > 1 ? "s" : ""} funded`,
+            }[tl.startStage] || "Départ";
+            const etapes = [
+              { l: etapeDepart, d: "Aujourd'hui", on: true },
+              tl.startStage !== "funded" && tl.usedAuto && tl.phase1Months != null
+                ? { l: "Phase 1", d: `${tl.phase1Months.toFixed(1)} mois à ton rythme`, on: true } : null,
+              tl.startStage !== "funded" && tl.usedAuto && tl.phase2Months ? { l: "Phase 2", d: `${tl.phase2Months.toFixed(1)} mois`, on: true } : null,
+              { l: "1er compte funded", d: tl.firstFundedMonth ? monthToDate(tl.firstFundedMonth) : "non atteint sur l'horizon", on: !!tl.firstFundedMonth },
+              { l: "1er euro encaissé", d: tl.firstPaidMonth ? monthToDate(tl.firstPaidMonth) : "non atteint", on: !!tl.firstPaidMonth },
+              { l: `Objectif ${fmt(effectivePlan.targetMonthlyIncome)}/mois`, d: s.targetIncomeMonth ? monthToDate(s.targetIncomeMonth) : "hors de portée sur l'horizon", on: !!s.targetIncomeMonth },
+            ].filter(Boolean);
+            return etapes.map((e, i) => (
+              <div key={i} style={{ display: "flex", gap: 10 }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  <div style={{ width: 9, height: 9, borderRadius: 5, flexShrink: 0, marginTop: 4,
+                    background: e.on ? PROJ_ACCENT : "rgba(255,255,255,0.18)",
+                    boxShadow: e.on ? `0 0 0 3px rgba(34,211,238,0.14)` : "none" }} />
+                  {i < etapes.length - 1 && <div style={{ width: 1.5, flex: 1, minHeight: 16, background: "rgba(34,211,238,0.22)" }} />}
+                </div>
+                <div style={{ paddingBottom: i < etapes.length - 1 ? 10 : 0, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: e.on ? "#fff" : "rgba(255,255,255,0.45)" }}>{e.l}</div>
+                  <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.42)", marginTop: 1 }}>{e.d}</div>
+                </div>
+              </div>
+            ));
+          })()}
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 8, lineHeight: 1.45 }}>
+            {tl.maxParallel === 1
+              ? "Tu mènes un challenge à la fois et tu attends le résultat avant d'en relancer un."
+              : `Tu acceptes jusqu'à ${tl.maxParallel} challenges en parallèle.`}
+            {tl.minMonthsBetweenBuys > 0 && ` Au moins ${tl.minMonthsBetweenBuys} mois entre deux achats.`}
+            {tl.pauseAfterFail > 0 && ` Pause de ${tl.pauseAfterFail} mois après un échec.`}
+          </div>
+        </div>
+
+        {/* ── CE QUE TU ENCAISSES, MOIS PAR MOIS ───────────────────
+            Le verdict donne une date ; il manquait l'essentiel : tu es paye
+            DES LE PREMIER MOIS, simplement moins que ton objectif. Cette
+            echelle rend le mecanisme lisible d'un coup d'oeil. ── */}
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 9 }}>
+            Ce que tu encaisses
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(74px, 1fr))", gap: 7 }}>
+            {(() => {
+              const jalons = [1, 6, 12, 24, s.horizonMonths].filter((v, i, a) => v <= s.horizonMonths && a.indexOf(v) === i);
+              return jalons.map(m => {
+                const row = result.months[m - 1];
+                if (!row) return null;
+                const atteint = effectivePlan.targetMonthlyIncome > 0 && row.netIncome >= effectivePlan.targetMonthlyIncome;
+                return (
+                  <div key={m} style={{ background: atteint ? "rgba(34,211,238,0.10)" : "rgba(255,255,255,0.04)",
+                    border: `1px solid ${atteint ? "rgba(34,211,238,0.3)" : "rgba(255,255,255,0.07)"}`,
+                    borderRadius: 11, padding: "7px 8px", minWidth: 0 }}>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.5 }}>Mois {m}</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: atteint ? PROJ_ACCENT : "#fff", whiteSpace: "nowrap" }}>{fmt(row.netIncome)}</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", whiteSpace: "nowrap" }}>{row.accounts.toFixed(1)} cpt</div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.55)", marginTop: 9, lineHeight: 1.5 }}>
+            {result.months[0].accounts > 0.01 ? (
+              <>
+                Tu es payé <b style={{ color: "#fff" }}>dès le premier mois</b> : {fmt(result.months[0].netIncome)} net, dont{" "}
+                <b style={{ color: "#6ee7b7" }}>{fmt(result.months[0].takeHome)}</b> dans ta poche
+                {result.months[0].reinvested > 0 || result.months[0].rebuyCost > 0
+                  ? <> et {fmt(result.months[0].reinvested + result.months[0].rebuyCost)} réinjectés en challenges</> : null}.{" "}
+              </>
+            ) : (
+              <>
+                Tu n'as pas encore de compte funded : les paiements commencent{" "}
+                <b style={{ color: "#fff" }}>{tl.firstPaidMonth ? monthToDate(tl.firstPaidMonth) : "au-delà de l'horizon"}</b>,
+                une fois le challenge passé.{" "}
+              </>
+            )}
+            Ton objectif n'est pas le début des paiements : c'est le mois où ce montant mensuel franchit {fmt(effectivePlan.targetMonthlyIncome)}.
+          </div>
+        </div>
+
         {/* ── ALERTE : le parc de comptes se reduit ────────────────── */}
-        {s.finalAccounts < effectivePlan.startAccounts - 0.05 && (
+        {/* Comparaison au nombre de comptes REELLEMENT detenu au depart (le
+            moteur le derive du point de depart choisi), et non au champ
+            "comptes funded actifs" qui n'a de sens que si tu es deja funded. */}
+        {result.months[0].accounts > 0.05 && s.finalAccounts < result.months[0].accounts - 0.05 && (
           <div style={{ background: "rgba(251,191,36,0.09)", border: "1px solid rgba(251,191,36,0.28)", borderRadius: 14, padding: "11px 13px", marginBottom: 12, fontSize: 11.5, lineHeight: 1.55, color: "rgba(255,255,255,0.78)" }}>
-            <b style={{ color: "#fbbf24" }}>Ton parc se réduit.</b> Tu démarres avec {effectivePlan.startAccounts} compte{effectivePlan.startAccounts > 1 ? "s" : ""} et
+            <b style={{ color: "#fbbf24" }}>Ton parc se réduit.</b> Tu démarres avec {result.months[0].accounts.toFixed(2)} compte{result.months[0].accounts > 1 ? "s" : ""} et
             tu finis à {s.finalAccounts.toFixed(2)} : le risque de griller un compte ({effectivePlan.blowUpRatePct} %/mois) l'emporte sur ce que tu rachètes.
             {effectivePlan.rebuyLostAccounts === false
               ? " Active « Racheter un compte perdu » dans les charges."
@@ -6513,13 +6637,109 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
               <ProjField label="Horizon" value={form.horizonMonths} onChange={v => set({ horizonMonths: v })} suffix="mois" step={6} min={1} max={600} />
             </div>
 
-            <div style={{ fontSize: 10, fontWeight: 800, color: PROJ_ACCENT, textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 8px" }}>Point de départ</div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: PROJ_ACCENT, textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 8px" }}>Où j'en suis aujourd'hui</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 10 }}>
+              {[
+                { k: "saving", l: "J'épargne", d: "Pas encore de challenge" },
+                { k: "buying", l: "Je démarre", d: "J'achète mon 1er challenge" },
+                { k: "inChallenge", l: "En challenge", d: "Déjà engagé" },
+                { k: "funded", l: "Déjà funded", d: "J'ai un compte actif" },
+              ].map(o => (
+                <button key={o.k} onClick={() => set({ startStage: o.k })}
+                  style={{ textAlign: "left", padding: "9px 10px", borderRadius: 11, cursor: "pointer",
+                    border: form.startStage === o.k ? `1px solid ${PROJ_ACCENT}73` : "1px solid rgba(255,255,255,0.1)",
+                    background: form.startStage === o.k ? "rgba(34,211,238,0.12)" : "rgba(255,255,255,0.03)" }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: form.startStage === o.k ? PROJ_ACCENT : "#fff" }}>{o.l}</div>
+                  <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", lineHeight: 1.3, marginTop: 1 }}>{o.d}</div>
+                </button>
+              ))}
+            </div>
+
+            {form.startStage === "inChallenge" && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "0 12px" }}>
+                <div style={{ marginBottom: 10, minWidth: 0 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>Phase en cours</div>
+                  <div style={{ display: "flex", gap: 5, background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: 3 }}>
+                    {[1, 2].map(ph => (
+                      <button key={ph} onClick={() => set({ startChallengePhase: ph })}
+                        style={{ flex: 1, padding: "8px 4px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 800,
+                          background: form.startChallengePhase === ph ? "rgba(34,211,238,0.16)" : "transparent",
+                          color: form.startChallengePhase === ph ? PROJ_ACCENT : "rgba(255,255,255,0.55)" }}>Phase {ph}</button>
+                    ))}
+                  </div>
+                </div>
+                <ProjField label="Déjà écoulé" value={form.startChallengeMonthsElapsed} onChange={v => set({ startChallengeMonthsElapsed: v })} suffix="mois" step={1}
+                  hint="Seul le temps restant compte dans la projection." />
+              </div>
+            )}
+
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "0 12px" }}>
-              <ProjField label="Comptes funded actifs" value={form.startAccounts} onChange={v => set({ startAccounts: v })} suffix="cpt" step={1} />
+              {form.startStage === "funded" && (
+                <ProjField label="Comptes funded actifs" value={form.startAccounts} onChange={v => set({ startAccounts: v })} suffix="cpt" step={1} />
+              )}
               <ProjField label="Trésorerie de départ" value={form.startPendingFee} onChange={v => set({ startPendingFee: v })} suffix="$" step={100}
                 hint="Disponible immédiatement pour acheter des challenges." />
               <ProjField label="Taille d'un compte" value={effectivePlan.accountCapital} onChange={v => set({ accountCapital: v })} suffix="$" step={1000} />
               <ProjField label="Prix d'un challenge" value={form.challengeFee} onChange={v => set({ challengeFee: v })} suffix="$" step={10} />
+            </div>
+
+            {/* ── DUREE REELLE DU CHALLENGE ── */}
+            <div style={{ fontSize: 10, fontWeight: 800, color: PROJ_ACCENT, textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 8px" }}>Temps passé en challenge</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "2px 0 10px" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: "#fff" }}>Calculer sur mon vrai rythme</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", lineHeight: 1.4 }}>
+                  La durée découle des objectifs de phase et de ton rendement mesuré, pas d'une estimation ronde.
+                </div>
+              </div>
+              <button onClick={() => set({ autoChallengeDuration: !(form.autoChallengeDuration !== false) })} aria-label="Durée automatique"
+                style={{ width: 40, height: 22, borderRadius: 11, border: "none", cursor: "pointer", flexShrink: 0, position: "relative",
+                  background: form.autoChallengeDuration !== false ? PROJ_ACCENT : "rgba(255,255,255,0.15)" }}>
+                <span style={{ position: "absolute", top: 3, left: form.autoChallengeDuration !== false ? 21 : 3, width: 16, height: 16, borderRadius: 8,
+                  background: form.autoChallengeDuration !== false ? "#000" : "#fff", transition: "left .15s" }} />
+              </button>
+            </div>
+
+            {form.autoChallengeDuration !== false ? (
+              <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(34,211,238,0.18)", borderRadius: 12, padding: "9px 11px", marginBottom: 10 }}>
+                {tl.autoChallengeMonths == null ? (
+                  <div style={{ fontSize: 11, color: "#fbbf24", lineHeight: 1.5 }}>
+                    Impossible à calculer sans rendement mesuré. Saisis une durée à la main, ou renseigne ton journal.
+                  </div>
+                ) : (
+                  <>
+                    {[
+                      ["Phase 1", `${effectivePlan.phase1TargetPct} % à faire`, tl.phase1Months],
+                      ...(effectivePlan.phase2TargetPct > 0 ? [["Phase 2", `${effectivePlan.phase2TargetPct} % à faire`, tl.phase2Months]] : []),
+                      ["Activation du compte", "délai administratif", tl.activationMonths],
+                    ].map(([l, d, v]) => (
+                      <div key={l} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, padding: "3px 0", fontSize: 11 }}>
+                        <span style={{ color: "rgba(255,255,255,0.6)" }}>{l} <span style={{ color: "rgba(255,255,255,0.3)" }}>· {d}</span></span>
+                        <span style={{ fontWeight: 700, color: "#fff", whiteSpace: "nowrap" }}>{v != null ? v.toFixed(1) + " mois" : "—"}</span>
+                      </div>
+                    ))}
+                    <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 6, marginTop: 4, borderTop: "1px solid rgba(255,255,255,0.08)", fontSize: 11.5 }}>
+                      <span style={{ fontWeight: 800, color: "#fff" }}>Du paiement au 1er payout</span>
+                      <span style={{ fontWeight: 800, color: PROJ_ACCENT, whiteSpace: "nowrap" }}>≈ {tl.autoChallengeMonths.toFixed(1)} mois</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "0 12px" }}>
+                <ProjField label="Durée d'un challenge" value={form.challengeMonths} onChange={v => set({ challengeMonths: v })} suffix="mois" step={1} min={1} />
+              </div>
+            )}
+
+            {/* ── RYTHME D'ACHAT ── */}
+            <div style={{ fontSize: 10, fontWeight: 800, color: PROJ_ACCENT, textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 8px" }}>À quel rythme je lance</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "0 12px" }}>
+              <ProjField label="Challenges en parallèle" value={form.maxParallelChallenges} onChange={v => set({ maxParallelChallenges: v })} suffix="max" step={1} min={1}
+                hint="1 = je n'en mène qu'un à la fois, et j'attends le résultat." />
+              <ProjField label="Délai entre deux achats" value={form.minMonthsBetweenBuys} onChange={v => set({ minMonthsBetweenBuys: v })} suffix="mois" step={1}
+                hint="0 = dès que la trésorerie le permet." />
+              <ProjField label="Pause après un échec" value={form.pauseAfterFailMonths} onChange={v => set({ pauseAfterFailMonths: v })} suffix="mois" step={1}
+                hint="Le temps de corriger avant de remettre au pot." />
             </div>
 
             <div style={{ fontSize: 10, fontWeight: 800, color: PROJ_ACCENT, textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 8px" }}>Stratégie de croissance</div>
@@ -6530,7 +6750,6 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
                 hint="0 = illimité. Au-delà, plus aucun challenge n'est acheté." />
               <ProjField label="Taux de réussite challenge" value={form.passRatePct} onChange={v => set({ passRatePct: v })} suffix="%" step={5} min={0} max={100}
                 hint="Sur 10 challenges payés, combien passent." />
-              <ProjField label="Durée d'un challenge" value={form.challengeMonths} onChange={v => set({ challengeMonths: v })} suffix="mois" step={1} min={1} />
             </div>
 
             <div style={{ fontSize: 10, fontWeight: 800, color: PROJ_ACCENT, textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 8px" }}>Charges et risques</div>
@@ -6612,34 +6831,66 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
           </div>}
         </div>
 
-        {/* ── DETAIL ANNUEL ────────────────────────────────────────── */}
+        {/* ── DETAIL : MOIS PAR MOIS ou ANNEE PAR ANNEE ───────────── */}
         <div className="card" style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>
-            Année par année
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 10 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1 }}>Détail</span>
+            <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.05)", borderRadius: 9, padding: 3 }}>
+              {[{ k: "month", l: "Mois" }, { k: "year", l: "Année" }].map(o => (
+                <button key={o.k} onClick={() => setDetailGrain(o.k)}
+                  style={{ padding: "5px 12px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 800,
+                    background: detailGrain === o.k ? "rgba(34,211,238,0.16)" : "transparent",
+                    color: detailGrain === o.k ? PROJ_ACCENT : "rgba(255,255,255,0.55)" }}>{o.l}</button>
+              ))}
+            </div>
           </div>
-          <div style={{ overflowX: "auto" }}>
+
+          <div style={{ overflowX: "auto", maxHeight: detailGrain === "month" ? 360 : "none", overflowY: detailGrain === "month" ? "auto" : "visible" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
               <thead>
                 <tr style={{ color: "rgba(255,255,255,0.4)", fontSize: 9.5, textTransform: "uppercase", letterSpacing: 0.6 }}>
-                  <th style={{ textAlign: "left", padding: "0 6px 6px 0" }}>An</th>
-                  <th style={{ textAlign: "right", padding: "0 6px 6px" }}>Comptes</th>
-                  <th style={{ textAlign: "right", padding: "0 6px 6px" }}>Net</th>
-                  <th style={{ textAlign: "right", padding: "0 6px 6px" }}>Réinv.</th>
-                  <th style={{ textAlign: "right", padding: "0 0 6px 6px" }}>Encaissé</th>
+                  <th style={{ textAlign: "left", padding: "0 6px 6px 0", position: "sticky", top: 0, background: "#0e1218" }}>{detailGrain === "month" ? "Mois" : "An"}</th>
+                  <th style={{ textAlign: "right", padding: "0 6px 6px", position: "sticky", top: 0, background: "#0e1218" }}>Cpt</th>
+                  <th style={{ textAlign: "right", padding: "0 6px 6px", position: "sticky", top: 0, background: "#0e1218" }}>Net</th>
+                  <th style={{ textAlign: "right", padding: "0 6px 6px", position: "sticky", top: 0, background: "#0e1218" }}>Réinv.</th>
+                  <th style={{ textAlign: "right", padding: "0 0 6px 6px", position: "sticky", top: 0, background: "#0e1218" }}>Encaissé</th>
                 </tr>
               </thead>
               <tbody>
-                {yearly.map(y => (
-                  <tr key={y.year} style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                    <td style={{ padding: "7px 6px 7px 0", fontWeight: 800, color: "#fff" }}>{y.year}</td>
-                    <td style={{ padding: "7px 6px", textAlign: "right", color: "rgba(255,255,255,0.7)" }}>{y.endAccounts.toFixed(1)}</td>
-                    <td style={{ padding: "7px 6px", textAlign: "right", color: y.netIncome >= 0 ? PROJ_ACCENT : "#ef4444", fontWeight: 700 }}>{fmt(y.netIncome)}</td>
-                    <td style={{ padding: "7px 6px", textAlign: "right", color: "#fbbf24" }}>{fmt(y.reinvested)}</td>
-                    <td style={{ padding: "7px 0 7px 6px", textAlign: "right", color: "#6ee7b7", fontWeight: 700 }}>{fmt(y.takeHome)}</td>
-                  </tr>
-                ))}
+                {detailGrain === "month"
+                  ? result.months.map(mo => {
+                      const atteint = effectivePlan.targetMonthlyIncome > 0 && mo.netIncome >= effectivePlan.targetMonthlyIncome;
+                      const premier = mo.month === s.targetIncomeMonth;
+                      return (
+                        <tr key={mo.month} style={{ borderTop: "1px solid rgba(255,255,255,0.06)",
+                          background: premier ? "rgba(251,191,36,0.10)" : "transparent" }}>
+                          <td style={{ padding: "6px 6px 6px 0", fontWeight: 700, color: "#fff", whiteSpace: "nowrap" }}>
+                            {monthToDate(mo.month)}
+                            {premier && <span style={{ color: "#fbbf24", fontSize: 9, marginLeft: 4 }}>objectif</span>}
+                          </td>
+                          <td style={{ padding: "6px", textAlign: "right", color: "rgba(255,255,255,0.65)" }}>{mo.accounts.toFixed(1)}</td>
+                          <td style={{ padding: "6px", textAlign: "right", fontWeight: 700, color: atteint ? PROJ_ACCENT : "rgba(255,255,255,0.8)" }}>{fmt(mo.netIncome)}</td>
+                          <td style={{ padding: "6px", textAlign: "right", color: (mo.reinvested + mo.rebuyCost) > 0 ? "#fbbf24" : "rgba(255,255,255,0.2)" }}>{fmt(mo.reinvested + mo.rebuyCost)}</td>
+                          <td style={{ padding: "6px 0 6px 6px", textAlign: "right", color: "#6ee7b7", fontWeight: 700 }}>{fmt(mo.takeHome)}</td>
+                        </tr>
+                      );
+                    })
+                  : yearly.map(y => (
+                      <tr key={y.year} style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <td style={{ padding: "7px 6px 7px 0", fontWeight: 800, color: "#fff" }}>An {y.year}</td>
+                        <td style={{ padding: "7px 6px", textAlign: "right", color: "rgba(255,255,255,0.7)" }}>{y.endAccounts.toFixed(1)}</td>
+                        <td style={{ padding: "7px 6px", textAlign: "right", color: y.netIncome >= 0 ? PROJ_ACCENT : "#ef4444", fontWeight: 700 }}>{fmt(y.netIncome)}</td>
+                        <td style={{ padding: "7px 6px", textAlign: "right", color: "#fbbf24" }}>{fmt(y.reinvested)}</td>
+                        <td style={{ padding: "7px 0 7px 6px", textAlign: "right", color: "#6ee7b7", fontWeight: 700 }}>{fmt(y.takeHome)}</td>
+                      </tr>
+                    ))}
               </tbody>
             </table>
+          </div>
+          <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", marginTop: 8, lineHeight: 1.45 }}>
+            <b style={{ color: "rgba(255,255,255,0.6)" }}>Net</b> = payouts après split, charges et impôt ·
+            <b style={{ color: "rgba(255,255,255,0.6)" }}> Réinv.</b> = challenges achetés ce mois-là ·
+            <b style={{ color: "rgba(255,255,255,0.6)" }}> Encaissé</b> = ce qui reste dans ta poche.
           </div>
         </div>
 

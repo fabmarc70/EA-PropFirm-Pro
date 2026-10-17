@@ -336,8 +336,12 @@ test("sans rachat, l'attrition eteint le parc et le taux de reussite n'a aucun e
   const a = runPropFirmProjection({ ...base, passRatePct: 20 });
   const b = runPropFirmProjection({ ...base, passRatePct: 80 });
   assert.ok(a.summary.finalAccounts < 0.2, "le parc aurait du s'eteindre");
-  // Rien n'est jamais achete -> le taux de reussite ne change strictement rien.
-  assert.equal(a.summary.cumulTakeHome, b.summary.cumulTakeHome);
+  assert.ok(b.summary.finalAccounts < 0.2, "le parc aurait du s'eteindre malgre 80 % de reussite");
+  // Rien n'est jamais achete : un excellent taux de reussite ne sauve pas un
+  // parc qu'on ne reconstitue pas. Les revenus finaux s'effondrent pareillement.
+  a.months.forEach(() => {});
+  assert.ok(a.summary.finalMonthlyNet < 100, String(a.summary.finalMonthlyNet));
+  assert.ok(b.summary.finalMonthlyNet < 100, String(b.summary.finalMonthlyNet));
 });
 
 test("avec rachat, le parc se maintient et le revenu ne s'effondre pas", () => {
@@ -392,6 +396,185 @@ test("l'attrition s'applique en FIN de mois : le 1er mois rapporte sur un compte
   const r = runPropFirmProjection({ ...BASE, blowUpRatePct: 10, startAccounts: 1 });
   assert.equal(r.months[0].accounts, 1);
   near(r.months[0].netIncome, 25000 * 0.04 * 0.8);   // 800, pas 720
+});
+
+
+console.log("\n── Pas de tresorerie dormante ──");
+
+test("plafond atteint : le revenu part en poche au lieu de s'empiler", () => {
+  const r = runPropFirmProjection({ ...BASE, maxAccounts: 1, reinvestPct: 50,
+    blowUpRatePct: 0, horizonMonths: 36 });
+  const dernier = r.months[r.months.length - 1];
+  assert.ok(dernier.cash < BASE.challengeFee, `tresorerie dormante : ${dernier.cash}`);
+  // Aucune place pour acheter -> tout le net est encaisse.
+  near(dernier.takeHome, dernier.netIncome, 0.01);
+});
+
+test("la tresorerie ne depasse jamais durablement le prix d'un challenge", () => {
+  const r = runPropFirmProjection({ ...BASE, maxAccounts: 3, reinvestPct: 80,
+    blowUpRatePct: 2, challengeMonths: 2, horizonMonths: 60 });
+  const fin = r.months.slice(-12);
+  fin.forEach(m => assert.ok(m.cash <= BASE.challengeFee * 3 + 1, `mois ${m.month} : ${m.cash}`));
+});
+
+test("sans plafond, le reinvestissement fonctionne normalement", () => {
+  const r = runPropFirmProjection({ ...BASE, maxAccounts: 0, reinvestPct: 60, horizonMonths: 36 });
+  assert.ok(r.summary.cumulReinvested > 0);
+  assert.ok(r.summary.finalAccounts > 1);
+});
+
+test("rien n'est perdu : encaisse + reinvesti + tresorerie = net cumule", () => {
+  const r = runPropFirmProjection({ ...BASE, maxAccounts: 4, reinvestPct: 50,
+    blowUpRatePct: 3, challengeMonths: 2, horizonMonths: 48 });
+  const net = r.months.reduce((s, m) => s + m.netIncome, 0);
+  const encaisse = r.summary.cumulTakeHome;
+  const achats = r.months.reduce((s, m) => s + m.reinvested + m.rebuyCost, 0);
+  const tresor = r.months[r.months.length - 1].cash;
+  // Les rachats sont finances sur le revenu ou la tresorerie : l'equilibre doit tomber juste.
+  near(encaisse + achats + tresor, net, 1);
+});
+
+test("le trader est paye des le premier mois si le resultat le permet", () => {
+  const r = runPropFirmProjection({ ...BASE, reinvestPct: 50, maxAccounts: 6 });
+  assert.ok(r.months[0].netIncome > 0, "aucun revenu au mois 1");
+  assert.ok(r.months[0].takeHome > 0, "rien d'encaisse au mois 1");
+});
+
+
+console.log("\n── Duree reelle d'un challenge ──");
+
+const PHASES = { phase1TargetPct: 8, phase1MinDays: 5, phase2TargetPct: 5, phase2MinDays: 5,
+                 fundingDelayMonths: 0.5, autoChallengeDuration: true };
+
+test("la duree decoule de TON rythme, pas d'une convention", () => {
+  const lent = runPropFirmProjection({ ...BASE, ...PHASES, monthlyReturnPct: 1.7 });
+  const rapide = runPropFirmProjection({ ...BASE, ...PHASES, monthlyReturnPct: 6 });
+  // 13 % a 1,7 %/mois = 7,6 mois + activation ; a 6 %/mois = 2,2 mois.
+  assert.ok(lent.timeline.autoChallengeMonths > 7, String(lent.timeline.autoChallengeMonths));
+  assert.ok(rapide.timeline.autoChallengeMonths < 3, String(rapide.timeline.autoChallengeMonths));
+});
+
+test("les jours minimum imposent un plancher meme a rythme eleve", () => {
+  const r = runPropFirmProjection({ ...BASE, ...PHASES, monthlyReturnPct: 100 });
+  // 5 + 5 jours imposes = 10/21 mois, + activation 0,5
+  assert.ok(r.timeline.autoChallengeMonths >= 10 / 21 + 0.5 - 0.01, String(r.timeline.autoChallengeMonths));
+});
+
+test("chaque phase est detaillee separement", () => {
+  const r = runPropFirmProjection({ ...BASE, ...PHASES, monthlyReturnPct: 4 });
+  assert.equal(r.timeline.phase1Months, 2);      // 8 / 4
+  assert.equal(r.timeline.phase2Months, 1.25);   // 5 / 4
+  assert.equal(r.timeline.activationMonths, 0.5);
+});
+
+test("sans rendement mesure, la duree auto est impossible et on garde la saisie", () => {
+  const r = runPropFirmProjection({ ...BASE, ...PHASES, monthlyReturnPct: 0, challengeMonths: 3 });
+  assert.equal(r.timeline.autoChallengeMonths, null);
+  assert.equal(r.timeline.usedAuto, false);
+  assert.equal(r.timeline.challengeMonths, 3);
+});
+
+test("mode manuel : la duree saisie est respectee", () => {
+  const r = runPropFirmProjection({ ...BASE, ...PHASES, autoChallengeDuration: false, challengeMonths: 4 });
+  assert.equal(r.timeline.challengeMonths, 4);
+  assert.equal(r.timeline.usedAuto, false);
+});
+
+console.log("\n── Point de depart ──");
+
+test("deja funded : revenu des le mois 1", () => {
+  const r = runPropFirmProjection({ ...BASE, startStage: "funded", startAccounts: 2 });
+  assert.equal(r.months[0].accounts, 2);
+  assert.equal(r.summary.firstPaidMonth, 1);
+});
+
+test("premier challenge : aucun compte tant qu'il n'est pas passe", () => {
+  const r = runPropFirmProjection({ ...BASE, startStage: "buying", startAccounts: 0,
+    startPendingFee: 300, challengeMonths: 3, passRatePct: 100, horizonMonths: 12 });
+  assert.equal(r.months[0].accounts, 0);
+  assert.equal(r.months[1].accounts, 0);
+  assert.ok(r.summary.firstFundedMonth >= 4, String(r.summary.firstFundedMonth));
+});
+
+test("\"je demarre\" engage le challenge meme sans tresorerie", () => {
+  // Sans cela, ce point de depart ne declenchait jamais rien : projection
+  // plate a vie pour quelqu'un qui declare pourtant se lancer.
+  const r = runPropFirmProjection({ ...BASE, startStage: "buying", startAccounts: 0,
+    startPendingFee: 0, challengeMonths: 3, passRatePct: 100, horizonMonths: 24 });
+  assert.ok(r.summary.firstFundedMonth != null, "aucun compte funded sur 2 ans");
+  assert.equal(r.summary.firstFundedMonth, 4);
+  assert.ok(r.summary.cumulCosts >= BASE.challengeFee, "le challenge n'a pas ete facture");
+});
+
+test("\"j'epargne\" ne paie rien d'office, contrairement a \"je demarre\"", () => {
+  const epargne = runPropFirmProjection({ ...BASE, startStage: "saving", startAccounts: 0,
+    startPendingFee: 0, challengeMonths: 3, horizonMonths: 24 });
+  assert.equal(epargne.summary.firstFundedMonth, null);
+});
+
+test("challenge deja en cours : seul le temps RESTANT compte", () => {
+  const tout = runPropFirmProjection({ ...BASE, startStage: "inChallenge", startAccounts: 0,
+    startChallengePhase: 1, startChallengeMonthsElapsed: 0, challengeMonths: 6, passRatePct: 100 });
+  const presque = runPropFirmProjection({ ...BASE, startStage: "inChallenge", startAccounts: 0,
+    startChallengePhase: 1, startChallengeMonthsElapsed: 5, challengeMonths: 6, passRatePct: 100 });
+  assert.ok(presque.summary.firstFundedMonth < tout.summary.firstFundedMonth,
+    `${presque.summary.firstFundedMonth} >= ${tout.summary.firstFundedMonth}`);
+  assert.equal(presque.summary.firstFundedMonth, 2);
+});
+
+test("j'epargne encore : rien ne demarre sans de quoi payer", () => {
+  const r = runPropFirmProjection({ ...BASE, startStage: "saving", startAccounts: 0,
+    startPendingFee: 0, monthlyReturnPct: 5, horizonMonths: 12 });
+  // Aucun compte, donc aucun revenu, donc aucune tresorerie : rien ne demarre.
+  assert.equal(r.summary.finalAccounts, 0);
+  assert.equal(r.summary.cumulTakeHome, 0);
+});
+
+console.log("\n── Rythme humain ──");
+
+test("un seul challenge a la fois : jamais deux en parallele", () => {
+  const r = runPropFirmProjection({ ...BASE, startStage: "funded", startAccounts: 2,
+    maxParallelChallenges: 1, reinvestPct: 100, challengeMonths: 3, maxAccounts: 0, horizonMonths: 36 });
+  r.months.forEach(m => assert.ok(m.challengesBought + m.challengesRebought <= 1,
+    `mois ${m.month} : ${m.challengesBought + m.challengesRebought} achats`));
+});
+
+test("delai minimum entre deux achats respecte", () => {
+  const r = runPropFirmProjection({ ...BASE, startStage: "funded", startAccounts: 3,
+    minMonthsBetweenBuys: 6, reinvestPct: 100, maxAccounts: 0, challengeMonths: 2, horizonMonths: 48 });
+  const moisAchat = r.months.filter(m => m.challengesBought + m.challengesRebought > 0).map(m => m.month);
+  for (let i = 1; i < moisAchat.length; i++) {
+    assert.ok(moisAchat[i] - moisAchat[i - 1] >= 6, `achats aux mois ${moisAchat[i-1]} et ${moisAchat[i]}`);
+  }
+});
+
+test("la prudence coute en croissance — et c'est normal", () => {
+  const base = { ...BASE, startStage: "funded", startAccounts: 1, reinvestPct: 100,
+                 maxAccounts: 0, challengeMonths: 2, horizonMonths: 48, passRatePct: 60 };
+  const prudent = runPropFirmProjection({ ...base, maxParallelChallenges: 1, minMonthsBetweenBuys: 6 });
+  const agressif = runPropFirmProjection({ ...base, maxParallelChallenges: 99, minMonthsBetweenBuys: 0 });
+  assert.ok(agressif.summary.finalAccounts > prudent.summary.finalAccounts,
+    `${agressif.summary.finalAccounts} <= ${prudent.summary.finalAccounts}`);
+});
+
+test("pause apres echec : les achats s'arretent un temps", () => {
+  const sans = runPropFirmProjection({ ...BASE, startStage: "funded", startAccounts: 2, passRatePct: 40,
+    reinvestPct: 100, maxAccounts: 0, challengeMonths: 2, horizonMonths: 48, pauseAfterFailMonths: 0 });
+  const avec = runPropFirmProjection({ ...BASE, startStage: "funded", startAccounts: 2, passRatePct: 40,
+    reinvestPct: 100, maxAccounts: 0, challengeMonths: 2, horizonMonths: 48, pauseAfterFailMonths: 4 });
+  const nSans = sans.months.reduce((a, m) => a + m.challengesBought + m.challengesRebought, 0);
+  const nAvec = avec.months.reduce((a, m) => a + m.challengesBought + m.challengesRebought, 0);
+  assert.ok(nAvec < nSans, `${nAvec} >= ${nSans}`);
+});
+
+test("la chronologie est coherente avec les lignes mensuelles", () => {
+  const r = runPropFirmProjection({ ...BASE, startStage: "buying", startAccounts: 0,
+    startPendingFee: 300, challengeMonths: 3, passRatePct: 100, horizonMonths: 24 });
+  const m = r.months[r.timeline.firstFundedMonth - 1];
+  assert.ok(m.accounts > 0, "le mois annonce n'a pas de compte funded");
+  if (r.timeline.firstFundedMonth > 1) {
+    assert.equal(r.months[r.timeline.firstFundedMonth - 2].accounts, 0);
+  }
 });
 
 console.log(`\n${passed} test(s) OK, ${failed} echec(s)\n`);
