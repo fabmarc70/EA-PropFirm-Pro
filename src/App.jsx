@@ -3569,8 +3569,14 @@ function labGenerateVariants(sel, baseParams) {
 // — appliqués APRÈS l'estimation KB : la saisie utilisateur prime toujours sur l'estimation.
 function labApplyUserOverrides(params, sel) {
   const p = { ...params };
-  if (sel.riskChoice) p.riskPct = sel.riskChoice;
-  if (sel.tpdChoice) p.tradesPerDay = sel.tpdChoice;
+  // Conversion explicite en nombre : ces valeurs viennent du localStorage (et
+  // du cloud), donc potentiellement d'une version plus ancienne de l'app ou
+  // d'une donnee abimee. Une chaine arrivait telle quelle jusqu'a un
+  // `.toFixed()` et faisait tomber TOUT l'ecran Laboratoire sur un ecran
+  // d'erreur, sans recours possible pour l'utilisateur.
+  const n = (v) => { const x = Number(v); return isFinite(x) ? x : null; };
+  if (n(sel.riskChoice) != null) p.riskPct = n(sel.riskChoice);
+  if (n(sel.tpdChoice) != null) p.tradesPerDay = n(sel.tpdChoice);
   if (sel.newsBehavior === "avoid") { p.winrate = Math.min(85, p.winrate + 1); p.clustering = Math.max(0, p.clustering - 5); }
   else if (sel.newsBehavior === "trade") { p.clustering = Math.min(90, p.clustering + 8); }
   return p;
@@ -5170,6 +5176,48 @@ function BacktestScreen({ t, lang, onBack, embedded = false }) {
 }
 
 
+// ══════════════════════════════════════════════════════════════════════════
+// CURSEUR DE SIMULATION INTERACTIVE (Laboratoire)
+// --------------------------------------------------------------------------
+// BUG CORRIGE : ce composant etait declare DANS le corps de LabScreen. A
+// chaque rendu, React recevait un TYPE de composant different et demontait
+// donc l'input pour le recreer. Pendant un glissement, chaque mouvement
+// declenche un rendu -> l'input etait detruit sous le doigt et le geste
+// perdu : les curseurs paraissaient ne pas fonctionner, surtout au toucher.
+// Declare au niveau module, le composant garde son identite et l'input reste
+// le meme element d'un rendu a l'autre.
+//
+// La feuille de style etait de plus reinjectee par CHAQUE curseur (trois
+// balises <style> identiques, a chaque rendu). Elle est desormais montee une
+// seule fois, et portee par une classe au lieu de viser tous les
+// input[type=range] de l'application.
+// ══════════════════════════════════════════════════════════════════════════
+const LAB_SLIDER_CSS = `
+.lab-range{-webkit-appearance:none;appearance:none;height:26px;background:transparent;cursor:pointer;touch-action:none;width:100%;display:block}
+.lab-range::-webkit-slider-runnable-track{height:4px;background:rgba(255,255,255,0.12);border-radius:2px}
+.lab-range::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:11px;background:#6ee7b7;margin-top:-9px;box-shadow:0 0 0 3px rgba(110,231,183,0.25)}
+.lab-range::-moz-range-track{height:4px;background:rgba(255,255,255,0.12);border-radius:2px}
+.lab-range::-moz-range-thumb{width:22px;height:22px;border-radius:11px;background:#6ee7b7;border:none;box-shadow:0 0 0 3px rgba(110,231,183,0.25)}
+`;
+
+function LabSliderRow({ label, val, setVal, min, max, step = 1, format = (x) => x }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginBottom: 3 }}>
+        <span style={{ color: "rgba(255,255,255,0.55)" }}>{label}</span>
+        <span style={{ fontWeight: 800, color: "#6ee7b7" }}>{format(val)}</span>
+      </div>
+      <input className="lab-range" type="range" min={min} max={max} step={step} value={val}
+        onChange={e => setVal(parseFloat(e.target.value))}
+        onInput={e => setVal(parseFloat(e.target.value))}
+        style={{ width: "100%", display: "block", cursor: "pointer" }} />
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "rgba(255,255,255,0.25)", marginTop: 1 }}>
+        <span>{format(min)}</span><span>{format(max)}</span>
+      </div>
+    </div>
+  );
+}
+
 function LabScreen({ t, lang, profile, onBack }) {
   const LAB_KEY = "eapropfirm_lab_profile";
   const EMPTY = { bot: null, entries: [], exits: [], indicators: [], approach: null, market: null, sessions: [], freeDesc: "", riskChoice: null, tpdChoice: null, newsBehavior: null, firmTarget: null };
@@ -5478,23 +5526,6 @@ function LabScreen({ t, lang, profile, onBack }) {
     );
   };
 
-  const SliderRow = ({ label, val, setVal, min, max, step: s = 1, format = (x) => x }) => (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginBottom: 3 }}>
-        <span style={{ color: "rgba(255,255,255,0.55)" }}>{label}</span>
-        <span style={{ fontWeight: 800, color: "#6ee7b7" }}>{format(val)}</span>
-      </div>
-      <style>{`input[type=range]{-webkit-appearance:none;appearance:none;height:26px;background:transparent;cursor:pointer;touch-action:none}input[type=range]::-webkit-slider-runnable-track{height:4px;background:rgba(255,255,255,0.12);border-radius:2px}input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:11px;background:#6ee7b7;margin-top:-9px;box-shadow:0 0 0 3px rgba(110,231,183,0.25)}input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:11px;background:#6ee7b7;border:none;box-shadow:0 0 0 3px rgba(110,231,183,0.25)}`}</style>
-      <input type="range" min={min} max={max} step={s} value={val}
-        onChange={e => setVal(parseFloat(e.target.value))}
-        onTouchMove={e => { e.stopPropagation(); }}
-        style={{ width: "100%", display: "block", cursor: "pointer" }} />
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "rgba(255,255,255,0.25)", marginTop: 1 }}>
-        <span>{format(min)}</span><span>{format(max)}</span>
-      </div>
-    </div>
-  );
-
   const KpiCard = ({ label, val, sub, color = "#fff" }) => (
     <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "8px 10px", flex: 1, minWidth: 90 }}>
       <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>{label}</div>
@@ -5611,10 +5642,11 @@ function LabScreen({ t, lang, profile, onBack }) {
 
       {/* ── SLIDERS INTERACTIFS ── */}
       <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 14, padding: 14, marginBottom: 14 }}>
+        <style>{LAB_SLIDER_CSS}</style>
         <div style={{ fontSize: 11, fontWeight: 800, color: "#6ee7b7", marginBottom: 10 }}>Simulation interactive — modifie et vois l'impact en temps réel</div>
-        <SliderRow label="Winrate %" val={displayWR} setVal={setOvWR} min={15} max={85} step={1} format={v => v + "%"} />
-        <SliderRow label="Risk Reward (1:x)" val={displayRR} setVal={setOvRR} min={0.4} max={5} step={0.1} format={v => "1:" + v.toFixed(1)} />
-        <SliderRow label="Risque / trade" val={displayRisk} setVal={setOvRisk} min={0.1} max={3} step={0.05} format={v => v.toFixed(2) + "%"} />
+        <LabSliderRow label="Winrate %" val={displayWR} setVal={setOvWR} min={15} max={85} step={1} format={v => v + "%"} />
+        <LabSliderRow label="Risk Reward (1:x)" val={displayRR} setVal={setOvRR} min={0.4} max={5} step={0.1} format={v => "1:" + v.toFixed(1)} />
+        <LabSliderRow label="Risque / trade" val={displayRisk} setVal={setOvRisk} min={0.1} max={3} step={0.05} format={v => v.toFixed(2) + "%"} />
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
           {[{ label: "Robustesse", val: analysis.scores.robustesse }, { label: "Survie", val: analysis.scores.survie }, { label: "Prop firm", val: analysis.scores.propfirm }, { label: "Espérance", val: analysis.scores.esperance }].map(s => (
             <div key={s.label} style={{ flex: 1, textAlign: "center" }}>
@@ -5685,96 +5717,107 @@ function LabScreen({ t, lang, profile, onBack }) {
             </div>
           )}
 
-          {/* ── ARBRE HORIZONTAL (gauche→droite) avec scroll ── */}
+          {/* ── ARBRE HORIZONTAL (gauche→droite) avec scroll ──
+              BUG CORRIGE : la geometrie supposait des noeuds de hauteur fixe
+              (72 px) alors que leur hauteur reelle dependait du titre, qui
+              passe souvent sur trois lignes ("Risque ÷2 + WR +5, trades -40%").
+              Les colonnes en flux debordaient donc leur hauteur calculee, les
+              noeuds se chevauchaient et les connecteurs, traces aux positions
+              theoriques, ne pointaient plus sur rien. Constate a l'ecran.
+              Chaque noeud a desormais une hauteur FIXE et est place en
+              absolu exactement la ou le connecteur l'attend : la geometrie
+              dessinee et la geometrie reelle ne peuvent plus diverger. ── */}
           <div style={{ overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch", margin: "0 -14px", padding: "0 14px 8px" }}>
             {(() => {
               const B = research.branches;
-              // Dimensions des colonnes horizontales
-              const ROOT_W = 100, COL_H = 72, BRANCH_W = 88, L2_W = 84;
-              const GAP_V = 8, GAP_H = 28;
+              const ROOT_W = 104, NODE_H = 88, BRANCH_W = 96, L2_W = 100;
+              const GAP_V = 10, GAP_H = 30;
               const recoColor = (b) => (recoColors[b.mc.reco] || "#fbbf24");
 
-              // Nœud cliquable horizontal (titre + cercle)
-              const HNode = ({ node, id, w = BRANCH_W, accent }) => {
+              // Hauteur occupee par une branche : elle doit contenir ses enfants.
+              const branchHeight = (b) => (b.children && b.children.length
+                ? b.children.length * (NODE_H + GAP_V) - GAP_V
+                : NODE_H);
+              const totalH = B.reduce((acc, b) => acc + branchHeight(b) + GAP_V, -GAP_V);
+
+              // Centre vertical de chaque branche, et de chacun de ses enfants.
+              let yAcc = 0;
+              const bY = [], childY = [];
+              B.forEach(b => {
+                const h = branchHeight(b);
+                bY.push(yAcc + h / 2);
+                const kids = (b.children || []).map((_, ci) => yAcc + ci * (NODE_H + GAP_V) + NODE_H / 2);
+                childY.push(kids);
+                yAcc += h + GAP_V;
+              });
+
+              const rootCY = totalH / 2;
+              const xRoot = 0;
+              const xBranch = ROOT_W + GAP_H;
+              const xChild = xBranch + BRANCH_W + GAP_H;
+              const hasL2 = B.some(b => b.children && b.children.length);
+              const svgW = hasL2 ? xChild + L2_W : xBranch + BRANCH_W;
+
+              // Noeud a hauteur fixe : le titre est borne a deux lignes, le
+              // reste du gabarit ne bouge jamais.
+              const HNode = ({ node, id, x, cy, w, accent }) => {
                 const sel2 = treeSelected === id;
                 const col = accent || recoColor(node);
                 return (
                   <div onClick={() => setTreeSelected(sel2 ? null : id)}
-                    style={{ width: w, border: `1.5px solid ${sel2 ? "#fff" : col + "90"}`, borderLeft: `3px solid ${col}`,
-                      borderRadius: 9, padding: "6px 8px", background: sel2 ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.025)",
-                      cursor: "pointer", transition: "all .18s", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                    <div style={{ fontSize: 8.5, fontWeight: 800, color: "#fff", lineHeight: 1.25, textAlign: "center", width: "100%" }}>{node.name}</div>
-                    <ScoreCircle val={node.mc.passRate} size={34} />
-                    <div style={{ fontSize: 7.5, color: "rgba(255,255,255,0.4)" }}>DD {node.mc.avgDD}%</div>
-                    <div style={{ fontSize: 8, fontWeight: 700, color: col }}>{recoLabels[node.mc.reco] || "—"}</div>
+                    style={{ position: "absolute", left: x, top: cy - NODE_H / 2, width: w, height: NODE_H,
+                      boxSizing: "border-box",
+                      border: `1.5px solid ${sel2 ? "#fff" : col + "90"}`, borderLeft: `3px solid ${col}`,
+                      borderRadius: 9, padding: "5px 6px", background: sel2 ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.025)",
+                      cursor: "pointer", transition: "border-color .18s, background .18s",
+                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between", gap: 2, overflow: "hidden" }}>
+                    <div title={node.name} style={{ fontSize: 8.5, fontWeight: 800, color: "#fff", lineHeight: 1.2, textAlign: "center", width: "100%",
+                      display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{node.name}</div>
+                    <ScoreCircle val={node.mc.passRate} size={32} />
+                    <div style={{ fontSize: 7.5, color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap" }}>DD {node.mc.avgDD}%</div>
+                    <div style={{ fontSize: 8, fontWeight: 700, color: col, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{recoLabels[node.mc.reco] || "—"}</div>
                   </div>
                 );
               };
 
-              // Calcul dynamique de la hauteur totale de chaque branche (avec enfants)
-              const branchHeight = (b) => (b.children?.length ? b.children.length * (COL_H + GAP_V) - GAP_V : COL_H);
-              const totalH = B.reduce((s, b) => s + branchHeight(b) + GAP_V, -GAP_V);
-
-              // Positions Y centrées de chaque branche
-              let yAcc = 0;
-              const bY = B.map(b => { const h = branchHeight(b); const cy = yAcc + h / 2; yAcc += h + GAP_V; return cy; });
-
-              const rootCY = totalH / 2;
-              const svgW = ROOT_W + GAP_H + BRANCH_W + GAP_H + L2_W;
-              const hasL2 = B.some(b => b.children?.length);
+              const courbe = (x1, y1, x2, y2) => `M ${x1} ${y1} C ${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}`;
 
               return (
-                <div style={{ display: "inline-flex", alignItems: "flex-start", gap: 0, minWidth: svgW + 20 }}>
-                  {/* Colonne RACINE centrée verticalement */}
-                  <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", height: totalH, flexShrink: 0 }}>
-                    <div onClick={() => setTreeSelected(treeSelected === "root" ? null : "root")}
-                      style={{ width: ROOT_W, border: `1.5px solid ${treeSelected === "root" ? "#fff" : "rgba(167,139,250,0.7)"}`, borderLeft: "3px solid #a78bfa",
-                        borderRadius: 10, padding: "8px", background: "linear-gradient(135deg,rgba(167,139,250,0.10),rgba(34,211,238,0.05))",
-                        cursor: "pointer", transition: "all .2s", textAlign: "center" }}>
-                      <div style={{ fontSize: 9, fontWeight: 800, color: "#fff" }}>✦ {research.root.name}</div>
-                      <div style={{ fontSize: 8, color: "#a78bfa", marginTop: 1 }}>{research.root.label}</div>
-                      <ScoreCircle val={research.root.mc.passRate} size={36} />
-                    </div>
-                  </div>
-
-                  {/* SVG connecteurs racine→branches */}
-                  <svg width={GAP_H} height={totalH} style={{ flexShrink: 0, overflow: "visible" }}>
-                    {B.map((b, i) => {
-                      const y1 = rootCY, y2 = bY[i];
-                      return <path key={i} d={`M 0 ${y1} C ${GAP_H * 0.5} ${y1}, ${GAP_H * 0.5} ${y2}, ${GAP_H} ${y2}`}
-                        fill="none" stroke={recoColor(b)} strokeWidth="1.6" opacity="0.8"/>;
-                    })}
+                <div style={{ position: "relative", width: svgW, height: totalH, minWidth: svgW }}>
+                  {/* Connecteurs : un seul SVG qui couvre tout le repere, donc
+                      impossible qu'ils se decalent par rapport aux noeuds. */}
+                  <svg width={svgW} height={totalH} style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none" }}>
+                    {B.map((b, i) => (
+                      <path key={"b" + i} d={courbe(ROOT_W, rootCY, xBranch, bY[i])}
+                        fill="none" stroke={recoColor(b)} strokeWidth="1.6" opacity="0.8" />
+                    ))}
+                    {B.map((b, i) => (b.children || []).map((ch, ci) => (
+                      <path key={`c${i}-${ci}`} d={courbe(xBranch + BRANCH_W, bY[i], xChild, childY[i][ci])}
+                        fill="none" stroke={recoColor(b)} strokeWidth="1.3" opacity="0.55" strokeDasharray="3 2" />
+                    )))}
                   </svg>
 
-                  {/* Colonne BRANCHES niveau 1 */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: GAP_V, flexShrink: 0 }}>
-                    {B.map((b, i) => (
-                      <div key={i} style={{ display: "flex", flexDirection: "column", justifyContent: "center", height: branchHeight(b) }}>
-                        <HNode node={b} id={String(i)} />
-                      </div>
-                    ))}
+                  {/* Racine */}
+                  <div onClick={() => setTreeSelected(treeSelected === "root" ? null : "root")}
+                    style={{ position: "absolute", left: xRoot, top: rootCY - NODE_H / 2, width: ROOT_W, height: NODE_H,
+                      boxSizing: "border-box",
+                      border: `1.5px solid ${treeSelected === "root" ? "#fff" : "rgba(167,139,250,0.7)"}`, borderLeft: "3px solid #a78bfa",
+                      borderRadius: 10, padding: "5px 6px", background: "linear-gradient(135deg,rgba(167,139,250,0.10),rgba(34,211,238,0.05))",
+                      cursor: "pointer", transition: "border-color .2s", textAlign: "center",
+                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between", overflow: "hidden" }}>
+                    <div style={{ fontSize: 9, fontWeight: 800, color: "#fff", lineHeight: 1.2,
+                      display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{research.root.name}</div>
+                    <div style={{ fontSize: 7.5, color: "#a78bfa", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{research.root.label}</div>
+                    <ScoreCircle val={research.root.mc.passRate} size={32} />
                   </div>
 
-                  {/* SVG connecteurs branches→niveau 2 */}
-                  {hasL2 && <svg width={GAP_H} height={totalH} style={{ flexShrink: 0, overflow: "visible" }}>
-                    {B.map((b, i) => (b.children || []).map((ch, ci) => {
-                      const childH = COL_H, parentCY = bY[i];
-                      let childYAcc = bY[i] - branchHeight(b) / 2;
-                      for (let x = 0; x < ci; x++) childYAcc += COL_H + GAP_V;
-                      const childCY = childYAcc + childH / 2;
-                      return <path key={`${i}-${ci}`} d={`M 0 ${parentCY} C ${GAP_H * 0.5} ${parentCY}, ${GAP_H * 0.5} ${childCY}, ${GAP_H} ${childCY}`}
-                        fill="none" stroke={recoColor(b)} strokeWidth="1.3" opacity="0.55" strokeDasharray="3 2"/>;
-                    }))}
-                  </svg>}
+                  {/* Branches */}
+                  {B.map((b, i) => <HNode key={"n" + i} node={b} id={String(i)} x={xBranch} cy={bY[i]} w={BRANCH_W} />)}
 
-                  {/* Colonne NIVEAU 2 */}
-                  {hasL2 && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: GAP_V, flexShrink: 0 }}>
-                      {B.map((b, i) => (b.children || []).map((ch, ci) => (
-                        <HNode key={`${i}-${ci}`} node={{ ...ch, name: ch.name }} id={`${i}-${ci}`} w={L2_W} accent={recoColor(b)} />
-                      )))}
-                    </div>
-                  )}
+                  {/* Niveau 2 : chaque enfant exactement en face de son parent */}
+                  {B.map((b, i) => (b.children || []).map((ch, ci) => (
+                    <HNode key={`n${i}-${ci}`} node={ch} id={`${i}-${ci}`} x={xChild} cy={childY[i][ci]} w={L2_W} accent={recoColor(b)} />
+                  )))}
                 </div>
               );
             })()}
@@ -6257,6 +6300,7 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
     horizonMonths: 60,
     targetMonthlyIncome: 3000,
     targetCapital: 0,
+    rebuyLostAccounts: true,
   }));
   const set = (patch) => setForm(f => ({ ...f, ...patch }));
 
@@ -6342,6 +6386,17 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
             </>
           )}
         </div>
+
+        {/* ── ALERTE : le parc de comptes se reduit ────────────────── */}
+        {s.finalAccounts < effectivePlan.startAccounts - 0.05 && (
+          <div style={{ background: "rgba(251,191,36,0.09)", border: "1px solid rgba(251,191,36,0.28)", borderRadius: 14, padding: "11px 13px", marginBottom: 12, fontSize: 11.5, lineHeight: 1.55, color: "rgba(255,255,255,0.78)" }}>
+            <b style={{ color: "#fbbf24" }}>Ton parc se réduit.</b> Tu démarres avec {effectivePlan.startAccounts} compte{effectivePlan.startAccounts > 1 ? "s" : ""} et
+            tu finis à {s.finalAccounts.toFixed(2)} : le risque de griller un compte ({effectivePlan.blowUpRatePct} %/mois) l'emporte sur ce que tu rachètes.
+            {effectivePlan.rebuyLostAccounts === false
+              ? " Active « Racheter un compte perdu » dans les charges."
+              : " Baisse le risque de perte, raccourcis la durée d'un challenge ou augmente le réinvestissement."}
+          </div>
+        )}
 
         {/* ── SOURCE DE VERITE ─────────────────────────────────────── */}
         <div className="card" style={{ marginBottom: 12 }}>
@@ -6489,6 +6544,21 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
                 hint="VPS, abonnements." />
               <ProjField label="Imposition" value={form.taxRatePct} onChange={v => set({ taxRatePct: v })} suffix="%" step={1} min={0} max={100}
                 hint="Taux global appliqué au résultat après charges." />
+            </div>
+
+            <div style={{ marginTop: 4, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "10px 0 0", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: "#fff" }}>Racheter un compte perdu</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", lineHeight: 1.4 }}>
+                  Si tu grilles un compte, tu en reprends un. Désactivé, ton parc s'éteint peu à peu et ton revenu avec.
+                </div>
+              </div>
+              <button onClick={() => set({ rebuyLostAccounts: !(form.rebuyLostAccounts !== false) })} aria-label="Racheter un compte perdu"
+                style={{ width: 40, height: 22, borderRadius: 11, border: "none", cursor: "pointer", flexShrink: 0, position: "relative",
+                  background: form.rebuyLostAccounts !== false ? PROJ_ACCENT : "rgba(255,255,255,0.15)" }}>
+                <span style={{ position: "absolute", top: 3, left: form.rebuyLostAccounts !== false ? 21 : 3, width: 16, height: 16, borderRadius: 8,
+                  background: form.rebuyLostAccounts !== false ? "#000" : "#fff", transition: "left .15s" }} />
+              </button>
             </div>
 
             <button onClick={savePlan}
@@ -6665,82 +6735,126 @@ function newInvestmentStrategy() {
 // Taux réglementés vérifiés au 1er août 2026 (Livret A / LDDS 1,70 %,
 // LEP 2,50 %, CEL 1,25 %, PEL ouvert en 2026 ~2 % brut). Ces taux sont revus
 // périodiquement par l'État : à revalider si l'écart devient significatif.
+// ══════════════════════════════════════════════════════════════════════════
+// ICONES DES TYPES DE PLACEMENT
+// --------------------------------------------------------------------------
+// Une icone propre a chaque enveloppe, dessinee en SVG : aucun emoji dans
+// l'app (consigne), et aucun logo de marque. Le trait suit la couleur du
+// texte (currentColor) pour rester coherent avec la charte en toutes
+// circonstances.
+// ══════════════════════════════════════════════════════════════════════════
+function InvestmentIcon({ k, size = 22, color = INVESTMENT_ACCENT }) {
+  const c = color, w = 1.7;
+  const P = { fill: "none", stroke: c, strokeWidth: w, strokeLinecap: "round", strokeLinejoin: "round" };
+  const paths = {
+    // Bouclier + courbe montante : enveloppe actions protegee fiscalement
+    pea: <><path d="M12 3l7 3v5.5c0 4.2-2.9 7.6-7 8.5-4.1-.9-7-4.3-7-8.5V6l7-3z" {...P}/><path d="M8.5 13.5l2.2-2.6 1.8 1.7 3-3.4" {...P}/></>,
+    // Chandeliers : marche titres libre
+    cto: <><path d="M7 4v3M7 15v5M12 3v4M12 13v8M17 6v3M17 17v3" {...P}/><rect x="5" y="7" width="4" height="8" rx="1" {...P}/><rect x="10" y="7" width="4" height="6" rx="1" {...P}/><rect x="15" y="9" width="4" height="8" rx="1" {...P}/></>,
+    // Globe : indiciel monde
+    etf_monde: <><circle cx="12" cy="12" r="8.5" {...P}/><path d="M3.5 12h17M12 3.5c2.3 2.3 3.5 5.3 3.5 8.5s-1.2 6.2-3.5 8.5c-2.3-2.3-3.5-5.3-3.5-8.5S9.7 5.8 12 3.5z" {...P}/></>,
+    // Parapluie : contrat de protection
+    assurance_vie: <><path d="M3 12a9 9 0 0 1 18 0z" {...P}/><path d="M12 12v6.5a2.2 2.2 0 0 0 4.4 0" {...P}/><path d="M12 3v1.5" {...P}/></>,
+    // Sablier : capital bloque jusqu'a la retraite
+    per: <><path d="M7 3h10M7 21h10" {...P}/><path d="M8 3v3.2c0 2 4 3.6 4 5.8 0-2.2 4-3.8 4-5.8V3" {...P}/><path d="M8 21v-3.2c0-2 4-3.6 4-5.8 0 2.2 4 3.8 4 5.8V21" {...P}/></>,
+    // Carnet : livret reglemente
+    livret_a: <><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H18a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6.5A1.5 1.5 0 0 0 5 20.5z" {...P}/><path d="M5 17.5h14" {...P}/><path d="M9 7.5h6M9 11h4" {...P}/></>,
+    // Feuille : developpement durable et solidaire
+    ldds: <><path d="M20 4c0 8.5-4.3 13-9.5 13A5.5 5.5 0 0 1 5 11.5C5 6.9 10.6 4 20 4z" {...P}/><path d="M4 21c1.5-4.5 4.5-7.8 8.5-9.8" {...P}/></>,
+    // Carnet marque d'une etoile : livret au meilleur taux, sous conditions
+    lep: <><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H18a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6.5A1.5 1.5 0 0 0 5 20.5z" {...P}/><path d="M5 17.5h14" {...P}/><path d="M12 6.2l1.1 2.2 2.4.3-1.8 1.7.45 2.4L12 11.6l-2.15 1.2.45-2.4L8.5 8.7l2.4-.3z" {...P}/></>,
+    // Maison : epargne logement
+    pel: <><path d="M3.5 10.5L12 4l8.5 6.5" {...P}/><path d="M5.5 9.5V20h13V9.5" {...P}/><path d="M10 20v-5h4v5" {...P}/></>,
+    // Immeuble : immobilier papier
+    scpi: <><rect x="4" y="3" width="10" height="18" rx="1.2" {...P}/><path d="M14 9h6v12h-6" {...P}/><path d="M7 7h1.5M10 7h1.5M7 11h1.5M10 11h1.5M7 15h1.5M10 15h1.5M16.5 13H18M16.5 17H18" {...P}/></>,
+    // Blocs chaines : actif numerique, sans logo de marque
+    crypto: <><rect x="3" y="9" width="6" height="6" rx="1.2" {...P}/><rect x="15" y="9" width="6" height="6" rx="1.2" {...P}/><rect x="9" y="3" width="6" height="6" rx="1.2" {...P}/><rect x="9" y="15" width="6" height="6" rx="1.2" {...P}/><path d="M9 12h6M12 9V6.5M12 15v2.5" {...P}/></>,
+    // Lingots empiles : metal precieux
+    or: <><path d="M8.5 9.5h7l1.2 4h-9.4z" {...P}/><path d="M3.5 15.5h8l1.2 4H2.3z" {...P}/><path d="M12.5 15.5h8l1.2 4h-9.4z" {...P}/></>,
+    // Tirelire : epargne de precaution, projet
+    epargne_projet: <><path d="M3.5 12.5c0-3.6 3.6-6 8-6s8 2.4 8 6c0 2-1.1 3.7-2.9 4.8V20h-2.8v-1.6a12 12 0 0 1-4.6 0V20H6.4v-2.7c-1.8-1.1-2.9-2.8-2.9-4.8z" {...P}/><path d="M2.5 11.5c-.9.4-.9 2.6 0 3" {...P}/><path d="M9.5 6.6c.2-1.6 1.3-2.6 3-2.6" {...P}/><circle cx="15.5" cy="12" r=".9" fill={c} stroke="none"/></>,
+    // Crayon : formulaire vierge
+    custom: <><path d="M4 20l4.2-1 10-10a2.1 2.1 0 0 0-3-3l-10 10z" {...P}/><path d="M14.5 6.5l3 3" {...P}/></>,
+  };
+  return <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">{paths[k] || paths.custom}</svg>;
+}
+
 const INVESTMENT_PRESETS = [
-  { key: "pea", icon: "", label: "PEA", note: "Actions européennes, exonéré d'IR après 5 ans",
+  { key: "pea", label: "PEA", note: "Actions européennes, exonéré d'IR après 5 ans",
     investmentType: "dca", annualReturnPct: 7, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 150000, capLabel: "150 000 € de versements",
     taxOnGainsPct: 17.2, taxLabel: "17,2 % de prélèvements sociaux après 5 ans (exonéré d'IR)",
     availability: "Retrait avant 5 ans = clôture du plan", fees: { annualPct: 0.5 } },
 
-  { key: "cto", icon: "", label: "Compte-titres (CTO)", note: "Actions/ETF monde entier, sans plafond",
+  { key: "cto", label: "Compte-titres (CTO)", note: "Actions/ETF monde entier, sans plafond",
     investmentType: "dca", annualReturnPct: 7, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 0, capLabel: "Aucun plafond",
     taxOnGainsPct: 30, taxLabel: "PFU (flat tax) 30 % sur les plus-values",
     availability: "Disponible à tout moment", fees: { annualPct: 0.5 } },
 
-  { key: "etf_monde", icon: "", label: "ETF Monde", note: "Indiciel diversifié, capitalisant",
+  { key: "etf_monde", label: "ETF Monde", note: "Indiciel diversifié, capitalisant",
     investmentType: "dca", annualReturnPct: 7, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 0, capLabel: "Dépend de l'enveloppe (PEA ou CTO)",
     taxOnGainsPct: 30, taxLabel: "Selon l'enveloppe : 30 % en CTO, 17,2 % en PEA +5 ans",
     availability: "Disponible à tout moment", fees: { annualPct: 0.25 } },
 
-  { key: "assurance_vie", icon: "", label: "Assurance-vie", note: "Fonds euros + unités de compte",
+  { key: "assurance_vie", label: "Assurance-vie", note: "Fonds euros + unités de compte",
     investmentType: "dca", annualReturnPct: 4, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 0, capLabel: "Aucun plafond de versement",
     taxOnGainsPct: 24.7, taxLabel: "24,7 % après 8 ans (7,5 % + 17,2 %), hors abattement annuel",
     availability: "Rachat possible à tout moment", fees: { annualPct: 0.8, perContribution: 0 } },
 
-  { key: "per", icon: "", label: "PER (retraite)", note: "Versements déductibles, capital bloqué",
+  { key: "per", label: "PER (retraite)", note: "Versements déductibles, capital bloqué",
     investmentType: "dca", annualReturnPct: 5, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 0, capLabel: "Plafond de déduction lié à tes revenus",
     taxOnGainsPct: 30, taxLabel: "Imposé à la sortie (capital à la TMI, gains au PFU 30 %)",
     availability: "Bloqué jusqu'à la retraite (sauf achat RP et accidents de la vie)",
     fees: { annualPct: 0.8 } },
 
-  { key: "livret_a", icon: "", label: "Livret A", note: "Garanti par l'État, totalement défiscalisé",
+  { key: "livret_a", label: "Livret A", note: "Garanti par l'État, totalement défiscalisé",
     investmentType: "dca", annualReturnPct: 1.7, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 22950, capLabel: "22 950 € de versements",
     taxOnGainsPct: 0, taxLabel: "Totalement exonéré (ni impôt ni prélèvements sociaux)",
     availability: "Disponible immédiatement", fees: { annualPct: 0 } },
 
-  { key: "ldds", icon: "", label: "LDDS", note: "Même taux que le Livret A, plafond plus bas",
+  { key: "ldds", label: "LDDS", note: "Même taux que le Livret A, plafond plus bas",
     investmentType: "dca", annualReturnPct: 1.7, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 12000, capLabel: "12 000 € de versements",
     taxOnGainsPct: 0, taxLabel: "Totalement exonéré", availability: "Disponible immédiatement",
     fees: { annualPct: 0 } },
 
-  { key: "lep", icon: "", label: "LEP", note: "Meilleur taux garanti, sous conditions de revenus",
+  { key: "lep", label: "LEP", note: "Meilleur taux garanti, sous conditions de revenus",
     investmentType: "dca", annualReturnPct: 2.5, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 10000, capLabel: "10 000 € de versements",
     taxOnGainsPct: 0, taxLabel: "Totalement exonéré",
     availability: "Disponible immédiatement · éligibilité selon revenu fiscal", fees: { annualPct: 0 } },
 
-  { key: "pel", icon: "", label: "PEL", note: "Épargne logement, taux fixé à l'ouverture",
+  { key: "pel", label: "PEL", note: "Épargne logement, taux fixé à l'ouverture",
     investmentType: "dca", annualReturnPct: 2, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 61200, capLabel: "61 200 € de versements",
     taxOnGainsPct: 30, taxLabel: "PFU 30 % (plans ouverts depuis 2018)",
     availability: "Bloqué 4 ans minimum · versement annuel min. 540 €", fees: { annualPct: 0 } },
 
-  { key: "scpi", icon: "", label: "SCPI / Immobilier papier", note: "Revenus locatifs distribués",
+  { key: "scpi", label: "SCPI / Immobilier papier", note: "Revenus locatifs distribués",
     investmentType: "dca", annualReturnPct: 4.5, dcaFrequency: "quarterly", reinvest: false,
     contributionCap: 0, capLabel: "Aucun plafond",
     taxOnGainsPct: 30, taxLabel: "Revenus fonciers : TMI + 17,2 % (30 % pris ici en approximation)",
     availability: "Revente lente (plusieurs semaines à mois)",
     fees: { perContribution: 0, annualPct: 1 } },
 
-  { key: "crypto", icon: "₿", label: "Crypto (DCA)", note: "Très volatil — ajuste selon ta conviction",
+  { key: "crypto", label: "Crypto (DCA)", note: "Très volatil — ajuste selon ta conviction",
     investmentType: "dca", annualReturnPct: 12, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 0, capLabel: "Aucun plafond",
     taxOnGainsPct: 30, taxLabel: "PFU 30 % à la cession en euros",
     availability: "Disponible en permanence · forte volatilité", fees: { annualPct: 0 } },
 
-  { key: "or", icon: "", label: "Or / métaux précieux", note: "Valeur refuge, décorrélée des marchés",
+  { key: "or", label: "Or / métaux précieux", note: "Valeur refuge, décorrélée des marchés",
     investmentType: "dca", annualReturnPct: 5, dcaFrequency: "monthly", reinvest: false,
     contributionCap: 0, capLabel: "Aucun plafond",
     taxOnGainsPct: 36.2, taxLabel: "Taxe forfaitaire 11,5 % OU 36,2 % sur plus-value (au choix)",
     availability: "Revente selon le support (physique ou papier)", fees: { annualPct: 0 } },
 
-  { key: "epargne_projet", icon: "", label: "Épargne long terme", note: "Capital de côté, sans versement régulier",
+  { key: "epargne_projet", label: "Épargne long terme", note: "Capital de côté, sans versement régulier",
     investmentType: "initial", annualReturnPct: 3, dcaFrequency: "monthly", reinvest: true,
     contributionCap: 0, capLabel: "Aucun plafond",
     taxOnGainsPct: 30, taxLabel: "PFU 30 % (selon le support retenu)",
@@ -6896,8 +7010,13 @@ function InvestmentScreen({ t, lang, onBack }) {
         <div style={{ padding: "0 16px 32px" }}>
           <button onClick={() => { setForm(newInvestmentStrategy()); setView("form"); }}
             style={{ width: "100%", textAlign: "left", background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.15)", borderRadius: 14, padding: 14, cursor: "pointer", marginBottom: 12, color: "#fff" }}>
-            <div style={{ fontSize: 13, fontWeight: 800 }}>✏ Stratégie personnalisée</div>
-            <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>Formulaire vierge, tu règles tout toi-même</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+              <InvestmentIcon k="custom" size={20} color="rgba(255,255,255,0.8)" />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 800 }}>Stratégie personnalisée</div>
+                <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>Formulaire vierge, tu règles tout toi-même</div>
+              </div>
+            </div>
           </button>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -6924,7 +7043,7 @@ function InvestmentScreen({ t, lang, onBack }) {
                 setView("form");
               }}
                 style={{ textAlign: "left", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 12, cursor: "pointer" }}>
-                <div style={{ fontSize: 20, marginBottom: 4 }}>{p.icon}</div>
+                <div style={{ marginBottom: 6, color: INVESTMENT_ACCENT, lineHeight: 0 }}><InvestmentIcon k={p.key} /></div>
                 <div style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{p.label}</div>
                 <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", marginTop: 3, lineHeight: 1.35 }}>{p.note}</div>
                 <div style={{ fontSize: 9.5, color: INVESTMENT_ACCENT, marginTop: 5, fontWeight: 700 }}>~{p.annualReturnPct}% indicatif/an</div>
@@ -18029,7 +18148,7 @@ function calculateAccountMaturity(journalAllFiltered, accountType, opts = {}) {
     // Indicateurs courts prêts à afficher (max 3, filtrés si non pertinents)
     quickIndicators: [
       totalMonths > 0 ? { icon: "", label: monthly.slice(-2).every(m => m.activeDays >= 5) ? "Rythme régulier" : "Rythme irrégulier", ok: monthly.slice(-2).every(m => m.activeDays >= 5) } : null,
-      { icon: "✓", label: `${totalPositiveMonths} mois positif${totalPositiveMonths > 1 ? "s" : ""}`, ok: totalPositiveMonths > 0 },
+      { icon: "\u2713", label: `${totalPositiveMonths} mois positif${totalPositiveMonths > 1 ? "s" : ""}`, ok: totalPositiveMonths > 0 },
       worstMaxDD !== null ? { icon: "", label: ddOk ? "DD maîtrisé" : "DD à surveiller", ok: ddOk } : null,
     ].filter(Boolean).slice(0, 3),
     totalMonths, totalTrades, totalPositiveMonths, worstMaxDD, avgReturnLast3,

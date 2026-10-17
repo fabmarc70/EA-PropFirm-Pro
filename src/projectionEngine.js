@@ -75,6 +75,10 @@ export function runPropFirmProjection(plan) {
   const costPerAccount = Math.max(0, num(plan.monthlyCostPerAccount, 0));
   const costFixed = Math.max(0, num(plan.monthlyCostFixed, 0));
   const taxRate = clamp(num(plan.taxRatePct, 0), 0, 100) / 100;
+  // Racheter un compte perdu : actif par defaut. Le desactiver revient a dire
+  // "si je grille un compte, je n'en reprends pas" — un choix possible, mais
+  // qui doit etre explicite, jamais le comportement par defaut.
+  const rebuyLost = plan.rebuyLostAccounts !== false;
   const horizon = clamp(Math.round(num(plan.horizonMonths, 36)), 1, 600);
 
   const targetIncome = Math.max(0, num(plan.targetMonthlyIncome, 0));
@@ -98,18 +102,27 @@ export function runPropFirmProjection(plan) {
   let targetCapitalMonth = null;
   let breakEvenMonth = null;  // mois ou le cumul net repasse positif
 
+  // Capacite maximale deja atteinte : sert de repere au rachat. Un trader qui
+  // perd un compte ne reduit pas la voilure, il en rachete un.
+  let peakAccounts = accounts;
+
   for (let m = 1; m <= horizon; m++) {
     // ── 1. Les challenges arrives a echeance deviennent funded (en esperance)
     const matured = pipeline.shift() || 0;
     if (matured > 0) accounts += matured * passRate;
 
-    // ── 2. Attrition : un compte funded peut sauter (breach de DD)
-    if (blowUp > 0) accounts = accounts * (1 - blowUp);
-
-    // ── 3. Plafond de comptes
+    // ── 2. Plafond de comptes
     if (maxAccounts > 0 && accounts > maxAccounts) accounts = maxAccounts;
+    if (accounts > peakAccounts) peakAccounts = accounts;
 
-    // ── 4. Revenus du mois
+    // ── 3. Revenus du mois
+    //    L'attrition est appliquee a la FIN du mois, pas au debut : on trade
+    //    le mois avant de risquer de perdre le compte. Auparavant, le mois 1
+    //    rapportait deja sur 0,96 compte alors qu'on en avait bien 1 entier.
+    //    La ligne du mois rapporte le nombre de comptes qui ont REELLEMENT
+    //    produit ce revenu, pas celui qui reste une fois l'attrition passee —
+    //    sinon la ligne affiche 0,9 compte a cote d'un revenu gagne sur 1.
+    const accountsActive = accounts;
     const grossPayout = accounts * accountCapital * (monthlyReturnPct / 100) * split;
     const runningCosts = accounts * costPerAccount + costFixed;
     const beforeTax = grossPayout - runningCosts;
@@ -121,31 +134,64 @@ export function runPropFirmProjection(plan) {
     cumulCosts += runningCosts;
     cumulTax += tax;
 
-    // ── 5. Reinvestissement : une part du revenu net achete des challenges
-    let reinvestBudget = netIncome > 0 ? netIncome * reinvest : 0;
-    const takeHome = netIncome - reinvestBudget;
+    // ── 4. RACHAT DES COMPTES PERDUS (prioritaire sur le reste)
+    //    BUG CORRIGE : sans ce mecanisme, un parc de comptes soumis a
+    //    l'attrition s'eteignait lentement et le revenu tombait a zero sur
+    //    l'horizon, meme avec un excellent taux de reussite — lequel n'avait
+    //    alors AUCUN effet, puisque plus aucun challenge n'etait jamais
+    //    achete. Cas reellement rencontre : 1 compte, 80 % de reussite,
+    //    1 % de reinvestissement -> 0,09 compte au bout de 5 ans.
+    //    Un trader qui perd un compte en rachete un : c'est le coeur meme du
+    //    metier, pas une option exotique. Finance en priorite sur le revenu du
+    //    mois, puis sur la tresorerie, avant le partage reinvesti / encaisse.
+    const expectedIncomingNow = pipeline.reduce((s, x) => s + x, 0) * passRate;
+    let rebought = 0;
+    let rebuyCost = 0;
+    if (rebuyLost && fee > 0) {
+      const targetCapacity = maxAccounts > 0 ? Math.min(peakAccounts, maxAccounts) : peakAccounts;
+      const missing = targetCapacity - accounts - expectedIncomingNow;
+      if (missing > 0.01) {
+        const needed = Math.ceil(missing / Math.max(passRate, 0.01));
+        const affordable = Math.floor((cash + Math.max(0, netIncome)) / fee);
+        rebought = Math.min(needed, affordable);
+        rebuyCost = rebought * fee;
+      }
+    }
+    // Le rachat se sert d'abord dans la tresorerie, le reste sur le revenu.
+    const fromCash = Math.min(cash, rebuyCost);
+    cash -= fromCash;
+    const fromIncome = rebuyCost - fromCash;
+    const incomeAfterRebuy = netIncome - fromIncome;
+
+    // ── 5. Reinvestissement : une part de ce qui reste achete des challenges
+    let reinvestBudget = incomeAfterRebuy > 0 ? incomeAfterRebuy * reinvest : 0;
+    const takeHome = incomeAfterRebuy - reinvestBudget;
     cumulTakeHome += takeHome;
 
     cash += reinvestBudget;
     let bought = 0;
     if (fee > 0) {
       // Ne pas acheter au-dela du plafond : comptes actifs + comptes attendus
-      // des challenges deja en cours. Sans ce garde-fou, un plafond de 3
-      // comptes continuerait d'acheter indefiniment des challenges.
-      const expectedIncoming = pipeline.reduce((s, x) => s + x, 0) * passRate;
+      // des challenges deja en cours (rachats de ce mois inclus). Sans ce
+      // garde-fou, un plafond de 3 comptes continuerait d'acheter
+      // indefiniment des challenges.
+      const incoming = expectedIncomingNow + rebought * passRate;
       const room = maxAccounts > 0
-        ? Math.max(0, Math.floor((maxAccounts - accounts - expectedIncoming) / Math.max(passRate, 0.01)))
+        ? Math.max(0, Math.floor((maxAccounts - accounts - incoming) / Math.max(passRate, 0.01)))
         : Infinity;
       bought = Math.min(Math.floor(cash / fee), room);
       if (bought > 0) {
         cash -= bought * fee;
-        cumulCosts += bought * fee;
         cumulReinvested += bought * fee;
       }
     }
+    cumulCosts += rebuyCost + bought * fee;
     // Les challenges achetes ce mois-ci aboutiront dans challengeMonths mois.
     while (pipeline.length < challengeMonths) pipeline.push(0);
-    pipeline[challengeMonths - 1] += bought;
+    pipeline[challengeMonths - 1] += bought + rebought;
+
+    // ── 6. Attrition, en fin de mois : le compte a travaille avant de sauter.
+    if (blowUp > 0) accounts = accounts * (1 - blowUp);
 
     const cumulNet = cumulTakeHome + cash - Math.max(0, num(plan.startPendingFee, 0));
 
@@ -160,14 +206,16 @@ export function runPropFirmProjection(plan) {
 
     months.push({
       month: m,
-      accounts: +accounts.toFixed(2),
-      capitalUnderManagement: +(accounts * accountCapital).toFixed(0),
+      accounts: +accountsActive.toFixed(2),
+      capitalUnderManagement: +(accountsActive * accountCapital).toFixed(0),
       grossPayout: +grossPayout.toFixed(2),
       runningCosts: +runningCosts.toFixed(2),
       tax: +tax.toFixed(2),
       netIncome: +netIncome.toFixed(2),
       reinvested: +(bought * fee).toFixed(2),
       challengesBought: bought,
+      challengesRebought: rebought,
+      rebuyCost: +rebuyCost.toFixed(2),
       takeHome: +takeHome.toFixed(2),
       cumulTakeHome: +cumulTakeHome.toFixed(2),
       cumulNet: +cumulNet.toFixed(2),

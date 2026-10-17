@@ -137,10 +137,12 @@ test("reinvestir 100% ne laisse rien a prendre", () => {
 console.log("\n── Attrition ──");
 
 test("risque de perte de compte : le capital sous gestion diminue", () => {
-  const r = runPropFirmProjection({ ...BASE, blowUpRatePct: 10, horizonMonths: 12 });
+  // rebuyLostAccounts explicitement desactive : on teste l'attrition SEULE.
+  const r = runPropFirmProjection({ ...BASE, blowUpRatePct: 10, horizonMonths: 12, rebuyLostAccounts: false });
   assert.ok(r.summary.finalAccounts < 1, "attrition non appliquee");
-  // finalAccounts est arrondi a 2 decimales a la sortie du moteur.
-  near(r.summary.finalAccounts, Math.pow(0.9, 12), 0.005);
+  // La ligne du mois rapporte les comptes qui ont produit le revenu, soit
+  // l'etat AVANT l'attrition de ce mois : au mois 12, 0.9^11.
+  near(r.summary.finalAccounts, Math.pow(0.9, 11), 0.005);
 });
 
 test("attrition 0% → aucun effet", () => {
@@ -323,6 +325,73 @@ test("le simulateur fournit son propre drawdown total", () => {
   const t = truthFromSimulator({ capital: 25000, ddTotPct: "3.4",
     funded: { data: [{ monthStart: 25000, profitPct: 4 }], cumulPayout: 0 } });
   near(t.maxDDPct, 3.4, 0.001);
+});
+
+
+console.log("\n── Rachat des comptes perdus ──");
+
+test("sans rachat, l'attrition eteint le parc et le taux de reussite n'a aucun effet", () => {
+  const base = { ...BASE, blowUpRatePct: 4, reinvestPct: 1, maxAccounts: 1,
+                 challengeMonths: 18, horizonMonths: 60, rebuyLostAccounts: false };
+  const a = runPropFirmProjection({ ...base, passRatePct: 20 });
+  const b = runPropFirmProjection({ ...base, passRatePct: 80 });
+  assert.ok(a.summary.finalAccounts < 0.2, "le parc aurait du s'eteindre");
+  // Rien n'est jamais achete -> le taux de reussite ne change strictement rien.
+  assert.equal(a.summary.cumulTakeHome, b.summary.cumulTakeHome);
+});
+
+test("avec rachat, le parc se maintient et le revenu ne s'effondre pas", () => {
+  const base = { ...BASE, blowUpRatePct: 4, reinvestPct: 1, maxAccounts: 1,
+                 challengeMonths: 2, horizonMonths: 60, passRatePct: 80 };
+  const avec = runPropFirmProjection({ ...base, rebuyLostAccounts: true });
+  const sans = runPropFirmProjection({ ...base, rebuyLostAccounts: false });
+  assert.ok(avec.summary.finalAccounts > 0.85, String(avec.summary.finalAccounts));
+  assert.ok(avec.summary.finalMonthlyNet > sans.summary.finalMonthlyNet * 3);
+});
+
+test("avec rachat, le taux de reussite redevient determinant", () => {
+  // Sans plafond : un mauvais taux de reussite gaspille des frais de
+  // challenge et ralentit la croissance du parc. Avec un plafond de 1, les
+  // deux finissent au plafond et le taux ne change rien — ce qui est exact.
+  const base = { ...BASE, blowUpRatePct: 4, reinvestPct: 70, maxAccounts: 0,
+                 challengeMonths: 2, horizonMonths: 48, rebuyLostAccounts: true };
+  const faible = runPropFirmProjection({ ...base, passRatePct: 25 });
+  const fort = runPropFirmProjection({ ...base, passRatePct: 90 });
+  assert.ok(fort.summary.cumulTakeHome > faible.summary.cumulTakeHome,
+    `${fort.summary.cumulTakeHome} <= ${faible.summary.cumulTakeHome}`);
+});
+
+test("sans attrition, aucun rachat n'est declenche", () => {
+  const r = runPropFirmProjection({ ...BASE, blowUpRatePct: 0, rebuyLostAccounts: true, horizonMonths: 24 });
+  r.months.forEach(m => assert.equal(m.challengesRebought, 0));
+});
+
+test("le rachat ne depasse jamais le plafond de comptes", () => {
+  const r = runPropFirmProjection({ ...BASE, blowUpRatePct: 5, maxAccounts: 2, startAccounts: 2,
+    reinvestPct: 80, challengeMonths: 1, horizonMonths: 36, rebuyLostAccounts: true });
+  r.months.forEach(m => assert.ok(m.accounts <= 2.0001, `${m.accounts} au mois ${m.month}`));
+});
+
+test("le rachat n'achete que ce qui est finançable", () => {
+  // Revenu quasi nul et aucune tresorerie : rien ne peut etre rachete.
+  const r = runPropFirmProjection({ ...BASE, monthlyReturnPct: 0.01, blowUpRatePct: 20,
+    challengeFee: 5000, startPendingFee: 0, rebuyLostAccounts: true, horizonMonths: 12 });
+  r.months.forEach(m => assert.equal(m.challengesRebought, 0));
+  assert.ok(r.months.every(m => m.cash >= -0.01), "tresorerie negative");
+});
+
+test("le cout du rachat est bien compte dans les charges", () => {
+  const r = runPropFirmProjection({ ...BASE, blowUpRatePct: 10, challengeMonths: 1,
+    reinvestPct: 0, horizonMonths: 12, rebuyLostAccounts: true });
+  const rachats = r.months.reduce((s, m) => s + m.rebuyCost, 0);
+  assert.ok(rachats > 0, "aucun rachat facture");
+  assert.ok(r.summary.cumulCosts >= rachats, "rachats absents du cumul des charges");
+});
+
+test("l'attrition s'applique en FIN de mois : le 1er mois rapporte sur un compte entier", () => {
+  const r = runPropFirmProjection({ ...BASE, blowUpRatePct: 10, startAccounts: 1 });
+  assert.equal(r.months[0].accounts, 1);
+  near(r.months[0].netIncome, 25000 * 0.04 * 0.8);   // 800, pas 720
 });
 
 console.log(`\n${passed} test(s) OK, ${failed} echec(s)\n`);
