@@ -24,16 +24,33 @@ function num(v, d = 0) { const n = Number(v); return isFinite(n) ? n : d; }
 // le risque choisi. C'est la discipline que l'entrainement doit faire
 // travailler : on ne choisit pas une taille, on choisit un risque.
 // ══════════════════════════════════════════════════════════════════════════
-export function openPosition({ side, entryPrice, balance, riskPct, stopPct, rr }) {
+// stopPrice / targetPrice : niveaux places directement au PRIX, comme chez un
+// courtier. stopPct / rr restent acceptes — c'est la meme position exprimee
+// autrement, et les deux chemins aboutissent au meme calcul de taille.
+export function openPosition({ side, entryPrice, balance, riskPct, stopPct, rr, stopPrice, targetPrice }) {
   const price = num(entryPrice);
   const bal = num(balance);
   const risque = bal * (num(riskPct) / 100);
-  const distance = price * (num(stopPct) / 100);
+  const sens = side === "short" ? -1 : 1;
+
+  let distance, stop, target;
+  if (isFinite(stopPrice) && stopPrice > 0) {
+    // Un stop du mauvais cote de l'entree n'est pas un stop : il serait touche
+    // a la seconde meme. On refuse plutot que d'ouvrir une position absurde.
+    distance = (price - num(stopPrice)) * sens;
+    if (!(distance > 0)) return null;
+    stop = num(stopPrice);
+    target = isFinite(targetPrice) && targetPrice > 0
+      ? num(targetPrice)
+      : price + sens * distance * num(rr, 2);
+    if ((target - price) * sens <= 0) return null;   // objectif du mauvais cote
+  } else {
+    distance = price * (num(stopPct) / 100);
+    stop = price - sens * distance;
+    target = price + sens * distance * num(rr, 2);
+  }
   if (!(price > 0) || !(distance > 0) || !(risque > 0)) return null;
 
-  const sens = side === "short" ? -1 : 1;
-  const stop = price - sens * distance;
-  const target = price + sens * distance * num(rr, 2);
   // Unites : quantite telle que (distance x quantite) = risque.
   const quantity = risque / distance;
 
@@ -41,10 +58,39 @@ export function openPosition({ side, entryPrice, balance, riskPct, stopPct, rr }
     side: sens > 0 ? "long" : "short",
     entryPrice: price, stop, target,
     riskAmount: +risque.toFixed(2),
-    rr: num(rr, 2),
+    // Le rapport reel, deduit des niveaux : quand l'objectif est pose a la
+    // main, il ne vaut plus forcement le rr demande.
+    rr: +(((target - price) * sens) / distance).toFixed(3),
     quantity,
     openIndex: null,   // renseigne par l'appelant
   };
+}
+
+// Resultat COURANT d'une position encore ouverte, au cours affiche. C'est ce
+// qui manquait pour qu'un trade se deroule au lieu de se resoudre d'un bloc.
+export function floatingResult(position, price) {
+  if (!position) return null;
+  const sens = position.side === "long" ? 1 : -1;
+  const pnl = (num(price) - position.entryPrice) * sens * position.quantity;
+  return {
+    price: num(price),
+    pnl: +pnl.toFixed(2),
+    rMultiple: position.riskAmount > 0 ? +(pnl / position.riskAmount).toFixed(3) : 0,
+  };
+}
+
+// Une SEULE bougie : stop, objectif, ou rien. Permet de derouler le trade
+// bougie par bougie en gardant exactement la regle de resolvePosition —
+// notamment le cas ambigu, ou le stop l'emporte.
+export function stepCandle(position, candle) {
+  if (!position || !Array.isArray(candle)) return null;
+  const long = position.side === "long";
+  const toucheStop = long ? candle[L] <= position.stop : candle[H] >= position.stop;
+  const toucheTarget = long ? candle[H] >= position.target : candle[L] <= position.target;
+  if (toucheStop && toucheTarget) return { hit: "stop_ambigu", price: position.stop };
+  if (toucheStop) return { hit: "stop", price: position.stop };
+  if (toucheTarget) return { hit: "target", price: position.target };
+  return null;
 }
 
 // ══════════════════════════════════════════════════════════════════════════

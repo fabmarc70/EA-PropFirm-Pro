@@ -10,7 +10,7 @@ import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedDa
 import { runInvestmentProjection, aggregateByYear, compareStrategies as compareInvestmentStrategies } from "./investmentEngine.js";
 import { runPropFirmProjection, aggregateProjectionByYear, truthFromSimulator, truthFromJournal, buildScenarios, SCENARIO_PRESETS, simulatorReplay } from "./projectionEngine.js";
 import { compareAllModels, DEFAULT_PREFS as CMP_DEFAULT_PREFS, CRITERIA as CMP_CRITERIA, FIRM_FACTS } from "./firmCompareEngine.js";
-import { openPosition, resolvePosition, trainerStats, syntheticCandles, pickStartIndex } from "./trainerEngine.js";
+import { openPosition, resolvePosition, closeManually, floatingResult, stepCandle, trainerStats, syntheticCandles, pickStartIndex } from "./trainerEngine.js";
 import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS, listConfluenceFilters, WEEKDAYS, runWalkForward, analyzeFailure, optimizeStrategy } from "./backtestEngine.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
@@ -6216,6 +6216,36 @@ function useLiveQuotes(symbols, actif = true) {
   return { quotes, etat, fraicheur };
 }
 
+// Niveau de sortie saisi AU PRIX. Un stop se pose a un endroit du graphique,
+// pas en pourcentage : c'est ce geste-la que l'entrainement doit faire
+// travailler. Le champ se repositionne seul a chaque nouveau depart, et
+// reste modifiable a la main.
+function PrixNiveau({ label, value, onChange, couleur }) {
+  const [brut, setBrut] = useState("");
+  const [edite, setEdite] = useState(false);
+  const affiche = edite ? brut : (value ? fmtPrix(value) : "\u2014");
+  return (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 8.5, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 3, textAlign: "center", whiteSpace: "nowrap" }}>{label}</div>
+      <input
+        inputMode="decimal"
+        value={affiche}
+        onFocus={() => { setEdite(true); setBrut(value ? String(value) : ""); }}
+        onChange={(e) => setBrut(e.target.value)}
+        onBlur={() => {
+          setEdite(false);
+          const n = Number(String(brut).replace(",", "."));
+          if (isFinite(n) && n > 0) onChange(n);
+        }}
+        style={{
+          width: "100%", minWidth: 0, boxSizing: "border-box", padding: "6px 3px", borderRadius: 9,
+          background: "rgba(255,255,255,0.05)", border: `1px solid ${couleur}44`,
+          color: couleur, fontSize: 11, fontWeight: 800, textAlign: "center",
+        }} />
+    </div>
+  );
+}
+
 // Petit champ numerique compact : trois tiennent sur une ligne, la ou les
 // champs pleine largeur poussaient les boutons d'achat hors de l'ecran.
 function MiniStepper({ label, value, onChange, suffix, step, min, max }) {
@@ -6255,6 +6285,17 @@ function TrainerScreen({ onBack }) {
   const [erreur, setErreur] = useState(null);
   const [tf, setTf] = useState(60);
   const [idx, setIdx] = useState(0);
+  // Curseur de lecture : jusqu'ou les bougies sont revelees. Egal a idx tant
+  // qu'aucune position n'est ouverte, il avance ensuite bougie par bougie.
+  const [curseur, setCurseur] = useState(0);
+  const [enPause, setEnPause] = useState(false);
+  const [vitesse, setVitesse] = useState(700);     // ms par bougie
+  // Stop et objectif en PRIX, un jeu par sens : l'utilisateur les pose la ou
+  // il veut, exactement comme chez un courtier.
+  const [stopLong, setStopLong] = useState(0);
+  const [targetLong, setTargetLong] = useState(0);
+  const [stopShort, setStopShort] = useState(0);
+  const [targetShort, setTargetShort] = useState(0);
   const [position, setPosition] = useState(null);
   const [resultat, setResultat] = useState(null);
   const [risque, setRisque] = useState(1);
@@ -6361,12 +6402,14 @@ function TrainerScreen({ onBack }) {
         const agregees = aggregateCandles(brutes, tf, baseMinutes);
         if (agregees.length < VISIBLE + RESERVE + 10) throw new Error("serie trop courte");
         setSerie(agregees);
-        setIdx(pickStartIndex(agregees, VISIBLE, RESERVE));
+        const depart = pickStartIndex(agregees, VISIBLE, RESERVE);
+        setIdx(depart); setCurseur(depart);
       } catch (e) {
         if (!vivant) return;
         const c = syntheticCandles(Date.now() % 100000, 600);
         setSerie(c);
-        setIdx(pickStartIndex(c, VISIBLE, RESERVE));
+        const depart = pickStartIndex(c, VISIBLE, RESERVE);
+        setIdx(depart); setCurseur(depart);
         setErreur("Données indisponibles pour " + paire + " — série d'entraînement générée.");
       }
       if (vivant) setChargement(false);
@@ -6417,34 +6460,102 @@ function TrainerScreen({ onBack }) {
     if (!tfsDispo.some(t => t.minutes === tf)) setTf(tfsDispo[0].minutes);
   }, [tfsDispo.map(t => t.minutes).join(","), tf]);   // eslint-disable-line
 
+  // ── Deroulement en direct ────────────────────────────────────────────
+  // Le trade ne se resout plus d'un bloc : les bougies suivantes se
+  // revelent une a une et le gain flotte avec le cours, comme devant un
+  // vrai carnet. La regle de sortie reste exactement celle du moteur —
+  // verifie par un test qui compare le pas-a-pas et le bloc.
+  const fin = resultat ? resultat.exitIndex : curseur;
   const visibles = serie
-    ? serie.slice(Math.max(0, idx - VISIBLE + 1), idx + 1 + (resultat ? Math.max(0, resultat.exitIndex - idx) : 0))
+    ? serie.slice(Math.max(0, idx - VISIBLE + 1), Math.max(idx, fin) + 1)
     : [];
-  const prixMid = serie && serie[idx] ? serie[idx][4] : null;
+  // Cours courant : celui de la derniere bougie revelee pendant le trade,
+  // celui de l'entree avant.
+  const bougieCourante = serie ? serie[Math.min(Math.max(idx, fin), serie.length - 1)] : null;
+  const prixMid = bougieCourante ? bougieCourante[4] : null;
+  const prixEntree = serie && serie[idx] ? serie[idx][4] : null;
   // Achat a l'offre, vente a la demande : l'ecart est reel et se paie.
-  const spread = prixMid ? prixMid * (SPREAD_PCT / 100) : 0;
-  const prixAchat = prixMid != null ? prixMid + spread / 2 : null;
-  const prixVente = prixMid != null ? prixMid - spread / 2 : null;
-  const debutReveal = resultat ? VISIBLE : null;
+  const spread = prixEntree ? prixEntree * (SPREAD_PCT / 100) : 0;
+  const prixAchat = prixEntree != null ? prixEntree + spread / 2 : null;
+  const prixVente = prixEntree != null ? prixEntree - spread / 2 : null;
+  const debutReveal = (position || resultat) ? VISIBLE : null;
 
-  const prendrePosition = (side) => {
-    if (!serie || prixMid == null || resultat) return;
-    const entree = side === "long" ? prixAchat : prixVente;
-    const p = openPosition({ side, entryPrice: entree, balance: stats.balance, riskPct: risque, stopPct, rr });
-    if (!p) return;
-    const resolu = resolvePosition(p, serie, idx + 1, MAX_BOUGIES);
-    setPosition(p);
-    setResultat(resolu);
+  const flottant = position && !resultat ? floatingResult(position, prixMid) : null;
+
+  // Niveaux proposes a l'entree, recalcules a chaque nouveau depart. Ce sont
+  // des suggestions : l'utilisateur les deplace au prix qu'il veut.
+  useEffect(() => {
+    if (prixEntree == null || position || resultat) return;
+    const d = prixEntree * (stopPct / 100);
+    setStopLong(+(prixEntree - d).toPrecision(10));
+    setTargetLong(+(prixEntree + d * rr).toPrecision(10));
+    setStopShort(+(prixEntree + d).toPrecision(10));
+    setTargetShort(+(prixEntree - d * rr).toPrecision(10));
+  }, [prixEntree, stopPct, rr, position, resultat]);   // eslint-disable-line
+
+  const cloturer = (prix, index, raison) => {
+    const r = raison === "manuel"
+      ? closeManually(position, prix, index)
+      : { ...finirLocal(position, prix, index, raison) };
+    setResultat(r);
     setSession({
       ...(session || {}), startBalance: soldeDepart,
-      trades: [...trades, { ...resolu, ts: Date.now(), source: paire + " · " + (TIMEFRAMES.find(t => t.minutes === tf)?.label || tf), tf, riskPct: risque, stopPct, rrCible: rr }],
+      trades: [...trades, {
+        ...r, ts: Date.now(),
+        source: paire + " · " + (TIMEFRAMES.find(t => t.minutes === tf)?.label || tf),
+        tf, riskPct: risque, stopPrice: position.stop, targetPrice: position.target, rrCible: position.rr,
+      }],
     });
+  };
+
+  // Cloture non manuelle : meme calcul que le moteur, applique au niveau
+  // touche. closeManually fait exactement cela, le libelle pres.
+  const finirLocal = (p, prix, index, raison) => ({ ...closeManually(p, prix, index), reason: raison });
+
+  // Avancee d'une bougie. Separee du minuteur pour que le bouton "Avancer"
+  // et la lecture automatique partagent la meme logique.
+  const avancerUneBougie = () => {
+    if (!serie || !position || resultat) return;
+    const suivant = curseur + 1;
+    const c = serie[suivant];
+    if (!c || suivant - idx > MAX_BOUGIES) {
+      cloturer(serie[Math.min(curseur, serie.length - 1)][4], curseur, "temps");
+      return;
+    }
+    setCurseur(suivant);
+    const touche = stepCandle(position, c);
+    if (touche) cloturer(touche.price, suivant, touche.hit);
+  };
+
+  // Lecture automatique pendant qu'une position est ouverte.
+  useEffect(() => {
+    if (!position || resultat || enPause) return;
+    const t = setInterval(() => avancerUneBougie(), vitesse);
+    return () => clearInterval(t);
+  }, [position, resultat, enPause, vitesse, curseur]);   // eslint-disable-line
+
+  const prendrePosition = (side) => {
+    if (!serie || prixEntree == null || resultat || position) return;
+    const entree = side === "long" ? prixAchat : prixVente;
+    const p = openPosition({
+      side, entryPrice: entree, balance: stats.balance, riskPct: risque,
+      stopPrice: side === "long" ? stopLong : stopShort,
+      targetPrice: side === "long" ? targetLong : targetShort,
+    });
+    // Niveaux incoherents (stop du mauvais cote) : on le dit plutot que de
+    // ne rien faire, un bouton muet passe pour une panne.
+    if (!p) { setErreur("Stop ou objectif du mauvais côté du prix d'entrée."); return; }
+    setErreur(null);
+    setPosition({ ...p, openIndex: idx });
+    setCurseur(idx);
+    setEnPause(false);
   };
 
   const passer = () => {
     if (!serie) return;
-    setPosition(null); setResultat(null);
-    setIdx(pickStartIndex(serie, VISIBLE, RESERVE));
+    setPosition(null); setResultat(null); setEnPause(false);
+    const n = pickStartIndex(serie, VISIBLE, RESERVE);
+    setIdx(n); setCurseur(n);
   };
 
   const raisonTexte = (r) => r === "target" ? "Objectif atteint"
@@ -6575,14 +6686,79 @@ function TrainerScreen({ onBack }) {
           ))}
         </div>
 
-        {!resultat ? (
+        {position && !resultat ? (
+          /* ── POSITION OUVERTE : le trade se deroule sous les yeux ────── */
+          <div className="card" style={{ marginBottom: 10, padding: 12,
+            border: `1px solid ${(flottant?.pnl ?? 0) >= 0 ? TRAIN_ACCENT + "55" : "rgba(239,68,68,0.45)"}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <span style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", color: "rgba(255,255,255,0.45)" }}>
+                {position.side === "long" ? "Achat" : "Vente"} en cours · {fmtPrix(position.entryPrice)}
+              </span>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>
+                {curseur - idx} / {MAX_BOUGIES} bougies
+              </span>
+            </div>
+            <div style={{ fontSize: 30, fontWeight: 900, lineHeight: 1.1, marginTop: 3,
+              color: (flottant?.pnl ?? 0) >= 0 ? TRAIN_ACCENT : "#ef4444" }}>
+              {(flottant?.pnl ?? 0) >= 0 ? "+" : ""}{fmt2(flottant?.pnl ?? 0)}
+            </div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 1 }}>
+              {(flottant?.rMultiple ?? 0) >= 0 ? "+" : ""}{flottant?.rMultiple ?? 0}R ·
+              {" "}Stop {fmtPrix(position.stop)} · Objectif {fmtPrix(position.target)}
+            </div>
+
+            <div style={{ display: "flex", gap: 7, marginTop: 11 }}>
+              <button onClick={() => setEnPause(v => !v)}
+                style={{ flex: "0 0 auto", padding: "11px 14px", borderRadius: 11, cursor: "pointer",
+                  background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+                  color: "#fff", fontSize: 12.5, fontWeight: 700 }}>
+                {enPause ? "Reprendre" : "Pause"}
+              </button>
+              <button onClick={avancerUneBougie}
+                style={{ flex: "0 0 auto", padding: "11px 14px", borderRadius: 11, cursor: "pointer",
+                  background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+                  color: "#fff", fontSize: 12.5, fontWeight: 700 }}>
+                Avancer
+              </button>
+              <button onClick={() => cloturer(prixMid, curseur, "manuel")}
+                style={{ flex: 1, minWidth: 0, padding: "11px 10px", borderRadius: 11, cursor: "pointer",
+                  background: TRAIN_ACCENT, border: "none", color: "#000", fontSize: 13, fontWeight: 800 }}>
+                Clôturer maintenant
+              </button>
+            </div>
+
+            {/* Vitesse de deroulement : certains veulent voir vivre le trade,
+                d'autres enchainer les repetitions. */}
+            <div style={{ display: "flex", gap: 5, marginTop: 9, alignItems: "center" }}>
+              <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5 }}>Vitesse</span>
+              {[[1400, "Lent"], [700, "Normal"], [250, "Rapide"], [60, "Éclair"]].map(([v, l]) => (
+                <button key={v} onClick={() => setVitesse(v)}
+                  style={{ flex: 1, padding: "5px 2px", borderRadius: 7, cursor: "pointer", fontSize: 10.5, fontWeight: 700,
+                    border: vitesse === v ? `1px solid ${TRAIN_ACCENT}73` : "1px solid rgba(255,255,255,0.1)",
+                    background: vitesse === v ? "rgba(110,231,183,0.14)" : "rgba(255,255,255,0.04)",
+                    color: vitesse === v ? TRAIN_ACCENT : "rgba(255,255,255,0.55)" }}>{l}</button>
+              ))}
+            </div>
+          </div>
+
+        ) : !resultat ? (
           <>
-            {/* Reglages sur UNE ligne */}
+            {/* Risque, puis stop et objectif AU PRIX, un jeu par sens. */}
             <div style={{ display: "flex", gap: 10, marginBottom: 8 }}>
               <MiniStepper label="Risque" value={risque} onChange={setRisque} suffix=" %" step={0.5} min={0.1} max={10} />
-              <MiniStepper label="Stop" value={stopPct} onChange={setStopPct} suffix=" %" step={0.1} min={0.1} max={10} />
-              <MiniStepper label="Objectif" value={rr} onChange={setRr} suffix=" R" step={0.5} min={0.5} max={10} />
+              <MiniStepper label="Stop auto" value={stopPct} onChange={setStopPct} suffix=" %" step={0.1} min={0.1} max={10} />
+              <MiniStepper label="Objectif auto" value={rr} onChange={setRr} suffix=" R" step={0.5} min={0.5} max={10} />
             </div>
+
+            {/* Les quatre niveaux sur UNE ligne : deux lignes faisaient
+                deborder l'ecran de 28 px, mesure faite. */}
+            <div style={{ display: "flex", gap: 5, marginBottom: 8 }}>
+              <PrixNiveau label="SL vente" value={stopShort} onChange={setStopShort} couleur="#ef4444" />
+              <PrixNiveau label="TP vente" value={targetShort} onChange={setTargetShort} couleur={TRAIN_ACCENT} />
+              <PrixNiveau label="SL achat" value={stopLong} onChange={setStopLong} couleur="#ef4444" />
+              <PrixNiveau label="TP achat" value={targetLong} onChange={setTargetLong} couleur={TRAIN_ACCENT} />
+            </div>
+
             <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)", textAlign: "center", marginBottom: 8 }}>
               {fmt2(enJeu)} en jeu · {fmt2(enJeu * rr)} si l'objectif est touché
             </div>
@@ -6673,7 +6849,13 @@ function TrainerScreen({ onBack }) {
                 <Tooltip contentStyle={{ background: "rgba(14,18,24,0.96)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, fontSize: 11 }}
                   labelFormatter={(i) => i === 0 ? "Départ" : "Trade " + i} formatter={(v) => [fmt(v), "Solde"]} />
                 <ReferenceLine y={soldeDepart} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" />
-                <Area type="monotone" dataKey="v" stroke={TRAIN_ACCENT} strokeWidth={2} fill="url(#trainGrad)" dot={false} />
+                {/* Trace LINEAIRE, et non lisse : entre deux trades le solde ne glisse
+                    pas, il saute a la cloture. Un lissage arrondit les angles et
+                    fait passer la courbe par des montants que le compte n'a
+                    jamais valus. Les points marquent les cloture reelles. */}
+                <Area type="linear" dataKey="v" stroke={TRAIN_ACCENT} strokeWidth={2} fill="url(#trainGrad)"
+                  dot={{ r: 2.5, fill: TRAIN_ACCENT, stroke: "none" }}
+                  activeDot={{ r: 4 }} isAnimationActive={false} />
               </AreaChart>
             </ResponsiveContainer>
 

@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import {
   openPosition, resolvePosition, closeManually, trainerStats,
-  syntheticCandles, pickStartIndex,
+  syntheticCandles, pickStartIndex, floatingResult, stepCandle,
 } from "./trainerEngine.js";
 
 let passed = 0, failed = 0;
@@ -47,6 +47,85 @@ test("entrees invalides : aucune position, pas de NaN", () => {
   assert.equal(openPosition({ side: "long", entryPrice: 0, balance: 10000, riskPct: 1, stopPct: 1 }), null);
   assert.equal(openPosition({ side: "long", entryPrice: 100, balance: 10000, riskPct: 0, stopPct: 1 }), null);
   assert.equal(openPosition({ side: "long", entryPrice: 100, balance: 10000, riskPct: 1, stopPct: 0 }), null);
+});
+
+console.log("\n── Stop et objectif places au PRIX ──");
+
+test("niveaux au prix : la taille suit la distance reelle", () => {
+  const p = openPosition({ side: "long", entryPrice: 100, balance: 10000, riskPct: 1, stopPrice: 98, targetPrice: 106 });
+  near(p.stop, 98);
+  near(p.target, 106);
+  near(p.riskAmount, 100);
+  near(p.quantity * (p.entryPrice - p.stop), 100);   // risque respecte
+  near(p.rr, 3);                                     // 6 de gain pour 2 de risque
+});
+
+test("vente : stop au-dessus, objectif en dessous", () => {
+  const p = openPosition({ side: "short", entryPrice: 100, balance: 10000, riskPct: 1, stopPrice: 102, targetPrice: 95 });
+  near(p.stop, 102);
+  near(p.rr, 2.5);
+});
+
+test("stop du mauvais cote : position refusee, jamais ouverte", () => {
+  assert.equal(openPosition({ side: "long", entryPrice: 100, balance: 10000, riskPct: 1, stopPrice: 101 }), null);
+  assert.equal(openPosition({ side: "short", entryPrice: 100, balance: 10000, riskPct: 1, stopPrice: 99 }), null);
+});
+
+test("objectif du mauvais cote : refuse aussi", () => {
+  assert.equal(openPosition({ side: "long", entryPrice: 100, balance: 10000, riskPct: 1, stopPrice: 98, targetPrice: 97 }), null);
+});
+
+test("objectif omis : le rapport demande s'applique", () => {
+  const p = openPosition({ side: "long", entryPrice: 100, balance: 10000, riskPct: 1, stopPrice: 98, rr: 2 });
+  near(p.target, 104);
+});
+
+test("un stop plus loin reduit la taille, pas le risque", () => {
+  const a = openPosition({ side: "long", entryPrice: 100, balance: 10000, riskPct: 1, stopPrice: 99 });
+  const b = openPosition({ side: "long", entryPrice: 100, balance: 10000, riskPct: 1, stopPrice: 95 });
+  assert.ok(b.quantity < a.quantity);
+  near(a.riskAmount, b.riskAmount);
+});
+
+console.log("\n── Deroulement bougie par bougie ──");
+
+const P_DIRECT = openPosition({ side: "long", entryPrice: 100, balance: 10000, riskPct: 1, stopPct: 1, rr: 2 });
+
+test("resultat flottant : le gain suit le cours affiche", () => {
+  near(floatingResult(P_DIRECT, 101).pnl, 100);
+  near(floatingResult(P_DIRECT, 101).rMultiple, 1);
+  near(floatingResult(P_DIRECT, 99.5).pnl, -50);
+  near(floatingResult(P_DIRECT, 100).pnl, 0);
+});
+
+test("une bougie neutre ne declenche rien", () => {
+  assert.equal(stepCandle(P_DIRECT, bougie(100, 100.4, 99.6, 100.1)), null);
+});
+
+test("une bougie qui touche l'objectif le signale", () => {
+  assert.equal(stepCandle(P_DIRECT, bougie(100, 102.5, 99.8, 102)).hit, "target");
+});
+
+test("une bougie qui touche le stop le signale", () => {
+  assert.equal(stepCandle(P_DIRECT, bougie(100, 100.2, 98.5, 99)).hit, "stop");
+});
+
+test("bougie par bougie et resolution d'un bloc disent la MEME chose", () => {
+  // Le deroulement en direct ne doit pas changer le resultat : sinon
+  // l'entrainement mentirait des que l'utilisateur regarde le trade vivre.
+  const serie = [
+    bougie(100, 100.4, 99.6, 100.1), bougie(100.1, 100.6, 99.7, 100.3),
+    bougie(100.3, 101.2, 100.1, 101), bougie(101, 102.4, 100.8, 102.2),
+  ];
+  const bloc = resolvePosition(P_DIRECT, serie, 0);
+  let pasApas = null, ou = -1;
+  for (let i = 0; i < serie.length; i++) {
+    const r = stepCandle(P_DIRECT, serie[i]);
+    if (r) { pasApas = r; ou = i; break; }
+  }
+  assert.equal(pasApas.hit, bloc.reason);
+  near(pasApas.price, bloc.exitPrice);
+  assert.equal(ou, bloc.exitIndex);
 });
 
 console.log("\n── Resolution sur les bougies suivantes ──");
