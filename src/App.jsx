@@ -10,6 +10,7 @@ import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedDa
 import { runInvestmentProjection, aggregateByYear, compareStrategies as compareInvestmentStrategies } from "./investmentEngine.js";
 import { runPropFirmProjection, aggregateProjectionByYear, truthFromSimulator, truthFromJournal, buildScenarios, SCENARIO_PRESETS, simulatorReplay } from "./projectionEngine.js";
 import { compareAllModels, DEFAULT_PREFS as CMP_DEFAULT_PREFS, CRITERIA as CMP_CRITERIA, FIRM_FACTS } from "./firmCompareEngine.js";
+import FullChart from "./FullChart.jsx";
 import { openPosition, resolvePosition, closeManually, floatingResult, stepCandle, trainerStats, syntheticCandles, pickStartIndex } from "./trainerEngine.js";
 import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS, listConfluenceFilters, WEEKDAYS, runWalkForward, analyzeFailure, optimizeStrategy } from "./backtestEngine.js";
 import {
@@ -6345,6 +6346,7 @@ function TrainerScreen({ onBack }) {
   const [largeur, setLargeur] = useState(360);
   const [ouvrirPaires, setOuvrirPaires] = useState(false);
   const [ouvrirSolde, setOuvrirSolde] = useState(false);
+  const [pleinEcran, setPleinEcran] = useState(false);
   const [soldeSaisi, setSoldeSaisi] = useState("");
   const [veille, setVeille] = useState({});          // pair -> {closes, last, varPct}
   const boite = useRef(null);
@@ -6363,6 +6365,14 @@ function TrainerScreen({ onBack }) {
   const stats = trainerStats(trades, soldeDepart);
   const DEFAUT_VEILLE = ["XAUUSD", "NAS100", "US30", "EURUSD", "GBPUSD"];
   const watch = (session && session.watch) || DEFAUT_VEILLE;
+
+  // Traces d'analyse, conserves PAR PAIRE : un niveau repere sur l'or n'a
+  // rien a faire sur le Nasdaq.
+  const dessins = ((session && session.draws) || {})[paire] || [];
+  const setDessins = (liste) => setSession({
+    ...(session || {}),
+    draws: { ...((session && session.draws) || {}), [paire]: liste },
+  });
 
   // Cotations reelles des actifs surveilles, rafraichies chaque minute.
   const { quotes: direct, etat: etatDirect, fraicheur: fraicheurDirect } = useLiveQuotes(watch);
@@ -6712,9 +6722,22 @@ function TrainerScreen({ onBack }) {
             </div>
           ) : (
             <>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-                <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)" }}>
-                  {paire} · {TIMEFRAMES.find(t => t.minutes === tf)?.label || tf}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, gap: 8 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                  {/* Agrandir : analyser serieusement demande de la place,
+                      du zoom et des traits. */}
+                  <button onClick={() => setPleinEcran(true)} aria-label="Agrandir le graphique"
+                    style={{ width: 26, height: 26, flexShrink: 0, borderRadius: 8, cursor: "pointer", padding: 0,
+                      background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+                      display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                      <path d="M4 10V4h6M20 14v6h-6M4 4l6 6M20 20l-6-6"
+                        stroke={TRAIN_ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                  <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap" }}>
+                    {paire} · {TIMEFRAMES.find(t => t.minutes === tf)?.label || tf}
+                  </span>
                 </span>
                 <span style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{fmtPrix(prixMid)}</span>
               </div>
@@ -6956,6 +6979,20 @@ function TrainerScreen({ onBack }) {
           Quand une bougie touche le stop et l'objectif, le stop est retenu.
         </div>
       </div>
+
+      {pleinEcran && (
+        <FullChart
+          /* Tout le passe revele, pas seulement les 70 bougies de l'apercu :
+             analyser demande du recul. L'avenir, lui, reste cache — c'est
+             tout l'exercice. */
+          candles={serie ? serie.slice(0, Math.max(idx, fin) + 1) : []}
+          paire={paire}
+          tfLabel={TIMEFRAMES.find(t => t.minutes === tf)?.label || String(tf)}
+          position={position} resultat={resultat}
+          dessins={dessins} onDessins={setDessins}
+          fmtPrix={fmtPrix}
+          onClose={() => setPleinEcran(false)} />
+      )}
 
       {/* Choix du solde d'entrainement */}
       {ouvrirSolde && (
