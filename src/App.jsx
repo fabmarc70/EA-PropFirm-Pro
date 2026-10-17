@@ -6527,7 +6527,16 @@ function TrainerScreen({ onBack }) {
         setCurseur(candles.length - 1);
         // Hors position, l'entree suit le dernier cours. En position, idx
         // reste fige sur la bougie d'entree : c'est la reference du trade.
-        setIdx(i => (positionRef.current ? i : candles.length - 1));
+        // En position, idx est RECALCULE depuis l'horodatage d'entree : le
+        // garder tel quel le faisait pointer sur une autre bougie des que
+        // la fenetre glissait, et le trade n'etait plus jamais evalue.
+        const pos = positionRef.current;
+        if (pos && pos.openTs != null) {
+          const j = indexAuTemps(candles, pos.openTs);
+          setIdx(j >= 0 ? j : candles.length - 1);
+        } else {
+          setIdx(candles.length - 1);
+        }
         if (premiere) { premiere = false; setChargement(false); }
       } catch (e) {
         if (!vivant) return;
@@ -6696,7 +6705,24 @@ function TrainerScreen({ onBack }) {
   // bas bougent — il faut donc la reexaminer a chaque passage.
   useEffect(() => {
     if (mode !== "direct" || !position || resultat || !serie) return;
-    for (let i = idx + 1; i < serie.length; i++) {
+    // On repart de l'horodatage d'entree, strictement apres la bougie
+    // d'entree : son creux d'avant notre entree ne nous concerne pas.
+    const iEntree = position.openTs != null ? indexAuTemps(serie, position.openTs) : idx;
+
+    // 1. La bougie d'ENTREE, encore en formation. On ne retient que ce qui
+    //    depasse ses bornes d'alors : son creux d'avant notre entree ne
+    //    nous concerne pas, celui d'apres si. Sans cela, un objectif touche
+    //    dans la minute meme de l'entree etait ignore jusqu'a la suivante.
+    const e = serie[iEntree];
+    if (e) {
+      const hautApres = (position.hautAEntree != null && e[2] > position.hautAEntree) ? e[2] : position.entryPrice;
+      const basApres = (position.basAEntree != null && e[3] < position.basAEntree) ? e[3] : position.entryPrice;
+      const touche = stepCandle(position, [e[0], position.entryPrice, hautApres, basApres, e[4]]);
+      if (touche) { cloturer(touche.price, iEntree, touche.hit); return; }
+    }
+
+    // 2. Toutes les bougies apparues depuis.
+    for (let i = Math.max(1, iEntree + 1); i < serie.length; i++) {
       const touche = stepCandle(position, serie[i]);
       if (touche) { cloturer(touche.price, i, touche.hit); return; }
     }
@@ -6716,7 +6742,19 @@ function TrainerScreen({ onBack }) {
     if (!p) { setErreur("Niveaux inutilisables pour ce sens."); return; }
     setErreur(null);
     if (!n.dejaBon) { setStopPrix(n.stop); setTargetPrix(n.target); }
-    setPosition({ ...p, openIndex: idx });
+    // openTs, et pas seulement openIndex : en direct la source renvoie
+    // toujours les N dernieres bougies, donc l'INDEX d'entree glisse a
+    // chaque rafraichissement. Seul l'horodatage est stable.
+    const bougieEntree = serie[curseur];
+    setPosition({
+      ...p, openIndex: idx,
+      openTs: bougieEntree ? bougieEntree[0] : null,
+      // Haut et bas de la bougie d'entree AU MOMENT de l'entree. En direct
+      // cette bougie est encore en formation : tout ce qui depassera ces
+      // bornes ensuite s'est produit APRES notre entree, et nous concerne.
+      hautAEntree: bougieEntree ? bougieEntree[2] : null,
+      basAEntree: bougieEntree ? bougieEntree[3] : null,
+    });
     setCurseur(idx);
     setEnPause(false);
   };
