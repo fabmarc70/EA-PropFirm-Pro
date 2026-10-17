@@ -12,6 +12,7 @@ import { runPropFirmProjection, aggregateProjectionByYear, truthFromSimulator, t
 import { compareAllModels, DEFAULT_PREFS as CMP_DEFAULT_PREFS, CRITERIA as CMP_CRITERIA, FIRM_FACTS } from "./firmCompareEngine.js";
 import FullChart from "./FullChart.jsx";
 import { marketState, marketSummary } from "./marketHours.js";
+import { choisirFenetre, indexAuTemps, indexJouable } from "./replayWindow.js";
 import { openPosition, resolvePosition, closeManually, floatingResult, stepCandle, levelsForSide, trainerStats, syntheticCandles, pickStartIndex } from "./trainerEngine.js";
 import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS, listConfluenceFilters, WEEKDAYS, runWalkForward, analyzeFailure, optimizeStrategy } from "./backtestEngine.js";
 import {
@@ -6089,21 +6090,30 @@ const JOURS_FENETRE = { 1: 7, 5: 24, 15: 60, 60: 250, 240: 900, 1440: 2200 };
 // c'est aussi ce qu'on peut travailler le week-end.
 const CRYPTO = ["BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD"];
 
-async function chargerSerieCourte(paire, tfMinutes) {
+async function chargerSerieCourte(paire, tfMinutes, cibleTs = null) {
   const symbole = tdSymbolFor(paire);
   const interval = MINUTES_VERS_TD[tfMinutes];
   if (!symbole) throw new Error("Cette source ne couvre pas " + paire + ".");
   if (!interval) throw new Error("intervalle non gere");
 
-  const cle = "TD|" + paire + "|" + interval;
+  // La cle inclut le mois vise : changer d'unite en gardant le meme moment
+  // ne doit pas resservir une fenetre d'une autre epoque.
+  const ancre = cibleTs != null ? new Date(cibleTs).toISOString().slice(0, 7) : "auto";
+  const cle = "TD|" + paire + "|" + interval + "|" + ancre;
   if (TRAIN_CACHE.has(cle)) return TRAIN_CACHE.get(cle);
 
   // Fenetre passee tiree au sort, assez large pour le plafond de 5 000
   // bougies par appel : ~3 jours en M1, ~17 jours en M5.
   const jours = JOURS_FENETRE[tfMinutes] || 24;
-  const reculMax = 500, reculMin = 20;
-  const finJ = reculMin + Math.floor(Math.random() * (reculMax - reculMin));
-  const fin = new Date(Date.now() - finJ * 86400000);
+  // Avec une cible, la fenetre est CENTREE dessus : on retrouve le meme
+  // moment apres un changement d'unite de temps.
+  let fin;
+  if (cibleTs != null && isFinite(cibleTs)) {
+    fin = new Date(Math.min(Date.now() - 86400000, cibleTs + (jours / 2) * 86400000));
+  } else {
+    const reculMax = 500, reculMin = 20;
+    fin = new Date(Date.now() - (reculMin + Math.floor(Math.random() * (reculMax - reculMin))) * 86400000);
+  }
   const debut = new Date(fin.getTime() - jours * 86400000);
   const iso = (d) => d.toISOString().slice(0, 10);
 
@@ -6120,49 +6130,6 @@ async function chargerSerieCourte(paire, tfMinutes) {
   const out = { brutes, baseMinutes: tfMinutes };
   TRAIN_CACHE.set(cle, out);
   return out;
-}
-
-// ── Choix de la fenetre de donnees ───────────────────────────────────
-// Combien de bougies de l'unite demandee un mois peut fournir. Zero quand
-// la source est plus grossiere que l'unite voulue : on ne fabrique pas du
-// M5 a partir de bougies M15.
-function rendementMois(a, tf) {
-  const base = a.baseMinutes || 1;
-  if (base > tf) return 0;
-  return Math.floor((a.count || 0) / Math.max(1, Math.round(tf / base)));
-}
-
-// Mois calendaire suivant ("2020-12" -> "2021-01"). Sert a n'enchainer que
-// des mois reellement contigus : coller deux mois separes par un trou
-// fabriquerait une bougie qui n'a jamais existe.
-function moisSuivant(p) {
-  const m = /^(\d{4})-(\d{2})$/.exec(String(p || ""));
-  if (!m) return null;
-  const an = +m[1], mo = +m[2];
-  return mo === 12 ? (an + 1) + "-01" : an + "-" + String(mo + 1).padStart(2, "0");
-}
-
-// Fenetre de mois CONTIGUS, de meme granularite, totalisant assez de
-// bougies. Un seul mois suffit en M15 ; en H4 ou en journalier il en faut
-// plusieurs — sans cela ces unites de temps disparaissaient de l'ecran.
-function choisirFenetre(catalogue, paire, tf, besoin, rng = Math.random) {
-  const mois = catalogue
-    .filter(a => a.pair === paire && rendementMois(a, tf) > 0)
-    .sort((a, b) => String(a.period).localeCompare(String(b.period)));
-
-  const fenetres = [];
-  for (let i = 0; i < mois.length; i++) {
-    const base = mois[i].baseMinutes || 1;
-    let total = 0, j = i;
-    while (j < mois.length && total < besoin && j - i < 10) {
-      if ((mois[j].baseMinutes || 1) !== base) break;
-      if (j > i && mois[j].period !== moisSuivant(mois[j - 1].period)) break;
-      total += rendementMois(mois[j], tf);
-      j++;
-    }
-    if (total >= besoin) fenetres.push(mois.slice(i, j));
-  }
-  return fenetres.length ? fenetres[Math.floor(rng() * fenetres.length)] : null;
 }
 
 // Charge et recolle une fenetre de mois en une seule serie, horodatages
@@ -6343,6 +6310,10 @@ function TrainerScreen({ onBack }) {
   const [vitesse, setVitesse] = useState(700);     // ms par bougie
   // Stop et objectif en PRIX, un jeu par sens : l'utilisateur les pose la ou
   // il veut, exactement comme chez un courtier.
+  // Horodatage du moment en cours de rejeu. C'est LUI qu'on garde quand on
+  // change d'unite de temps — l'index ne veut rien dire d'une unite a
+  // l'autre.
+  const ancreTs = useRef(null);
   const [stopPrix, setStopPrix] = useState(0);
   const [targetPrix, setTargetPrix] = useState(0);
   // Ecart de stop (en % du prix) et rapport objectif/risque retenus du
@@ -6466,6 +6437,7 @@ function TrainerScreen({ onBack }) {
     let vivant = true;
     (async () => {
       setChargement(true); setErreur(null); setPosition(null); setResultat(null);
+      const cible = ancreTs.current;
       try {
         // Tous les mois ne conviennent pas : certains jeux sont JOURNALIERS
         // (une vingtaine de bougies pour le mois) et d'autres plus epais que
@@ -6476,9 +6448,10 @@ function TrainerScreen({ onBack }) {
         if (MINUTES_VERS_TD[tf] && (horsDepot(paire) || tf < 15)) {
           // M1 et M5 : le depot est en M15, ces unites viennent de la source
           // serveur. Un echec remonte sa vraie raison, pas un message vague.
-          ({ brutes, baseMinutes } = await chargerSerieCourte(paire, tf));
+          ({ brutes, baseMinutes } = await chargerSerieCourte(paire, tf, cible));
         } else {
-          const fenetre = choisirFenetre(catalogue, paire, tf, BESOIN);
+          // La cible garde le MEME MOMENT quand on change d'unite de temps.
+          const fenetre = choisirFenetre(catalogue, paire, tf, BESOIN, Math.random, cible);
           if (!fenetre) throw new Error("aucune serie assez longue pour cette unite de temps");
           ({ brutes, baseMinutes } = await chargerFenetre(fenetre));
         }
@@ -6486,7 +6459,11 @@ function TrainerScreen({ onBack }) {
         const agregees = aggregateCandles(brutes, tf, baseMinutes);
         if (agregees.length < VISIBLE + RESERVE + 10) throw new Error("serie trop courte");
         setSerie(agregees);
-        const depart = pickStartIndex(agregees, VISIBLE, RESERVE);
+        // Meme moment si on en avait un, sinon un depart tire au sort.
+        let depart = -1;
+        if (cible != null) depart = indexJouable(agregees, indexAuTemps(agregees, cible), VISIBLE, RESERVE);
+        if (depart < 0) depart = pickStartIndex(agregees, VISIBLE, RESERVE);
+        ancreTs.current = agregees[depart] ? agregees[depart][0] : null;
         setIdx(depart); setCurseur(depart);
       } catch (e) {
         if (!vivant) return;
@@ -6660,11 +6637,33 @@ function TrainerScreen({ onBack }) {
     setEnPause(false);
   };
 
-  const passer = () => {
+  // Apres une cloture, le rejeu CONTINUE au meme endroit. Il sautait a un
+  // instant tire au sort : on changeait d'epoque a chaque trade, et plus
+  // rien ne s'enchainait.
+  const continuer = () => {
     if (!serie) return;
-    setPosition(null); setResultat(null); setEnPause(false);
+    setPosition(null); setResultat(null); setEnPause(true);
+    setIdx(curseur);
+    ancreTs.current = serie[curseur] ? serie[curseur][0] : ancreTs.current;
+  };
+
+  // Changer d'epoque devient un geste VOLONTAIRE.
+  const nouvelleSerie = () => {
+    if (!serie) return;
+    setPosition(null); setResultat(null); setEnPause(true);
     const n = pickStartIndex(serie, VISIBLE, RESERVE);
     setIdx(n); setCurseur(n);
+    ancreTs.current = serie[n] ? serie[n][0] : null;
+  };
+
+  // Navigation libre tant qu'aucune position n'est ouverte. Reculer pendant
+  // un trade reviendrait a relire le futur deja connu : on l'interdit.
+  const deplacerCurseur = (delta) => {
+    if (!serie || position) return;
+    const n = indexJouable(serie, curseur + delta, VISIBLE, RESERVE);
+    if (n < 0) return;
+    setCurseur(n); setIdx(n);
+    ancreTs.current = serie[n] ? serie[n][0] : null;
   };
 
   const raisonTexte = (r) => r === "target" ? "Objectif atteint"
@@ -6821,15 +6820,44 @@ function TrainerScreen({ onBack }) {
         {/* Unites de temps — compactes */}
         <div style={{ display: "flex", gap: 3, marginBottom: 9 }}>
           {(tfsDispo.length ? tfsDispo : TIMEFRAMES.filter(t => t.minutes >= 5)).map(t => (
-            <button key={t.key} onClick={() => setTf(t.minutes)}
+            <button key={t.key} disabled={!!position}
+              onClick={() => { if (position) return; setTf(t.minutes); }}
               style={{
                 flex: 1, minWidth: 0, padding: "6px 1px", borderRadius: 8, cursor: "pointer", fontSize: 10.5, fontWeight: 800,
                 border: tf === t.minutes ? `1px solid ${TRAIN_ACCENT}73` : "1px solid rgba(255,255,255,0.1)",
                 background: tf === t.minutes ? "rgba(110,231,183,0.15)" : "rgba(255,255,255,0.04)",
                 color: tf === t.minutes ? TRAIN_ACCENT : "rgba(255,255,255,0.6)",
+                // Changer d'unite pendant un trade le faisait disparaitre
+                // sans l'enregistrer. On l'empeche, et ça se voit.
+                opacity: position ? 0.35 : 1,
               }}>{t.label}</button>
           ))}
         </div>
+
+        {/* Navigation du rejeu : reculer, avancer, lire. Elle manquait
+            entierement — le curseur ne savait qu'avancer, et il etait
+            impossible de revenir voir ce qui venait de se passer. */}
+        {!position && !resultat && serie && (
+          <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>
+            {[
+              { l: "−50", d: -50 }, { l: "−10", d: -10 }, { l: "−1", d: -1 },
+              { l: "+1", d: 1 }, { l: "+10", d: 10 }, { l: "+50", d: 50 },
+            ].map(b => (
+              <button key={b.l} onClick={() => deplacerCurseur(b.d)}
+                style={{ flex: 1, minWidth: 0, padding: "7px 1px", borderRadius: 8, cursor: "pointer",
+                  fontSize: 11, fontWeight: 800, background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)" }}>
+                {b.l}
+              </button>
+            ))}
+            <button onClick={nouvelleSerie} title="Changer d'époque"
+              style={{ flexShrink: 0, padding: "7px 9px", borderRadius: 8, cursor: "pointer",
+                fontSize: 11, fontWeight: 800, background: "rgba(110,231,183,0.12)",
+                border: `1px solid ${TRAIN_ACCENT}55`, color: TRAIN_ACCENT }}>
+              Ailleurs
+            </button>
+          </div>
+        )}
 
         {position && !resultat ? (
           /* ── POSITION OUVERTE : le trade se deroule sous les yeux ────── */
@@ -6933,7 +6961,7 @@ function TrainerScreen({ onBack }) {
                 </svg>
               </button>
             </div>
-            <button onClick={passer} disabled={chargement}
+            <button onClick={continuer} disabled={chargement}
               style={{ width: "100%", padding: 9, borderRadius: 11, background: "none", border: "none",
                 color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>
               Je reste dehors
@@ -6948,7 +6976,7 @@ function TrainerScreen({ onBack }) {
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>
               {resultat.rMultiple >= 0 ? "+" : ""}{resultat.rMultiple}R · {resultat.side === "long" ? "Achat" : "Vente"} à {fmtPrix(resultat.entryPrice)} → {fmtPrix(resultat.exitPrice)}
             </div>
-            <button onClick={passer}
+            <button onClick={continuer}
               style={{ width: "100%", marginTop: 11, padding: 13, borderRadius: 12, background: TRAIN_ACCENT, border: "none", color: "#000", fontSize: 13.5, fontWeight: 800, cursor: "pointer" }}>
               Trade suivant
             </button>
