@@ -6071,6 +6071,61 @@ async function chargerSerie(asset) {
   return out;
 }
 
+// ── Choix de la fenetre de donnees ───────────────────────────────────
+// Combien de bougies de l'unite demandee un mois peut fournir. Zero quand
+// la source est plus grossiere que l'unite voulue : on ne fabrique pas du
+// M5 a partir de bougies M15.
+function rendementMois(a, tf) {
+  const base = a.baseMinutes || 1;
+  if (base > tf) return 0;
+  return Math.floor((a.count || 0) / Math.max(1, Math.round(tf / base)));
+}
+
+// Mois calendaire suivant ("2020-12" -> "2021-01"). Sert a n'enchainer que
+// des mois reellement contigus : coller deux mois separes par un trou
+// fabriquerait une bougie qui n'a jamais existe.
+function moisSuivant(p) {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(p || ""));
+  if (!m) return null;
+  const an = +m[1], mo = +m[2];
+  return mo === 12 ? (an + 1) + "-01" : an + "-" + String(mo + 1).padStart(2, "0");
+}
+
+// Fenetre de mois CONTIGUS, de meme granularite, totalisant assez de
+// bougies. Un seul mois suffit en M15 ; en H4 ou en journalier il en faut
+// plusieurs — sans cela ces unites de temps disparaissaient de l'ecran.
+function choisirFenetre(catalogue, paire, tf, besoin, rng = Math.random) {
+  const mois = catalogue
+    .filter(a => a.pair === paire && rendementMois(a, tf) > 0)
+    .sort((a, b) => String(a.period).localeCompare(String(b.period)));
+
+  const fenetres = [];
+  for (let i = 0; i < mois.length; i++) {
+    const base = mois[i].baseMinutes || 1;
+    let total = 0, j = i;
+    while (j < mois.length && total < besoin && j - i < 10) {
+      if ((mois[j].baseMinutes || 1) !== base) break;
+      if (j > i && mois[j].period !== moisSuivant(mois[j - 1].period)) break;
+      total += rendementMois(mois[j], tf);
+      j++;
+    }
+    if (total >= besoin) fenetres.push(mois.slice(i, j));
+  }
+  return fenetres.length ? fenetres[Math.floor(rng() * fenetres.length)] : null;
+}
+
+// Charge et recolle une fenetre de mois en une seule serie, horodatages
+// croissants et sans doublon.
+async function chargerFenetre(fenetre) {
+  const morceaux = [];
+  for (const a of fenetre) morceaux.push(await chargerSerie(a));
+  const vues = new Set();
+  const brutes = morceaux.flatMap(m => m.brutes)
+    .sort((x, y) => x[0] - y[0])
+    .filter(c => (vues.has(c[0]) ? false : (vues.add(c[0]), true)));
+  return { brutes, baseMinutes: morceaux[0].baseMinutes };
+}
+
 // Prix formate selon l'ordre de grandeur : 4 decimales sur une paire de
 // devises, aucune sur un indice a cinq chiffres.
 function fmtPrix(v) {
@@ -6080,8 +6135,12 @@ function fmtPrix(v) {
   return v.toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
 }
 
-// Courbe miniature d'une vignette d'actif.
+// Courbe miniature d'une vignette d'actif, avec aplat degrade sous la
+// courbe : la meme lecture qu'un graphique de cotation, et le sens de la
+// variation se lit sans avoir a dechiffrer la courbe.
+let _sparkSeq = 0;
 function MiniSpark({ values, color, width = 92, height = 30 }) {
+  const gid = useMemo(() => "spark-" + (++_sparkSeq), []);
   if (!values || values.length < 2) return <div style={{ width, height }} />;
   const min = Math.min(...values), max = Math.max(...values);
   const span = max - min || 1;
@@ -6092,9 +6151,62 @@ function MiniSpark({ values, color, width = 92, height = 30 }) {
   }).join(" ");
   return (
     <svg width={width} height={height} style={{ display: "block" }} aria-hidden="true">
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.38" />
+          <stop offset="60%" stopColor={color} stopOpacity="0.10" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={`0,${height} ${pts} ${width},${height}`} fill={`url(#${gid})`} />
       <polyline points={pts} fill="none" stroke={color} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// COURS EN DIRECT
+// ----------------------------------------------------------------------
+// Les cotations viennent de /api/quotes (proxy serveur). Trois garanties :
+//   - l'ecran n'attend jamais le reseau : il affiche l'historique en
+//     attendant, et bascule en direct des que la reponse arrive ;
+//   - rien n'est rafraichi quand l'onglet est en arriere-plan ;
+//   - une paire sans cotation reste a null — on ne fabrique pas un cours.
+// ══════════════════════════════════════════════════════════════════════
+function useLiveQuotes(symbols, actif = true) {
+  const [quotes, setQuotes] = useState({});
+  const [etat, setEtat] = useState("attente");   // attente | direct | indisponible
+  const cle = (symbols || []).join(",");
+
+  useEffect(() => {
+    if (!actif || !cle) return;
+    let vivant = true;
+    const charger = async () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      try {
+        const r = await fetch("/api/quotes?symbols=" + encodeURIComponent(cle));
+        if (!r.ok) throw new Error("http " + r.status);
+        const d = await r.json();
+        if (!vivant) return;
+        const recus = d.quotes || {};
+        setQuotes(q => {
+          const n = { ...q };
+          Object.entries(recus).forEach(([k, v]) => { if (v) n[k] = v; });
+          return n;
+        });
+        setEtat(Object.values(recus).some(Boolean) ? "direct" : "indisponible");
+      } catch (err) {
+        if (vivant) setEtat(prec => prec === "direct" ? "direct" : "indisponible");
+      }
+    };
+    charger();
+    const t = setInterval(charger, 60000);
+    const onVis = () => { if (!document.hidden) charger(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { vivant = false; clearInterval(t); document.removeEventListener("visibilitychange", onVis); };
+  }, [cle, actif]);
+
+  return { quotes, etat };
 }
 
 // Petit champ numerique compact : trois tiennent sur une ligne, la ou les
@@ -6127,6 +6239,7 @@ function TrainerScreen({ onBack }) {
   const RESERVE = 60;        // bougies cachees gardees pour resoudre le trade
   const MAX_BOUGIES = 40;    // duree de vie maximale d'un trade
   const SPREAD_PCT = 0.02;   // ecart achat/vente, en % du prix
+  const BESOIN = VISIBLE + RESERVE + 10;   // bougies minimum pour un exercice
 
   const [catalogue, setCatalogue] = useState([]);   // tous les datasets
   const [paire, setPaire] = useState(null);
@@ -6142,20 +6255,52 @@ function TrainerScreen({ onBack }) {
   const [stopPct, setStopPct] = useState(0.6);
   const [largeur, setLargeur] = useState(360);
   const [ouvrirPaires, setOuvrirPaires] = useState(false);
+  const [ouvrirSolde, setOuvrirSolde] = useState(false);
+  const [soldeSaisi, setSoldeSaisi] = useState("");
   const [veille, setVeille] = useState({});          // pair -> {closes, last, varPct}
   const boite = useRef(null);
 
   const [session, setSession] = useCloudSyncedState("eapropfirm_trainer", "trainerSession",
-    { balance: 10000, trades: [], watch: null },
+    { startBalance: 10000, trades: [], watch: null },
     (local, cloud) => {
       const nl = (local && local.trades || []).length, nc = (cloud && cloud.trades || []).length;
       return nc > nl ? cloud : (local || cloud);
     });
 
   const trades = (session && session.trades) || [];
-  const stats = trainerStats(trades, 10000);
+  // Solde de depart choisi par l'utilisateur. On s'entraine sur le capital
+  // qu'on a vraiment, sinon les montants affiches ne parlent a personne.
+  const soldeDepart = (session && +session.startBalance) > 0 ? +session.startBalance : 10000;
+  const stats = trainerStats(trades, soldeDepart);
   const DEFAUT_VEILLE = ["XAUUSD", "NAS100", "US30", "EURUSD", "GBPUSD"];
   const watch = (session && session.watch) || DEFAUT_VEILLE;
+
+  // Cotations reelles des actifs surveilles, rafraichies chaque minute.
+  const { quotes: direct, etat: etatDirect } = useLiveQuotes(watch);
+
+  // Une vignette lit le direct quand il existe, l'historique sinon.
+  const vignette = (p) => {
+    const L = direct[p];
+    if (L && isFinite(L.price)) {
+      const courbe = L.spark && L.spark.length > 1 ? L.spark : ((veille[p] || {}).closes || []);
+      return { closes: courbe, last: L.price, varPct: isFinite(L.changePct) ? L.changePct : 0, live: true };
+    }
+    const H = veille[p];
+    return H ? { ...H, live: false } : null;
+  };
+
+  const definirSolde = (v) => {
+    const n = Math.round(Math.max(100, Math.min(10000000, +v || 0)));
+    if (!(n > 0)) return;
+    // Les trades deja pris ont ete dimensionnes sur l'ancien solde : les
+    // garder afficherait des montants faux. On le dit, et on laisse choisir.
+    if (trades.length && !confirm(
+      "Les " + trades.length + " trades déjà pris ont été dimensionnés sur un solde de "
+      + fmt(soldeDepart) + ". Changer le solde de départ les remet à zéro. Continuer ?"
+    )) return;
+    setSession({ ...(session || {}), startBalance: n, trades: trades.length ? [] : trades });
+    setOuvrirSolde(false);
+  };
 
   useEffect(() => {
     const mesure = () => { if (boite.current) setLargeur(boite.current.clientWidth); };
@@ -6189,9 +6334,14 @@ function TrainerScreen({ onBack }) {
     (async () => {
       setChargement(true); setErreur(null); setPosition(null); setResultat(null);
       try {
-        const mois = catalogue.filter(a => a.pair === paire);
-        const choix = mois[Math.floor(Math.random() * mois.length)];
-        const { brutes, baseMinutes } = await chargerSerie(choix);
+        // Tous les mois ne conviennent pas : certains jeux sont JOURNALIERS
+        // (une vingtaine de bougies pour le mois) et d'autres plus epais que
+        // l'unite de temps demandee. Les tirer au sort avec les autres faisait
+        // echouer un essai sur deux et basculait sur la serie de secours —
+        // c'est l'origine du message "Donnees indisponibles".
+        const fenetre = choisirFenetre(catalogue, paire, tf, BESOIN);
+        if (!fenetre) throw new Error("aucune serie assez longue pour cette unite de temps");
+        const { brutes, baseMinutes } = await chargerFenetre(fenetre);
         if (!vivant) return;
         const agregees = aggregateCandles(brutes, tf, baseMinutes);
         if (agregees.length < VISIBLE + RESERVE + 10) throw new Error("serie trop courte");
@@ -6240,6 +6390,18 @@ function TrainerScreen({ onBack }) {
     return () => { vivant = false; };
   }, [catalogue.length, watch.join(",")]);   // eslint-disable-line
 
+  // Unites de temps reellement servables pour la paire courante : afficher
+  // M5 quand la source est en M15 promettait un detail qui n'existe pas.
+  const tfsDispo = useMemo(
+    () => TIMEFRAMES.filter(t => t.minutes >= 5)
+      .filter(t => !!choisirFenetre(catalogue, paire, t.minutes, BESOIN, () => 0)),
+    [catalogue, paire]);   // eslint-disable-line
+
+  useEffect(() => {
+    if (!tfsDispo.length) return;
+    if (!tfsDispo.some(t => t.minutes === tf)) setTf(tfsDispo[0].minutes);
+  }, [tfsDispo.map(t => t.minutes).join(","), tf]);   // eslint-disable-line
+
   const visibles = serie
     ? serie.slice(Math.max(0, idx - VISIBLE + 1), idx + 1 + (resultat ? Math.max(0, resultat.exitIndex - idx) : 0))
     : [];
@@ -6259,7 +6421,7 @@ function TrainerScreen({ onBack }) {
     setPosition(p);
     setResultat(resolu);
     setSession({
-      ...(session || {}), balance: 10000,
+      ...(session || {}), startBalance: soldeDepart,
       trades: [...trades, { ...resolu, ts: Date.now(), source: paire + " · " + (TIMEFRAMES.find(t => t.minutes === tf)?.label || tf), tf, riskPct: risque, stopPct, rrCible: rr }],
     });
   };
@@ -6284,8 +6446,14 @@ function TrainerScreen({ onBack }) {
 
         {/* Solde et performance — la 4e tuile ouvre le choix de l'actif */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 10 }}>
+          <button onClick={() => { setSoldeSaisi(String(soldeDepart)); setOuvrirSolde(true); }}
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 11, padding: "6px 7px", minWidth: 0, cursor: "pointer", textAlign: "left" }}>
+            <div style={{ fontSize: 8.5, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.4 }}>Solde</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: stats.balance >= soldeDepart ? TRAIN_ACCENT : "#ef4444", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {fmt(stats.balance)}
+            </div>
+          </button>
           {[
-            { l: "Solde", v: fmt(stats.balance), c: stats.balance >= 10000 ? TRAIN_ACCENT : "#ef4444" },
             { l: "Trades", v: String(stats.trades), c: "#fff" },
             { l: "Winrate", v: stats.winrate == null ? "—" : stats.winrate + "%", c: "#fff" },
           ].map(k => (
@@ -6304,9 +6472,21 @@ function TrainerScreen({ onBack }) {
         </div>
 
         {/* Bande d'actifs surveilles */}
-        <div style={{ display: "flex", gap: 7, overflowX: "auto", marginBottom: 10, paddingBottom: 2, WebkitOverflowScrolling: "touch" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+          <span style={{ width: 6, height: 6, borderRadius: 4, flexShrink: 0,
+            background: etatDirect === "direct" ? TRAIN_ACCENT : "rgba(255,255,255,0.22)",
+            boxShadow: etatDirect === "direct" ? `0 0 7px ${TRAIN_ACCENT}` : "none" }} />
+          <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase",
+            color: etatDirect === "direct" ? TRAIN_ACCENT : "rgba(255,255,255,0.35)" }}>
+            {etatDirect === "direct" ? "Marché en direct" : etatDirect === "attente" ? "Connexion au marché…" : "Direct indisponible"}
+          </span>
+          <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.28)", marginLeft: "auto", whiteSpace: "nowrap" }}>
+            {etatDirect === "direct" ? "actualisé chaque minute" : "cours de référence"}
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: 7, overflowX: "auto", marginBottom: 9, paddingBottom: 2, WebkitOverflowScrolling: "touch" }}>
           {watch.map(p => {
-            const d = veille[p];
+            const d = vignette(p);
             const actif = p === paire;
             const hausse = d ? d.varPct >= 0 : true;
             const col = hausse ? TRAIN_ACCENT : "#ef4444";
@@ -6314,7 +6494,14 @@ function TrainerScreen({ onBack }) {
               <button key={p} onClick={() => setPaire(p)}
                 style={{
                   flex: "0 0 auto", width: 112, textAlign: "left", cursor: "pointer", padding: "8px 9px", borderRadius: 13,
-                  background: actif ? "rgba(110,231,183,0.08)" : "rgba(255,255,255,0.035)",
+                  position: "relative", overflow: "hidden",
+                  // Aplat degrade vert derriere la vignette : c'est la teinte
+                  // de l'app. Le sens du jour reste porte par la courbe et par
+                  // le pourcentage, pas par le fond — la moitie de la bande en
+                  // rouge rendrait l'ecran illisible.
+                  background: actif
+                    ? `linear-gradient(160deg, ${TRAIN_ACCENT}30 0%, ${TRAIN_ACCENT}12 44%, rgba(255,255,255,0.03) 100%)`
+                    : `linear-gradient(160deg, ${TRAIN_ACCENT}1A 0%, ${TRAIN_ACCENT}08 46%, rgba(255,255,255,0.03) 100%)`,
                   border: actif ? `1.5px solid ${TRAIN_ACCENT}66` : "1px solid rgba(255,255,255,0.07)",
                 }}>
                 <div style={{ fontSize: 11.5, fontWeight: 800, color: "#fff" }}>{p}</div>
@@ -6358,7 +6545,7 @@ function TrainerScreen({ onBack }) {
 
         {/* Unites de temps — compactes */}
         <div style={{ display: "flex", gap: 4, marginBottom: 9 }}>
-          {TIMEFRAMES.filter(t => t.minutes >= 5).map(t => (
+          {(tfsDispo.length ? tfsDispo : TIMEFRAMES.filter(t => t.minutes >= 5)).map(t => (
             <button key={t.key} onClick={() => setTf(t.minutes)}
               style={{
                 flex: 1, padding: "6px 2px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 800,
@@ -6443,7 +6630,7 @@ function TrainerScreen({ onBack }) {
           <div className="card" style={{ marginTop: 12, marginBottom: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1 }}>Performance</span>
-              <button onClick={() => { if (confirm("Effacer tous les trades d'entraînement ?")) setSession({ ...(session || {}), balance: 10000, trades: [] }); }}
+              <button onClick={() => { if (confirm("Effacer tous les trades d'entraînement ?")) setSession({ ...(session || {}), startBalance: soldeDepart, trades: [] }); }}
                 style={{ background: "none", border: "none", color: "#ef4444", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0 }}>Réinitialiser</button>
             </div>
 
@@ -6466,7 +6653,7 @@ function TrainerScreen({ onBack }) {
                   axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ background: "rgba(14,18,24,0.96)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, fontSize: 11 }}
                   labelFormatter={(i) => i === 0 ? "Départ" : "Trade " + i} formatter={(v) => [fmt(v), "Solde"]} />
-                <ReferenceLine y={10000} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" />
+                <ReferenceLine y={soldeDepart} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" />
                 <Area type="monotone" dataKey="v" stroke={TRAIN_ACCENT} strokeWidth={2} fill="url(#trainGrad)" dot={false} />
               </AreaChart>
             </ResponsiveContainer>
@@ -6514,6 +6701,51 @@ function TrainerScreen({ onBack }) {
           Quand une bougie touche le stop et l'objectif, le stop est retenu.
         </div>
       </div>
+
+      {/* Choix du solde d'entrainement */}
+      {ouvrirSolde && (
+        <div onClick={() => setOuvrirSolde(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end" }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: "var(--app-max-w)", margin: "0 auto", background: "#0d1118",
+              borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: "16px 16px calc(20px + env(safe-area-inset-bottom))",
+              border: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", marginBottom: 3 }}>Solde d'entraînement</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginBottom: 12 }}>
+              Entraîne-toi sur le capital que tu pilotes vraiment : les montants en jeu deviennent les tiens.
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 7, marginBottom: 12 }}>
+              {[5000, 10000, 25000, 50000, 100000, 200000].map(v => (
+                <button key={v} onClick={() => definirSolde(v)}
+                  style={{
+                    padding: "11px 6px", borderRadius: 11, cursor: "pointer", fontSize: 12.5, fontWeight: 800,
+                    border: v === soldeDepart ? `1px solid ${TRAIN_ACCENT}73` : "1px solid rgba(255,255,255,0.1)",
+                    background: v === soldeDepart ? "rgba(110,231,183,0.15)" : "rgba(255,255,255,0.04)",
+                    color: v === soldeDepart ? TRAIN_ACCENT : "rgba(255,255,255,0.75)",
+                  }}>{fmt(v)}</button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 7, alignItems: "stretch" }}>
+              <input type="number" inputMode="numeric" value={soldeSaisi}
+                onChange={e => setSoldeSaisi(e.target.value)}
+                placeholder="Montant libre"
+                style={{ flex: 1, minWidth: 0, padding: "11px 12px", borderRadius: 11, fontSize: 13.5, fontWeight: 700,
+                  background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }} />
+              <button onClick={() => definirSolde(soldeSaisi)}
+                style={{ flexShrink: 0, padding: "0 18px", borderRadius: 11, background: TRAIN_ACCENT, border: "none",
+                  color: "#000", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>Valider</button>
+            </div>
+            <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.3)", marginTop: 9, lineHeight: 1.5 }}>
+              De 100 $ à 10 000 000 $. Changer le solde remet les trades à zéro : ils avaient été dimensionnés sur l'ancien capital.
+            </div>
+            <button onClick={() => setOuvrirSolde(false)}
+              style={{ width: "100%", marginTop: 12, padding: 12, borderRadius: 12, background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Choix de l'actif */}
       {ouvrirPaires && (
