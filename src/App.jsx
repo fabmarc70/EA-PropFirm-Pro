@@ -6090,6 +6090,25 @@ const JOURS_FENETRE = { 1: 7, 5: 24, 15: 60, 60: 250, 240: 900, 1440: 2200 };
 // c'est aussi ce qu'on peut travailler le week-end.
 const CRYPTO = ["BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD"];
 
+// Correspondance des unites vers la route de bougies en direct.
+const MINUTES_VERS_DIRECT = { 1: "1m", 5: "5m", 15: "15m", 60: "1h", 240: "4h", 1440: "1d" };
+
+/**
+ * Bougies recentes d'un actif. Renvoie la raison exacte en cas d'echec :
+ * "pas de source" et "source injoignable" ne se corrigent pas pareil.
+ */
+async function chargerDirect(paire, tfMinutes, limite = 300) {
+  const interval = MINUTES_VERS_DIRECT[tfMinutes];
+  if (!interval) throw new Error("unité de temps non servie en direct");
+  const r = await fetch("/api/klines?symbol=" + encodeURIComponent(paire)
+    + "&interval=" + interval + "&limit=" + limite);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || ("source indisponible (" + r.status + ")"));
+  const c = (d.candles || []).filter(x => Array.isArray(x) && x.length >= 5);
+  if (c.length < 60) throw new Error("trop peu de bougies en direct");
+  return { candles: c, source: d.source };
+}
+
 async function chargerSerieCourte(paire, tfMinutes, cibleTs = null) {
   const symbole = tdSymbolFor(paire);
   const interval = MINUTES_VERS_TD[tfMinutes];
@@ -6314,12 +6333,17 @@ function TrainerScreen({ onBack }) {
   // change d'unite de temps — l'index ne veut rien dire d'une unite a
   // l'autre.
   const ancreTs = useRef(null);
+  // "rejeu" : des bougies passees, l'avenir cache. "direct" : les vraies
+  // bougies du moment, qui se terminent maintenant.
+  const [mode, setMode] = useState("rejeu");
   const [stopPrix, setStopPrix] = useState(0);
   const [targetPrix, setTargetPrix] = useState(0);
   // Ecart de stop (en % du prix) et rapport objectif/risque retenus du
   // dernier reglage de l'utilisateur.
   const reglage = useRef({ pct: 0.6, rr: 2 });
   const [position, setPosition] = useState(null);
+  // Lue par le chargeur du direct, qui tourne hors du cycle de rendu.
+  const positionRef = useRef(null);
   const [resultat, setResultat] = useState(null);
   const [risque, setRisque] = useState(1);
   const [rr, setRr] = useState(2);
@@ -6433,6 +6457,7 @@ function TrainerScreen({ onBack }) {
 
   // ── Chargement de la serie de la paire choisie ────────────────────────
   useEffect(() => {
+    if (mode === "direct") return;       // le direct a son propre chargeur
     if (!paire || !catalogue.length) return;
     let vivant = true;
     (async () => {
@@ -6480,7 +6505,44 @@ function TrainerScreen({ onBack }) {
       if (vivant) setChargement(false);
     })();
     return () => { vivant = false; };
-  }, [paire, tf, catalogue.length]);   // eslint-disable-line
+  }, [paire, tf, catalogue.length, mode]);   // eslint-disable-line
+
+  // ── Mode direct : les bougies du moment, rafraichies toutes les 15 s ──
+  const [sourceDirect, setSourceDirect] = useState(null);
+  const directDispo = CRYPTO.includes(paire);
+
+  useEffect(() => {
+    if (mode !== "direct") return;
+    let vivant = true;
+    let premiere = true;
+
+    const charger = async () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      try {
+        const { candles, source } = await chargerDirect(paire, tf);
+        if (!vivant) return;
+        setSerie(candles);
+        setSourceDirect(source);
+        setErreur(null);
+        setCurseur(candles.length - 1);
+        // Hors position, l'entree suit le dernier cours. En position, idx
+        // reste fige sur la bougie d'entree : c'est la reference du trade.
+        setIdx(i => (positionRef.current ? i : candles.length - 1));
+        if (premiere) { premiere = false; setChargement(false); }
+      } catch (e) {
+        if (!vivant) return;
+        setErreur((e && e.message ? e.message : "Direct indisponible") + ".");
+        setChargement(false);
+      }
+    };
+
+    setChargement(true); setErreur(null);
+    charger();
+    const t = setInterval(charger, 15000);
+    const onVis = () => { if (!document.hidden) charger(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { vivant = false; clearInterval(t); document.removeEventListener("visibilitychange", onVis); };
+  }, [mode, paire, tf]);   // eslint-disable-line
 
   // ── Vignettes de veille, chargees en arriere-plan, deux par deux ──────
   //    Telecharger les 24 paires d'un coup bloquerait l'ecran pour rien :
@@ -6489,13 +6551,21 @@ function TrainerScreen({ onBack }) {
     if (!catalogue.length) return;
     let vivant = true;
     (async () => {
-      const aFaire = watch.filter(p => !veille[p] && catalogue.some(a => a.pair === p));
+      // Les cryptos ne sont pas publiees dans le depot : sans ce second
+      // chemin, leur vignette restait sur "chargement..." indefiniment des
+      // que les cotations echouaient.
+      const aFaire = watch.filter(p => !veille[p] && (catalogue.some(a => a.pair === p) || CRYPTO.includes(p)));
       for (let i = 0; i < aFaire.length; i += 2) {
         const lot = aFaire.slice(i, i + 2);
         const res = await Promise.all(lot.map(async (p) => {
           try {
-            const mois = catalogue.filter(a => a.pair === p);
-            const { brutes } = await chargerSerie(mois[mois.length - 1]);
+            let brutes;
+            if (catalogue.some(a => a.pair === p)) {
+              const mois = catalogue.filter(a => a.pair === p);
+              ({ brutes } = await chargerSerie(mois[mois.length - 1]));
+            } else {
+              brutes = (await chargerDirect(p, 60, 80)).candles;
+            }
             const closes = brutes.slice(-60).map(c => c[4]);
             const last = closes[closes.length - 1];
             const first = closes[0];
@@ -6550,6 +6620,8 @@ function TrainerScreen({ onBack }) {
   const prixAchat = prixEntree != null ? prixEntree + spread / 2 : null;
   const prixVente = prixEntree != null ? prixEntree - spread / 2 : null;
   const debutReveal = (position || resultat) ? VISIBLE : null;
+
+  useEffect(() => { positionRef.current = position; }, [position]);
 
   const flottant = position && !resultat ? floatingResult(position, prixMid) : null;
 
@@ -6613,10 +6685,22 @@ function TrainerScreen({ onBack }) {
 
   // Lecture automatique pendant qu'une position est ouverte.
   useEffect(() => {
+    if (mode === "direct") return;      // en direct, c'est le marche qui avance
     if (!position || resultat || enPause) return;
     const t = setInterval(() => avancerUneBougie(), vitesse);
     return () => clearInterval(t);
-  }, [position, resultat, enPause, vitesse, curseur]);   // eslint-disable-line
+  }, [mode, position, resultat, enPause, vitesse, curseur]);   // eslint-disable-line
+
+  // En direct : a chaque rafraichissement, on relit les bougies apparues
+  // depuis l'entree. La derniere est encore en formation, son haut et son
+  // bas bougent — il faut donc la reexaminer a chaque passage.
+  useEffect(() => {
+    if (mode !== "direct" || !position || resultat || !serie) return;
+    for (let i = idx + 1; i < serie.length; i++) {
+      const touche = stepCandle(position, serie[i]);
+      if (touche) { cloturer(touche.price, i, touche.hit); return; }
+    }
+  }, [mode, serie, position, resultat, idx]);   // eslint-disable-line
 
   const prendrePosition = (side) => {
     if (!serie || prixEntree == null || resultat || position) return;
@@ -6774,6 +6858,38 @@ function TrainerScreen({ onBack }) {
           })}
         </div>
 
+        {/* Rejeu ou direct. Le direct n'est propose que la ou il existe
+            vraiment : promettre du temps reel sur des cours differes de
+            15 min serait pire que de ne rien proposer. */}
+        <div style={{ display: "flex", gap: 5, marginBottom: 8 }}>
+          {[
+            { k: "rejeu", l: "Rejeu historique", ok: true },
+            { k: "direct", l: "En direct", ok: directDispo },
+          ].map(m => {
+            const actif = mode === m.k;
+            return (
+              <button key={m.k} disabled={!m.ok || !!position}
+                onClick={() => { if (!m.ok || position) return; setMode(m.k); setResultat(null); }}
+                style={{
+                  flex: 1, minWidth: 0, padding: "8px 4px", borderRadius: 10, cursor: m.ok ? "pointer" : "default",
+                  fontSize: 11.5, fontWeight: 800,
+                  border: actif ? `1px solid ${TRAIN_ACCENT}73` : "1px solid rgba(255,255,255,0.1)",
+                  background: actif ? "rgba(110,231,183,0.15)" : "rgba(255,255,255,0.04)",
+                  color: actif ? TRAIN_ACCENT : "rgba(255,255,255,0.55)",
+                  opacity: m.ok ? (position ? 0.4 : 1) : 0.3,
+                }}>
+                {m.l}
+              </button>
+            );
+          })}
+        </div>
+        {!directDispo && (
+          <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.32)", marginBottom: 8, lineHeight: 1.45 }}>
+            Le direct n'existe que pour la crypto : c'est la seule classe d'actifs
+            avec une source publique en temps réel. Choisis BTCUSD, ETHUSD, SOLUSD ou XRPUSD.
+          </div>
+        )}
+
         {/* Graphique */}
         <div ref={boite} className="card" style={{ marginBottom: 8, padding: 9 }}>
           {chargement ? (
@@ -6801,8 +6917,11 @@ function TrainerScreen({ onBack }) {
                     </span>
                     {/* Leve l'ambiguite qui faisait croire a un trade en direct
                         un samedi : l'exercice rejoue des bougies passees. */}
-                    <span style={{ display: "block", fontSize: 8.5, color: "rgba(255,255,255,0.3)", whiteSpace: "nowrap", letterSpacing: 0.3 }}>
-                      REJEU HISTORIQUE{marcheActif.ouvert ? "" : " · " + marcheActif.texte.toUpperCase()}
+                    <span style={{ display: "block", fontSize: 8.5, whiteSpace: "nowrap", letterSpacing: 0.3,
+                      color: mode === "direct" ? TRAIN_ACCENT : "rgba(255,255,255,0.3)" }}>
+                      {mode === "direct"
+                        ? "EN DIRECT" + (sourceDirect ? " · " + sourceDirect.toUpperCase() : "")
+                        : "REJEU HISTORIQUE" + (marcheActif.ouvert ? "" : " · " + marcheActif.texte.toUpperCase())}
                     </span>
                   </span>
                 </span>
@@ -6837,7 +6956,7 @@ function TrainerScreen({ onBack }) {
         {/* Navigation du rejeu : reculer, avancer, lire. Elle manquait
             entierement — le curseur ne savait qu'avancer, et il etait
             impossible de revenir voir ce qui venait de se passer. */}
-        {!position && !resultat && serie && (
+        {mode === "rejeu" && !position && !resultat && serie && (
           <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>
             {[
               { l: "−50", d: -50 }, { l: "−10", d: -10 }, { l: "−1", d: -1 },
@@ -6868,7 +6987,7 @@ function TrainerScreen({ onBack }) {
                 {position.side === "long" ? "Achat" : "Vente"} en cours · {fmtPrix(position.entryPrice)}
               </span>
               <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>
-                {curseur - idx} / {MAX_BOUGIES} bougies
+                {mode === "direct" ? "en direct" : (curseur - idx) + " / " + MAX_BOUGIES + " bougies"}
               </span>
             </div>
             <div style={{ fontSize: 30, fontWeight: 900, lineHeight: 1.1, marginTop: 3,
@@ -6881,18 +7000,18 @@ function TrainerScreen({ onBack }) {
             </div>
 
             <div style={{ display: "flex", gap: 7, marginTop: 11 }}>
-              <button onClick={() => setEnPause(v => !v)}
+              {mode === "rejeu" && <button onClick={() => setEnPause(v => !v)}
                 style={{ flex: "0 0 auto", padding: "11px 14px", borderRadius: 11, cursor: "pointer",
                   background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
                   color: "#fff", fontSize: 12.5, fontWeight: 700 }}>
                 {enPause ? "Reprendre" : "Pause"}
-              </button>
-              <button onClick={avancerUneBougie}
+              </button>}
+              {mode === "rejeu" && <button onClick={avancerUneBougie}
                 style={{ flex: "0 0 auto", padding: "11px 14px", borderRadius: 11, cursor: "pointer",
                   background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
                   color: "#fff", fontSize: 12.5, fontWeight: 700 }}>
                 Avancer
-              </button>
+              </button>}
               <button onClick={() => cloturer(prixMid, curseur, "manuel")}
                 style={{ flex: 1, minWidth: 0, padding: "11px 10px", borderRadius: 11, cursor: "pointer",
                   background: TRAIN_ACCENT, border: "none", color: "#000", fontSize: 13, fontWeight: 800 }}>
@@ -6901,8 +7020,8 @@ function TrainerScreen({ onBack }) {
             </div>
 
             {/* Vitesse de deroulement : certains veulent voir vivre le trade,
-                d'autres enchainer les repetitions. */}
-            <div style={{ display: "flex", gap: 5, marginTop: 9, alignItems: "center" }}>
+                d'autres enchainer les repetitions. Sans objet en direct. */}
+            {mode === "rejeu" && <div style={{ display: "flex", gap: 5, marginTop: 9, alignItems: "center" }}>
               <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5 }}>Vitesse</span>
               {[[1400, "Lent"], [700, "Normal"], [250, "Rapide"], [60, "Éclair"]].map(([v, l]) => (
                 <button key={v} onClick={() => setVitesse(v)}
@@ -6911,7 +7030,7 @@ function TrainerScreen({ onBack }) {
                     background: vitesse === v ? "rgba(110,231,183,0.14)" : "rgba(255,255,255,0.04)",
                     color: vitesse === v ? TRAIN_ACCENT : "rgba(255,255,255,0.55)" }}>{l}</button>
               ))}
-            </div>
+            </div>}
           </div>
 
         ) : !resultat ? (
