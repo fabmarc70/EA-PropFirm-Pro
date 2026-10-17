@@ -19450,6 +19450,13 @@ function JournalScreen({ t, lang, goto, capital = 25000, lastSim = null, premium
     } : null;
     return calculateAccountMaturity(journalAllFiltered, resolveJourneyType(selectedAccount), {
       effectiveCapital, firmModel: firmModelForMaturity,
+      // BUG CORRIGE : le type de compte DECLARE n'etait pas transmis depuis le
+      // Journal — seul le Dashboard le passait. Un compte cree en "Challenge"
+      // s'affichait donc en "Recherche / Backtest" tant que l'historique etait
+      // court, alors que l'utilisateur avait explicitement declare etre deja
+      // en challenge. Le plancher existait bien dans le calcul, il ne recevait
+      // simplement jamais l'information.
+      declaredAccountType: selectedAccount?.accountType || null,
     });
   }, [journalAllFiltered, selectedAccount, effectiveCapital, selectedFirmModel]);
 
