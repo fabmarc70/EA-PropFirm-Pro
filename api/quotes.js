@@ -117,6 +117,69 @@ async function twelveData(sym) {
   };
 }
 
+// ── Stooq : libre, sans clé, sans quota, et surtout il COUVRE LES INDICES,
+//    que le plan gratuit de Twelve Data ignore. Deux usages :
+//    - /q/l/   : la séance en cours (ouverture + dernier cours) ;
+//    - /q/d/l/ : l'historique journalier, d'où vient la courbe miniature.
+const STOOQ = {
+  EURUSD: "eurusd", GBPUSD: "gbpusd", AUDUSD: "audusd", NZDUSD: "nzdusd",
+  USDJPY: "usdjpy", USDCAD: "usdcad", USDCHF: "usdchf",
+  EURJPY: "eurjpy", GBPJPY: "gbpjpy", AUDJPY: "audjpy", CHFJPY: "chfjpy",
+  EURGBP: "eurgbp", EURCHF: "eurchf",
+  XAUUSD: "xauusd", XAGUSD: "xagusd",
+  NAS100: "^ndq", US30: "^dji", SPX500: "^spx",
+  GER30: "^dax", UK100: "^ukx", JPN225: "^nkx",
+  USOIL: "cl.f", UKOIL: "cb.f", COPPER: "hg.f",
+};
+
+function csvLignes(txt) {
+  return String(txt || "").trim().split("\n").map(l => l.trim()).filter(Boolean);
+}
+
+async function stooq(sym) {
+  const s = STOOQ[sym];
+  if (!s) throw new Error("pas de correspondance");
+  const r = await fetch("https://stooq.com/q/l/?s=" + encodeURIComponent(s) + "&f=sd2t2ohlcv&h&e=csv");
+  if (!r.ok) throw new Error("http " + r.status);
+  const lignes = csvLignes(await r.text());
+  if (lignes.length < 2) throw new Error("réponse vide");
+  // Symbol,Date,Time,Open,High,Low,Close,Volume
+  const col = lignes[1].split(",");
+  const open = Number(col[3]), close = Number(col[6]);
+  if (!isFinite(close) || !(close > 0)) throw new Error("cours absent");
+  return {
+    price: +close.toFixed(6),
+    // Variation DEPUIS L'OUVERTURE de la séance : c'est ce que Stooq permet
+    // de calculer honnêtement ici, et l'app l'affiche comme telle.
+    changePct: isFinite(open) && open > 0 ? +(((close - open) / open) * 100).toFixed(3) : null,
+    spark: [],
+    ticker: s,
+    asOf: Date.now(),
+    marketState: null,
+    source: "stooq",
+  };
+}
+
+// Courbe miniature : les clôtures journalières des ~3 derniers mois. Un seul
+// appel, libre, et surtout COHERENTE avec le cours affiché — l'ancienne
+// courbe venait d'un mois d'archive et n'avait aucun rapport avec le prix.
+async function stooqCourbe(sym) {
+  const s = STOOQ[sym];
+  if (!s) return [];
+  const fin = new Date();
+  const debut = new Date(fin.getTime() - 100 * 86400000);
+  const fmt = (d) => d.toISOString().slice(0, 10).replace(/-/g, "");
+  const r = await fetch("https://stooq.com/q/d/l/?s=" + encodeURIComponent(s)
+    + "&d1=" + fmt(debut) + "&d2=" + fmt(fin) + "&i=d");
+  if (!r.ok) return [];
+  const lignes = csvLignes(await r.text());
+  if (lignes.length < 3) return [];
+  return lignes.slice(1)
+    .map(l => Number(l.split(",")[4]))
+    .filter(v => isFinite(v) && v > 0)
+    .slice(-SPARK_POINTS);
+}
+
 export default async function handler(req, res) {
   const brut = String(req.query.symbols || "").toUpperCase();
   const demandes = brut.split(",").map(s => s.trim()).filter(Boolean).slice(0, MAX_SYMBOLS);
@@ -130,12 +193,26 @@ export default async function handler(req, res) {
     for (const t of (YAHOO[sym] || [])) {
       try { quotes[sym] = await yahoo(t); return; } catch (e) { /* candidat suivant */ }
     }
-    try { quotes[sym] = await twelveData(sym); return; } catch (e) { /* ni l'un ni l'autre */ }
-    quotes[sym] = null;   // aucune source : on l'assume, on n'invente pas
+    try { quotes[sym] = await stooq(sym); return; } catch (e) { /* recours suivant */ }
+    try { quotes[sym] = await twelveData(sym); return; } catch (e) { /* aucune source */ }
+    quotes[sym] = null;   // on l'assume, on n'invente pas un cours
   }));
 
-  // 45 s de cache CDN, puis service de la version périmée pendant la
-  // revalidation : l'écran n'attend jamais le réseau.
-  res.setHeader("Cache-Control", "s-maxage=45, stale-while-revalidate=300");
+  // Courbe manquante (Stooq et Twelve Data n'en fournissent pas dans l'appel
+  // de cotation) : on la complète, en parallèle, depuis l'historique libre.
+  await Promise.all(Object.entries(quotes).map(async ([sym, q]) => {
+    if (!q || (q.spark && q.spark.length > 1)) return;
+    try { q.spark = await stooqCourbe(sym); } catch (e) { q.spark = []; }
+  }));
+
+  // Twelve Data est limité à 800 crédits par jour et sert aussi au
+  // rattrapage d'historique : s'il a été le SEUL recours utilisé, on allonge
+  // nettement le cache plutôt que d'épuiser le quota en une matinée.
+  const sources = Object.values(quotes).filter(Boolean).map(q => q.source);
+  const seulementTD = sources.length > 0 && sources.every(s => s === "twelvedata");
+  res.setHeader("Cache-Control", seulementTD
+    ? "s-maxage=900, stale-while-revalidate=3600"
+    : "s-maxage=45, stale-while-revalidate=300");
+
   return res.status(200).json({ quotes, serverTime: Date.now() });
 }
