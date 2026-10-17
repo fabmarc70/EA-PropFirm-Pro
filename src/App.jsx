@@ -10,6 +10,7 @@ import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedDa
 import { runInvestmentProjection, aggregateByYear, compareStrategies as compareInvestmentStrategies } from "./investmentEngine.js";
 import { runPropFirmProjection, aggregateProjectionByYear, truthFromSimulator, truthFromJournal, buildScenarios, SCENARIO_PRESETS, simulatorReplay } from "./projectionEngine.js";
 import { compareAllModels, DEFAULT_PREFS as CMP_DEFAULT_PREFS, CRITERIA as CMP_CRITERIA, FIRM_FACTS } from "./firmCompareEngine.js";
+import { openPosition, resolvePosition, trainerStats, syntheticCandles, pickStartIndex } from "./trainerEngine.js";
 import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS, listConfluenceFilters, WEEKDAYS, runWalkForward, analyzeFailure, optimizeStrategy } from "./backtestEngine.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
@@ -5973,6 +5974,386 @@ function monthToDate(n, base) {
 // COMPARATEUR PROP FIRM — accent violet #a78bfa, deja celui de la carte
 // "Comparateur" dans la page Analyse. Aucune couleur nouvelle.
 // ══════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════
+// ENTRAINEMENT — simulateur de trades manuels sur bougies reelles
+// --------------------------------------------------------------------------
+// Accent vert menthe #6ee7b7, celui de l'ancienne carte "Simulation Challenge"
+// qu'il remplace. Aucune couleur nouvelle.
+// ══════════════════════════════════════════════════════════════════════════
+const TRAIN_ACCENT = "#6ee7b7";
+
+// Graphique en bougies dessine au canvas : quelques centaines de rectangles
+// par rendu, la ou des elements SVG individuels feraient ramer le defilement
+// sur telephone.
+function CandleChart({ candles, width, height, entry, stop, target, revealFrom }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const cv = ref.current;
+    if (!cv || !candles || !candles.length) return;
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    cv.width = width * dpr; cv.height = height * dpr;
+    const ctx = cv.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+
+    const padR = 46, padB = 4, padT = 6;
+    const w = width - padR, h = height - padB - padT;
+    let min = Infinity, max = -Infinity;
+    candles.forEach(c => { if (c[3] < min) min = c[3]; if (c[2] > max) max = c[2]; });
+    [entry, stop, target].forEach(v => { if (v != null) { if (v < min) min = v; if (v > max) max = v; } });
+    if (!(max > min)) { max = min + 1; }
+    const marge = (max - min) * 0.06;
+    min -= marge; max += marge;
+    const y = (p) => padT + h - ((p - min) / (max - min)) * h;
+
+    const n = candles.length;
+    const pas = w / n;
+    const corps = Math.max(1, Math.min(10, pas * 0.62));
+
+    // Grille horizontale + echelle de prix a droite
+    ctx.strokeStyle = "rgba(255,255,255,0.05)";
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.font = "9px -apple-system, sans-serif";
+    ctx.textBaseline = "middle";
+    for (let k = 0; k <= 4; k++) {
+      const prix = min + ((max - min) * k) / 4;
+      const yy = y(prix);
+      ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(w, yy); ctx.stroke();
+      ctx.fillText(prix.toFixed(prix >= 1000 ? 0 : 2), w + 5, yy);
+    }
+
+    candles.forEach((c, i) => {
+      const x = i * pas + pas / 2;
+      const hausse = c[4] >= c[1];
+      // Les bougies revelees apres la prise de position sont mises en avant :
+      // on voit immediatement ce qui s'est passe APRES la decision.
+      const futur = revealFrom != null && i >= revealFrom;
+      const col = hausse ? (futur ? "#6ee7b7" : "rgba(110,231,183,0.55)")
+                         : (futur ? "#ef4444" : "rgba(239,68,68,0.55)");
+      ctx.strokeStyle = col; ctx.fillStyle = col;
+      ctx.beginPath(); ctx.moveTo(x, y(c[2])); ctx.lineTo(x, y(c[3])); ctx.lineWidth = 1; ctx.stroke();
+      const yo = y(c[1]), yc = y(c[4]);
+      ctx.fillRect(x - corps / 2, Math.min(yo, yc), corps, Math.max(1, Math.abs(yc - yo)));
+    });
+
+    // Niveaux d'entree, de stop et d'objectif
+    const ligne = (prix, couleur, etiquette) => {
+      if (prix == null) return;
+      const yy = y(prix);
+      ctx.strokeStyle = couleur; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(w, yy); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = couleur;
+      ctx.font = "bold 9px -apple-system, sans-serif";
+      ctx.fillText(etiquette, 2, yy - 7);
+    };
+    ligne(entry, "rgba(255,255,255,0.75)", "Entrée");
+    ligne(stop, "#ef4444", "Stop");
+    ligne(target, TRAIN_ACCENT, "Objectif");
+  }, [candles, width, height, entry, stop, target, revealFrom]);
+
+  return <canvas ref={ref} style={{ width, height, display: "block" }} />;
+}
+
+function TrainerScreen({ onBack }) {
+  const VISIBLE = 70;        // bougies de contexte affichees
+  const RESERVE = 60;        // bougies cachees gardees pour resoudre le trade
+  const MAX_BOUGIES = 40;    // duree de vie maximale d'un trade
+
+  const [serie, setSerie] = useState(null);      // toutes les bougies
+  const [source, setSource] = useState(null);     // libelle de la source
+  const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState(null);
+  const [tf, setTf] = useState(60);               // minutes
+  const [idx, setIdx] = useState(0);              // derniere bougie visible
+  const [position, setPosition] = useState(null);
+  const [resultat, setResultat] = useState(null);
+  const [risque, setRisque] = useState(1);
+  const [rr, setRr] = useState(2);
+  const [stopPct, setStopPct] = useState(0.6);
+  const [largeur, setLargeur] = useState(360);
+  const boite = useRef(null);
+
+  // Historique des trades : persistant et synchronise, comme le journal.
+  const [session, setSession] = useCloudSyncedState("eapropfirm_trainer", "trainerSession",
+    { balance: 10000, trades: [] },
+    (local, cloud) => {
+      // Fusion : on garde la session qui contient le plus de trades, jamais
+      // un ecrasement qui ferait disparaitre un entrainement.
+      const nl = (local && local.trades || []).length, nc = (cloud && cloud.trades || []).length;
+      return nc > nl ? cloud : (local || cloud);
+    });
+
+  const trades = (session && session.trades) || [];
+  const stats = trainerStats(trades, 10000);
+
+  useEffect(() => {
+    const mesure = () => { if (boite.current) setLargeur(boite.current.clientWidth); };
+    mesure();
+    window.addEventListener("resize", mesure);
+    return () => window.removeEventListener("resize", mesure);
+  }, []);
+
+  // ── Chargement des bougies ────────────────────────────────────────────
+  // On tente les vraies donnees historiques ; en cas d'echec (hors ligne,
+  // depot indisponible), on bascule sur une serie de secours EN LE DISANT.
+  const charger = async (minutes) => {
+    setChargement(true); setErreur(null); setPosition(null); setResultat(null);
+    try {
+      const liste = await listAvailableDatasets();
+      const paires = [...new Set((liste.assets || []).map(a => a.pair))];
+      if (!paires.length) throw new Error("aucun jeu de donnees");
+      const paire = paires[Math.floor(Math.random() * paires.length)];
+      const mois = (liste.assets || []).filter(a => a.pair === paire);
+      const choix = mois[Math.floor(Math.random() * mois.length)];
+      const r = await fetch(choix.url);
+      if (!r.ok) throw new Error("telechargement impossible");
+      const ds = await r.json();
+      const brutes = (ds.candles || ds.data || []).filter(c => Array.isArray(c) && c.length >= 5);
+      if (brutes.length < VISIBLE + RESERVE + 10) throw new Error("serie trop courte");
+      const agregees = aggregateCandles(brutes, minutes, ds.baseMinutes || choix.baseMinutes || 1);
+      if (agregees.length < VISIBLE + RESERVE + 10) throw new Error("serie trop courte apres agregation");
+      setSerie(agregees);
+      setSource(paire + " · " + (TIMEFRAMES.find(t => t.minutes === minutes)?.label || minutes + "m"));
+      setIdx(pickStartIndex(agregees, VISIBLE, RESERVE));
+    } catch (e) {
+      const c = syntheticCandles(Date.now() % 100000, 600);
+      setSerie(c);
+      setSource("Série d'entraînement (données historiques indisponibles)");
+      setIdx(pickStartIndex(c, VISIBLE, RESERVE));
+      setErreur("Données de marché indisponibles — série d'entraînement générée.");
+    }
+    setChargement(false);
+  };
+
+  useEffect(() => { charger(tf); /* eslint-disable-next-line */ }, [tf]);
+
+  const visibles = serie ? serie.slice(Math.max(0, idx - VISIBLE + 1), idx + 1 + (resultat ? Math.min(MAX_BOUGIES, (resultat.exitIndex - idx)) : 0)) : [];
+  const prixCourant = serie && serie[idx] ? serie[idx][4] : null;
+  const debutReveal = resultat ? VISIBLE : null;
+
+  const prendrePosition = (side) => {
+    if (!serie || !prixCourant || position || resultat) return;
+    const p = openPosition({ side, entryPrice: prixCourant, balance: stats.balance, riskPct: risque, stopPct, rr });
+    if (!p) return;
+    const resolu = resolvePosition(p, serie, idx + 1, MAX_BOUGIES);
+    setPosition(p);
+    setResultat(resolu);
+    setSession({
+      balance: 10000,
+      trades: [...trades, {
+        ...resolu, ts: Date.now(), source,
+        tf, riskPct: risque, stopPct, rrCible: rr,
+      }],
+    });
+  };
+
+  const passer = () => {
+    if (!serie) return;
+    setPosition(null); setResultat(null);
+    setIdx(pickStartIndex(serie, VISIBLE, RESERVE));
+  };
+
+  const raisonTexte = (r) => r === "target" ? "Objectif atteint"
+    : r === "stop" ? "Stop touché"
+    : r === "stop_ambigu" ? "Stop touché (la bougie a touché les deux niveaux)"
+    : r === "manuel" ? "Clôture manuelle" : "Sortie en fin de période";
+
+  return (
+    <div style={{ fontFamily: "-apple-system, sans-serif", color: "#fff" }}>
+      <ReportHeader title="Entraînement" subtitle="Prends des trades sur de vraies bougies" onBack={onBack} />
+      <div style={{ padding: "0 16px 28px" }}>
+
+        {/* Solde et performance de la session */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(74px, 1fr))", gap: 7, marginBottom: 12 }}>
+          {[
+            { l: "Solde", v: fmt(stats.balance), c: stats.balance >= 10000 ? TRAIN_ACCENT : "#ef4444" },
+            { l: "Trades", v: String(stats.trades), c: "#fff" },
+            { l: "Winrate", v: stats.winrate == null ? "—" : stats.winrate + "%", c: "#fff" },
+            { l: "Espérance", v: stats.expectancyR == null ? "—" : (stats.expectancyR > 0 ? "+" : "") + stats.expectancyR + "R", c: (stats.expectancyR || 0) >= 0 ? TRAIN_ACCENT : "#ef4444" },
+          ].map(k => (
+            <div key={k.l} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 11, padding: "7px 8px", minWidth: 0 }}>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.5 }}>{k.l}</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: k.c, whiteSpace: "nowrap" }}>{k.v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Graphique */}
+        <div ref={boite} className="card" style={{ marginBottom: 10, padding: 10 }}>
+          {chargement ? (
+            <div style={{ height: 230, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+              Chargement des bougies…
+            </div>
+          ) : (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)" }}>{source}</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{prixCourant != null ? prixCourant.toFixed(prixCourant >= 1000 ? 0 : 2) : "—"}</span>
+              </div>
+              <CandleChart candles={visibles} width={largeur - 20} height={230}
+                entry={position ? position.entryPrice : null}
+                stop={position ? position.stop : null}
+                target={position ? position.target : null}
+                revealFrom={debutReveal} />
+            </>
+          )}
+        </div>
+
+        {/* Unites de temps */}
+        <div style={{ display: "flex", gap: 4, marginBottom: 12, overflowX: "auto" }}>
+          {TIMEFRAMES.filter(t => t.minutes >= 5).map(t => (
+            <button key={t.key} onClick={() => setTf(t.minutes)}
+              style={{
+                flex: "1 0 auto", padding: "7px 10px", borderRadius: 9, cursor: "pointer", fontSize: 11.5, fontWeight: 800,
+                border: tf === t.minutes ? `1px solid ${TRAIN_ACCENT}73` : "1px solid rgba(255,255,255,0.1)",
+                background: tf === t.minutes ? "rgba(110,231,183,0.15)" : "rgba(255,255,255,0.04)",
+                color: tf === t.minutes ? TRAIN_ACCENT : "rgba(255,255,255,0.6)",
+              }}>{t.label}</button>
+          ))}
+        </div>
+
+        {/* Décision ou résultat */}
+        {!resultat ? (
+          <div className="card" style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#fff", marginBottom: 2 }}>Où va le marché ?</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginBottom: 10 }}>La suite est cachée. Décide, puis vérifie.</div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "0 12px" }}>
+              <ProjField label="Risque" value={risque} onChange={v => setRisque(v)} suffix="%" step={0.5} min={0.1} max={10} />
+              <ProjField label="Stop" value={stopPct} onChange={v => setStopPct(v)} suffix="%" step={0.1} min={0.1} max={10} />
+              <ProjField label="Objectif" value={rr} onChange={v => setRr(v)} suffix="R" step={0.5} min={0.5} max={10} />
+            </div>
+            <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)", marginBottom: 10 }}>
+              {fmt2(stats.balance * risque / 100)} en jeu · {fmt2(stats.balance * risque / 100 * rr)} si l'objectif est touché
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => prendrePosition("long")} disabled={chargement}
+                style={{ flex: 1, padding: "14px 8px", borderRadius: 13, cursor: "pointer",
+                  background: "rgba(110,231,183,0.12)", border: `1.5px solid ${TRAIN_ACCENT}66`, color: TRAIN_ACCENT }}>
+                <div style={{ fontSize: 15, fontWeight: 900 }}>Acheter</div>
+                <div style={{ fontSize: 10, opacity: 0.75 }}>Ça monte</div>
+              </button>
+              <button onClick={() => prendrePosition("short")} disabled={chargement}
+                style={{ flex: 1, padding: "14px 8px", borderRadius: 13, cursor: "pointer",
+                  background: "rgba(239,68,68,0.12)", border: "1.5px solid rgba(239,68,68,0.45)", color: "#ef4444" }}>
+                <div style={{ fontSize: 15, fontWeight: 900 }}>Vendre</div>
+                <div style={{ fontSize: 10, opacity: 0.75 }}>Ça baisse</div>
+              </button>
+            </div>
+            <button onClick={passer} disabled={chargement}
+              style={{ width: "100%", marginTop: 9, padding: 10, borderRadius: 11, background: "none",
+                border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              Je reste dehors
+            </button>
+          </div>
+        ) : (
+          <div className="card" style={{ marginBottom: 12, border: `1px solid ${resultat.win ? TRAIN_ACCENT + "55" : "rgba(239,68,68,0.4)"}` }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 1 }}>{raisonTexte(resultat.reason)}</div>
+            <div style={{ fontSize: 30, fontWeight: 900, color: resultat.win ? TRAIN_ACCENT : "#ef4444", lineHeight: 1.15, marginTop: 2 }}>
+              {resultat.pnl >= 0 ? "+" : ""}{fmt2(resultat.pnl)}
+            </div>
+            <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>
+              {resultat.rMultiple >= 0 ? "+" : ""}{resultat.rMultiple}R · {resultat.side === "long" ? "Achat" : "Vente"} à {resultat.entryPrice.toFixed(resultat.entryPrice >= 1000 ? 0 : 2)}, sortie à {resultat.exitPrice.toFixed(resultat.exitPrice >= 1000 ? 0 : 2)}
+            </div>
+            <button onClick={passer}
+              style={{ width: "100%", marginTop: 12, padding: 13, borderRadius: 12, background: TRAIN_ACCENT, border: "none", color: "#000", fontSize: 13.5, fontWeight: 800, cursor: "pointer" }}>
+              Trade suivant
+            </button>
+          </div>
+        )}
+
+        {erreur && (
+          <div style={{ background: "rgba(251,191,36,0.09)", border: "1px solid rgba(251,191,36,0.28)", borderRadius: 12, padding: "9px 11px", marginBottom: 12, fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
+            {erreur}
+          </div>
+        )}
+
+        {/* Performance detaillee */}
+        {stats.trades > 0 && (
+          <div className="card" style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1 }}>Performance</span>
+              <button onClick={() => { if (confirm("Effacer tous les trades d'entraînement ?")) setSession({ balance: 10000, trades: [] }); }}
+                style={{ background: "none", border: "none", color: "#ef4444", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0 }}>Réinitialiser</button>
+            </div>
+
+            <ResponsiveContainer width="100%" height={120}>
+              <AreaChart data={stats.equity.map((v, i) => ({ i, v }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="trainGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={TRAIN_ACCENT} stopOpacity={0.3} />
+                    <stop offset="100%" stopColor={TRAIN_ACCENT} stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <YAxis tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 9 }} width={38}
+                  domain={["dataMin", "dataMax"]}
+                  // Format adaptatif : un solde qui varie de quelques centaines
+                  // affichait "10k 10k 10k" — trois fois la meme graduation,
+                  // donc aucune information.
+                  tickFormatter={v => {
+                    const etendue = Math.max(...stats.equity) - Math.min(...stats.equity);
+                    if (etendue >= 2000) return Math.round(v / 1000) + "k";
+                    if (etendue >= 100) return Math.round(v).toLocaleString("fr-FR");
+                    return v.toFixed(0);
+                  }}
+                  axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ background: "rgba(14,18,24,0.96)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, fontSize: 11 }}
+                  labelFormatter={(i) => i === 0 ? "Départ" : "Trade " + i} formatter={(v) => [fmt(v), "Solde"]} />
+                <ReferenceLine y={10000} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" />
+                <Area type="monotone" dataKey="v" stroke={TRAIN_ACCENT} strokeWidth={2} fill="url(#trainGrad)" dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(84px, 1fr))", gap: 7, marginTop: 10 }}>
+              {[
+                { l: "Profit factor", v: stats.profitFactor == null ? "—" : stats.profitFactor },
+                { l: "Gagnants", v: stats.wins + " / " + stats.trades },
+                { l: "Drawdown max", v: stats.maxDDPct + " %" },
+                { l: "Meilleur", v: "+" + stats.bestR + "R" },
+                { l: "Pire", v: stats.worstR + "R" },
+                { l: "Pire série", v: stats.pireSerie + " perte" + (stats.pireSerie > 1 ? "s" : "") },
+              ].map(k => (
+                <div key={k.l} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 9, padding: "6px 8px", minWidth: 0 }}>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{k.l}</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 800, color: "#fff", whiteSpace: "nowrap" }}>{k.v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Derniers trades */}
+        {trades.length > 0 && (
+          <div className="card">
+            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
+              Derniers trades
+            </div>
+            {trades.slice(-12).reverse().map((t, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "6px 0", borderTop: i ? "1px solid rgba(255,255,255,0.05)" : "none", fontSize: 11.5 }}>
+                <span style={{ color: t.side === "long" ? TRAIN_ACCENT : "#ef4444", fontWeight: 700, width: 48, flexShrink: 0 }}>
+                  {t.side === "long" ? "Achat" : "Vente"}
+                </span>
+                <span style={{ color: "rgba(255,255,255,0.4)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.source || "—"}</span>
+                <span style={{ fontWeight: 800, color: t.pnl >= 0 ? TRAIN_ACCENT : "#ef4444", whiteSpace: "nowrap" }}>
+                  {t.pnl >= 0 ? "+" : ""}{t.rMultiple}R
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.3)", lineHeight: 1.5, marginTop: 10 }}>
+          Quand une bougie touche le stop et l'objectif, le résultat retenu est le stop : sans donnée plus fine,
+          supposer l'inverse flatterait tes statistiques.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const CMP_ACCENT = "#a78bfa";
 
 function CmpWeight({ label, value, onChange }) {
@@ -8013,14 +8394,24 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
       {
         key:'simulation', accent:'#6ee7b7', bg:'rgba(110,231,183,0.06)', border:'rgba(110,231,183,0.2)',
         icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="13" rx="2.5" stroke="#6ee7b7" strokeWidth="1.6"/><path d="M6.5 13.5l3-4 2.5 2.8 3-3.8 2.5 3" stroke="#6ee7b7" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M9 20.5h6" stroke="#6ee7b7" strokeWidth="1.6" strokeLinecap="round"/></svg>,
-        title: t('an_sim_title'),
-        subtitle: t('an_sim_sub'),
-        desc: t('an_sim_desc'),
-        chips: ['Winrate', 'Ratio R/R', 'Drawdown', 'Probabilité'],
-        hasData: !!simAnalysis,
-        dataLabel: simAnalysis ? `${simAnalysis.metrics.totalTrades} trades · ${(simAnalysis.firmName)} · Score ${simAnalysis.probability}%` : (lang==='en'?'Run a simulation first':'Lancez d\'abord une simulation'),
-        cta: t('an_sim_cta'),
-        ctaGoto: 'simulator',
+        title: "Entraînement",
+        subtitle: "Trade de vraies bougies, sans risque",
+        desc: "Prends des trades manuels sur des bougies réelles et mesure-toi",
+        chips: ['Achat / Vente', 'Unités de temps', 'Winrate', 'Espérance'],
+        // Toujours accessible : l'entrainement EST son propre point d'entree,
+        // il ne depend d'aucune donnee prealable.
+        hasData: true,
+        dataLabel: (() => {
+          try {
+            const sess = JSON.parse(localStorage.getItem("eapropfirm_trainer") || "null");
+            const n = sess && Array.isArray(sess.trades) ? sess.trades.length : 0;
+            if (!n) return "Commence ton premier trade";
+            const st = trainerStats(sess.trades, 10000);
+            return `${n} trade${n > 1 ? "s" : ""} · ${st.winrate}% · ${st.expectancyR > 0 ? "+" : ""}${st.expectancyR}R`;
+          } catch (e) { return "Commence ton premier trade"; }
+        })(),
+        cta: "Ouvrir",
+        ctaGoto: 'simulation',
       },
       {
         key:'journal', accent:'#fbbf24', bg:'rgba(251,191,36,0.06)', border:'rgba(251,191,36,0.2)',
@@ -8224,278 +8615,8 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
   // ══════════════════════════════════════════════════════════════════
   // RAPPORT MODE 1 : SIMULATION CHALLENGE
   // ══════════════════════════════════════════════════════════════════
-  if (mode==='simulation') {
-    const a=simAnalysis;
-    if(!a) return (
-      <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
-        <ReportHeader title="Simulation Challenge" subtitle="Rapport d'évaluation" onBack={()=>setMode(null)}/>
-        <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
-          
-          <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>{t('an_no_sim')}</div>
-          <button onClick={()=>goto('simulator')} style={{padding:'12px 24px',borderRadius:12,background:'#6ee7b7',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>{t('an_run_sim')}</button>
-        </div>
-      </div>
-    );
-    const pColor=scoreColor(a.probability);
-    const localText=a.probability>=75?`Avec un score de ${a.probability}% et un Profit Factor de ${a.profitFactor}, votre stratégie présente les caractéristiques d'une approche solide pour ce challenge. ${a.risks[0]?'Le principal risque identifié est : '+a.risks[0].detail+'.':''} ${a.probability>=75?'La stratégie semble prête pour un challenge.':'Optimisez avant de lancer.'}`:
-      `Votre score de ${a.probability}% révèle ${a.probability>=55?'une stratégie viable mais perfectible':'des fragilités importantes'}. PF ${a.profitFactor}, espérance ${a.expectancyR}R. ${a.risks[0]?a.risks[0].detail+'.':''} ${a.probability>=55?'Optimisez le risque/trade avant de lancer.':'Ne lancez pas de challenge avec ces métriques.'}`;
-    return (
-      <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
-        <ReportHeader title="Simulation Challenge" subtitle={`${a.firmName} · Probabilité de réussite`} onBack={()=>setMode(null)}/>
-
-        {/* Score */}
-        <div style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${pColor}22`,borderRadius:20,padding:'20px 18px',marginBottom:12,display:'flex',alignItems:'center',gap:20}}>
-          <ScoreCircle score={a.probability} size={100}/>
-          <div style={{flex:1}}>
-            <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:4}}>{t("an_score_success")}</div>
-            <div style={{fontSize:22,fontWeight:900,color:pColor,marginBottom:2}}>{a.probability>=75?'Excellent':a.probability>=55?'Solide':a.probability>=35?'Risqué':'Critique'}</div>
-            <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{a.metrics.totalTrades} trades · {a.firmName}</div>
-            <div style={{display:'flex',gap:8,marginTop:10}}>
-              {[{l:'PF',v:a.profitFactor,g:a.profitFactor>=1.5},{l:'Esp.',v:(a.expectancyR>0?'+':'')+a.expectancyR+'R',g:a.expectancyR>0},{l:'DD',v:Math.max(a.metrics.ddDayUsed,a.metrics.ddTotUsed).toFixed(1)+'%',g:true}].map((m,i)=>(
-                <div key={i} style={{flex:1,background:'rgba(255,255,255,0.06)',borderRadius:10,padding:'7px 6px',textAlign:'center'}}>
-                  <div style={{fontSize:8,color:'rgba(255,255,255,0.4)'}}>{m.l}</div>
-                  <div style={{fontSize:13,fontWeight:800,color:m.warn?'#ef4444':m.g?'#4ade80':'#fbbf24'}}>{m.v}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Forces */}
-        {a.forces.length>0&&<div style={{background:'rgba(110,231,183,0.04)',border:'1px solid rgba(110,231,183,0.15)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}>{t('an_forces')}</div>
-          {a.forces.map((f,i)=><div key={i} style={{display:'flex',gap:10,alignItems:'center',marginBottom:i<a.forces.length-1?8:0}}><StatusDot kind={f.icon} /><div><div style={{fontSize:13,fontWeight:700,color:'#fff'}}>{f.title}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.5)',marginTop:1,lineHeight:1.4}}>{f.detail}</div></div></div>)}
-        </div>}
-
-        {/* Risques */}
-        {a.risks.length>0&&<div style={{background:'rgba(251,191,36,0.04)',border:'1px solid rgba(251,191,36,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}>{t('an_risks')}</div>
-          {a.risks.map((r,i)=><div key={i} style={{display:'flex',gap:10,alignItems:'center',marginBottom:i<a.risks.length-1?8:0}}><StatusDot kind={r.icon} /><div><div style={{fontSize:13,fontWeight:700,color:'#fff'}}>{r.title}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.5)',marginTop:1,lineHeight:1.4}}>{r.detail}</div></div></div>)}
-        </div>}
-
-        {/* Rapport expert */}
-        <ExpertSection gemini={gemini} gemLoading={gemLoading} localText={localText}/>
-
-        {/* Projection */}
-        <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}>{t("an_projection_challenge")}</div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-            {[
-              {l:t('an_probability'),v:a.probability+'%',c:pColor},
-              {l:t('an_time_estimated'),v:a.projection.daysMin?`${a.projection.daysMin}–${a.projection.daysMax}j`:'N/A',c:'#fff'},
-              {l:'Risque d\'échec',v:a.projection.failureRisk,c:a.projection.failureColor},
-              {l:t('an_max_losses'),v:a.projection.maxConsecLosses>0?`${a.projection.maxConsecLosses} trades`:'Inconnu',c:a.projection.maxConsecLosses>5?'#4ade80':a.projection.maxConsecLosses>2?'#fbbf24':'#ef4444'},
-            ].map((m,i)=>(
-              <div key={i} style={{background:'rgba(255,255,255,0.05)',borderRadius:12,padding:'11px 12px'}}>
-                <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',marginBottom:3,lineHeight:1.3}}>{m.l}</div>
-                <div style={{fontSize:15,fontWeight:800,color:m.c}}>{m.v}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Optimisation */}
-        {a.levers.length>0&&<div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}>{t("an_levers")}</div>
-          {a.levers.map((l,i)=>(
-            <div key={i} style={{background:'rgba(110,231,183,0.05)',border:'1px solid rgba(110,231,183,0.15)',borderRadius:12,padding:'11px 14px',marginBottom:i<a.levers.length-1?8:0,display:'flex',alignItems:'center',gap:12}}>
-              <div style={{width:40,height:40,borderRadius:10,background:'rgba(110,231,183,0.12)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                <div style={{fontSize:13,fontWeight:900,color:'#6ee7b7',lineHeight:1}}>+{l.gain}</div>
-                <div style={{fontSize:7,color:'rgba(110,231,183,0.6)'}}>pts</div>
-              </div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:12,fontWeight:700,color:'#fff',marginBottom:2}}>{l.label}</div>
-                <div style={{fontSize:11,color:'rgba(255,255,255,0.45)'}}><span style={{color:'#f87171',fontWeight:600}}>{l.from}</span>{' → '}<span style={{color:'#4ade80',fontWeight:600}}>{l.to}</span>{' → '}<span style={{color:'#6ee7b7',fontWeight:700}}>{l.newProb}%</span></div>
-              </div>
-            </div>
-          ))}
-        </div>}
-      </div>
-    );
-  }
-
-  // ══════════════════════════════════════════════════════════════════
-  // RAPPORT MODE 2 : JOURNAL DE TRADING
-  // ══════════════════════════════════════════════════════════════════
-  if (mode==='journal') {
-    const j=journalStats;
-    if(!j) return (
-      <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
-        <ReportHeader title="Journal de Trading" subtitle="Analyse comportementale" onBack={()=>setMode(null)}/>
-        <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
-          
-          <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>{t('an_no_journal')}</div>
-          <button onClick={()=>goto('dashboard')} style={{padding:'12px 24px',borderRadius:12,background:'#fbbf24',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>{t('an_open_journal')}</button>
-        </div>
-      </div>
-    );
-    const cColor=scoreColor(j.consistency);
-    const cLabel=j.consistency>=75?'Excellent':j.consistency>=55?'Cohérent':j.consistency>=35?'Irrégulier':'Instable';
-    const localText=j.consistency>=70?`Avec ${j.totalDays} jours de trading analysés, votre score de cohérence de ${j.consistency}% reflète une discipline solide. Votre winrate journalier de ${j.dayWR.toFixed(0)}% est supérieur à la moyenne, et votre série de pertes max de ${j.maxStreakL} jours reste dans des limites acceptables.`:
-      `Votre score de cohérence de ${j.consistency}% sur ${j.totalDays} jours révèle ${j.consistency>=50?'quelques irrégularités':'des lacunes importantes'}. ${j.maxStreakL>=4?`La série de ${j.maxStreakL} jours perdants consécutifs suggère du revenge trading. `:''}Un winrate journalier de ${j.dayWR.toFixed(0)}% ${j.dayWR>=50?'est correct mais perfectible':'est insuffisant pour un challenge'}. Travaillez la régularité avant de vous lancer.`;
-    return (
-      <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
-        <ReportHeader title="Journal de Trading" subtitle={`${j.monthsTracked} mois · ${j.totalDays} jours analysés`} onBack={()=>setMode(null)}/>
-
-        {/* Score cohérence */}
-        <div style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${cColor}22`,borderRadius:20,padding:'20px 18px',marginBottom:12,display:'flex',alignItems:'center',gap:20}}>
-          <ScoreCircle score={j.consistency} size={100}/>
-          <div style={{flex:1}}>
-            <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:4}}>{t("an_score_coherence")}</div>
-            <div style={{fontSize:22,fontWeight:900,color:cColor,marginBottom:2}}>{cLabel}</div>
-            <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{j.totalDays} jours · P&L {j.totalPnl>0?'+':''}{j.totalPnl}$</div>
-            <div style={{display:'flex',gap:8,marginTop:10}}>
-              {[{l:t('an_wr_days'),v:j.dayWR.toFixed(0)+'%',g:j.dayWR>=55},{l:'WR trades',v:j.tradeWR.toFixed(0)+'%',g:j.tradeWR>=50},{l:'Moy./jour',v:(j.avgDailyPnl>0?'+':'')+j.avgDailyPnl+'$',g:j.avgDailyPnl>0}].map((m,i)=>(
-                <div key={i} style={{flex:1,background:'rgba(255,255,255,0.06)',borderRadius:10,padding:'7px 6px',textAlign:'center'}}>
-                  <div style={{fontSize:8,color:'rgba(255,255,255,0.4)'}}>{m.l}</div>
-                  <div style={{fontSize:12,fontWeight:800,color:m.warn?'#ef4444':m.g?'#4ade80':'#fbbf24'}}>{m.v}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Métriques comportementales */}
-        <div style={{background:'rgba(251,191,36,0.04)',border:'1px solid rgba(251,191,36,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}>{t("an_behavioral")}</div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-            {[
-              {l:t('an_best_day'),v:'+'+(j.bestDay||0).toFixed(0)+'$',c:'#4ade80'},
-              {l:t('an_worst_day'),v:(j.worstDay||0).toFixed(0)+'$',c:'#ef4444'},
-              {l:t('an_win_streak'),v:j.maxStreakW+' jours',c:j.maxStreakW>=5?'#4ade80':'#fff'},
-              {l:t('an_loss_streak'),v:j.maxStreakL+' jours',c:j.maxStreakL>=5?'#ef4444':j.maxStreakL>=3?'#fbbf24':'#6ee7b7'},
-            ].map((m,i)=>(
-              <div key={i} style={{background:'rgba(255,255,255,0.05)',borderRadius:12,padding:'11px 12px'}}>
-                <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',marginBottom:3}}>{m.l}</div>
-                <div style={{fontSize:15,fontWeight:800,color:m.c}}>{m.v}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Points forts */}
-        {j.strengths.length>0&&<div style={{background:'rgba(110,231,183,0.04)',border:'1px solid rgba(110,231,183,0.15)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}>{t("an_positive_points")}</div>
-          {j.strengths.map((s,i)=><div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:i<j.strengths.length-1?7:0}}><span style={{color:'#6ee7b7',fontSize:13,flexShrink:0}}>✓</span><div style={{fontSize:12,color:'rgba(255,255,255,0.8)',lineHeight:1.4}}>{s.text}</div></div>)}
-        </div>}
-
-        {/* Erreurs */}
-        {j.issues.length>0&&<div style={{background:'rgba(239,68,68,0.04)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}>{t("an_improve_axes")}</div>
-          {j.issues.map((issue,i)=><div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:i<j.issues.length-1?7:0}}><span style={{color:issue.sev==='high'?'#f87171':'#fbbf24',fontSize:13,flexShrink:0}}>{issue.sev==='high'?'✕':'!'}</span><div style={{fontSize:12,color:'rgba(255,255,255,0.8)',lineHeight:1.4}}>{issue.text}</div></div>)}
-        </div>}
-
-        {/* Rapport expert */}
-        <ExpertSection gemini={gemini} gemLoading={gemLoading} localText={localText}/>
-      </div>
-    );
-  }
-
-  // ══════════════════════════════════════════════════════════════════
-  // RAPPORT MODE 3 : BACKTEST
-  // ══════════════════════════════════════════════════════════════════
-  if (mode==='backtest') {
-    const b=backtestStats;
-    if(!b) return (
-      <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
-        <ReportHeader title="Résultats Backtest" subtitle="Audit statistique" onBack={()=>setMode(null)}/>
-        <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
-          
-          <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>{t('an_no_bt')}</div>
-          <button onClick={()=>goto('trades')} style={{padding:'12px 24px',borderRadius:12,background:'#e05252',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>{t('an_import_bt')}</button>
-        </div>
-      </div>
-    );
-    const rColor = (!b.ddKnown && b.manualDD==null) ? '#fbbf24' : scoreColor(b.robustness);
-    const rLabel = (!b.ddKnown && b.manualDD==null) ? 'Audit incomplet' : b.robustness>=75?'Robuste':b.robustness>=55?'Acceptable':b.robustness>=35?'Fragile':'Non fiable';
-    const overfit=b.pf>4&&b.totalTrades<60;
-    const localText = (!b.ddKnown && b.manualDD==null)
-      ? `AUDIT INCOMPLET — Le DD de ce backtest est inconnu (${b.ddMissingReason||'données insuffisantes'}). Avec ${b.totalTrades} trades et un PF de ${b.pf}, les autres métriques sont solides, MAIS le respect des limites de risque prop firm ne peut pas être validé sans drawdown réel. Importez un CSV avec la colonne Balance, ou saisissez manuellement le DD max dans Mes Trades.`
-      : b.robustness>=70
-        ? `Avec ${b.totalTrades} trades et un Profit Factor de ${b.pf}, ce backtest présente les caractéristiques d'une stratégie ${b.robustness>=75?'statistiquement robuste':'acceptable'}. Le drawdown de ${b.maxDD}% ${b.manualDD!=null?'(saisi manuellement)':'réel'} reste ${b.maxDD<10?'dans des limites raisonnables':'à surveiller'}. ${overfit?'Attention au risque de sur-optimisation.':''}`
-        : `Ce backtest de ${b.totalTrades} trades montre des fragilités. PF ${b.pf}, DD ${b.maxDD!=null?b.maxDD+'%':'inconnu'}. ${b.totalTrades<50?'Échantillon insuffisant.':''} ${overfit?'Risque de sur-optimisation.':''}`;
-    return (
-      <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
-        <ReportHeader title="Résultats Backtest" subtitle={`${b.filename||'Backtest'} · ${b.totalTrades} trades`} onBack={()=>setMode(null)}/>
-
-        {/* Score robustesse */}
-        <div style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${rColor}22`,borderRadius:20,padding:'20px 18px',marginBottom:12,display:'flex',alignItems:'center',gap:20}}>
-          <ScoreCircle score={b.robustness} size={100}/>
-          <div style={{flex:1}}>
-            <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:4}}>Score de robustesse</div>
-            <div style={{fontSize:22,fontWeight:900,color:rColor,marginBottom:2}}>{rLabel}</div>
-            <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{b.totalTrades} trades · Profit {b.profit>0?'+':''}{b.profit}%</div>
-            <div style={{display:'flex',gap:8,marginTop:10}}>
-              {[{l:'PF',v:b.pf,g:b.pf>=1.5},{l:'WR',v:b.wr.toFixed(0)+'%',g:b.wr>=50},{l:'DD',v:b.maxDD!=null?b.maxDD.toFixed(1)+'%':'N/A',g:b.maxDD!=null&&b.maxDD<10,warn:b.maxDD==null}].map((m,i)=>(
-                <div key={i} style={{flex:1,background:'rgba(255,255,255,0.06)',borderRadius:10,padding:'7px 6px',textAlign:'center'}}>
-                  <div style={{fontSize:8,color:'rgba(255,255,255,0.4)'}}>{m.l}</div>
-                  <div style={{fontSize:13,fontWeight:800,color:m.g?'#4ade80':'#fbbf24'}}>{m.v}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Alerte DD absent — calquée sur Mes Trades */}
-        {(!b.ddKnown && b.manualDD==null) && (
-          <div style={{background:'rgba(251,191,36,0.08)',border:'2px solid rgba(251,191,36,0.4)',borderRadius:16,padding:16,marginBottom:12}}>
-            <div style={{fontSize:13,fontWeight:900,color:'#fbbf24',marginBottom:8}}>DONNÉES DD MANQUANTES</div>
-            <div style={{fontSize:12,color:'rgba(255,255,255,0.75)',lineHeight:1.6,marginBottom:12}}>
-              {b.ddMissingReason||'Drawdown non calculable'}. Les métriques WR, RR et PF sont fiables, mais <strong style={{color:'#fbbf24'}}>le verdict prop firm est invalide</strong> sans DD réel.
-            </div>
-            <div style={{fontSize:11,color:'rgba(255,255,255,0.5)',lineHeight:1.5}}>
-              Pour débloquer le verdict complet :<br/>
-              • Importez un CSV avec colonne Balance (trade par trade)<br/>
-              • Ou saisissez le DD max manuellement dans <strong style={{color:'#6ee7b7'}}>Mes Trades</strong>
-            </div>
-          </div>
-        )}
-
-        {/* KPIs statistiques */}
-        <div style={{background:'rgba(224,82,82,0.04)',border:'1px solid rgba(224,82,82,0.2)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:12}}>{t('an_stat_metrics')}</div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-            {[
-              {l:t('an_trades_analyzed'),v:b.totalTrades,c:b.totalTrades>=100?'#4ade80':b.totalTrades>=50?'#fbbf24':'#ef4444'},
-              {l:t('an_real_rr'),v:`1:${b.rr}`,c:b.rr>=1.5?'#4ade80':'#fbbf24'},
-              {l:t('an_avg_gain'),v:'+'+b.avgW.toFixed(0)+'$',c:'#4ade80'},
-              {l:t('an_avg_loss'),v:'-'+b.avgL.toFixed(0)+'$',c:'#ef4444'},
-            ].map((m,i)=>(
-              <div key={i} style={{background:'rgba(255,255,255,0.05)',borderRadius:12,padding:'11px 12px'}}>
-                <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',marginBottom:3}}>{m.l}</div>
-                <div style={{fontSize:15,fontWeight:800,color:m.c}}>{m.v}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Alertes statistiques */}
-        <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:16,marginBottom:12}}>
-          <div style={{fontSize:10,fontWeight:800,color:'rgba(255,255,255,0.55)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:10}}>{t('an_validity')}</div>
-          {[
-            {cond:b.totalTrades>=100,good:'Échantillon statistiquement significatif ('+b.totalTrades+' trades)',bad:'Échantillon insuffisant ('+b.totalTrades+' trades) — min. 100 pour un backtest fiable'},
-            {cond:b.pf>=1.5&&!overfit,good:'Profit Factor robuste ('+b.pf+') validé sur suffisamment de trades',bad:overfit?'Risque de sur-optimisation : PF '+b.pf+' sur '+b.totalTrades+' trades seulement':'Profit Factor faible ('+b.pf+') — stratégie peu rentable'},
-            {cond:b.ddKnown&&b.maxDD!=null&&b.maxDD<10, neutral:!b.ddKnown&&b.manualDD==null, good:'Drawdown maîtrisé ('+b.maxDD+'%) — en dessous du seuil critique', bad:b.ddKnown?'Drawdown élevé ('+b.maxDD+'%) — à corriger avant un challenge':'DD absent — verdict impossible sans colonne Balance dans le CSV'},
-          ].map((item,i)=>(
-            <div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:i<2?9:0}}>
-              <span style={{color:item.neutral?'#fbbf24':item.cond?'#6ee7b7':'#f87171',fontSize:13,flexShrink:0,marginTop:1}}>{item.neutral?'?':item.cond?'✓':'✕'}</span>
-              <div style={{fontSize:12,color:item.neutral?'#fbbf24':item.cond?'rgba(255,255,255,0.8)':'rgba(255,255,255,0.65)',lineHeight:1.4}}>{item.neutral?item.bad:item.cond?item.good:item.bad}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Rapport expert */}
-        <ExpertSection gemini={gemini} gemLoading={gemLoading} localText={localText}/>
-      </div>
-    );
-  }
-
-  if (mode === 'lab') {
-    return <LabScreen t={t} lang={lang} profile={profile} onBack={() => setMode(null)} />;
-  }
-
-  if (mode === 'investment') {
-    return <InvestmentScreen t={t} lang={lang} onBack={() => setMode(null)} />;
+  if (mode === 'simulation') {
+    return <TrainerScreen onBack={() => setMode(null)} />;
   }
 
   if (mode === 'projection') {
