@@ -38,6 +38,9 @@ function IconeOutil({ k, couleur }) {
 export default function FullChart({
   candles = [], paire, tfLabel, position = null, resultat = null,
   dessins = [], onDessins, onClose, fmtPrix,
+  niveaux = null, onNiveaux = null,
+  prixAchat = null, prixVente = null, onAcheter = null, onVendre = null,
+  marche = null,
 }) {
   const boite = useRef(null);
   const canvas = useRef(null);
@@ -56,14 +59,17 @@ export default function FullChart({
   }, [vue, nb]);
 
   // Niveaux a garder visibles meme hors de l'etendue des bougies.
-  const niveaux = useMemo(() => {
+  const bornes = useMemo(() => {
     const p = position || resultat;
-    return p ? [p.entryPrice, p.stop, p.target].filter(v => isFinite(v)) : [];
-  }, [position, resultat]);
+    const l = p ? [p.entryPrice, p.stop, p.target] : [];
+    if (niveaux) l.push(niveaux.stop, niveaux.target);
+    if (isFinite(prixAchat)) l.push(prixAchat);
+    return l.filter(v => isFinite(v));
+  }, [position, resultat, niveaux, prixAchat]);
 
   const scales = useMemo(
-    () => makeScales(candles, vueEffective, taille.w, taille.h, niveaux),
-    [candles, vueEffective, taille.w, taille.h, niveaux]);
+    () => makeScales(candles, vueEffective, taille.w, taille.h, bornes),
+    [candles, vueEffective, taille.w, taille.h, bornes]);
 
   // ── Taille reelle ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -189,7 +195,44 @@ export default function FullChart({
         ctx.font = "10px -apple-system, sans-serif";
       }
     });
-  }, [candles, scales, taille, dessins, brouillon, position, resultat]);
+
+    // Niveaux d'ordre, deplaçables : poignee a droite pour montrer qu'on
+    // peut les attraper, et prix lisible a cote.
+    if (niveaux && !position) {
+      const poignee = (prix, couleur, etiquette) => {
+        if (!isFinite(prix)) return;
+        const y = scales.yFromPrice(prix);
+        ctx.strokeStyle = couleur; ctx.lineWidth = 1.6;
+        ctx.setLineDash([7, 5]);
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(taille.w - 54, y); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.font = "bold 10px -apple-system, sans-serif";
+        const txt = etiquette + "  " + prix.toFixed(dec);
+        const larg = ctx.measureText(txt).width + 22;
+        ctx.fillStyle = couleur;
+        ctx.beginPath();
+        const r = 9, bx = 4, by = y - r;
+        ctx.moveTo(bx + r, by); ctx.lineTo(bx + larg - r, by);
+        ctx.quadraticCurveTo(bx + larg, by, bx + larg, by + r);
+        ctx.quadraticCurveTo(bx + larg, by + 2 * r, bx + larg - r, by + 2 * r);
+        ctx.lineTo(bx + r, by + 2 * r);
+        ctx.quadraticCurveTo(bx, by + 2 * r, bx, by + r);
+        ctx.quadraticCurveTo(bx, by, bx + r, by);
+        ctx.fill();
+        ctx.fillStyle = "#06120c";
+        ctx.fillText(txt, bx + 8, y);
+        // Trois barres : le signe universel d'une poignee a saisir.
+        ctx.strokeStyle = "rgba(6,18,12,0.55)"; ctx.lineWidth = 1.4;
+        for (let k = 0; k < 3; k++) {
+          const hx = bx + larg - 13 + k * 3.5;
+          ctx.beginPath(); ctx.moveTo(hx, y - 4); ctx.lineTo(hx, y + 4); ctx.stroke();
+        }
+        ctx.font = "10px -apple-system, sans-serif";
+      };
+      poignee(niveaux.stop, ROUGE, "SL");
+      poignee(niveaux.target, ACCENT, "TP");
+    }
+  }, [candles, scales, taille, dessins, brouillon, position, resultat, niveaux]);
 
   // ── Gestes ──────────────────────────────────────────────────────────────
   const pointXY = (e) => {
@@ -197,6 +240,27 @@ export default function FullChart({
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   };
   const enDonnees = (p) => ({ i: scales.indexFromX(p.x), prix: scales.priceFromY(p.y) });
+
+  // Le trace en cours vit dans une REF, pas seulement dans l'etat. Les
+  // evenements tactiles arrivent par rafales ; en se fiant a l'etat, les
+  // gestes rapides se perdaient parce que React n'avait pas encore
+  // re-rendu entre deux "pointermove". Reproduit en test.
+  const brouillonRef = useRef(null);
+  const poser = (b) => { brouillonRef.current = b; setBrouillon(b); };
+
+  // Niveau (stop ou objectif) sous le doigt, s'il y en a un.
+  const niveauSousDoigt = (y) => {
+    if (!niveaux) return null;
+    const candidats = [];
+    if (isFinite(niveaux.stop)) candidats.push(["stop", niveaux.stop]);
+    if (isFinite(niveaux.target)) candidats.push(["target", niveaux.target]);
+    let meilleur = null, d = 26;    // 26 px : viser un trait de 1 px au doigt
+    candidats.forEach(([k, prix]) => {
+      const dist = Math.abs(y - scales.yFromPrice(prix));
+      if (dist < d) { d = dist; meilleur = k; }
+    });
+    return meilleur;
+  };
 
   const onDown = (e) => {
     e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -206,13 +270,17 @@ export default function FullChart({
     geste.current = g;
 
     if (g.pointeurs.size === 2) {
-      // Pincement : on memorise l'ecart et le cadrage de depart.
       const [a, b] = [...g.pointeurs.values()];
       g.pince = { ecart: Math.hypot(a.x - b.x, a.y - b.y), vue: scales.view, centre: (a.x + b.x) / 2 };
-      g.depart = null;
-      setBrouillon(null);
+      g.depart = null; g.niveau = null;
+      poser(null);
       return;
     }
+
+    // Un niveau se saisit AVANT tout le reste, quel que soit l'outil actif :
+    // c'est le geste le plus frequent et le plus attendu.
+    const cible = niveauSousDoigt(p.y);
+    if (cible && onNiveaux) { g.niveau = cible; return; }
 
     if (outil === "main") {
       g.depart = { p, vue: scales.view };
@@ -221,9 +289,10 @@ export default function FullChart({
       if (k >= 0) onDessins(dessins.filter((_, j) => j !== k));
     } else if (outil === "h") {
       onDessins([...dessins, { type: "h", prix: scales.priceFromY(p.y) }]);
+      setOutil("main");            // un trace, puis on rend la navigation
     } else {
       const d = enDonnees(p);
-      setBrouillon({ type: outil, i1: d.i, p1: d.prix, i2: d.i, p2: d.prix });
+      poser({ type: outil, i1: d.i, p1: d.prix, i2: d.i, p2: d.prix });
     }
   };
 
@@ -243,6 +312,11 @@ export default function FullChart({
       return;
     }
 
+    if (g.niveau) {
+      onNiveaux({ ...niveaux, [g.niveau]: scales.priceFromY(p.y) });
+      return;
+    }
+
     if (g.depart) {
       // Defilement : on convertit les pixels parcourus en bougies.
       const dx = p.x - g.depart.p.x;
@@ -251,9 +325,9 @@ export default function FullChart({
       return;
     }
 
-    if (brouillon) {
+    if (brouillonRef.current) {
       const d = enDonnees(p);
-      setBrouillon(b => ({ ...b, i2: d.i, p2: d.prix }));
+      poser({ ...brouillonRef.current, i2: d.i, p2: d.prix });
     }
   };
 
@@ -262,14 +336,18 @@ export default function FullChart({
     if (g) {
       g.pointeurs.delete(e.pointerId);
       if (g.pointeurs.size < 2) g.pince = null;
-      if (g.pointeurs.size === 0) { g.depart = null; geste.current = null; }
+      if (g.pointeurs.size === 0) { g.depart = null; g.niveau = null; geste.current = null; }
     }
-    if (brouillon) {
+    const b = brouillonRef.current;
+    if (b) {
       // Un trace reduit a un point est un appui rate, pas une intention.
-      const assezLong = Math.abs(scales.xFromIndex(brouillon.i2) - scales.xFromIndex(brouillon.i1)) > 6
-        || Math.abs(scales.yFromPrice(brouillon.p2) - scales.yFromPrice(brouillon.p1)) > 6;
-      if (assezLong) onDessins([...dessins, brouillon]);
-      setBrouillon(null);
+      const assezLong = Math.abs(scales.xFromIndex(b.i2) - scales.xFromIndex(b.i1)) > 6
+        || Math.abs(scales.yFromPrice(b.p2) - scales.yFromPrice(b.p1)) > 6;
+      if (assezLong) {
+        onDessins([...dessins, b]);
+        setOutil("main");          // le trace pose, on revient a la navigation
+      }
+      poser(null);
     }
   };
 
@@ -326,13 +404,41 @@ export default function FullChart({
           style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }} />
       </div>
 
+      {/* Ordre : on achete ou on vend sans quitter le plein ecran, avec les
+          niveaux qu'on vient de poser au doigt. */}
+      {onAcheter && !position && !resultat && (
+        <div style={{ padding: "0 10px 6px", flexShrink: 0 }}>
+          {marche && !marche.ouvert && (
+            <div style={{ fontSize: 9.5, color: "#fbbf24", marginBottom: 5, textAlign: "center" }}>
+              {marche.texte} · l'exercice rejoue des bougies passées
+            </div>
+          )}
+          <div style={{ display: "flex", alignItems: "stretch", borderRadius: 24, overflow: "hidden" }}>
+            <button onClick={onVendre}
+              style={{ flex: 1, border: "none", cursor: "pointer", padding: "10px 12px", textAlign: "left",
+                background: "rgba(239,68,68,0.9)", color: "#fff" }}>
+              <span style={{ display: "block", fontSize: 10, opacity: 0.85 }}>Vendre</span>
+              <span style={{ display: "block", fontSize: 14, fontWeight: 800 }}>{fmtPrix ? fmtPrix(prixVente) : prixVente}</span>
+            </button>
+            <button onClick={onAcheter}
+              style={{ flex: 1, border: "none", cursor: "pointer", padding: "10px 12px", textAlign: "right",
+                background: "rgba(16,185,129,0.9)", color: "#fff" }}>
+              <span style={{ display: "block", fontSize: 10, opacity: 0.85 }}>Acheter</span>
+              <span style={{ display: "block", fontSize: 14, fontWeight: 800 }}>{fmtPrix ? fmtPrix(prixAchat) : prixAchat}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Outils */}
       <div style={{ display: "flex", gap: 5, padding: "8px 10px 10px", flexShrink: 0 }}>
         {OUTILS.map(o => {
           const actif = outil === o.k;
           const col = actif ? "#000" : "rgba(255,255,255,0.72)";
+          // Un appui sur l'outil deja actif le relache : c'est la facon
+          // evidente de revenir a la navigation, et elle manquait.
           return (
-            <button key={o.k} onClick={() => { setOutil(o.k); setBrouillon(null); }}
+            <button key={o.k} onClick={() => { setOutil(actif ? "main" : o.k); poser(null); }}
               style={{
                 flex: 1, minWidth: 0, padding: "8px 2px", borderRadius: 11, cursor: "pointer",
                 background: actif ? ACCENT : "rgba(255,255,255,0.05)",

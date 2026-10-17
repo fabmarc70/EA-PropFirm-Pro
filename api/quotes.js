@@ -30,6 +30,8 @@ const YAHOO = {
   NAS100: ["^NDX", "NQ=F"], US30: ["^DJI", "YM=F"], SPX500: ["^GSPC", "ES=F"],
   GER30: ["^GDAXI"], UK100: ["^FTSE"], JPN225: ["^N225"],
   USOIL: ["CL=F"], UKOIL: ["BZ=F"], COPPER: ["HG=F"],
+  // Crypto : ouverte en permanence, donc cotee aussi le week-end.
+  BTCUSD: ["BTC-USD"], ETHUSD: ["ETH-USD"], SOLUSD: ["SOL-USD"], XRPUSD: ["XRP-USD"],
 };
 
 // En-tetes de navigateur : plusieurs sources publiques refusent une requete
@@ -127,6 +129,7 @@ const TD = {
   EURJPY: "EUR/JPY", GBPJPY: "GBP/JPY", AUDJPY: "AUD/JPY", CHFJPY: "CHF/JPY",
   EURGBP: "EUR/GBP", EURCHF: "EUR/CHF",
   XAUUSD: "XAU/USD", XAGUSD: "XAG/USD",
+  BTCUSD: "BTC/USD", ETHUSD: "ETH/USD", SOLUSD: "SOL/USD", XRPUSD: "XRP/USD",
   // Indices : non garantis sur le plan gratuit. On tente — un echec propre
   // vaut mieux qu'un symbole ecarte d'avance.
   NAS100: "NDX", US30: "DJI", SPX500: "SPX", GER30: "DAX", UK100: "UKX", JPN225: "N225",
@@ -166,6 +169,7 @@ const STOOQ = {
   EURJPY: "eurjpy", GBPJPY: "gbpjpy", AUDJPY: "audjpy", CHFJPY: "chfjpy",
   EURGBP: "eurgbp", EURCHF: "eurchf",
   XAUUSD: "xauusd", XAGUSD: "xagusd",
+  BTCUSD: "btcusd", ETHUSD: "ethusd", SOLUSD: "solusd", XRPUSD: "xrpusd",
   NAS100: "^ndq", US30: "^dji", SPX500: "^spx",
   GER30: "^dax", UK100: "^ukx", JPN225: "^nkx",
   USOIL: "cl.f", UKOIL: "cb.f", COPPER: "hg.f",

@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import {
   openPosition, resolvePosition, closeManually, trainerStats,
   syntheticCandles, pickStartIndex, floatingResult, stepCandle,
+  levelsForSide, sideFromLevels,
 } from "./trainerEngine.js";
 
 let passed = 0, failed = 0;
@@ -85,6 +86,51 @@ test("un stop plus loin reduit la taille, pas le risque", () => {
   const b = openPosition({ side: "long", entryPrice: 100, balance: 10000, riskPct: 1, stopPrice: 95 });
   assert.ok(b.quantity < a.quantity);
   near(a.riskAmount, b.riskAmount);
+});
+
+console.log("\n── Deux niveaux, les deux sens ──");
+
+test("un stop sous le prix, c'est un achat", () => {
+  assert.equal(sideFromLevels(100, 98), "long");
+  assert.equal(sideFromLevels(100, 102), "short");
+  assert.equal(sideFromLevels(100, 100), null);
+});
+
+test("niveaux deja dans le bon sens : rien n'est touche", () => {
+  const r = levelsForSide({ entryPrice: 100, side: "long", stopPrice: 98, targetPrice: 106 });
+  near(r.stop, 98); near(r.target, 106); near(r.rr, 3);
+  assert.equal(r.dejaBon, true);
+});
+
+test("sens inverse : reflexion autour du prix, distance et rapport gardes", () => {
+  // Reglage achat (stop 2 sous, objectif 3R) bascule en vente : le stop
+  // passe 2 au-dessus et l'objectif reste a 3R. Le travail de reglage est
+  // conserve, seule la direction change.
+  const r = levelsForSide({ entryPrice: 100, side: "short", stopPrice: 98, targetPrice: 106 });
+  near(r.stop, 102);
+  near(r.target, 94);
+  near(r.rr, 3);
+  assert.equal(r.dejaBon, false);
+});
+
+test("objectif absent : le rapport demande s'applique", () => {
+  const r = levelsForSide({ entryPrice: 100, side: "long", stopPrice: 99, targetPrice: null, rr: 4 });
+  near(r.target, 104);
+});
+
+test("stop colle au prix : repli raisonnable plutot qu'une division par zero", () => {
+  const r = levelsForSide({ entryPrice: 100, side: "long", stopPrice: 100, targetPrice: 0, rr: 2 });
+  assert.ok(isFinite(r.stop) && r.stop < 100);
+  assert.ok(isFinite(r.target) && r.target > 100);
+});
+
+test("les niveaux produits ouvrent toujours une position valide", () => {
+  ["long", "short"].forEach(side => {
+    const n = levelsForSide({ entryPrice: 100, side, stopPrice: 98, targetPrice: 106 });
+    const p = openPosition({ side, entryPrice: 100, balance: 10000, riskPct: 1, stopPrice: n.stop, targetPrice: n.target });
+    assert.ok(p, "position refusee pour " + side);
+    near(p.riskAmount, 100);
+  });
 });
 
 console.log("\n── Deroulement bougie par bougie ──");

@@ -26,6 +26,9 @@ export const TD_SYMBOL = {
   EURJPY: "EUR/JPY", GBPJPY: "GBP/JPY", AUDJPY: "AUD/JPY", CHFJPY: "CHF/JPY",
   EURGBP: "EUR/GBP", EURCHF: "EUR/CHF",
   XAUUSD: "XAU/USD", XAGUSD: "XAG/USD",
+  // Crypto : seules paires que l'app peut servir sur TOUTES les unites de
+  // temps, le depot historique ne les publiant pas.
+  BTCUSD: "BTC/USD", ETHUSD: "ETH/USD", SOLUSD: "SOL/USD", XRPUSD: "XRP/USD",
 };
 
 /** Symbole Twelve Data d'une paire, ou null si la source ne la couvre pas. */

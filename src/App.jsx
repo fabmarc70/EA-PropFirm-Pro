@@ -11,7 +11,8 @@ import { runInvestmentProjection, aggregateByYear, compareStrategies as compareI
 import { runPropFirmProjection, aggregateProjectionByYear, truthFromSimulator, truthFromJournal, buildScenarios, SCENARIO_PRESETS, simulatorReplay } from "./projectionEngine.js";
 import { compareAllModels, DEFAULT_PREFS as CMP_DEFAULT_PREFS, CRITERIA as CMP_CRITERIA, FIRM_FACTS } from "./firmCompareEngine.js";
 import FullChart from "./FullChart.jsx";
-import { openPosition, resolvePosition, closeManually, floatingResult, stepCandle, trainerStats, syntheticCandles, pickStartIndex } from "./trainerEngine.js";
+import { marketState, marketSummary } from "./marketHours.js";
+import { openPosition, resolvePosition, closeManually, floatingResult, stepCandle, levelsForSide, trainerStats, syntheticCandles, pickStartIndex } from "./trainerEngine.js";
 import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS, listConfluenceFilters, WEEKDAYS, runWalkForward, analyzeFailure, optimizeStrategy } from "./backtestEngine.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
@@ -6078,12 +6079,20 @@ async function chargerSerie(asset) {
 // serveur Twelve Data, qui sert ces intervalles — pour les paires qu'elle
 // couvre (devises et metaux), et une seule fois par paire et par unite,
 // la reponse etant mise en cache 24 h cote CDN comme en memoire.
-const MINUTES_VERS_TD = { 1: "1min", 5: "5min" };
+const MINUTES_VERS_TD = { 1: "1min", 5: "5min", 15: "15min", 60: "1h", 240: "4h", 1440: "1day" };
+// Largeur de fenetre par unite, calee sur le plafond de 5 000 bougies par
+// appel de la source.
+const JOURS_FENETRE = { 1: 7, 5: 24, 15: 60, 60: 250, 240: 900, 1440: 2200 };
+
+// Actifs absents du depot historique : la crypto n'y est pas publiee, elle
+// vient donc entierement de la source serveur. Ouverte 7 jours sur 7,
+// c'est aussi ce qu'on peut travailler le week-end.
+const CRYPTO = ["BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD"];
 
 async function chargerSerieCourte(paire, tfMinutes) {
   const symbole = tdSymbolFor(paire);
   const interval = MINUTES_VERS_TD[tfMinutes];
-  if (!symbole) throw new Error("Cette source ne couvre pas " + paire + " en " + (tfMinutes === 1 ? "M1" : "M5") + ".");
+  if (!symbole) throw new Error("Cette source ne couvre pas " + paire + ".");
   if (!interval) throw new Error("intervalle non gere");
 
   const cle = "TD|" + paire + "|" + interval;
@@ -6091,7 +6100,7 @@ async function chargerSerieCourte(paire, tfMinutes) {
 
   // Fenetre passee tiree au sort, assez large pour le plafond de 5 000
   // bougies par appel : ~3 jours en M1, ~17 jours en M5.
-  const jours = tfMinutes === 1 ? 7 : 24;
+  const jours = JOURS_FENETRE[tfMinutes] || 24;
   const reculMax = 500, reculMin = 20;
   const finJ = reculMin + Math.floor(Math.random() * (reculMax - reculMin));
   const fin = new Date(Date.now() - finJ * 86400000);
@@ -6334,10 +6343,11 @@ function TrainerScreen({ onBack }) {
   const [vitesse, setVitesse] = useState(700);     // ms par bougie
   // Stop et objectif en PRIX, un jeu par sens : l'utilisateur les pose la ou
   // il veut, exactement comme chez un courtier.
-  const [stopLong, setStopLong] = useState(0);
-  const [targetLong, setTargetLong] = useState(0);
-  const [stopShort, setStopShort] = useState(0);
-  const [targetShort, setTargetShort] = useState(0);
+  const [stopPrix, setStopPrix] = useState(0);
+  const [targetPrix, setTargetPrix] = useState(0);
+  // Ecart de stop (en % du prix) et rapport objectif/risque retenus du
+  // dernier reglage de l'utilisateur.
+  const reglage = useRef({ pct: 0.6, rr: 2 });
   const [position, setPosition] = useState(null);
   const [resultat, setResultat] = useState(null);
   const [risque, setRisque] = useState(1);
@@ -6373,6 +6383,17 @@ function TrainerScreen({ onBack }) {
     ...(session || {}),
     draws: { ...((session && session.draws) || {}), [paire]: liste },
   });
+
+  // Etat reel des marches. Recalcule chaque minute : une fermeture qui
+  // tombe pendant que l'ecran est ouvert doit se voir.
+  const [minuteCourante, setMinuteCourante] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setMinuteCourante(Date.now()), 60000);
+    return () => clearInterval(t);
+  }, []);
+  const maintenant = new Date(minuteCourante);
+  const resumeMarche = marketSummary(watch, maintenant);
+  const marcheActif = marketState(paire, maintenant);
 
   // Cotations reelles des actifs surveilles, rafraichies chaque minute.
   const { quotes: direct, etat: etatDirect, fraicheur: fraicheurDirect } = useLiveQuotes(watch);
@@ -6425,14 +6446,19 @@ function TrainerScreen({ onBack }) {
     return () => { vivant = false; };
   }, []);
 
-  const paires = [...new Set(catalogue.map(a => a.pair))].sort();
+  const paires = [...new Set([...catalogue.map(a => a.pair), ...CRYPTO])].sort();
+  // Une paire absente du depot ne peut venir que de la source serveur.
+  const horsDepot = (p) => !catalogue.some(a => a.pair === p);
 
   // Paire par defaut : la premiere de la veille qui existe, sinon la premiere
   // du catalogue.
   useEffect(() => {
-    if (paire || !paires.length) return;
+    // On ATTEND le catalogue. Depuis l'ajout des cryptos, la liste n'etait
+    // plus vide avant son chargement : le choix par defaut se faisait sur
+    // les seules cryptos et tombait sur BTCUSD au lieu de la veille.
+    if (paire || !catalogue.length || !paires.length) return;
     setPaire(watch.find(p => paires.includes(p)) || paires[0]);
-  }, [paires.length]);   // eslint-disable-line
+  }, [catalogue.length, paires.length]);   // eslint-disable-line
 
   // ── Chargement de la serie de la paire choisie ────────────────────────
   useEffect(() => {
@@ -6447,7 +6473,7 @@ function TrainerScreen({ onBack }) {
         // echouer un essai sur deux et basculait sur la serie de secours —
         // c'est l'origine du message "Donnees indisponibles".
         let brutes, baseMinutes;
-        if (MINUTES_VERS_TD[tf]) {
+        if (MINUTES_VERS_TD[tf] && (horsDepot(paire) || tf < 15)) {
           // M1 et M5 : le depot est en M15, ces unites viennent de la source
           // serveur. Un echec remonte sa vraie raison, pas un message vague.
           ({ brutes, baseMinutes } = await chargerSerieCourte(paire, tf));
@@ -6513,10 +6539,14 @@ function TrainerScreen({ onBack }) {
   // Unites de temps reellement servables pour la paire courante : afficher
   // M5 quand la source est en M15 promettait un detail qui n'existe pas.
   const tfsDispo = useMemo(
-    () => TIMEFRAMES.filter(t => MINUTES_VERS_TD[t.minutes]
-      // M1 et M5 : proposees seulement si la source serveur couvre la paire.
-      ? !!tdSymbolFor(paire)
-      : !!choisirFenetre(catalogue, paire, t.minutes, BESOIN, () => 0)),
+    () => TIMEFRAMES.filter(t => {
+      // Hors depot (crypto) : tout vient de la source serveur.
+      if (horsDepot(paire)) return !!tdSymbolFor(paire) && !!MINUTES_VERS_TD[t.minutes];
+      // M1 et M5 : le depot est en M15, elles viennent de la source serveur
+      // et ne sont donc proposees que pour les paires qu'elle couvre.
+      if (t.minutes < 15) return !!tdSymbolFor(paire);
+      return !!choisirFenetre(catalogue, paire, t.minutes, BESOIN, () => 0);
+    }),
     [catalogue, paire]);   // eslint-disable-line
 
   useEffect(() => {
@@ -6550,12 +6580,25 @@ function TrainerScreen({ onBack }) {
   // des suggestions : l'utilisateur les deplace au prix qu'il veut.
   useEffect(() => {
     if (prixEntree == null || position || resultat) return;
-    const d = prixEntree * (stopPct / 100);
-    setStopLong(+(prixEntree - d).toPrecision(10));
-    setTargetLong(+(prixEntree + d * rr).toPrecision(10));
-    setStopShort(+(prixEntree + d).toPrecision(10));
-    setTargetShort(+(prixEntree - d * rr).toPrecision(10));
-  }, [prixEntree, stopPct, rr, position, resultat]);   // eslint-disable-line
+    const d = prixEntree * (reglage.current.pct / 100);
+    setStopPrix(+(prixEntree - d).toPrecision(10));
+    setTargetPrix(+(prixEntree + d * reglage.current.rr).toPrecision(10));
+  }, [prixEntree, position, resultat]);   // eslint-disable-line
+
+  // Quand l'utilisateur deplace un niveau, on retient l'ECART et le RAPPORT
+  // qu'il vient de choisir pour les reproposer au trade suivant. Son reglage
+  // ne se perd pas a chaque nouvelle serie.
+  const memoriser = (stop, target) => {
+    if (!prixEntree) return;
+    const d = Math.abs(prixEntree - stop);
+    if (d > 0) {
+      reglage.current.pct = Math.max(0.05, Math.min(20, (d / prixEntree) * 100));
+      const r = Math.abs(target - prixEntree) / d;
+      if (r > 0 && isFinite(r)) reglage.current.rr = Math.max(0.2, Math.min(20, r));
+    }
+  };
+  const majStop = (v) => { setStopPrix(v); memoriser(v, targetPrix); };
+  const majTarget = (v) => { setTargetPrix(v); memoriser(stopPrix, v); };
 
   const cloturer = (prix, index, raison) => {
     const r = raison === "manuel"
@@ -6601,15 +6644,17 @@ function TrainerScreen({ onBack }) {
   const prendrePosition = (side) => {
     if (!serie || prixEntree == null || resultat || position) return;
     const entree = side === "long" ? prixAchat : prixVente;
-    const p = openPosition({
+    // Les niveaux poses valent pour un sens ; appuyer sur l'autre bouton les
+    // reflechit autour du prix en gardant la distance et le rapport. Plus
+    // de bouton muet, plus de reglage a refaire.
+    const n = levelsForSide({ entryPrice: entree, side, stopPrice: stopPrix, targetPrice: targetPrix, rr });
+    const p = n && openPosition({
       side, entryPrice: entree, balance: stats.balance, riskPct: risque,
-      stopPrice: side === "long" ? stopLong : stopShort,
-      targetPrice: side === "long" ? targetLong : targetShort,
+      stopPrice: n.stop, targetPrice: n.target,
     });
-    // Niveaux incoherents (stop du mauvais cote) : on le dit plutot que de
-    // ne rien faire, un bouton muet passe pour une panne.
-    if (!p) { setErreur("Stop ou objectif du mauvais côté du prix d'entrée."); return; }
+    if (!p) { setErreur("Niveaux inutilisables pour ce sens."); return; }
     setErreur(null);
+    if (!n.dejaBon) { setStopPrix(n.stop); setTargetPrix(n.target); }
     setPosition({ ...p, openIndex: idx });
     setCurseur(idx);
     setEnPause(false);
@@ -6628,6 +6673,12 @@ function TrainerScreen({ onBack }) {
     : r === "manuel" ? "Clôture manuelle" : "Sortie en fin de période";
 
   const enJeu = stats.balance * risque / 100;
+  // Rapport REEL des niveaux poses, pas un reglage theorique.
+  const rrPose = (() => {
+    const d = prixEntree ? Math.abs(prixEntree - stopPrix) : 0;
+    const r = d > 0 ? Math.abs(targetPrix - prixEntree) / d : 0;
+    return r > 0 && isFinite(r) ? r : 2;
+  })();
 
   return (
     <div style={{ fontFamily: "-apple-system, sans-serif", color: "#fff" }}>
@@ -6662,13 +6713,17 @@ function TrainerScreen({ onBack }) {
         </div>
 
         {/* Bande d'actifs surveilles */}
+        {/* Un samedi, annoncer "Marche en direct" est faux : le Forex, les
+            metaux et les indices sont fermes et les cours affiches sont ceux
+            de la cloture de vendredi. On dit donc ce qui est vrai, actif par
+            actif, et la crypto garde son point vert. */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
           <span style={{ width: 6, height: 6, borderRadius: 4, flexShrink: 0,
-            background: etatDirect === "direct" ? TRAIN_ACCENT : "rgba(255,255,255,0.22)",
-            boxShadow: etatDirect === "direct" ? `0 0 7px ${TRAIN_ACCENT}` : "none" }} />
+            background: resumeMarche.ouverts > 0 && etatDirect === "direct" ? TRAIN_ACCENT : "rgba(255,255,255,0.22)",
+            boxShadow: resumeMarche.ouverts > 0 && etatDirect === "direct" ? `0 0 7px ${TRAIN_ACCENT}` : "none" }} />
           <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase",
-            color: etatDirect === "direct" ? TRAIN_ACCENT : "rgba(255,255,255,0.35)" }}>
-            {etatDirect === "direct" ? "Marché en direct" : etatDirect === "attente" ? "Connexion au marché…" : "Direct indisponible"}
+            color: resumeMarche.ouverts > 0 ? TRAIN_ACCENT : "#fbbf24" }}>
+            {resumeMarche.texte}
           </span>
           <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.28)", marginLeft: "auto", whiteSpace: "nowrap" }}>
             {etatDirect !== "direct" ? "cours de référence"
@@ -6696,7 +6751,13 @@ function TrainerScreen({ onBack }) {
                     : `linear-gradient(160deg, ${TRAIN_ACCENT}1A 0%, ${TRAIN_ACCENT}08 46%, rgba(255,255,255,0.03) 100%)`,
                   border: actif ? `1.5px solid ${TRAIN_ACCENT}66` : "1px solid rgba(255,255,255,0.07)",
                 }}>
-                <div style={{ fontSize: 11.5, fontWeight: 800, color: "#fff" }}>{p}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ fontSize: 11.5, fontWeight: 800, color: "#fff" }}>{p}</span>
+                  {/* Point d'etat : vert = ce marche se traite maintenant. */}
+                  <span title={marketState(p, maintenant).texte}
+                    style={{ width: 5, height: 5, borderRadius: 3, flexShrink: 0,
+                      background: marketState(p, maintenant).ouvert ? TRAIN_ACCENT : "rgba(251,191,36,0.85)" }} />
+                </div>
                 <div style={{ height: 30, margin: "3px 0" }}>
                   {d ? <span style={{ display: "block", opacity: d.live && !d.courbeDirecte ? 0.42 : 1 }}>
                          <MiniSpark values={d.closes} color={col} width={94} height={30} />
@@ -6735,8 +6796,15 @@ function TrainerScreen({ onBack }) {
                         stroke={TRAIN_ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </button>
-                  <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap" }}>
-                    {paire} · {TIMEFRAMES.find(t => t.minutes === tf)?.label || tf}
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: "block", fontSize: 10.5, color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap" }}>
+                      {paire} · {TIMEFRAMES.find(t => t.minutes === tf)?.label || tf}
+                    </span>
+                    {/* Leve l'ambiguite qui faisait croire a un trade en direct
+                        un samedi : l'exercice rejoue des bougies passees. */}
+                    <span style={{ display: "block", fontSize: 8.5, color: "rgba(255,255,255,0.3)", whiteSpace: "nowrap", letterSpacing: 0.3 }}>
+                      REJEU HISTORIQUE{marcheActif.ouvert ? "" : " · " + marcheActif.texte.toUpperCase()}
+                    </span>
                   </span>
                 </span>
                 <span style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{fmtPrix(prixMid)}</span>
@@ -6820,24 +6888,20 @@ function TrainerScreen({ onBack }) {
 
         ) : !resultat ? (
           <>
-            {/* Risque, puis stop et objectif AU PRIX, un jeu par sens. */}
-            <div style={{ display: "flex", gap: 10, marginBottom: 8 }}>
-              <MiniStepper label="Risque" value={risque} onChange={setRisque} suffix=" %" step={0.5} min={0.1} max={10} />
-              <MiniStepper label="Stop auto" value={stopPct} onChange={setStopPct} suffix=" %" step={0.1} min={0.1} max={10} />
-              <MiniStepper label="Objectif auto" value={rr} onChange={setRr} suffix=" R" step={0.5} min={0.5} max={10} />
-            </div>
-
-            {/* Les quatre niveaux sur UNE ligne : deux lignes faisaient
-                deborder l'ecran de 28 px, mesure faite. */}
-            <div style={{ display: "flex", gap: 5, marginBottom: 8 }}>
-              <PrixNiveau label="SL vente" value={stopShort} onChange={setStopShort} couleur="#ef4444" />
-              <PrixNiveau label="TP vente" value={targetShort} onChange={setTargetShort} couleur={TRAIN_ACCENT} />
-              <PrixNiveau label="SL achat" value={stopLong} onChange={setStopLong} couleur="#ef4444" />
-              <PrixNiveau label="TP achat" value={targetLong} onChange={setTargetLong} couleur={TRAIN_ACCENT} />
+            {/* Le risque et les deux niveaux sur UNE ligne. Les anciens
+                reglages "Stop auto" et "Objectif auto" ont disparu : les
+                niveaux au prix les remplacent, et l'app retient l'ecart et le
+                rapport pour les proposer au trade suivant. */}
+            <div style={{ display: "flex", gap: 7, marginBottom: 8, alignItems: "flex-end" }}>
+              <div style={{ width: 92, flexShrink: 0 }}>
+                <MiniStepper label="Risque" value={risque} onChange={setRisque} suffix=" %" step={0.5} min={0.1} max={10} />
+              </div>
+              <PrixNiveau label="Stop" value={stopPrix} onChange={majStop} couleur="#ef4444" />
+              <PrixNiveau label="Objectif" value={targetPrix} onChange={majTarget} couleur={TRAIN_ACCENT} />
             </div>
 
             <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)", textAlign: "center", marginBottom: 8 }}>
-              {fmt2(enJeu)} en jeu · {fmt2(enJeu * rr)} si l'objectif est touché
+              {fmt2(enJeu)} en jeu · {fmt2(enJeu * rrPose)} si l'objectif est touché · 1:{rrPose.toFixed(1)}
             </div>
 
             {/* Capsule Vendre / Acheter */}
@@ -6855,7 +6919,7 @@ function TrainerScreen({ onBack }) {
               </button>
               <div style={{ flexShrink: 0, background: "#10141c", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 11px" }}>
                 <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", lineHeight: 1.1 }}>{risque} %</span>
-                <span style={{ fontSize: 11.5, fontWeight: 800, color: "#fff", lineHeight: 1.3 }}>1:{rr}</span>
+                <span style={{ fontSize: 11.5, fontWeight: 800, color: "#fff", lineHeight: 1.3 }}>1:{rrPose.toFixed(1)}</span>
               </div>
               <button onClick={() => prendrePosition("long")} disabled={chargement}
                 style={{ flex: 1, border: "none", cursor: "pointer", padding: "11px 12px", textAlign: "right",
@@ -6991,6 +7055,12 @@ function TrainerScreen({ onBack }) {
           position={position} resultat={resultat}
           dessins={dessins} onDessins={setDessins}
           fmtPrix={fmtPrix}
+          niveaux={{ stop: stopPrix, target: targetPrix }}
+          onNiveaux={(n) => { majStop(n.stop); majTarget(n.target); }}
+          prixAchat={prixAchat} prixVente={prixVente}
+          marche={marcheActif}
+          onAcheter={() => prendrePosition("long")}
+          onVendre={() => prendrePosition("short")}
           onClose={() => setPleinEcran(false)} />
       )}
 

@@ -66,6 +66,48 @@ export function openPosition({ side, entryPrice, balance, riskPct, stopPct, rr, 
   };
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// DEUX NIVEAUX, LES DEUX SENS
+// --------------------------------------------------------------------------
+// Quatre champs (SL/TP achat, SL/TP vente) demandaient a l'utilisateur de
+// tenir dans sa tete deux scenarios a la fois. Il n'en pose plus que DEUX
+// sur le graphique, et le sens se lit tout seul : un stop sous le prix,
+// c'est un achat ; au-dessus, c'est une vente.
+//
+// Si l'on appuie sur le bouton de l'autre sens, les niveaux sont reflechis
+// autour du prix en gardant la MEME distance de stop et le MEME rapport —
+// le reglage est conserve, seule la direction change.
+// ══════════════════════════════════════════════════════════════════════════
+export function levelsForSide({ entryPrice, side, stopPrice, targetPrice, rr = 2 }) {
+  const prix = num(entryPrice);
+  const sens = side === "short" ? -1 : 1;
+  if (!(prix > 0)) return null;
+
+  let d = Math.abs(prix - num(stopPrice));
+  if (!(d > 0)) d = prix * 0.006;                       // repli raisonnable
+  // Objectif ABSENT et objectif a zero ne sont pas la meme chose : sans ce
+  // controle, un objectif manquant valait 0 et donnait un rapport de 100.
+  const cible = Number(targetPrice);
+  let rapport = (isFinite(cible) && cible > 0) ? Math.abs(cible - prix) / d : 0;
+  if (!(rapport > 0) || !isFinite(rapport)) rapport = num(rr, 2);
+
+  return {
+    stop: prix - sens * d,
+    target: prix + sens * d * rapport,
+    rr: +rapport.toFixed(3),
+    // Vrai quand les niveaux fournis allaient deja dans ce sens : l'ecran
+    // peut alors se taire plutot que d'annoncer une correction inutile.
+    dejaBon: (prix - num(stopPrice)) * sens > 0 && (num(targetPrice) - prix) * sens > 0,
+  };
+}
+
+/** Sens deduit de la position du stop par rapport au prix. */
+export function sideFromLevels(entryPrice, stopPrice) {
+  const p = num(entryPrice), s = num(stopPrice);
+  if (!(p > 0) || !(s > 0) || p === s) return null;
+  return s < p ? "long" : "short";
+}
+
 // Resultat COURANT d'une position encore ouverte, au cours affiche. C'est ce
 // qui manquait pour qu'un trade se deroule au lieu de se resoudre d'un bloc.
 export function floatingResult(position, price) {
