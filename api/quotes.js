@@ -32,6 +32,13 @@ const YAHOO = {
   USOIL: ["CL=F"], UKOIL: ["BZ=F"], COPPER: ["HG=F"],
 };
 
+// En-tetes de navigateur : plusieurs sources publiques refusent une requete
+// qui n'en porte pas, et renvoient alors une page d'erreur au lieu du CSV.
+const UA = {
+  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
+  "Accept": "text/csv,text/plain,application/json;q=0.9,*/*;q=0.8",
+};
+
 const MAX_SYMBOLS = 8;          // garde-fou : une bande de veille, pas un scan du marché
 const SPARK_POINTS = 48;        // points de la courbe miniature
 
@@ -139,7 +146,7 @@ function csvLignes(txt) {
 async function stooq(sym) {
   const s = STOOQ[sym];
   if (!s) throw new Error("pas de correspondance");
-  const r = await fetch("https://stooq.com/q/l/?s=" + encodeURIComponent(s) + "&f=sd2t2ohlcv&h&e=csv");
+  const r = await fetch("https://stooq.com/q/l/?s=" + encodeURIComponent(s) + "&f=sd2t2ohlcv&h&e=csv", { headers: UA });
   if (!r.ok) throw new Error("http " + r.status);
   const lignes = csvLignes(await r.text());
   if (lignes.length < 2) throw new Error("réponse vide");
@@ -170,7 +177,7 @@ async function stooqCourbe(sym) {
   const debut = new Date(fin.getTime() - 100 * 86400000);
   const fmt = (d) => d.toISOString().slice(0, 10).replace(/-/g, "");
   const r = await fetch("https://stooq.com/q/d/l/?s=" + encodeURIComponent(s)
-    + "&d1=" + fmt(debut) + "&d2=" + fmt(fin) + "&i=d");
+    + "&d1=" + fmt(debut) + "&d2=" + fmt(fin) + "&i=d", { headers: UA });
   if (!r.ok) return [];
   const lignes = csvLignes(await r.text());
   if (lignes.length < 3) return [];
@@ -188,13 +195,25 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Paramètre 'symbols' requis.", exemple: "/api/quotes?symbols=XAUUSD,EURUSD" });
   }
 
+  // ?debug=1 : expose la raison d'echec de CHAQUE source. Sans cela, un
+  // symbole a null ne dit pas si la source est injoignable, si le symbole
+  // est inconnu ou si le quota est epuise — trois pannes a corriger
+  // differemment.
+  const debug = req.query.debug === "1";
+  const journal = {};
+
   const quotes = {};
   await Promise.all(demandes.map(async (sym) => {
+    const essais = [];
     for (const t of (YAHOO[sym] || [])) {
-      try { quotes[sym] = await yahoo(t); return; } catch (e) { /* candidat suivant */ }
+      try { quotes[sym] = await yahoo(t); journal[sym] = essais; return; }
+      catch (e) { essais.push("yahoo:" + t + " -> " + String(e.message || e).slice(0, 90)); }
     }
-    try { quotes[sym] = await stooq(sym); return; } catch (e) { /* recours suivant */ }
-    try { quotes[sym] = await twelveData(sym); return; } catch (e) { /* aucune source */ }
+    try { quotes[sym] = await stooq(sym); journal[sym] = essais; return; }
+    catch (e) { essais.push("stooq -> " + String(e.message || e).slice(0, 90)); }
+    try { quotes[sym] = await twelveData(sym); journal[sym] = essais; return; }
+    catch (e) { essais.push("twelvedata -> " + String(e.message || e).slice(0, 90)); }
+    journal[sym] = essais;
     quotes[sym] = null;   // on l'assume, on n'invente pas un cours
   }));
 
@@ -214,5 +233,8 @@ export default async function handler(req, res) {
     ? "s-maxage=900, stale-while-revalidate=3600"
     : "s-maxage=45, stale-while-revalidate=300");
 
-  return res.status(200).json({ quotes, serverTime: Date.now() });
+  if (debug) res.setHeader("Cache-Control", "no-store");
+  return res.status(200).json(debug
+    ? { quotes, journal, serverTime: Date.now() }
+    : { quotes, serverTime: Date.now() });
 }
