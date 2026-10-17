@@ -82,6 +82,41 @@ async function yahoo(ticker) {
   };
 }
 
+// Secours : Twelve Data. Yahoo refuse parfois les adresses de centres de
+// donnees — sans second recours, la bande entiere tomberait en "indisponible"
+// pour une raison qui n'a rien a voir avec l'utilisateur. La cle reste
+// strictement cote serveur. Le plan gratuit ne couvre pas les indices :
+// ce recours sert surtout les devises et les metaux, et c'est assume.
+const TD = {
+  EURUSD: "EUR/USD", GBPUSD: "GBP/USD", AUDUSD: "AUD/USD", NZDUSD: "NZD/USD",
+  USDJPY: "USD/JPY", USDCAD: "USD/CAD", USDCHF: "USD/CHF",
+  EURJPY: "EUR/JPY", GBPJPY: "GBP/JPY", AUDJPY: "AUD/JPY", CHFJPY: "CHF/JPY",
+  EURGBP: "EUR/GBP", EURCHF: "EUR/CHF",
+  XAUUSD: "XAU/USD", XAGUSD: "XAG/USD",
+};
+
+async function twelveData(sym) {
+  const cle = process.env.TWELVE_DATA_API_KEY;
+  const symbole = TD[sym];
+  if (!cle || !symbole) throw new Error("pas de recours");
+  const r = await fetch("https://api.twelvedata.com/quote?symbol="
+    + encodeURIComponent(symbole) + "&apikey=" + cle);
+  if (!r.ok) throw new Error("http " + r.status);
+  const d = await r.json();
+  const prix = Number(d.close);
+  if (!isFinite(prix) || !(prix > 0)) throw new Error("cours absent");
+  const veille = Number(d.previous_close);
+  return {
+    price: +prix.toFixed(6),
+    changePct: isFinite(veille) && veille > 0 ? +(((prix - veille) / veille) * 100).toFixed(3) : null,
+    spark: [],                    // pas de courbe : elle couterait un appel de plus
+    ticker: symbole,
+    asOf: Date.now(),
+    marketState: d.is_market_open === false ? "CLOSED" : null,
+    source: "twelvedata",
+  };
+}
+
 export default async function handler(req, res) {
   const brut = String(req.query.symbols || "").toUpperCase();
   const demandes = brut.split(",").map(s => s.trim()).filter(Boolean).slice(0, MAX_SYMBOLS);
@@ -92,11 +127,10 @@ export default async function handler(req, res) {
 
   const quotes = {};
   await Promise.all(demandes.map(async (sym) => {
-    const candidats = YAHOO[sym];
-    if (!candidats) { quotes[sym] = null; return; }
-    for (const t of candidats) {
+    for (const t of (YAHOO[sym] || [])) {
       try { quotes[sym] = await yahoo(t); return; } catch (e) { /* candidat suivant */ }
     }
+    try { quotes[sym] = await twelveData(sym); return; } catch (e) { /* ni l'un ni l'autre */ }
     quotes[sym] = null;   // aucune source : on l'assume, on n'invente pas
   }));
 
