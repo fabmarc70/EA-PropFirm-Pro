@@ -54,7 +54,10 @@ export default defineConfig({
         // exactement une entrée du precache. On force TOUTE navigation vers
         // l'app shell mis en cache.
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/__/],
+        // /__ : relais d'authentification Firebase. /api : routes serverless —
+        // les cotations en direct ne doivent jamais etre servies depuis le
+        // cache, un cours perime est pire qu'un cours absent.
+        navigateFallbackDenylist: [/^\/__/, /^\/api\//],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
