@@ -42,17 +42,44 @@ const UA = {
 const MAX_SYMBOLS = 8;          // garde-fou : une bande de veille, pas un scan du marché
 const SPARK_POINTS = 48;        // points de la courbe miniature
 
+// Yahoo repondait 429 depuis les serveurs Vercel : l'adresse est partagee
+// par beaucoup de projets et l'API exige desormais un cookie de session.
+// On fait donc la poignee de main complete (cookie puis jeton), une seule
+// fois par instance, et on alterne les deux hotes de l'API.
+let sessionYahoo = null;
+async function ouvrirSessionYahoo() {
+  if (sessionYahoo) return sessionYahoo;
+  const r = await fetch("https://fc.yahoo.com/", { headers: UA, redirect: "follow" });
+  const brut = r.headers.get("set-cookie") || "";
+  const cookie = brut.split(",").map(c => c.split(";")[0].trim()).filter(Boolean).join("; ");
+  let crumb = null;
+  if (cookie) {
+    const c = await fetch("https://query2.finance.yahoo.com/v1/test/getcrumb", {
+      headers: { ...UA, Cookie: cookie },
+    });
+    if (c.ok) { const t = (await c.text()).trim(); if (t && t.length < 40) crumb = t; }
+  }
+  sessionYahoo = { cookie, crumb };
+  return sessionYahoo;
+}
+
 async function yahoo(ticker) {
-  const url = "https://query1.finance.yahoo.com/v8/finance/chart/"
-    + encodeURIComponent(ticker) + "?range=1d&interval=5m";
-  const r = await fetch(url, {
-    headers: {
-      // Yahoo refuse les requêtes sans en-tête de navigateur.
-      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
-      "Accept": "application/json",
-    },
-  });
-  if (!r.ok) throw new Error("http " + r.status);
+  const sess = await ouvrirSessionYahoo().catch(() => ({ cookie: "", crumb: null }));
+  const hotes = ["query1", "query2"];
+  let derniere = "aucun essai";
+  let r = null;
+  for (const h of hotes) {
+    const url = "https://" + h + ".finance.yahoo.com/v8/finance/chart/"
+      + encodeURIComponent(ticker) + "?range=1d&interval=5m"
+      + (sess.crumb ? "&crumb=" + encodeURIComponent(sess.crumb) : "");
+    const rep = await fetch(url, {
+      headers: { ...UA, Accept: "application/json", ...(sess.cookie ? { Cookie: sess.cookie } : {}) },
+    });
+    if (rep.ok) { r = rep; break; }
+    derniere = "http " + rep.status;
+    if (rep.status === 401 || rep.status === 403) sessionYahoo = null;   // jeton perime
+  }
+  if (!r) throw new Error(derniere);
   const d = await r.json();
   const res = d && d.chart && d.chart.result && d.chart.result[0];
   if (!res || !res.meta) throw new Error("réponse vide");
@@ -100,6 +127,9 @@ const TD = {
   EURJPY: "EUR/JPY", GBPJPY: "GBP/JPY", AUDJPY: "AUD/JPY", CHFJPY: "CHF/JPY",
   EURGBP: "EUR/GBP", EURCHF: "EUR/CHF",
   XAUUSD: "XAU/USD", XAGUSD: "XAG/USD",
+  // Indices : non garantis sur le plan gratuit. On tente — un echec propre
+  // vaut mieux qu'un symbole ecarte d'avance.
+  NAS100: "NDX", US30: "DJI", SPX500: "SPX", GER30: "DAX", UK100: "UKX", JPN225: "N225",
 };
 
 async function twelveData(sym) {
@@ -111,7 +141,9 @@ async function twelveData(sym) {
   if (!r.ok) throw new Error("http " + r.status);
   const d = await r.json();
   const prix = Number(d.close);
-  if (!isFinite(prix) || !(prix > 0)) throw new Error("cours absent");
+  if (!isFinite(prix) || !(prix > 0)) {
+    throw new Error(d && d.message ? String(d.message).slice(0, 80) : "cours absent");
+  }
   const veille = Number(d.previous_close);
   return {
     price: +prix.toFixed(6),
@@ -146,9 +178,14 @@ function csvLignes(txt) {
 async function stooq(sym) {
   const s = STOOQ[sym];
   if (!s) throw new Error("pas de correspondance");
-  const r = await fetch("https://stooq.com/q/l/?s=" + encodeURIComponent(s) + "&f=sd2t2ohlcv&h&e=csv", { headers: UA });
-  if (!r.ok) throw new Error("http " + r.status);
-  const lignes = csvLignes(await r.text());
+  let txt = null, derniere = "";
+  for (const hote of ["stooq.com", "stooq.pl"]) {
+    const r = await fetch("https://" + hote + "/q/l/?s=" + encodeURIComponent(s) + "&f=sd2t2ohlcv&h&e=csv", { headers: UA });
+    if (r.ok) { txt = await r.text(); break; }
+    derniere = hote + " http " + r.status;
+  }
+  if (txt == null) throw new Error(derniere || "injoignable");
+  const lignes = csvLignes(txt);
   if (lignes.length < 2) throw new Error("réponse vide");
   // Symbol,Date,Time,Open,High,Low,Close,Volume
   const col = lignes[1].split(",");
@@ -176,10 +213,14 @@ async function stooqCourbe(sym) {
   const fin = new Date();
   const debut = new Date(fin.getTime() - 100 * 86400000);
   const fmt = (d) => d.toISOString().slice(0, 10).replace(/-/g, "");
-  const r = await fetch("https://stooq.com/q/d/l/?s=" + encodeURIComponent(s)
-    + "&d1=" + fmt(debut) + "&d2=" + fmt(fin) + "&i=d", { headers: UA });
-  if (!r.ok) return [];
-  const lignes = csvLignes(await r.text());
+  let txt = null;
+  for (const hote of ["stooq.com", "stooq.pl"]) {
+    const r = await fetch("https://" + hote + "/q/d/l/?s=" + encodeURIComponent(s)
+      + "&d1=" + fmt(debut) + "&d2=" + fmt(fin) + "&i=d", { headers: UA });
+    if (r.ok) { txt = await r.text(); break; }
+  }
+  if (txt == null) return [];
+  const lignes = csvLignes(txt);
   if (lignes.length < 3) return [];
   return lignes.slice(1)
     .map(l => Number(l.split(",")[4]))
