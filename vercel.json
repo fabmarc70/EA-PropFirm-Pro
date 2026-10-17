@@ -2,5 +2,11 @@
   "crons": [
     { "path": "/api/check-alerts", "schedule": "0 12 * * *" },
     { "path": "/api/check-news", "schedule": "0 11 * * *" }
+  ],
+  "rewrites": [
+    {
+      "source": "/__/auth/:path*",
+      "destination": "https://propfirmpro-ffbd0.firebaseapp.com/__/auth/:path*"
+    }
   ]
 }

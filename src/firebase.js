@@ -21,9 +21,40 @@ import {
 } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, addDoc, getDocs, updateDoc, query, where, serverTimestamp } from "firebase/firestore";
 
+// ══════════════════════════════════════════════════════════════════
+// DOMAINE D'AUTHENTIFICATION
+// ------------------------------------------------------------------
+// Safari et iOS cloisonnent le stockage par site (storage partitioning).
+// Le gestionnaire d'authentification servi depuis
+// propfirmpro-ffbd0.firebaseapp.com est un site TIERS vis-a-vis de l'app :
+// il ne peut pas relire le sessionStorage qu'il vient lui-meme d'ecrire.
+// D'ou l'erreur "Unable to process request due to missing initial state".
+// En PWA installee sur l'ecran d'accueil c'est systematique : la fenetre de
+// connexion s'ouvre dans un contexte de navigation separe.
+//
+// Solution recommandee par Google (Identity Platform — "Best practices for
+// using signInWithRedirect on browsers that block third-party storage
+// access", option 3) : servir /__/auth/ depuis NOTRE domaine via un relais
+// transparent (bloc "rewrites" de vercel.json) et pointer authDomain
+// dessus. Tout se passe alors sur une seule et meme origine.
+//
+// ATTENTION — bascule volontairement pilotee par variable d'environnement.
+// Changer authDomain exige AU PREALABLE d'avoir declare
+//     https://<domaine>/__/auth/handler
+// dans les URI de redirection autorisees du client OAuth Google (et dans
+// les Return URLs du Services ID Apple). Sans cette declaration, Google
+// repond redirect_uri_mismatch et la connexion casse PARTOUT, y compris la
+// ou elle fonctionne aujourd'hui. La valeur par defaut reste donc
+// l'ancienne : on ne bascule qu'une fois les consoles configurees, en
+// definissant VITE_FIREBASE_AUTH_DOMAIN sur Vercel.
+// ══════════════════════════════════════════════════════════════════
+const AUTH_DOMAIN =
+  (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FIREBASE_AUTH_DOMAIN) ||
+  "propfirmpro-ffbd0.firebaseapp.com";
+
 const firebaseConfig = {
   apiKey: "AIzaSyCYqMoWp-3BpU_yJZALoioSbTf1zb7HL3g",
-  authDomain: "propfirmpro-ffbd0.firebaseapp.com",
+  authDomain: AUTH_DOMAIN,
   projectId: "propfirmpro-ffbd0",
   storageBucket: "propfirmpro-ffbd0.firebasestorage.app",
   messagingSenderId: "347644770866",

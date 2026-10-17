@@ -14320,6 +14320,24 @@ function CalendrierPnL({ dailyLog, journalMode = false, journalData = {}, onJour
 // ══════════════════════════════════════════════════════════════════
 // HELPERS PERSISTANCE APP (profil, auth, onboarding)
 // ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// DOMAINE OFFICIEL DE L'APP
+// Firebase n'accepte la connexion que depuis les domaines declares dans sa
+// liste "Domaines autorises". Une URL de DEPLOIEMENT Vercel
+// (…-fabmarc70s-projects.vercel.app) n'y figure pas : la connexion echoue, et
+// en prime cette URL est figee sur une version ancienne et ne recoit aucune
+// mise a jour. Cas reellement rencontre apres installation de la PWA depuis
+// la mauvaise URL — d'ou l'avertissement explicite sur l'ecran de connexion
+// plutot qu'une erreur Firebase incomprehensible.
+// ══════════════════════════════════════════════════════════════════
+const OFFICIAL_HOST = "ea-propfirm-pro.vercel.app";
+function isOfficialHost() {
+  try {
+    const h = window.location.hostname;
+    return h === OFFICIAL_HOST || h === "localhost" || h === "127.0.0.1";
+  } catch (e) { return true; }
+}
+
 const APP_KEY = "eapropfirm_app";
 
 // ══════════════════════════════════════════════════════════════════
@@ -14968,6 +14986,15 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
       "auth/popup-closed-by-user": "Connexion annulée.",
       "auth/popup-blocked": "Popup bloquée par le navigateur. Autorise les popups.",
       "auth/network-request-failed": "Problème réseau. Vérifie ta connexion.",
+      // Le domaine depuis lequel l'app est ouverte n'est pas dans la liste des
+      // domaines autorisés Firebase. Cas réel vécu : l'app avait été installée
+      // sur l'écran d'accueil depuis une URL de DÉPLOIEMENT Vercel
+      // (…-fabmarc70s-projects.vercel.app) et non depuis le domaine officiel.
+      "auth/unauthorized-domain": "Ce domaine n'est pas autorisé. Ouvre l'app depuis " + OFFICIAL_HOST + ".",
+      // Safari/iOS : stockage cloisonné, le gestionnaire d'auth ne peut pas
+      // relire son propre sessionStorage. Message explicite plutôt que générique.
+      "auth/web-storage-unsupported": "Ton navigateur bloque le stockage nécessaire à la connexion. Désactive la navigation privée ou le blocage des cookies.",
+      "auth/operation-not-supported-in-this-environment": "Connexion impossible dans ce contexte. Ouvre l'app dans Safari puis réessaie.",
     };
     return map[code] || "Erreur de connexion. Réessaie.";
   };
@@ -15030,6 +15057,16 @@ function LoginScreen({ t, lang, setLang, onAuth }) {
             {t("login_subtitle")}
           </span>
         </div>
+
+        {/* Mauvais domaine : la connexion Firebase echouera a coup sur.
+            On le dit AVANT que l'utilisateur tente et tombe sur une erreur
+            Firebase en anglais qui ne lui apprend rien. */}
+        {!isOfficialHost() && (
+          <div style={{ marginBottom:14, padding:"11px 13px", borderRadius:12, background:"rgba(251,191,36,0.10)", border:"1px solid rgba(251,191,36,0.3)", color:"#fbbf24", fontSize:12.5, lineHeight:1.5, textAlign:"center" }}>
+            <b>Mauvaise adresse.</b> Cette version ne peut pas te connecter et ne reçoit plus les mises à jour.
+            Ouvre <b>{OFFICIAL_HOST}</b>, puis réinstalle l'app sur ton écran d'accueil depuis cette page.
+          </div>
+        )}
 
         {/* Erreur auth */}
         {authError && (
