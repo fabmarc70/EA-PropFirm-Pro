@@ -6176,11 +6176,14 @@ function MiniSpark({ values, color, width = 92, height = 30 }) {
 function useLiveQuotes(symbols, actif = true) {
   const [quotes, setQuotes] = useState({});
   const [etat, setEtat] = useState("attente");   // attente | direct | indisponible
+  const [fraicheur, setFraicheur] = useState(60);  // secondes, annoncees par le serveur
   const cle = (symbols || []).join(",");
 
   useEffect(() => {
     if (!actif || !cle) return;
     let vivant = true;
+    let minuteur = null;
+
     const charger = async () => {
       if (typeof document !== "undefined" && document.hidden) return;
       try {
@@ -6194,19 +6197,23 @@ function useLiveQuotes(symbols, actif = true) {
           Object.entries(recus).forEach(([k, v]) => { if (v) n[k] = v; });
           return n;
         });
+        // Interroger plus souvent que le cache ne bouge ne sert a rien et
+        // consomme du reseau mobile pour la meme reponse.
+        if (isFinite(d.fraicheurSec) && d.fraicheurSec > 0) setFraicheur(d.fraicheurSec);
         setEtat(Object.values(recus).some(Boolean) ? "direct" : "indisponible");
       } catch (err) {
         if (vivant) setEtat(prec => prec === "direct" ? "direct" : "indisponible");
       }
     };
+
     charger();
-    const t = setInterval(charger, 60000);
+    minuteur = setInterval(charger, Math.max(60, fraicheur) * 1000);
     const onVis = () => { if (!document.hidden) charger(); };
     document.addEventListener("visibilitychange", onVis);
-    return () => { vivant = false; clearInterval(t); document.removeEventListener("visibilitychange", onVis); };
-  }, [cle, actif]);
+    return () => { vivant = false; clearInterval(minuteur); document.removeEventListener("visibilitychange", onVis); };
+  }, [cle, actif, fraicheur]);
 
-  return { quotes, etat };
+  return { quotes, etat, fraicheur };
 }
 
 // Petit champ numerique compact : trois tiennent sur une ligne, la ou les
@@ -6276,14 +6283,22 @@ function TrainerScreen({ onBack }) {
   const watch = (session && session.watch) || DEFAUT_VEILLE;
 
   // Cotations reelles des actifs surveilles, rafraichies chaque minute.
-  const { quotes: direct, etat: etatDirect } = useLiveQuotes(watch);
+  const { quotes: direct, etat: etatDirect, fraicheur: fraicheurDirect } = useLiveQuotes(watch);
 
   // Une vignette lit le direct quand il existe, l'historique sinon.
   const vignette = (p) => {
     const L = direct[p];
     if (L && isFinite(L.price)) {
-      const courbe = L.spark && L.spark.length > 1 ? L.spark : ((veille[p] || {}).closes || []);
-      return { closes: courbe, last: L.price, varPct: isFinite(L.changePct) ? L.changePct : 0, live: true };
+      // La source donne un cours sans toujours donner la courbe. On affiche
+      // alors la courbe d'archive en retrait : le prix est du direct, la
+      // forme ne l'est pas, et l'ecran ne doit pas laisser croire l'inverse.
+      const direct = L.spark && L.spark.length > 1;
+      const courbe = direct ? L.spark : ((veille[p] || {}).closes || []);
+      return {
+        closes: courbe, last: L.price,
+        varPct: isFinite(L.changePct) ? L.changePct : 0,
+        live: true, courbeDirecte: direct,
+      };
     }
     const H = veille[p];
     return H ? { ...H, live: false } : null;
@@ -6481,7 +6496,9 @@ function TrainerScreen({ onBack }) {
             {etatDirect === "direct" ? "Marché en direct" : etatDirect === "attente" ? "Connexion au marché…" : "Direct indisponible"}
           </span>
           <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.28)", marginLeft: "auto", whiteSpace: "nowrap" }}>
-            {etatDirect === "direct" ? "actualisé chaque minute" : "cours de référence"}
+            {etatDirect !== "direct" ? "cours de référence"
+              : fraicheurDirect > 120 ? "différé ~" + Math.round(fraicheurDirect / 60) + " min"
+              : "actualisé chaque minute"}
           </span>
         </div>
         <div style={{ display: "flex", gap: 7, overflowX: "auto", marginBottom: 9, paddingBottom: 2, WebkitOverflowScrolling: "touch" }}>
@@ -6506,7 +6523,9 @@ function TrainerScreen({ onBack }) {
                 }}>
                 <div style={{ fontSize: 11.5, fontWeight: 800, color: "#fff" }}>{p}</div>
                 <div style={{ height: 30, margin: "3px 0" }}>
-                  {d ? <MiniSpark values={d.closes} color={col} width={94} height={30} />
+                  {d ? <span style={{ display: "block", opacity: d.live && !d.courbeDirecte ? 0.42 : 1 }}>
+                         <MiniSpark values={d.closes} color={col} width={94} height={30} />
+                       </span>
                      : <div style={{ height: 30, display: "flex", alignItems: "center", fontSize: 9, color: "rgba(255,255,255,0.25)" }}>chargement…</div>}
                 </div>
                 <div style={{ fontSize: 10.5, fontWeight: 700, color: "rgba(255,255,255,0.8)", whiteSpace: "nowrap" }}>

@@ -270,12 +270,16 @@ export default async function handler(req, res) {
   // nettement le cache plutôt que d'épuiser le quota en une matinée.
   const sources = Object.values(quotes).filter(Boolean).map(q => q.source);
   const seulementTD = sources.length > 0 && sources.every(s => s === "twelvedata");
+  const fraicheurSec = seulementTD ? 900 : 45;
   res.setHeader("Cache-Control", seulementTD
     ? "s-maxage=900, stale-while-revalidate=3600"
     : "s-maxage=45, stale-while-revalidate=300");
 
   if (debug) res.setHeader("Cache-Control", "no-store");
+  // fraicheurSec dit a l'app a quelle cadence ces cours changent reellement,
+  // pour qu'elle annonce "chaque minute" ou "differe" sans se tromper, et
+  // qu'elle n'interroge pas le reseau plus souvent que le cache ne bouge.
   return res.status(200).json(debug
-    ? { quotes, journal, serverTime: Date.now() }
-    : { quotes, serverTime: Date.now() });
+    ? { quotes, journal, fraicheurSec, serverTime: Date.now() }
+    : { quotes, fraicheurSec, serverTime: Date.now() });
 }
