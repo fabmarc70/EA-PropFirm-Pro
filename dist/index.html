@@ -37,12 +37,187 @@
         min-height: -webkit-fill-available;
         background: #06090f;
       }
+      /* ── LARGEUR DE LA COLONNE DE CONTENU (responsive tablette) ──
+         Une seule source de vérité, lue par tous les conteneurs de l'app
+         (racine, barre de navigation, bandeaux fixed) via var(--app-max-w).
+         - Téléphone  : 480px, strictement identique à avant (zéro changement).
+         - Tablette   : 680px en portrait, 760px en paysage / grand écran.
+         Pourquoi pas la pleine largeur ? L'app est un flux vertical de cartes
+         pensé pour le pouce : étirées à 1180px, les cartes deviendraient
+         immenses avec du texte minuscule au milieu. Une colonne de ~700px est
+         la largeur de lecture confortable standard sur iPad (même choix que
+         les apps de lecture/finance natives). Les grilles internes (KPI 2 col,
+         calendrier 7 col) et les graphiques (ResponsiveContainer) sont déjà
+         fluides et occupent naturellement l'espace supplémentaire. */
+      :root { --app-max-w: 480px; }
+      @media (min-width: 768px)  { :root { --app-max-w: 680px; } }
+      @media (min-width: 1024px) { :root { --app-max-w: 760px; } }
+      /* Grille du Centre d'Analyse : 3 colonnes sur tablette (tuiles ~210px,
+         comme sur mobile) au lieu de 2 carres de 320px a moitie vides. */
+      @media (min-width: 768px) {
+        .an-grid { grid-template-columns: 1fr 1fr 1fr !important; }
+        /* La regle 'derniere tuile impaire etalee a 50%' est pensee pour 2
+           colonnes ; sur 3 colonnes elle donnerait une tuile bancale. */
+        .an-grid > *:last-child { grid-column: auto !important; width: 100% !important; }
+      }
+
+      /* ══════════════════════════════════════════════════════════════
+         MODE TABLETTE LARGE (>= 1024px) — disposition "bureau"
+         La navigation passe du bas vers un RAIL LATERAL gauche, et la
+         colonne de contenu s'elargit pour exploiter l'ecran. Tout est
+         pilote en CSS : aucun composant n'est duplique, aucune logique
+         de navigation n'est modifiee, donc zero risque de divergence de
+         comportement entre les deux dispositions.
+         ══════════════════════════════════════════════════════════════ */
+      @media (min-width: 1024px) {
+        /* Pleine largeur d'ecran (moins le rail) : en tour de controle on ne
+           veut plus une colonne centree mais exploiter tout l'espace. La
+           densite est assuree par la largeur de colonne des cartes, pas par
+           un plafond global. */
+        :root { --app-max-w: 100%; --rail-w: 208px; }
+
+        /* Rail lateral : la meme barre de nav, repositionnee et passee en
+           colonne. Les boutons enfants sont retournes en ligne (icone +
+           libelle cote a cote) pour un rail lisible. */
+        [data-coach="nav-bar"] {
+          top: 0 !important; bottom: 0 !important;
+          left: 0 !important; right: auto !important;
+          width: var(--rail-w) !important; max-width: var(--rail-w) !important;
+          margin: 0 !important;
+          border-top: none !important;
+          border-right: 1px solid rgba(110,231,183,0.12) !important;
+          padding-top: calc(24px + env(safe-area-inset-top)) !important;
+          padding-bottom: calc(24px + env(safe-area-inset-bottom)) !important;
+          overflow-y: auto;
+        }
+        [data-coach="nav-bar"] > div {
+          flex-direction: column !important;
+          justify-content: flex-start !important;
+          align-items: stretch !important;
+          gap: 4px; padding: 0 12px;
+        }
+        [data-coach="nav-bar"] button {
+          flex: 0 0 auto !important;
+          flex-direction: row !important;
+          align-items: center !important;
+          justify-content: flex-start !important;
+          gap: 12px !important;
+          padding: 12px 14px !important;
+          border-radius: 12px;
+          transition: background .15s;
+        }
+        [data-coach="nav-bar"] button:hover { background: rgba(255,255,255,0.04) !important; }
+        [data-coach="nav-bar"] button span { font-size: 14px !important; }
+        /* Le liseré d'onglet actif (barre horizontale au-dessus de l'icone en
+           mode mobile) devient un liseré vertical a gauche du rail. */
+        [data-coach="nav-bar"] button > div:first-child {
+          top: 50% !important; left: -12px !important;
+          width: 3px !important; height: 26px !important;
+          transform: translateY(-50%);
+        }
+
+        /* Le contenu se decale a droite du rail. Le calcul garde la colonne
+           centree dans l'espace restant. */
+        #root > div { padding-left: var(--rail-w); }
+        #root > div > div:nth-child(2) {
+          padding-bottom: 32px !important;   /* plus de barre en bas a eviter */
+          padding-left: 20px !important; padding-right: 20px !important;
+        }
+
+        /* Bandeaux fixed (toggle simulateur, barre wizard) : decales du rail */
+        [data-coach="sim-toggle"] { left: var(--rail-w) !important; }
+
+        /* Flux de cartes multi-colonnes — "tour de controle".
+           LARGEUR DE COLONNE FIXE (et non un nombre de colonnes fixe) : chaque
+           carte garde une largeur proche du mobile (~350px) et le navigateur
+           cree autant de colonnes que l'ecran permet. C'est ce qui evite des
+           blocs enormes et etires : a 1180px on obtient 3 colonnes denses,
+           a 1366px aussi, sans jamais deformer une carte.
+           column-count plutot que grid : ordre de lecture naturel conserve et
+           cartes jamais coupees (break-inside: avoid). */
+        .tablet-2col { columns: 330px; column-gap: 12px; }
+        .tablet-2col > * { break-inside: avoid; page-break-inside: avoid; margin-bottom: 12px; }
+        /* Le bloc de tete (prix du challenge) reste sur toute la largeur */
+        .tablet-2col > *:first-child { column-span: all; }
+
+        /* Les trois onglets du simulateur etant affiches simultanement en
+           disposition tour de controle, le selecteur d'onglets n'a plus d'objet
+           et masquerait du contenu en haut d'ecran. */
+        [data-coach="sim-toggle"] { display: none !important; }
+
+        /* Cellules du calendrier PnL : sur un conteneur pleine largeur, le
+           ratio carre produisait des cases de ~140px, disproportionnees. On
+           plafonne la hauteur et on libere le ratio au-dela de 1024px : les
+           cases restent larges mais basses, donc beaucoup plus d'un mois
+           tient a l'ecran. */
+        /* (plafond .cal-days retire : le calendrier vit desormais dans une colonne etroite, ses cellules restent carrees) */
+
+        /* ── SIMULATEUR — grille explicite à 3 colonnes (>= 1024px) ──
+           Colonne 1 : Configuration (+ carte résumé Challenge en dessous).
+           Colonne 2 : résultats Challenge (Phase 1/2, courbes).
+           Colonne 3 : compte Funded + calendrier PnL.
+           Remplace le flux "masonry" précédent qui mélangeait tout dans
+           l'ordre du DOM sans respecter cette logique de colonnes. En dessous
+           de 1024px (mobile/tablette portrait), ces règles ne s'appliquent
+           pas : chaque bloc reste un simple <div>, DANS L'ORDRE DU DOM ET LE
+           COMPORTEMENT EXACTS D'AVANT (un seul bloc visible à la fois selon
+           l'onglet actif) — zéro changement en dessous du seuil. */
+        @media (min-width: 1024px) {
+          .sim-wide-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; align-items: start; }
+          .sim-col-config  { grid-column: 1; grid-row: 1; }
+          .sim-col-config2 { grid-column: 1; grid-row: 2; }
+          .sim-col-challenge { grid-column: 2; grid-row: 1 / span 2; }
+          .sim-col-funded    { grid-column: 3; grid-row: 1 / span 2; }
+          /* Dans la colonne Configuration, plus de multi-colonnes internes
+             (le "masonry" tablet-2col) : la colonne fait déjà ~1/3 de l'écran,
+             un flux simple empilé reste lisible sans se re-subdiviser. */
+          .sim-col-config.tablet-2col { columns: 1 !important; }
+        }
+
+        /* ── CALENDRIERS PnL ET GRAPHIQUES — Dashboard / Journal / Mes Trades ──
+           Signalé comme "trop grands, mode zoom" sur tablette : ces blocs
+           s'étiraient sur toute la largeur de l'écran (jusqu'à 100vw en mode
+           tour de contrôle), avec des cellules et des courbes proportionnées
+           en conséquence. Corrigé en les bornant à une largeur de lecture
+           raisonnable et en les centrant, comme le ferait une vraie appli de
+           bureau — le calendrier et les courbes restent des BLOCS denses, pas
+           des éléments plein écran. */
+        /* ── DASHBOARD / JOURNAL en "tour de controle" (>= 1024px) ──
+           Les cartes coulent en colonnes de largeur fixe (~340px), comme le
+           simulateur : chaque bloc — calendrier PnL, courbe, KPI, comptes —
+           garde une taille proche du mobile au lieu de s'etirer sur tout
+           l'ecran. C'est ce qui corrige le "mode zoom" signale : la largeur
+           d'un calendrier est bornee par sa colonne, pas par la page. Les deux
+           premiers enfants (en-tete + bandeau) restent pleine largeur. */
+        @media (min-width: 1024px) {
+          .tablet-flow { columns: 340px; column-gap: 14px; }
+          .tablet-flow > * { break-inside: avoid; page-break-inside: avoid; margin-bottom: 14px; }
+          .tablet-flow > *:nth-child(-n+2) { column-span: all; }
+          /* Variante sans en-tete dans le flux (Journal : le header est hors
+             du conteneur) — seul le bandeau "Mes comptes" reste pleine largeur */
+          .tablet-flow--nohead > *:nth-child(2) { column-span: none; }
+        }
+
+        /* ── JAUGES / SLIDERS RESPONSIVE (tablette et au-dela) ──
+           Cause du debordement observe : une cellule de grille CSS a
+           min-width:auto par defaut, donc un contenu insecable (pilules
+           "Jour Sem Mois", libelles longs) force la colonne a depasser la
+           carte, et le slider en width:100% suit. min-width:0 sur les enfants
+           de grille/flex retablit le comportement attendu : la colonne se
+           partage l'espace, le slider s'y adapte. Les selecteurs d'attribut
+           ciblent les styles inline poses par React, sans toucher au JSX. */
+        @media (min-width: 768px) {
+          [style*="grid-template-columns"] > * { min-width: 0; }
+          [style*="display: flex"] > * { min-width: 0; }
+          input[type=range] { width: 100% !important; max-width: 100%; min-width: 0; box-sizing: border-box; }
+        }
+      }
       /* Scrollbar discrète */
       ::-webkit-scrollbar { width: 2px; }
       ::-webkit-scrollbar-track { background: transparent; }
       ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
     </style>
-    <script type="module" crossorigin src="/assets/index-AtzTi4Wg.js"></script>
+    <script type="module" crossorigin src="/assets/index-DUeD_wug.js"></script>
   <link rel="manifest" href="/manifest.webmanifest"></head>
   <body>
     <div id="root"></div>

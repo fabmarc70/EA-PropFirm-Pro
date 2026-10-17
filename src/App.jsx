@@ -8,6 +8,7 @@ import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthCh
   fbAddSetupWatch, fbListSetupWatches, fbDeleteSetupWatch, fbGetSetupConfig, fbSaveSetupConfig } from "./firebase.js";
 import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedData, loadRange, monthsInRange, getCoverage } from "./historicalData.js";
 import { runInvestmentProjection, aggregateByYear, compareStrategies as compareInvestmentStrategies } from "./investmentEngine.js";
+import { runPropFirmProjection, aggregateProjectionByYear, truthFromSimulator, truthFromJournal, buildScenarios, SCENARIO_PRESETS } from "./projectionEngine.js";
 import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS, listConfluenceFilters, WEEKDAYS, runWalkForward, analyzeFailure, optimizeStrategy } from "./backtestEngine.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
@@ -5842,6 +5843,458 @@ function LabScreen({ t, lang, profile, onBack }) {
 // et non plus une couleur rose introduite hors charte.
 const INVESTMENT_ACCENT = "#6ee7b7";
 
+// ══════════════════════════════════════════════════════════════════════════
+// MODULE PROJECTION FINANCIERE — accent cyan #22d3ee, deja present dans la
+// charte (carte "Laboratoire"). Aucune couleur nouvelle n'est introduite.
+// ══════════════════════════════════════════════════════════════════════════
+const PROJ_ACCENT = "#22d3ee";
+
+function ProjField({ label, value, onChange, suffix, step = 1, min = 0, max, hint }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>{label}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <input
+          type="number" value={value} step={step} min={min} max={max}
+          onChange={e => {
+            const v = e.target.value === "" ? "" : parseFloat(e.target.value);
+            onChange(isNaN(v) ? 0 : v);
+          }}
+          style={{
+            flex: 1, minWidth: 0, background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10,
+            padding: "9px 10px", color: "#fff", fontSize: 14, fontWeight: 700,
+          }}
+        />
+        {suffix && <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontWeight: 700, flexShrink: 0 }}>{suffix}</span>}
+      </div>
+      {hint && <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.32)", marginTop: 3, lineHeight: 1.4 }}>{hint}</div>}
+    </div>
+  );
+}
+
+function ProjKpi({ label, value, color = "#fff", sub }) {
+  return (
+    <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 13, padding: "10px 11px", minWidth: 0 }}>
+      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 18, fontWeight: 800, color, lineHeight: 1.15, wordBreak: "break-word" }}>{value}</div>
+      {sub && <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{sub}</div>}
+    </div>
+  );
+}
+
+// Convertit un nombre de mois en formulation lisible ("1 an et 3 mois").
+function monthsToText(n) {
+  if (n == null) return "—";
+  const y = Math.floor(n / 12), mo = n % 12;
+  if (y === 0) return mo + (mo > 1 ? " mois" : " mois");
+  if (mo === 0) return y + (y > 1 ? " ans" : " an");
+  return y + (y > 1 ? " ans" : " an") + " et " + mo + " mois";
+}
+
+// Date calendaire correspondant au Nieme mois de projection.
+function monthToDate(n) {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + n);
+  return d.toLocaleDateString("fr-FR", { month: "short", year: "numeric" });
+}
+
+function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
+  // ── Le plan personnel est persistant ET synchronise dans le cloud, comme
+  //    les stratégies d'investissement : c'est une donnée de progression.
+  const [plans, setPlans] = useCloudSyncedState("eapropfirm_projection_plans", "projectionPlans", [], (local, cloud) => {
+    if (!Array.isArray(cloud) || !cloud.length) return local || [];
+    if (!Array.isArray(local) || !local.length) return cloud;
+    const byId = new Map();
+    cloud.forEach(s => { if (s && s.id) byId.set(s.id, s); });
+    local.forEach(s => { if (s && s.id) byId.set(s.id, s); });
+    return Array.from(byId.values());
+  });
+
+  // ── SOURCE DE VERITE ────────────────────────────────────────────────────
+  const simTruth = truthFromSimulator(lastSim);
+  const journalCapital = (lastSim && lastSim.capital) || (profile && profile.capital) || 25000;
+  const journalTruth = truthFromJournal(journalFlat, journalCapital);
+
+  const defaultSource = journalTruth.available ? "journal" : (simTruth && simTruth.available ? "simulator" : "manual");
+  const [source, setSource] = useState(defaultSource);
+
+  const activeTruth = source === "journal" ? journalTruth : (source === "simulator" ? simTruth : null);
+  const truthReturn = activeTruth && activeTruth.available ? activeTruth.monthlyReturnPct : null;
+
+  // ── PLAN ────────────────────────────────────────────────────────────────
+  const addons = (profile && profile.addons) || {};
+  const [form, setForm] = useState(() => ({
+    accountCapital: journalCapital,
+    monthlyReturnPct: 4,
+    profitSplitPct: 80,
+    challengeFee: 300,
+    passRatePct: 45,
+    challengeMonths: 2,
+    blowUpRatePct: 4,
+    startAccounts: 1,
+    startPendingFee: 0,
+    reinvestPct: 50,
+    maxAccounts: 6,
+    monthlyCostPerAccount: addons.ea ? (Number(addons.eaFee) || 0) : 0,
+    monthlyCostFixed: addons.vps ? (Number(addons.vpsMonthly) || 0) : 0,
+    taxRatePct: 22,
+    horizonMonths: 60,
+    targetMonthlyIncome: 3000,
+    targetCapital: 0,
+  }));
+  const set = (patch) => setForm(f => ({ ...f, ...patch }));
+
+  // Le rendement vient de la source de verite des qu'elle est disponible :
+  // c'est le principe du module — le simulateur ou le journal fait foi, le
+  // plan ne fait que projeter ce chiffre. En mode "manual", l'utilisateur
+  // reprend la main.
+  const effectivePlan = {
+    ...form,
+    accountCapital: activeTruth && activeTruth.available ? activeTruth.accountCapital : form.accountCapital,
+    monthlyReturnPct: truthReturn != null ? truthReturn : form.monthlyReturnPct,
+  };
+
+  const result = runPropFirmProjection(effectivePlan);
+  const scenarios = buildScenarios(effectivePlan);
+  const yearly = aggregateProjectionByYear(result.months);
+  const s = result.summary;
+
+  const [showScenarios, setShowScenarios] = useState(false);
+  const [showPlan, setShowPlan] = useState(true);
+
+  const chartData = result.months.map(m => ({
+    month: m.month,
+    label: monthToDate(m.month),
+    revenu: m.netIncome,
+    cumul: m.cumulTakeHome,
+    comptes: m.accounts,
+  }));
+
+  const objectifAtteint = s.targetIncomeMonth != null;
+
+  const savePlan = () => {
+    const name = prompt("Nom du scénario :", "Mon plan " + new Date().toLocaleDateString("fr-FR"));
+    if (!name) return;
+    setPlans([...plans, { id: "proj_" + Date.now(), name, createdAt: Date.now(), source, form }]);
+  };
+  const loadPlan = (p) => { setForm(p.form); setSource(p.source || "manual"); };
+  const deletePlan = (id) => {
+    if (!confirm("Supprimer ce scénario ?")) return;
+    setPlans(plans.filter(x => x.id !== id));
+  };
+
+  const sources = [
+    { k: "journal", label: "Journal", truth: journalTruth },
+    { k: "simulator", label: "Simulateur", truth: simTruth },
+    { k: "manual", label: "Manuel", truth: null },
+  ];
+
+  return (
+    <div style={{ fontFamily: "-apple-system, sans-serif", color: "#fff" }}>
+      <ReportHeader title="Projection financière" subtitle="Quand ta liberté financière devient une date" onBack={onBack} />
+      <div style={{ padding: "0 16px 28px" }}>
+
+        {/* ── VERDICT ─────────────────────────────────────────────── */}
+        <div style={{
+          background: `linear-gradient(155deg, ${objectifAtteint ? "rgba(34,211,238,0.10)" : "rgba(251,191,36,0.08)"}, rgba(255,255,255,0.02))`,
+          border: `1px solid ${objectifAtteint ? "rgba(34,211,238,0.3)" : "rgba(251,191,36,0.25)"}`,
+          borderRadius: 18, padding: 16, marginBottom: 14,
+        }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 6 }}>
+            Objectif {fmt(effectivePlan.targetMonthlyIncome)} net / mois
+          </div>
+          {objectifAtteint ? (
+            <>
+              <div style={{ fontSize: 28, fontWeight: 900, color: PROJ_ACCENT, lineHeight: 1.05, letterSpacing: -0.5 }}>
+                {monthToDate(s.targetIncomeMonth)}
+              </div>
+              <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.68)", marginTop: 5, lineHeight: 1.5 }}>
+                Soit dans <b style={{ color: "#fff" }}>{monthsToText(s.targetIncomeMonth)}</b> — au rythme de{" "}
+                <b style={{ color: "#fff" }}>{effectivePlan.monthlyReturnPct.toFixed(2)}%/mois</b> par compte
+                {activeTruth && activeTruth.available ? <> issu de <b style={{ color: PROJ_ACCENT }}>{activeTruth.label}</b></> : " (saisie manuelle)"}.
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 22, fontWeight: 900, color: "#fbbf24", lineHeight: 1.1 }}>
+                Pas atteint en {monthsToText(s.horizonMonths)}
+              </div>
+              <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.68)", marginTop: 5, lineHeight: 1.5 }}>
+                Au mois {s.horizonMonths} tu es à <b style={{ color: "#fff" }}>{fmt(s.finalMonthlyNet)}/mois</b>.
+                Allonge l'horizon, augmente le réinvestissement ou relève le plafond de comptes.
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ── SOURCE DE VERITE ─────────────────────────────────────── */}
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
+            Source du rendement
+          </div>
+          <div style={{ display: "flex", gap: 5, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4 }}>
+            {sources.map(o => {
+              const dispo = o.k === "manual" || (o.truth && o.truth.available);
+              return (
+                <button key={o.k} disabled={!dispo} onClick={() => dispo && setSource(o.k)}
+                  style={{
+                    flex: 1, padding: "8px 4px", borderRadius: 9,
+                    cursor: dispo ? "pointer" : "not-allowed", opacity: dispo ? 1 : 0.35,
+                    border: source === o.k ? `1px solid ${PROJ_ACCENT}73` : "1px solid transparent",
+                    background: source === o.k ? "rgba(34,211,238,0.14)" : "transparent",
+                    color: source === o.k ? PROJ_ACCENT : "rgba(255,255,255,0.55)",
+                    fontSize: 11.5, fontWeight: 800,
+                  }}>
+                  {o.label}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ marginTop: 9, fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.55 }}>
+            {activeTruth && activeTruth.available ? (
+              <>
+                <b style={{ color: PROJ_ACCENT }}>{activeTruth.monthlyReturnPct.toFixed(2)}%/mois</b> brut par compte,
+                mesuré sur <b style={{ color: "#fff" }}>{activeTruth.months} mois</b>
+                {" "}({activeTruth.winMonthsPct}% de mois gagnants). Ce chiffre fait foi — le plan ci-dessous ne fait que le projeter.
+              </>
+            ) : source === "manual" ? (
+              <>Rendement saisi à la main. Dès que le journal ou le simulateur a des données, bascule dessus : une hypothèse ne vaut pas une mesure.</>
+            ) : (
+              <span style={{ color: "#fbbf24" }}>{(activeTruth && activeTruth.reason) || "Source indisponible."}</span>
+            )}
+          </div>
+        </div>
+
+        {/* ── KPI ──────────────────────────────────────────────────── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+          <ProjKpi label="Revenu au terme" value={fmt(s.finalMonthlyNet) + "/m"} color={PROJ_ACCENT}
+            sub={monthToDate(s.horizonMonths)} />
+          <ProjKpi label="Comptes au terme" value={s.finalAccounts.toFixed(1)} color="#fff"
+            sub={fmt(s.finalCapitalUnderManagement) + " gérés"} />
+          <ProjKpi label="Cumul encaissé" value={fmt(s.cumulTakeHome)} color="#6ee7b7"
+            sub={"sur " + monthsToText(s.horizonMonths)} />
+          <ProjKpi label="Réinvesti" value={fmt(s.cumulReinvested)} color="#fbbf24"
+            sub={"impôts " + fmt(s.cumulTax)} />
+        </div>
+
+        {/* ── COURBE ───────────────────────────────────────────────── */}
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
+            Revenu mensuel net
+          </div>
+          <ResponsiveContainer width="100%" height={180}>
+            <ComposedChart data={chartData} margin={{ top: 6, right: 6, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="projGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={PROJ_ACCENT} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={PROJ_ACCENT} stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
+              <XAxis dataKey="month" tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 9 }}
+                tickFormatter={m => (m % 12 === 0 ? "An " + (m / 12) : "")}
+                axisLine={false} tickLine={false} interval={0} />
+              {/* DEUX AXES : sans cela le cumul (6 chiffres) ecrase le revenu
+                  mensuel (4 chiffres) et la courbe utile devient une ligne plate
+                  collee a zero — defaut constate a l'ecran, pas en theorie. */}
+              <YAxis yAxisId="left" tick={{ fill: PROJ_ACCENT, fontSize: 9 }}
+                tickFormatter={v => (Math.abs(v) >= 1000 ? Math.round(v / 1000) + "k" : Math.round(v))}
+                axisLine={false} tickLine={false} width={34} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fill: "#6ee7b7", fontSize: 9 }}
+                tickFormatter={v => (Math.abs(v) >= 1000 ? Math.round(v / 1000) + "k" : Math.round(v))}
+                axisLine={false} tickLine={false} width={34} />
+              <Tooltip
+                contentStyle={{ background: "rgba(14,18,24,0.96)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, fontSize: 11 }}
+                labelFormatter={(m) => monthToDate(m) + " — mois " + m}
+                formatter={(v, n) => [n === "comptes" ? Number(v).toFixed(1) + " comptes" : fmt(v), n === "revenu" ? "Net / mois" : n === "cumul" ? "Cumul encaissé" : "Comptes"]}
+              />
+              <Area yAxisId="left" type="monotone" dataKey="revenu" stroke={PROJ_ACCENT} strokeWidth={2} fill="url(#projGrad)" dot={false} />
+              <Line yAxisId="right" type="monotone" dataKey="cumul" stroke="#6ee7b7" strokeWidth={1.6} dot={false} strokeDasharray="4 3" />
+              {effectivePlan.targetMonthlyIncome > 0 && (
+                <ReferenceLine yAxisId="left" y={effectivePlan.targetMonthlyIncome} stroke="#fbbf24" strokeDasharray="3 3" strokeWidth={1.2} />
+              )}
+              {objectifAtteint && (
+                <ReferenceDot yAxisId="left" x={s.targetIncomeMonth} y={result.months[s.targetIncomeMonth - 1].netIncome}
+                  r={4} fill="#fbbf24" stroke="#000" strokeWidth={1.5} />
+              )}
+            </ComposedChart>
+          </ResponsiveContainer>
+          <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 9.5, color: "rgba(255,255,255,0.4)", flexWrap: "wrap" }}>
+            <span><span style={{ display: "inline-block", width: 8, height: 2, background: PROJ_ACCENT, verticalAlign: "middle", marginRight: 4 }} />Net / mois</span>
+            <span><span style={{ display: "inline-block", width: 8, height: 2, background: "#6ee7b7", verticalAlign: "middle", marginRight: 4 }} />Cumul encaissé</span>
+            <span><span style={{ display: "inline-block", width: 8, height: 2, background: "#fbbf24", verticalAlign: "middle", marginRight: 4 }} />Objectif</span>
+          </div>
+        </div>
+
+        {/* ── PLAN PERSONNEL ───────────────────────────────────────── */}
+        <div className="card" style={{ marginBottom: 12 }}>
+          <button onClick={() => setShowPlan(v => !v)}
+            style={{ width: "100%", background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1 }}>Mon plan</span>
+            <span style={{ fontSize: 11, color: PROJ_ACCENT, fontWeight: 700 }}>{showPlan ? "Replier" : "Déplier"}</span>
+          </button>
+
+          {showPlan && <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: PROJ_ACCENT, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Objectif</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "0 12px" }}>
+              <ProjField label="Revenu net visé" value={form.targetMonthlyIncome} onChange={v => set({ targetMonthlyIncome: v })} suffix="$/mois" step={100}
+                hint="Le seuil à partir duquel tu n'as plus besoin d'autre revenu." />
+              <ProjField label="Horizon" value={form.horizonMonths} onChange={v => set({ horizonMonths: v })} suffix="mois" step={6} min={1} max={600} />
+            </div>
+
+            <div style={{ fontSize: 10, fontWeight: 800, color: PROJ_ACCENT, textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 8px" }}>Point de départ</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "0 12px" }}>
+              <ProjField label="Comptes funded actifs" value={form.startAccounts} onChange={v => set({ startAccounts: v })} suffix="cpt" step={1} />
+              <ProjField label="Trésorerie de départ" value={form.startPendingFee} onChange={v => set({ startPendingFee: v })} suffix="$" step={100}
+                hint="Disponible immédiatement pour acheter des challenges." />
+              <ProjField label="Taille d'un compte" value={effectivePlan.accountCapital} onChange={v => set({ accountCapital: v })} suffix="$" step={1000} />
+              <ProjField label="Prix d'un challenge" value={form.challengeFee} onChange={v => set({ challengeFee: v })} suffix="$" step={10} />
+            </div>
+
+            <div style={{ fontSize: 10, fontWeight: 800, color: PROJ_ACCENT, textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 8px" }}>Stratégie de croissance</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "0 12px" }}>
+              <ProjField label="Réinvestissement" value={form.reinvestPct} onChange={v => set({ reinvestPct: v })} suffix="%" step={5} min={0} max={100}
+                hint="Part du net réinjectée en nouveaux challenges. Le reste, tu l'encaisses." />
+              <ProjField label="Plafond de comptes" value={form.maxAccounts} onChange={v => set({ maxAccounts: v })} suffix="cpt" step={1}
+                hint="0 = illimité. Au-delà, plus aucun challenge n'est acheté." />
+              <ProjField label="Taux de réussite challenge" value={form.passRatePct} onChange={v => set({ passRatePct: v })} suffix="%" step={5} min={0} max={100}
+                hint="Sur 10 challenges payés, combien passent." />
+              <ProjField label="Durée d'un challenge" value={form.challengeMonths} onChange={v => set({ challengeMonths: v })} suffix="mois" step={1} min={1} />
+            </div>
+
+            <div style={{ fontSize: 10, fontWeight: 800, color: PROJ_ACCENT, textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 8px" }}>Charges et risques</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "0 12px" }}>
+              <ProjField label="Profit split" value={form.profitSplitPct} onChange={v => set({ profitSplitPct: v })} suffix="%" step={5} min={0} max={100} />
+              <ProjField label="Perte de compte / mois" value={form.blowUpRatePct} onChange={v => set({ blowUpRatePct: v })} suffix="%" step={1} min={0} max={100}
+                hint="Probabilité mensuelle de griller un compte funded (breach)." />
+              <ProjField label="Coût mensuel / compte" value={form.monthlyCostPerAccount} onChange={v => set({ monthlyCostPerAccount: v })} suffix="$" step={5}
+                hint="EA, licence..." />
+              <ProjField label="Coût mensuel fixe" value={form.monthlyCostFixed} onChange={v => set({ monthlyCostFixed: v })} suffix="$" step={5}
+                hint="VPS, abonnements." />
+              <ProjField label="Imposition" value={form.taxRatePct} onChange={v => set({ taxRatePct: v })} suffix="%" step={1} min={0} max={100}
+                hint="Taux global appliqué au résultat après charges." />
+            </div>
+
+            <button onClick={savePlan}
+              style={{ width: "100%", marginTop: 12, padding: 11, borderRadius: 12, background: PROJ_ACCENT, border: "none", color: "#000", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
+              Enregistrer ce scénario
+            </button>
+          </div>}
+        </div>
+
+        {/* ── SCENARIOS MULTIPLES ──────────────────────────────────── */}
+        <div className="card" style={{ marginBottom: 12 }}>
+          <button onClick={() => setShowScenarios(v => !v)}
+            style={{ width: "100%", background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1 }}>Fourchette réaliste</span>
+            <span style={{ fontSize: 11, color: PROJ_ACCENT, fontWeight: 700 }}>{showScenarios ? "Replier" : "Déplier"}</span>
+          </button>
+          {showScenarios && <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", lineHeight: 1.55, marginBottom: 10 }}>
+              Même plan, trois hypothèses de rendement, de réussite et de casse. Un seul chiffre serait une fausse précision.
+            </div>
+            {scenarios.map(sc => {
+              const ss = sc.projection.summary;
+              const col = sc.key === "prudent" ? "#fbbf24" : sc.key === "ambitieux" ? "#6ee7b7" : PROJ_ACCENT;
+              return (
+                <div key={sc.key} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${col}2e`, borderRadius: 13, padding: 11, marginBottom: 8 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: col }}>{sc.label}</span>
+                    <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)" }}>
+                      {sc.plan.monthlyReturnPct.toFixed(2)}%/mois · {sc.plan.passRatePct.toFixed(0)}% réussite
+                    </span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, fontSize: 11 }}>
+                    <div>
+                      <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 9.5 }}>Objectif</div>
+                      <div style={{ color: ss.targetIncomeMonth ? "#fff" : "#ef4444", fontWeight: 800 }}>
+                        {ss.targetIncomeMonth ? monthToDate(ss.targetIncomeMonth) : "Hors portée"}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 9.5 }}>Net au terme</div>
+                      <div style={{ color: "#fff", fontWeight: 800 }}>{fmt(ss.finalMonthlyNet)}/m</div>
+                    </div>
+                    <div>
+                      <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 9.5 }}>Cumul</div>
+                      <div style={{ color: "#6ee7b7", fontWeight: 800 }}>{fmt(ss.cumulTakeHome)}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>}
+        </div>
+
+        {/* ── DETAIL ANNUEL ────────────────────────────────────────── */}
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>
+            Année par année
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+              <thead>
+                <tr style={{ color: "rgba(255,255,255,0.4)", fontSize: 9.5, textTransform: "uppercase", letterSpacing: 0.6 }}>
+                  <th style={{ textAlign: "left", padding: "0 6px 6px 0" }}>An</th>
+                  <th style={{ textAlign: "right", padding: "0 6px 6px" }}>Comptes</th>
+                  <th style={{ textAlign: "right", padding: "0 6px 6px" }}>Net</th>
+                  <th style={{ textAlign: "right", padding: "0 6px 6px" }}>Réinv.</th>
+                  <th style={{ textAlign: "right", padding: "0 0 6px 6px" }}>Encaissé</th>
+                </tr>
+              </thead>
+              <tbody>
+                {yearly.map(y => (
+                  <tr key={y.year} style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                    <td style={{ padding: "7px 6px 7px 0", fontWeight: 800, color: "#fff" }}>{y.year}</td>
+                    <td style={{ padding: "7px 6px", textAlign: "right", color: "rgba(255,255,255,0.7)" }}>{y.endAccounts.toFixed(1)}</td>
+                    <td style={{ padding: "7px 6px", textAlign: "right", color: y.netIncome >= 0 ? PROJ_ACCENT : "#ef4444", fontWeight: 700 }}>{fmt(y.netIncome)}</td>
+                    <td style={{ padding: "7px 6px", textAlign: "right", color: "#fbbf24" }}>{fmt(y.reinvested)}</td>
+                    <td style={{ padding: "7px 0 7px 6px", textAlign: "right", color: "#6ee7b7", fontWeight: 700 }}>{fmt(y.takeHome)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ── SCENARIOS SAUVEGARDES ────────────────────────────────── */}
+        {plans.length > 0 && (
+          <div className="card" style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>
+              Mes scénarios ({plans.length})
+            </div>
+            {plans.map(p => (
+              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                  <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)" }}>
+                    {fmt(p.form.targetMonthlyIncome)}/mois · {p.form.reinvestPct}% réinvesti
+                  </div>
+                </div>
+                <button onClick={() => loadPlan(p)}
+                  style={{ padding: "6px 11px", borderRadius: 9, background: "rgba(34,211,238,0.12)", border: `1px solid ${PROJ_ACCENT}40`, color: PROJ_ACCENT, fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+                  Charger
+                </button>
+                <button onClick={() => deletePlan(p.id)} aria-label="Supprimer"
+                  style={{ padding: "6px 9px", borderRadius: 9, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#ef4444", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.3)", lineHeight: 1.5 }}>
+          Projection en espérance mathématique : le nombre de comptes est une moyenne, pas un tirage.
+          Les performances passées, simulées ou réelles, ne préjugent pas des performances futures.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Formatage adaptatif des montants sur les axes Y du module — le format "Xk"
 // devient illisible ("0k" partout) pour de petites stratégies (ex. quelques
 // centaines d'euros) : affiche le montant en clair sous 10 000, en "k"
@@ -6836,6 +7289,28 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         cta: "Ouvrir",
         ctaGoto: 'investment',
       },
+      {
+        // ── Carte "Projection" — le simulateur et le journal servent de vérité,
+        // ce module les projette dans le temps vers un objectif personnel.
+        // Toujours accessible : le mode manuel permet de projeter avant d'avoir
+        // la moindre donnée, et la source bascule automatiquement dès qu'il y en a.
+        key:'projection', accent:'#22d3ee', bg:'rgba(34,211,238,0.06)', border:'rgba(34,211,238,0.2)',
+        icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 17.5l5.5-6 4 4L21 6" stroke="#22d3ee" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M15.5 6H21v5.5" stroke="#22d3ee" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 21h18" stroke="#22d3ee" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+        title: "Projection",
+        subtitle: "Ta liberté financière, en date",
+        desc: "Projette tes résultats réels vers ton objectif",
+        chips: ['Objectif', 'Réinvestissement', 'Scénarios', 'Échéance'],
+        hasData: true,
+        dataLabel: (() => {
+          const jt = truthFromJournal(journalRaw, (lastSim && lastSim.capital) || (profile && profile.capital) || 25000);
+          if (jt.available) return `Journal — ${jt.monthlyReturnPct.toFixed(2)}%/mois sur ${jt.months} mois`;
+          const st = truthFromSimulator(lastSim);
+          if (st && st.available) return `Simulateur — ${st.monthlyReturnPct.toFixed(2)}%/mois sur ${st.months} mois`;
+          return "Définir ton objectif de revenu";
+        })(),
+        cta: "Ouvrir",
+        ctaGoto: 'projection',
+      },
     ];
     return (
       <div style={{padding:'14px 16px 18px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px',minHeight:'100vh',display:'flex',flexDirection:'column'}}>
@@ -7198,6 +7673,10 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
     return <InvestmentScreen t={t} lang={lang} onBack={() => setMode(null)} />;
   }
 
+  if (mode === 'projection') {
+    return <ProjectionScreen lastSim={lastSim} journalFlat={journalRaw} profile={profile} onBack={() => setMode(null)} />;
+  }
+
   if (mode === 'comparator') {
     if (!firmComparison) return (
       <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
@@ -7494,7 +7973,50 @@ function unitToTradesPerDay(value, unit, includeWeekend = false) {
   return value;
 }
 
-function simulateDay(equity, tradesPerDay, riskAmount, rr, nextTrade, dailyDDLimit, rng = Math.random) {
+// ══════════════════════════════════════════════════════════════════
+// RENDEMENTS VARIABLES (mode "variable" de la configuration)
+// ------------------------------------------------------------------
+// En mode FIXE (comportement historique, par defaut), chaque trade gagnant
+// rapporte exactement riskAmount * RR et chaque perdant coute exactement
+// riskAmount. C'est une abstraction : un EA reel a trailing stop, take profit
+// partiels et spreads variables ne sort JAMAIS deux fois au meme endroit.
+//
+// En mode VARIABLE, le gain et la perte de chaque trade sont multiplies par un
+// facteur aleatoire dont l'esperance vaut EXACTEMENT 1 :
+//     f = exp(sigma * z - sigma^2 / 2)   avec z ~ N(0,1)
+//     E[f] = exp(sigma^2/2 - sigma^2/2) = 1, quel que soit sigma.
+// C'est la condition qui permet de respecter la demande : les gains et pertes
+// journaliers varient, mais l'objectif configure (rendement moyen) est
+// MAINTENU — la moyenne du simulateur reste celle de la configuration.
+//
+// La loi log-normale est aussi la bonne FORME pour un trailing stop : la
+// majorite des sorties se font SOUS la moyenne (le trailing coupe tot) et
+// quelques rares trades "runners" portent la moyenne. Exactement le profil
+// d'un releve de compte reel.
+//
+// Dispersion des pertes volontairement plus faible (LOSS_VOL_RATIO) : le stop
+// loss est un ordre fixe, seuls le spread, le slippage et les gaps le font
+// devier — l'amplitude est bien moindre que cote gain.
+// ══════════════════════════════════════════════════════════════════
+const LOSS_VOL_RATIO = 0.45;
+
+function randNormal(rng) {
+  // Box-Muller. u borne pour eviter log(0) -> Infinity.
+  let u = rng();
+  const v = rng();
+  if (u < 1e-12) u = 1e-12;
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+// Facteur multiplicatif d'esperance 1. Bornes larges pour que l'ecretage
+// reste statistiquement negligeable (verifie : biais < 1% jusqu'a sigma 0.8).
+function meanOneFactor(rng, sigma, lo, hi) {
+  if (!(sigma > 0)) return 1;
+  const f = Math.exp(sigma * randNormal(rng) - (sigma * sigma) / 2);
+  return Math.min(hi, Math.max(lo, f));
+}
+
+function simulateDay(equity, tradesPerDay, riskAmount, rr, nextTrade, dailyDDLimit, rng = Math.random, volWin = 0, volLoss = 0) {
   let dayEquity = equity;
   let dayLowPnl = 0;
   let dayPeakPnl = 0;
@@ -7505,8 +8027,8 @@ function simulateDay(equity, tradesPerDay, riskAmount, rr, nextTrade, dailyDDLim
     : Math.round(tradesPerDay);
   for (let t = 0; t < nTrades; t++) {
     const win = nextTrade();
-    if (win) { dayEquity += riskAmount * rr; wins++; }
-    else { dayEquity -= riskAmount; losses++; }
+    if (win) { dayEquity += riskAmount * rr * meanOneFactor(rng, volWin, 0.08, 6); wins++; }
+    else { dayEquity -= riskAmount * meanOneFactor(rng, volLoss, 0.30, 2.5); losses++; }
     const cumPnl = dayEquity - equity;
     if (cumPnl < dayLowPnl) dayLowPnl = cumPnl;
     if (cumPnl > dayPeakPnl) dayPeakPnl = cumPnl;
@@ -7524,6 +8046,9 @@ function simulatePhase(capital, cfg, model, p) {
   const floorEquity = capital * (1 - model.totalDD);
   const riskAmount = capital * p.riskPct;
   const rng = p.rng || Math.random;
+  // Mode "variable" : sigma de dispersion des gains, derive de la config.
+  const volWin = p.returnsMode === "variable" ? (p.variability || 0) : 0;
+  const volLoss = volWin * LOSS_VOL_RATIO;
   const nextTrade = makeTradeStream(p.winrate, p.clustering, p.maxConsecLosses, rng);
   let equity = capital;
   const days = [];
@@ -7535,7 +8060,7 @@ function simulatePhase(capital, cfg, model, p) {
   let maxDailyDD = 0;     // pire DD intraday d'une journée (en fraction)
 
   for (let d = 1; d <= SIM_DAYS; d++) {
-    const res = simulateDay(equity, p.tradesPerDay, riskAmount, p.rr, nextTrade, dailyDDLimit, rng);
+    const res = simulateDay(equity, p.tradesPerDay, riskAmount, p.rr, nextTrade, dailyDDLimit, rng, volWin, volLoss);
     totalWins += res.wins;
     totalLosses += res.losses;
     equity = res.dayEquity;
@@ -7596,6 +8121,8 @@ function simulateFunded(capital, months, model, p, split) {
   // DD (% du capital) doivent suivre le NOUVEAU capital. Recalculés à chaque
   // mois à partir de currentCapital (qui change après un scaling), pas figés.
   const rng = p.rng || Math.random;
+  const volWin = p.returnsMode === "variable" ? (p.variability || 0) : 0;
+  const volLoss = volWin * LOSS_VOL_RATIO;
   const nextTrade = makeTradeStream(p.winrate, p.clustering, p.maxConsecLosses, rng);
   let equity = capital;
   let currentCapital = capital; // capital de reference (augmente apres scaling)
@@ -7628,7 +8155,7 @@ function simulateFunded(capital, months, model, p, split) {
 
     for (let d = 0; d < TD_MONTH; d++) {
       const dayStart = equity;
-      const res = simulateDay(equity, p.tradesPerDay, riskAmount, p.rr, nextTrade, dailyDDLimit, rng);
+      const res = simulateDay(equity, p.tradesPerDay, riskAmount, p.rr, nextTrade, dailyDDLimit, rng, volWin, volLoss);
       equity = res.dayEquity;
       globalDay++;
       dailyLog.push({
@@ -7973,6 +8500,13 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   const [freqUnit, setFreqUnit] = useState(saved.freqUnit ?? "day"); // "day" | "week" | "month"
   const [clusteringPct, setClusteringPct] = useState(saved.clusteringPct ?? 40);
   const [maxConsecLosses, setMaxConsecLosses] = useState(saved.maxConsecLosses ?? 4);
+  // ── Nature des rendements : "fixed" (historique, defaut) | "variable" ──
+  // "fixed"    : chaque gain vaut exactement risque x RR, chaque perte le risque.
+  // "variable" : gains et pertes dispersés autour de cette moyenne (trailing
+  //              stop, TP partiels, spreads) SANS deplacer la moyenne — donc
+  //              l'objectif configure reste celui vise. Voir meanOneFactor().
+  const [returnsMode, setReturnsMode] = useState(saved.returnsMode ?? "fixed");
+  const [variabilityPct, setVariabilityPct] = useState(saved.variabilityPct ?? 35);
   const [split, setSplit] = useState(saved.split ?? 80);
   const [fundedMonths, setFundedMonths] = useState(saved.fundedMonths ?? 12);
   const [activePreset, setActivePreset] = useState(saved.activePreset ?? "custom");
@@ -8194,13 +8728,14 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         // de "8.7 trades/mois", donnant l'impression que la saisie etait perdue
         // alors qu'elle etait juste affichee dans la mauvaise unite.
         targetUnit, freqUnit,
+        returnsMode, variabilityPct,
       };
       localStorage.setItem("eapropfirm_config", JSON.stringify(configToSave));
       setSaveStatus("Enregistre");
       const t = setTimeout(() => setSaveStatus(""), 1500);
       return () => clearTimeout(t);
     } catch (e) { /* localStorage indisponible (artefact) - ignore */ }
-  }, [firmKey, modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, split, fundedMonths, instrument, lotSize, slPips, useFixedLot, includeWeekend, activeDays.join(","), newsSkipDays, targetUnit, freqUnit]);
+  }, [firmKey, modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, split, fundedMonths, instrument, lotSize, slPips, useFixedLot, includeWeekend, activeDays.join(","), newsSkipDays, targetUnit, freqUnit, returnsMode, variabilityPct]);
 
   const firm = PROP_FIRMS[firmKey] || PROP_FIRMS.fundednext;
   const firmModels = firm.models;
@@ -8367,6 +8902,9 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     activeDays,
     newsSkipDays,
     tdMonthOverride: tdMonthRecurrence, // override TD_MONTH dans simulateFunded
+    // Nature des rendements : "fixed" ou "variable" + amplitude (sigma log-normal)
+    returnsMode,
+    variability: variabilityPct / 100,
   };
   // RNG déterministe : dérivé d'un hash de TOUS les paramètres qui influencent le résultat + seed.
   // Revenir sur cet écran (remount) sans rien changer => même hash => résultat IDENTIQUE (persistant).
@@ -8375,7 +8913,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
     firmKey, modelKey, capital, riskPct: effectiveRisk, rr: finalRR, winrate,
     tradesPerDay, clusteringPct, maxConsecLosses, split, fundedMonths,
     instrument, lotSize, slPips, useFixedLot, includeWeekend,
-    activeDays, newsSkipDays, seed,
+    activeDays, newsSkipDays, seed, returnsMode, variabilityPct,
   }));
   p.rng = mulberry32(simHash);
 
@@ -8506,7 +9044,7 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       });
     } catch (e) {}
   // activeDays (array) : on utilise join pour que React détecte les changements
-  }, [accountsCount, firmKey, modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, splitRate, fundedMonths, seed, useFixedLot, lotSize, slPips, instrument, newsImpact, includeWeekend, activeDays.join(","), newsSkipDays]);
+  }, [accountsCount, firmKey, modelKey, capital, riskPct, dailyTargetPct, winrate, tradesPerDay, clusteringPct, maxConsecLosses, splitRate, fundedMonths, seed, useFixedLot, lotSize, slPips, instrument, newsImpact, includeWeekend, activeDays.join(","), newsSkipDays, returnsMode, variabilityPct]);
 
   const netResult = () => {
     if (!sim) return null;
@@ -9130,6 +9668,81 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
             : <>RR impossible ou &gt; 20 - winrate trop bas pour cet objectif.</>}
         </div>
       </div>
+
+      {/* NATURE DES RENDEMENTS : fixes vs variables — mode avancé uniquement */}
+      {!isSimple && <div className="card" style={{ border: "1px solid rgba(110,231,183,0.10)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.75)", textTransform: "uppercase", letterSpacing: 1, display: "flex", alignItems: "center" }}>
+            Nature des rendements
+            <InfoTip text="Fixe : chaque gain vaut exactement risque x RR, chaque perte vaut le risque. Variable : les gains et pertes sont dispersés autour de cette même moyenne, comme un EA à trailing stop, take profit partiels et spreads changeants. L'objectif configuré reste identique dans les deux modes — seule la trajectoire change." />
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: 6, background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4 }}>
+          {[
+            { k: "fixed", label: "Fixes" },
+            { k: "variable", label: "Variables" },
+          ].map(o => (
+            <button key={o.k} onClick={() => setReturnsMode(o.k)}
+              style={{
+                flex: 1, padding: "9px 6px", borderRadius: 9, cursor: "pointer",
+                border: returnsMode === o.k ? "1px solid rgba(110,231,183,0.45)" : "1px solid transparent",
+                background: returnsMode === o.k ? "rgba(110,231,183,0.14)" : "transparent",
+                color: returnsMode === o.k ? "#6ee7b7" : "rgba(255,255,255,0.55)",
+                fontSize: 12, fontWeight: 800,
+              }}>
+              {o.label}
+            </button>
+          ))}
+        </div>
+
+        {returnsMode === "fixed" ? (
+          <div style={{ marginTop: 10, fontSize: 10.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.55 }}>
+            Chaque trade gagnant rapporte exactement <b style={{ color: "#6ee7b7" }}>{fmt2(effectiveRiskAmount * (finalRRValid ? finalRR : 0))}</b>,
+            chaque perdant coûte exactement <b style={{ color: "#fbbf24" }}>{fmt2(effectiveRiskAmount)}</b>. Lecture claire, mais lissée.
+          </div>
+        ) : (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.75)", textTransform: "uppercase", letterSpacing: 1, display: "flex", alignItems: "center" }}>
+                Amplitude de variation
+                <InfoTip text="Dispersion des sorties autour de la moyenne. 15-25% : TP fixe avec un peu de spread. 35-50% : trailing stop classique. 60-80% : trailing agressif ou TP partiels, beaucoup de petites sorties et quelques gros runners." />
+              </span>
+              <span style={{ fontSize: 24, fontWeight: 700, color: "#6ee7b7" }}>{variabilityPct}%</span>
+            </div>
+            <input type="range" min={10} max={80} step={5} value={variabilityPct}
+              onChange={e => setVariabilityPct(parseInt(e.target.value))} style={{ accentColor: "#6ee7b7" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
+              <span>10%</span><span>45%</span><span>80%</span>
+            </div>
+            {(() => {
+              // Fourchette indicative : intervalle central (~68%) de la log-normale
+              // d'esperance 1 appliquee au gain, puis a la perte.
+              const s = variabilityPct / 100;
+              const gain = effectiveRiskAmount * (finalRRValid ? finalRR : 0);
+              const gLo = gain * Math.exp(-s - s * s / 2), gHi = gain * Math.exp(s - s * s / 2);
+              const sL = s * LOSS_VOL_RATIO;
+              const lLo = effectiveRiskAmount * Math.exp(-sL - sL * sL / 2), lHi = effectiveRiskAmount * Math.exp(sL - sL * sL / 2);
+              return (
+                <div style={{ marginTop: 10, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(110,231,183,0.15)", borderRadius: 12, padding: "8px 10px", fontSize: 11, lineHeight: 1.6 }}>
+                  <div style={{ color: "#6ee7b7", fontWeight: 700, marginBottom: 4 }}>Fourchette typique par trade</div>
+                  <div style={{ color: "#FFFFFF" }}>
+                    Gain : <b style={{ color: "#6ee7b7" }}>{fmt2(gLo)} à {fmt2(gHi)}</b>
+                    <span style={{ color: "rgba(255,255,255,0.45)" }}> (moyenne {fmt2(gain)})</span>
+                  </div>
+                  <div style={{ color: "#FFFFFF" }}>
+                    Perte : <b style={{ color: "#fbbf24" }}>{fmt2(lLo)} à {fmt2(lHi)}</b>
+                    <span style={{ color: "rgba(255,255,255,0.45)" }}> (moyenne {fmt2(effectiveRiskAmount)})</span>
+                  </div>
+                  <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 10, marginTop: 5 }}>
+                    La moyenne ne bouge pas : l'objectif de {dailyTargetPct.toFixed(2)}%/jour reste celui visé.
+                    Seule la trajectoire devient réaliste — et le drawdown, lui, peut empirer.
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+      </div>}
 
       {/* JAUGE CLUSTERING + MAX PERTES CONSECUTIVES — mode avancé uniquement */}
       {!isSimple && <div className="card" style={{ border: "1px solid rgba(110,231,183,0.10)" }}>
