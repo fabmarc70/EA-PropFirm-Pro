@@ -279,11 +279,17 @@ export function truthFromSimulator(lastSim) {
 
   const winMonths = rows.filter(r => num(r.profitPct, 0) > 0).length;
 
+  // Drawdown total de la simulation, deja calcule et remonte par le
+  // simulateur (chaine formatee -> nombre). Sert au comparateur de firms :
+  // comparer une limite de drawdown sans savoir ou on en est n'a aucun sens.
+  const maxDDPct = num(parseFloat(lastSim.ddTotPct), 0);
+
   return {
     source: "simulator",
     available: true,
     accountCapital: capital,
     monthlyReturnPct: +monthlyReturnPct.toFixed(3),
+    maxDDPct: maxDDPct > 0 ? +maxDDPct.toFixed(2) : null,
     months: rows.length,
     winMonthsPct: rows.length ? +((winMonths / rows.length) * 100).toFixed(1) : 0,
     cumulPayout: num(f.cumulPayout, 0),
@@ -320,11 +326,30 @@ export function truthFromJournal(journalFlat, capital) {
   const monthlyReturnPct = (totalPnl / monthly.length) / cap * 100;
   const winMonths = monthly.filter(m => m.pnl > 0).length;
 
+  // ── Pire drawdown REEL, jour par jour ──────────────────────────────────
+  // Reconstruit la courbe d'equite depuis le premier jour saisi, suit le pic
+  // atteint et retient le plus grand creux sous ce pic, en % du capital.
+  // C'est la seule grandeur qui permette de dire si une limite de 6 % ou de
+  // 10 % est tenable POUR CE TRADER — un comparateur qui l'ignore ne compare
+  // que des brochures.
+  let equity = 0, peak = 0, maxDrop = 0;
+  monthKeys.forEach(mk => {
+    const days = journalFlat[mk] || {};
+    Object.keys(days).map(Number).sort((a, b) => a - b).forEach(d => {
+      equity += num(days[String(d)] && days[String(d)].pnl, 0);
+      if (equity > peak) peak = equity;
+      const drop = peak - equity;
+      if (drop > maxDrop) maxDrop = drop;
+    });
+  });
+  const maxDDPct = cap > 0 ? (maxDrop / cap) * 100 : 0;
+
   return {
     source: "journal",
     available: true,
     accountCapital: cap,
     monthlyReturnPct: +monthlyReturnPct.toFixed(3),
+    maxDDPct: maxDDPct > 0 ? +maxDDPct.toFixed(2) : null,
     months: monthly.length,
     winMonthsPct: +((winMonths / monthly.length) * 100).toFixed(1),
     totalPnl: +totalPnl.toFixed(2),

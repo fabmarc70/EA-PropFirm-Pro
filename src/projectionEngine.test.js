@@ -298,5 +298,32 @@ test("fee a 0 n'achete pas une infinite de challenges", () => {
   assert.ok(isFinite(r.summary.finalAccounts));
 });
 
+
+console.log("\n── Drawdown reel (pour le comparateur de firms) ──");
+
+test("pire drawdown reconstruit jour par jour depuis la courbe d'equite", () => {
+  // +300, -500, +100 -> pic 300, creux a -200 -> drawdown max 500
+  const journal = { "2026-01": { "1": { pnl: 300 }, "2": { pnl: -500 }, "3": { pnl: 100 } } };
+  const t = truthFromJournal(journal, 10000);
+  near(t.maxDDPct, 5, 0.01);   // 500 / 10000
+});
+
+test("drawdown mesure a travers plusieurs mois, pas mois par mois", () => {
+  const journal = { "2026-01": { "1": { pnl: 200 } }, "2026-02": { "1": { pnl: -600 } } };
+  const t = truthFromJournal(journal, 10000);
+  near(t.maxDDPct, 6, 0.01);   // pic 200 -> -400, creux 600
+});
+
+test("courbe uniquement montante : aucun drawdown", () => {
+  const journal = { "2026-01": { "1": { pnl: 100 }, "2": { pnl: 200 } } };
+  assert.equal(truthFromJournal(journal, 10000).maxDDPct, null);
+});
+
+test("le simulateur fournit son propre drawdown total", () => {
+  const t = truthFromSimulator({ capital: 25000, ddTotPct: "3.4",
+    funded: { data: [{ monthStart: 25000, profitPct: 4 }], cumulPayout: 0 } });
+  near(t.maxDDPct, 3.4, 0.001);
+});
+
 console.log(`\n${passed} test(s) OK, ${failed} echec(s)\n`);
 process.exit(failed > 0 ? 1 : 0);

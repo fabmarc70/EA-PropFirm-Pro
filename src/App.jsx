@@ -9,6 +9,7 @@ import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthCh
 import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedData, loadRange, monthsInRange, getCoverage } from "./historicalData.js";
 import { runInvestmentProjection, aggregateByYear, compareStrategies as compareInvestmentStrategies } from "./investmentEngine.js";
 import { runPropFirmProjection, aggregateProjectionByYear, truthFromSimulator, truthFromJournal, buildScenarios, SCENARIO_PRESETS } from "./projectionEngine.js";
+import { compareAllModels, DEFAULT_PREFS as CMP_DEFAULT_PREFS, CRITERIA as CMP_CRITERIA, FIRM_FACTS } from "./firmCompareEngine.js";
 import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS, listConfluenceFilters, WEEKDAYS, runWalkForward, analyzeFailure, optimizeStrategy } from "./backtestEngine.js";
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
@@ -5851,7 +5852,10 @@ const PROJ_ACCENT = "#22d3ee";
 
 function ProjField({ label, value, onChange, suffix, step = 1, min = 0, max, hint }) {
   return (
-    <div style={{ marginBottom: 10 }}>
+    // minWidth: 0 indispensable — sans lui, un champ place dans une rangee
+    // flex refuse de retrecir sous la largeur de son input et deborde l'ecran
+    // (constate : 76 px de debordement sur la rangee VPS / frais EA).
+    <div style={{ marginBottom: 10, minWidth: 0 }}>
       <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>{label}</div>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <input
@@ -5898,6 +5902,316 @@ function monthToDate(n) {
   d.setDate(1);
   d.setMonth(d.getMonth() + n);
   return d.toLocaleDateString("fr-FR", { month: "short", year: "numeric" });
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// COMPARATEUR PROP FIRM — accent violet #a78bfa, deja celui de la carte
+// "Comparateur" dans la page Analyse. Aucune couleur nouvelle.
+// ══════════════════════════════════════════════════════════════════════════
+const CMP_ACCENT = "#a78bfa";
+
+function CmpWeight({ label, value, onChange }) {
+  const labels = ["Ignorer", "Secondaire", "Important", "Déterminant"];
+  return (
+    <div style={{ marginBottom: 11 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 5 }}>
+        <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>{label}</span>
+        <span style={{ fontSize: 10.5, fontWeight: 800, color: value === 0 ? "rgba(255,255,255,0.3)" : CMP_ACCENT }}>{labels[value]}</span>
+      </div>
+      <div style={{ display: "flex", gap: 4 }}>
+        {[0, 1, 2, 3].map(v => (
+          <button key={v} onClick={() => onChange(v)} aria-label={labels[v]}
+            style={{
+              flex: 1, height: 8, borderRadius: 4, border: "none", cursor: "pointer", padding: 0,
+              background: v <= value && value > 0 ? CMP_ACCENT : "rgba(255,255,255,0.10)",
+            }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CmpSwitch({ label, hint, on, onChange }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "8px 0", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: "#fff" }}>{label}</div>
+        {hint && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", lineHeight: 1.4 }}>{hint}</div>}
+      </div>
+      <button onClick={() => onChange(!on)} aria-label={label}
+        style={{ width: 40, height: 22, borderRadius: 11, border: "none", cursor: "pointer", background: on ? CMP_ACCENT : "rgba(255,255,255,0.15)", position: "relative", flexShrink: 0 }}>
+        <span style={{ position: "absolute", top: 3, left: on ? 21 : 3, width: 16, height: 16, borderRadius: 8, background: on ? "#000" : "#fff", transition: "left .15s" }} />
+      </button>
+    </div>
+  );
+}
+
+function ComparatorScreen({ lastSim, journalFlat, profile, onBack }) {
+  const [prefs, setPrefs] = useCloudSyncedState("eapropfirm_cmp_prefs", "comparatorPrefs", {
+    ...CMP_DEFAULT_PREFS,
+    capital: (profile && profile.capital) || 25000,
+    usesEA: !!(profile && profile.addons && profile.addons.ea) || true,
+    vpsMonthly: (profile && profile.addons && profile.addons.vpsMonthly) || 25,
+  });
+  const P = { ...CMP_DEFAULT_PREFS, ...prefs, weights: { ...CMP_DEFAULT_PREFS.weights, ...(prefs && prefs.weights) } };
+  // Mise a jour FONCTIONNELLE, pas a partir de P fige au rendu : deux
+  // reglages enchaines rapidement (ce que fait un doigt sur mobile) partaient
+  // sinon du meme etat et le premier etait perdu. Constate en test : six
+  // criteres regles coup sur coup n'en gardaient qu'un.
+  const withDefaults = (prev) => ({
+    ...CMP_DEFAULT_PREFS, ...prev,
+    weights: { ...CMP_DEFAULT_PREFS.weights, ...(prev && prev.weights) },
+  });
+  const set = (patch) => setPrefs(prev => ({ ...withDefaults(prev), ...patch }));
+  const setWeight = (k, v) => setPrefs(prev => {
+    const d = withDefaults(prev);
+    return { ...d, weights: { ...d.weights, [k]: v } };
+  });
+
+  const [showPrefs, setShowPrefs] = useState(true);
+  const [openId, setOpenId] = useState(null);
+
+  // ── Source de verite : le journal d'abord, le simulateur ensuite ──────
+  const capForTruth = P.capital || (lastSim && lastSim.capital) || 25000;
+  const jt = truthFromJournal(journalFlat, capForTruth);
+  const st = truthFromSimulator(lastSim);
+  const truth = jt.available ? jt : (st && st.available ? st : null);
+
+  const results = compareAllModels(
+    { PROP_FIRMS, FIRM_FEES, FIRM_RULES, FIRM_ADDONS },
+    P, truth
+  );
+
+  const tierColor = (tier) => tier === "incompatible" ? "#ef4444"
+    : tier === "excellent" ? "#6ee7b7" : tier === "bon" ? CMP_ACCENT
+    : tier === "moyen" ? "#fbbf24" : "rgba(255,255,255,0.5)";
+
+  const capitalTiers = [6000, 10000, 15000, 25000, 50000, 100000, 200000];
+
+  return (
+    <div style={{ fontFamily: "-apple-system, sans-serif", color: "#fff" }}>
+      <ReportHeader title="Comparateur Prop Firm" subtitle="Classé selon TES priorités, pas une moyenne" onBack={onBack} />
+      <div style={{ padding: "0 16px 28px" }}>
+
+        {/* ── CE QUI SERT DE REFERENCE ─────────────────────────────── */}
+        <div style={{
+          background: truth ? "rgba(167,139,250,0.08)" : "rgba(251,191,36,0.08)",
+          border: `1px solid ${truth ? "rgba(167,139,250,0.28)" : "rgba(251,191,36,0.25)"}`,
+          borderRadius: 14, padding: "11px 13px", marginBottom: 12, fontSize: 11.5, lineHeight: 1.55,
+          color: "rgba(255,255,255,0.75)",
+        }}>
+          {truth ? (
+            <>
+              Comparaison basée sur <b style={{ color: CMP_ACCENT }}>{truth.label}</b> :
+              {" "}<b style={{ color: "#fff" }}>{truth.monthlyReturnPct.toFixed(2)} %/mois</b>
+              {truth.maxDDPct != null && <> et un pire drawdown de <b style={{ color: "#fff" }}>{truth.maxDDPct.toFixed(1)} %</b></>}.
+              Chaque limite de firm est confrontée à TES chiffres.
+            </>
+          ) : (
+            <>
+              Aucun résultat mesuré pour l'instant : le classement compare les conditions des firms entre elles.
+              Remplis le journal ou lance une simulation — le comparateur confrontera alors chaque limite à tes propres chiffres.
+            </>
+          )}
+        </div>
+
+        {/* ── MES PRIORITES ────────────────────────────────────────── */}
+        <div className="card" style={{ marginBottom: 12 }}>
+          <button onClick={() => setShowPrefs(v => !v)}
+            style={{ width: "100%", background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1 }}>Mes critères</span>
+            <span style={{ fontSize: 11, color: CMP_ACCENT, fontWeight: 700 }}>{showPrefs ? "Replier" : "Déplier"}</span>
+          </button>
+
+          {showPrefs && <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: CMP_ACCENT, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Ce qui compte pour toi</div>
+            {CMP_CRITERIA.map(c => (
+              <CmpWeight key={c.key} label={c.label} value={P.weights[c.key]} onChange={v => setWeight(c.key, v)} />
+            ))}
+
+            <div style={{ fontSize: 10, fontWeight: 800, color: CMP_ACCENT, textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 6px" }}>Ma façon de trader</div>
+            <CmpSwitch label="J'utilise un EA" hint="Exclut les modèles qui l'interdisent et ajoute EA + VPS au coût"
+              on={P.usesEA} onChange={v => set({ usesEA: v })} />
+            <CmpSwitch label="Je trade les news" hint="Exclut les firms qui les interdisent"
+              on={P.tradesNews} onChange={v => set({ tradesNews: v })} />
+            <CmpSwitch label="Je garde des positions le weekend" hint="Exclut les firms qui l'interdisent"
+              on={P.holdsWeekend} onChange={v => set({ holdsWeekend: v })} />
+
+            <div style={{ fontSize: 10, fontWeight: 800, color: CMP_ACCENT, textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 6px" }}>Capital visé</div>
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+              {capitalTiers.map(c => (
+                <button key={c} onClick={() => set({ capital: c })}
+                  style={{
+                    padding: "7px 11px", borderRadius: 9, cursor: "pointer", fontSize: 11.5, fontWeight: 800,
+                    border: P.capital === c ? `1px solid ${CMP_ACCENT}73` : "1px solid rgba(255,255,255,0.1)",
+                    background: P.capital === c ? "rgba(167,139,250,0.15)" : "rgba(255,255,255,0.04)",
+                    color: P.capital === c ? CMP_ACCENT : "rgba(255,255,255,0.6)",
+                  }}>
+                  {c >= 1000 ? (c / 1000) + "k" : c}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ fontSize: 10, fontWeight: 800, color: CMP_ACCENT, textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 6px" }}>Type de challenge</div>
+            <div style={{ display: "flex", gap: 5, background: "rgba(255,255,255,0.05)", borderRadius: 11, padding: 4 }}>
+              {[{ k: "any", l: "Peu importe" }, { k: "1step", l: "1-Step" }, { k: "2step", l: "2-Step" }].map(o => (
+                <button key={o.k} onClick={() => set({ modelPreference: o.k })}
+                  style={{
+                    flex: 1, padding: "8px 4px", borderRadius: 8, cursor: "pointer", fontSize: 11.5, fontWeight: 800, border: "none",
+                    background: P.modelPreference === o.k ? "rgba(167,139,250,0.16)" : "transparent",
+                    color: P.modelPreference === o.k ? CMP_ACCENT : "rgba(255,255,255,0.55)",
+                  }}>{o.l}</button>
+              ))}
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "0 12px", marginTop: 14 }}>
+              <ProjField label="Coût VPS / mois" value={P.vpsMonthly} onChange={v => set({ vpsMonthly: v })} suffix="$" step={5} />
+              <ProjField label="Frais activation EA" value={P.eaFeeOverride == null ? 0 : P.eaFeeOverride} onChange={v => set({ eaFeeOverride: v })} suffix="$" step={10}
+                hint="0 = tarif par défaut de la firm" />
+            </div>
+          </div>}
+        </div>
+
+        {/* ── CLASSEMENT ───────────────────────────────────────────── */}
+        {results.map((r, i) => {
+          const e = r.economics;
+          const id = r.firmKey + "/" + r.modelKey;
+          const open = openId === id;
+          const col = tierColor(r.tier);
+          return (
+            <div key={id} style={{
+              background: i === 0 && !r.blockers.length ? `${r.color}10` : "rgba(255,255,255,0.03)",
+              border: `1.5px solid ${i === 0 && !r.blockers.length ? r.color + "55" : "rgba(255,255,255,0.08)"}`,
+              borderRadius: 16, padding: "13px 14px", marginBottom: 9,
+              opacity: r.blockers.length ? 0.72 : 1,
+            }}>
+              {/* En-tete */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 9, minWidth: 0, flex: 1 }}>
+                  <span style={{ fontSize: 17, fontWeight: 900, color: "rgba(255,255,255,0.28)", width: 18, flexShrink: 0, lineHeight: 1.3 }}>{i + 1}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{r.firmName}</div>
+                    <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)" }}>{r.modelName}</div>
+                    <div style={{ fontSize: 10.5, color: col, fontWeight: 700, marginTop: 1, textTransform: "capitalize" }}>{r.tier}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: col, flexShrink: 0 }}>{r.score}%</div>
+              </div>
+
+              {/* Bloquants */}
+              {r.blockers.map((b, bi) => (
+                <div key={bi} style={{ marginTop: 8, padding: "7px 9px", borderRadius: 9, background: "rgba(239,68,68,0.10)", border: "1px solid rgba(239,68,68,0.25)", fontSize: 11, color: "#f87171", fontWeight: 600 }}>
+                  {b}
+                </div>
+              ))}
+
+              {/* Les chiffres qui decident */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(78px, 1fr))", gap: 7, marginTop: 10 }}>
+                {[
+                  { l: "Coût net", v: e.fee == null ? "?" : (e.netCost <= 0 ? "+" + Math.abs(e.netCost) + "€" : e.netCost + "€"), c: e.fee == null ? "rgba(255,255,255,0.4)" : e.netCost <= 0 ? "#6ee7b7" : "#fff" },
+                  { l: "1er euro", v: "≈" + Math.round(e.daysToFirstEuro) + "j", c: "#fff" },
+                  { l: "Objectif", v: e.totalTargetPct.toFixed(0) + "%", c: "#fff" },
+                  { l: "DD total", v: e.ddLimitPct.toFixed(0) + "%" + (e.ddType === "trailing" ? " ↓" : ""), c: e.ddType === "trailing" ? "#fbbf24" : "#fff" },
+                  { l: "Split", v: e.splitStart + "→" + e.splitMax + "%", c: "#fff" },
+                ].map(k => (
+                  <div key={k.l} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 9, padding: "6px 7px", minWidth: 0 }}>
+                    <div style={{ fontSize: 8.5, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.5 }}>{k.l}</div>
+                    <div style={{ fontSize: 12.5, fontWeight: 800, color: k.c, whiteSpace: "nowrap" }}>{k.v}</div>
+                  </div>
+                ))}
+              </div>
+
+              <button onClick={() => setOpenId(open ? null : id)}
+                style={{ width: "100%", marginTop: 9, background: "none", border: "none", padding: "4px 0 0", cursor: "pointer", textAlign: "left", fontSize: 11, color: CMP_ACCENT, fontWeight: 700 }}>
+                {open ? "Masquer le détail" : "Pourquoi ce score ?"}
+              </button>
+
+              {open && (
+                <div style={{ marginTop: 9, borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 9 }}>
+                  {r.breakdown.map(b => (
+                    <div key={b.key} style={{ marginBottom: 9, opacity: b.weight === 0 ? 0.4 : 1 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                        <span style={{ fontSize: 11.5, fontWeight: 700, color: "#fff" }}>
+                          {b.label}
+                          {b.weight === 0 && <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 500 }}> · ignoré</span>}
+                        </span>
+                        <span style={{ fontSize: 11.5, fontWeight: 800, color: b.pct >= 70 ? "#6ee7b7" : b.pct >= 40 ? "#fbbf24" : "#ef4444", flexShrink: 0 }}>{b.pct}%</span>
+                      </div>
+                      <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.07)", margin: "4px 0 3px", overflow: "hidden" }}>
+                        <div style={{ width: b.pct + "%", height: "100%", background: b.pct >= 70 ? "#6ee7b7" : b.pct >= 40 ? "#fbbf24" : "#ef4444" }} />
+                      </div>
+                      <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.55)", lineHeight: 1.45 }}>{b.reason}</div>
+                    </div>
+                  ))}
+
+                  {/* Faits commerciaux */}
+                  <div style={{ marginTop: 11, paddingTop: 9, borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+                    <div style={{ fontSize: 9.5, fontWeight: 800, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Conditions</div>
+                    {[
+                      ["Durée du challenge", r.facts.timeLimitUnlimited ? "Illimitée" : (r.facts.timeLimitDays ? r.facts.timeLimitDays + " jours" : null)],
+                      ["Jours minimum", e.minDaysTotal > 0 ? e.minDaysTotal + " jours" : "Aucun"],
+                      ["DD journalier", e.dailyDDPct.toFixed(0) + " %"],
+                      ["Remboursement des frais", r.facts.feeRefund],
+                      ["Règle de consistance", r.facts.consistencyRule || "Aucune relevée"],
+                      ["Rythme de payout", r.facts.payoutOptions || ("Tous les " + e.payoutCycle + " jours")],
+                      ["Premier payout", e.firstPayoutDays + " jours après le passage"],
+                      ["Expert Advisor", r.blockers.some(b => /EA/.test(b)) ? "Interdit" : (r.facts.eaApprovalRequired ? "Autorisé après validation du code" : "Autorisé")],
+                      ["Option de split", r.facts.splitAddon],
+                    ].map(([l, v]) => (
+                      <div key={l} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,0.04)", fontSize: 11 }}>
+                        <span style={{ color: "rgba(255,255,255,0.55)", flexShrink: 0 }}>{l}</span>
+                        <span style={{ fontWeight: 600, color: v ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.3)", textAlign: "right" }}>
+                          {v || "À vérifier"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Detail du cout */}
+                  {e.fee != null && (
+                    <div style={{ marginTop: 11, background: "rgba(255,255,255,0.04)", borderRadius: 11, padding: "9px 10px", fontSize: 11 }}>
+                      <div style={{ fontSize: 9.5, fontWeight: 800, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 5 }}>Coût réel</div>
+                      {[
+                        ["Challenge " + (e.feeExact ? "" : "(palier " + Math.round(e.feeTier / 1000) + "k)"), e.fee, "#fff"],
+                        P.usesEA && e.eaFee > 0 ? ["Activation EA", e.eaFee, "#fff"] : null,
+                        P.usesEA && e.vpsTotal > 0 ? ["VPS sur " + Math.max(1, Math.ceil(e.monthsToPass || 2)) + " mois", e.vpsTotal, "#fff"] : null,
+                        e.rewardBack > 0 ? ["Reward challenge", -e.rewardBack, "#6ee7b7"] : null,
+                        e.refundBack > 0 ? ["Frais remboursés", -e.refundBack, "#6ee7b7"] : null,
+                      ].filter(Boolean).map(([l, v, c]) => (
+                        <div key={l} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
+                          <span style={{ color: "rgba(255,255,255,0.6)" }}>{l}</span>
+                          <span style={{ fontWeight: 700, color: c }}>{v > 0 ? "+" : ""}{v} €</span>
+                        </div>
+                      ))}
+                      <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0 0", marginTop: 4, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                        <span style={{ fontWeight: 800, color: "#fff" }}>Net si tu passes</span>
+                        <span style={{ fontWeight: 800, color: e.netCost <= 0 ? "#6ee7b7" : "#fbbf24" }}>{e.netCost} €</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {r.warnings.map((w, wi) => (
+                    <div key={wi} style={{ marginTop: 7, fontSize: 10.5, color: "#fbbf24", lineHeight: 1.45 }}>{w}</div>
+                  ))}
+                  {r.facts.verified && (
+                    <div style={{ marginTop: 8, fontSize: 9.5, color: "rgba(255,255,255,0.3)" }}>
+                      Conditions relevées le {r.facts.verified} — à revalider sur le site de la firm avant tout achat.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.3)", lineHeight: 1.5, marginTop: 10 }}>
+          Les modèles sont comparés un par un : chez une même firm, le 1-Step et le 2-Step n'ont ni le même
+          drawdown, ni le même objectif. Les conditions commerciales évoluent souvent — vérifie-les sur le site
+          de la firm avant de payer.
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
@@ -7113,7 +7427,6 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
     riskPerTrade: simAnalysis.metrics.riskPct || 1, tradesPerDay: 3, style: "swing",
     sampleSize: simAnalysis.metrics.totalTrades || 0,
   } : null;
-  const firmComparison = traderProfileForCompare ? compareAllFirms(traderProfileForCompare) : null;
 
   // ── Benchmark Mondial des Traders : basé sur le JOURNAL DE TRADING réel ──
   // (PF non inclus : pas calculable depuis les données du journal — voir buildJournalProfileForBenchmark)
@@ -7238,11 +7551,22 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
         title: t('cmp_card_title'),
         subtitle: t('cmp_card_sub'),
         desc: t('cmp_card_desc'),
-        chips: ['FTMO', 'FundedNext', 'E8', 'The5ers'],
-        hasData: !!firmComparison,
-        dataLabel: firmComparison ? `${firmComparison[0].firmName} ${firmComparison[0].score}% · ${firmComparison.length} firms` : t('cmp_no_data'),
-        cta: t('cmp_card_cta'),
-        ctaGoto: 'trades',
+        chips: ['Coût réel', 'Délai de payout', 'Règles', 'Drawdown'],
+        // Toujours accessible : le nouveau comparateur fonctionne sans backtest.
+        // Avant, l'absence de trades importes renvoyait vers "Mes Trades" au
+        // lieu d'ouvrir l'ecran, alors qu'il n'en a plus besoin — il compare
+        // d'abord les conditions des firms, et les confronte a tes chiffres
+        // des que le journal ou le simulateur en fournit.
+        hasData: true,
+        dataLabel: (() => {
+          const jt = truthFromJournal(journalRaw, (lastSim && lastSim.capital) || (profile && profile.capital) || 25000);
+          if (jt.available) return `Confronté à tes ${jt.months} mois de journal`;
+          const st = truthFromSimulator(lastSim);
+          if (st && st.available) return `Confronté à ta simulation (${st.months} mois)`;
+          return "Définis tes critères de choix";
+        })(),
+        cta: "Ouvrir",
+        ctaGoto: 'comparator',
       },
       {
         key:'benchmark', accent:'#fbbf24', bg:'rgba(251,191,36,0.06)', border:'rgba(251,191,36,0.2)',
@@ -7678,84 +8002,7 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
   }
 
   if (mode === 'comparator') {
-    if (!firmComparison) return (
-      <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
-        <ReportHeader title={t('cmp_report_title')} subtitle={t('cmp_report_sub')} onBack={()=>setMode(null)}/>
-        <div style={{textAlign:'center',padding:'40px 20px',background:'rgba(255,255,255,0.03)',borderRadius:20}}>
-          
-          <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:16}}>{t('cmp_no_data')}</div>
-          <button onClick={()=>goto('trades')} style={{padding:'12px 24px',borderRadius:12,background:'#a78bfa',color:'#000',fontWeight:700,border:'none',cursor:'pointer'}}>{t('an_import_bt')}</button>
-        </div>
-      </div>
-    );
-    const tierLabel = (tier) => tier==='excellent' ? t('cmp_tier_excellent') : tier==='good' ? t('cmp_tier_good') : tier==='moderate' ? t('cmp_tier_moderate') : t('cmp_tier_poor');
-    const tierColor = (tier) => tier==='excellent' ? '#6ee7b7' : tier==='good' ? '#6ee7b7' : tier==='moderate' ? '#fbbf24' : '#ef4444';
-    return (
-      <div style={{padding:'14px 16px 100px',marginTop:'-16px',marginLeft:'-16px',marginRight:'-16px'}}>
-        <ReportHeader title={t('cmp_report_title')} subtitle={t('cmp_report_sub')} onBack={()=>setMode(null)}/>
-
-        {/* Classement complet — toutes les Prop Firms */}
-        {firmComparison.map((f, i) => (
-          <div key={f.firmKey} style={{
-            background: i===0 ? `${f.color}10` : 'rgba(255,255,255,0.03)',
-            border: `1.5px solid ${i===0 ? f.color+'55' : 'rgba(255,255,255,0.08)'}`,
-            borderRadius: 16, padding: '14px 16px', marginBottom: 10,
-          }}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom: (f.blockers.length+f.adjustments.length+f.strengths.length)>0 ? 10 : 0}}>
-              <div style={{display:'flex',alignItems:'center',gap:10}}>
-                <span style={{fontSize:18,fontWeight:900,color:'rgba(255,255,255,0.3)',width:20}}>{i+1}</span>
-                <div>
-                  <div style={{fontSize:14,fontWeight:800,color:'#fff',display:'flex',alignItems:'center',gap:6}}>
-                    <StatusDot kind={f.tierIcon} /> {f.firmName}
-                  </div>
-                  <div style={{fontSize:10,color:tierColor(f.tier),fontWeight:600}}>{tierLabel(f.tier)}</div>
-                </div>
-              </div>
-              <div style={{fontSize:22,fontWeight:900,color:f.score>=75?'#6ee7b7':f.score>=60?'#6ee7b7':f.score>=40?'#fbbf24':'#ef4444'}}>{f.score}%</div>
-            </div>
-
-            {/* Détail : pourquoi / blockers / ajustements (collapsible visuellement par simple liste) */}
-            {f.blockers.length > 0 && (
-              <div style={{marginBottom:6}}>
-                {f.blockers.map((b,bi) => (
-                  <div key={bi} style={{display:'flex',gap:6,alignItems:'flex-start',padding:'3px 0'}}>
-                    <StatusDot kind="danger" />
-                    <span style={{fontSize:11,color:'rgba(255,255,255,0.65)',lineHeight:1.4}}>{AL(b.key)}{b.val ? ` (${b.val}%)` : ''}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {f.adjustments.length > 0 && (
-              <div style={{marginBottom:6}}>
-                {f.adjustments.map((a,ai) => (
-                  <div key={ai} style={{display:'flex',gap:6,alignItems:'flex-start',padding:'3px 0'}}>
-                    <StatusDot kind="warn" />
-                    <span style={{fontSize:11,color:'rgba(255,255,255,0.65)',lineHeight:1.4}}>{AL(a.key)}{a.val ? ` (${a.val}%)` : ''}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {f.strengths.length > 0 && (
-              <div>
-                {f.strengths.map((s,si) => (
-                  <div key={si} style={{display:'flex',gap:6,alignItems:'flex-start',padding:'3px 0'}}>
-                    <span style={{color:'#6ee7b7',fontSize:10,flexShrink:0,marginTop:2}}>✓</span>
-                    <span style={{fontSize:11,color:'rgba(255,255,255,0.65)',lineHeight:1.4}}>{AL(s.key)}{s.val ? ` (${s.val}%)` : ''}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div style={{fontSize:9,color:'rgba(255,255,255,0.3)',marginTop:8,paddingTop:8,borderTop:'1px solid rgba(255,255,255,0.05)'}}>
-              {f.model.name} · {t('cmp_dd_limit')} {f.ddLimitPct.toFixed(0)}%
-            </div>
-          </div>
-        ))}
-
-        <div style={{fontSize:9,color:'rgba(255,255,255,0.3)',textAlign:'center',marginTop:10}}>
-          {t('cmp_based_on')} {traderProfileForCompare.sampleSize} {t('mt5_trades_analyzed')}
-        </div>
-      </div>
-    );
+    return <ComparatorScreen lastSim={lastSim} journalFlat={journalRaw} profile={profile} onBack={() => setMode(null)} />;
   }
 
   if (mode === 'benchmark') {
@@ -11263,85 +11510,6 @@ function mt5Analyze(trades, initBalance) {
 // trades/jour, style) avec les règles réelles de chaque Prop Firm
 // (PROP_FIRMS) → classement de compatibilité % avec raisons précises.
 // ══════════════════════════════════════════════════════════════════
-function compareAllFirms(trader) {
-  // trader = { winrate, avgRR, avgDD, riskPerTrade, tradesPerDay, style, sampleSize }
-  if (!trader) return null;
-  const { winrate = 0, avgRR = 0, avgDD = 0, riskPerTrade = 0, tradesPerDay = 0, style = "swing", sampleSize = 0 } = trader;
-  const isScalper = style === "scalping" || tradesPerDay >= 8;
-  const isHFT = tradesPerDay >= 20;
-
-  const results = Object.keys(PROP_FIRMS).map(firmKey => {
-    const firm = PROP_FIRMS[firmKey];
-    // Utiliser le modèle 2-step par défaut (référence la plus commune), sinon le premier dispo
-    const model = firm.models["2step"] || Object.values(firm.models)[0];
-    const blockers = [], adjustments = [], strengths = [];
-    let score = 0;
-
-    // ── 1. Drawdown compatibility (35 pts) — le facteur le plus déterminant ──
-    const ddLimitPct = model.totalDD * 100;
-    const ddMarginPct = ddLimitPct - avgDD; // marge restante en points
-    if (avgDD <= ddLimitPct * 0.4) { score += 35; strengths.push({ key: 'cmp_dd_excellent', val: ddLimitPct.toFixed(0) }); }
-    else if (avgDD <= ddLimitPct * 0.6) { score += 28; strengths.push({ key: 'cmp_dd_good', val: ddLimitPct.toFixed(0) }); }
-    else if (avgDD <= ddLimitPct * 0.85) { score += 16; adjustments.push({ key: 'cmp_dd_tight', val: ddLimitPct.toFixed(0) }); }
-    else if (avgDD <= ddLimitPct) { score += 6; blockers.push({ key: 'cmp_dd_critical', val: ddLimitPct.toFixed(0) }); }
-    else { score += 0; blockers.push({ key: 'cmp_dd_exceeds', val: ddLimitPct.toFixed(0) }); }
-    // Pénalité supplémentaire si DD type trailing (plus strict) et trader proche de la limite
-    if (model.ddType === "trailing" && avgDD > ddLimitPct * 0.5) {
-      score -= 5; adjustments.push({ key: 'cmp_trailing_strict', val: null });
-    }
-
-    // ── 2. Profil de risque / RR (20 pts) ──
-    // Firms avec DD total serré (≤8%) favorisent un RR élevé et un risque/trade faible
-    const tightDD = ddLimitPct <= 8;
-    if (avgRR >= 1.5) { score += 12; strengths.push({ key: 'cmp_rr_favors', val: null }); }
-    else if (avgRR >= 1.0) { score += 7; }
-    else { score += 2; adjustments.push({ key: 'cmp_rr_low', val: null }); }
-    if (riskPerTrade > 0) {
-      if (tightDD && riskPerTrade > 1.0) { score += 0; blockers.push({ key: 'cmp_risk_too_high_tight', val: ddLimitPct.toFixed(0) }); }
-      else if (riskPerTrade <= 1.0) { score += 8; strengths.push({ key: 'cmp_risk_disciplined', val: null }); }
-      else { score += 4; adjustments.push({ key: 'cmp_risk_moderate', val: null }); }
-    } else { score += 4; }
-
-    // ── 3. Style de trading vs règles spécifiques (20 pts) ──
-    const firmForbidsHFT = (firm.note && firm.note.toUpperCase().includes("HFT INTERDIT")) || (firm.note && firm.note.toUpperCase().includes("HFT") && firm.note.toUpperCase().includes("INTERDIT"));
-    const firmForbidsNews = model.newsForbidden || (firm.note && firm.note.toLowerCase().includes("news") && (firm.note.toLowerCase().includes("interdit") || firm.note.toLowerCase().includes("non comptee")));
-    if (firmForbidsHFT && isHFT) {
-      score += 0; blockers.push({ key: 'cmp_hft_forbidden', val: null });
-    } else if (model.eaForbidden && style === "ea") {
-      score += 0; blockers.push({ key: 'cmp_ea_forbidden', val: null });
-    } else if (firmForbidsNews && style === "news") {
-      score += 3; blockers.push({ key: 'cmp_news_restricted', val: null });
-    } else if (firmForbidsNews && isScalper) {
-      score += 10; adjustments.push({ key: 'cmp_news_restricted', val: null });
-    } else {
-      score += 18; strengths.push({ key: 'cmp_style_compatible', val: null });
-    }
-    // Fréquence de trading vs minDays (phases courtes pénalisent le swing/scalping lent)
-    const minDaysTotal = model.phases.reduce((s,p) => s + (p.minDays||0), 0);
-    if (tradesPerDay > 0 && tradesPerDay < 1 && minDaysTotal >= 6) {
-      score -= 4; adjustments.push({ key: 'cmp_freq_reduces', val: null });
-    }
-
-    // ── 4. Échantillon statistique / fiabilité (15 pts) ──
-    if (sampleSize >= 100) score += 15;
-    else if (sampleSize >= 30) score += 10;
-    else if (sampleSize >= 10) score += 5;
-    else { score += 0; adjustments.push({ key: 'cmp_sample_low', val: null }); }
-
-    // ── 5. Winrate cohérence (10 pts) ──
-    if (winrate >= 40 && winrate <= 70) score += 10;
-    else if (winrate > 0) score += 5;
-
-    score = Math.round(Math.max(0, Math.min(100, score)));
-    const tier = score >= 75 ? "excellent" : score >= 60 ? "good" : score >= 40 ? "moderate" : "poor";
-    const tierIcon = score >= 75 ? "ok" : score >= 60 ? "ok" : score >= 40 ? "warn" : "danger";
-
-    return { firmKey, firmName: firm.name, color: firm.color, model, score, tier, tierIcon, blockers, adjustments, strengths, ddLimitPct };
-  });
-
-  results.sort((a, b) => b.score - a.score);
-  return results;
-}
 
 // ══════════════════════════════════════════════════════════════════
 // HEATMAP DES ERREURS DE TRADING
@@ -15376,6 +15544,10 @@ const FIRM_ADDONS = {
   alpha:       { eaFee: 0, vpsMonthly: 25, note: "EA autorise sans surcout. VPS externe conseille." },
   the5ers:     { eaFee: 0, vpsMonthly: 25, note: "EA autorise sans surcout. VPS externe conseille." },
   fundingpips: { eaFee: 0, vpsMonthly: 25, note: "EA autorise sans surcout. VPS externe conseille." },
+  // Manquait : Funding Traders figure dans PROP_FIRMS mais n'avait ni add-ons,
+  // ni regles, ni tarifs. Le comparateur le traitait donc comme gratuit et
+  // sans contrainte, ce qui le faisait remonter artificiellement au classement.
+  fundingtraders: { eaFee: 0, vpsMonthly: 25, note: "EA autorise sans surcout. VPS externe conseille." },
 };
 
 // ══════════════════════════════════════════════════════════════════
@@ -15393,6 +15565,7 @@ const FIRM_RULES = {
   alpha:       { ea: true, martingale: false, grid: false, hft: false, copy: false, news: "Restreint", weekend: "Selon le modele" },
   the5ers:     { ea: true, martingale: false, grid: false, hft: false, copy: false, news: "Autorise", weekend: "Autorise" },
   fundingpips: { ea: true, martingale: false, grid: false, hft: false, copy: false, news: "Restreint sur le funded", weekend: "Interdit sur le funded" },
+  fundingtraders: { ea: true, martingale: false, grid: false, hft: false, copy: false, news: "Autorise", weekend: "Autorise" },
 };
 
 function FirmRulesCard({ firmKey, compact = false }) {
