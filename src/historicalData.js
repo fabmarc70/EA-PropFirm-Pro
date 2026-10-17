@@ -20,13 +20,18 @@
 // Correspondance minutes -> intervalle Twelve Data
 const TD_INTERVAL = { 15: "15min", 30: "30min", 60: "1h", 240: "4h", 1440: "1day" };
 
-const TD_SYMBOL = {
+export const TD_SYMBOL = {
   EURUSD: "EUR/USD", GBPUSD: "GBP/USD", AUDUSD: "AUD/USD", NZDUSD: "NZD/USD",
   USDJPY: "USD/JPY", USDCAD: "USD/CAD", USDCHF: "USD/CHF",
   EURJPY: "EUR/JPY", GBPJPY: "GBP/JPY", AUDJPY: "AUD/JPY", CHFJPY: "CHF/JPY",
   EURGBP: "EUR/GBP", EURCHF: "EUR/CHF",
   XAUUSD: "XAU/USD", XAGUSD: "XAG/USD",
 };
+
+/** Symbole Twelve Data d'une paire, ou null si la source ne la couvre pas. */
+export function tdSymbolFor(pair) {
+  return TD_SYMBOL[String(pair || "").toUpperCase()] || null;
+}
 
 const REPO_RAW_BASE = "https://raw.githubusercontent.com/fabmarc70/HISTDATA-/main/data";
 const DB_NAME = "eapropfirm_histdata";

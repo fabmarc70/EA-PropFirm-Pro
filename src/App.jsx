@@ -6,7 +6,7 @@ import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthCh
   fbAddOpenPosition, fbListOpenPositions, fbCloseOpenPositionManually, fbDeleteOpenPosition,
   fbSavePushSubscription, fbListPendingJournalEntries, fbDeletePendingJournalEntry,
   fbAddSetupWatch, fbListSetupWatches, fbDeleteSetupWatch, fbGetSetupConfig, fbSaveSetupConfig } from "./firebase.js";
-import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedData, loadRange, monthsInRange, getCoverage } from "./historicalData.js";
+import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedData, loadRange, monthsInRange, getCoverage, tdSymbolFor} from "./historicalData.js";
 import { runInvestmentProjection, aggregateByYear, compareStrategies as compareInvestmentStrategies } from "./investmentEngine.js";
 import { runPropFirmProjection, aggregateProjectionByYear, truthFromSimulator, truthFromJournal, buildScenarios, SCENARIO_PRESETS, simulatorReplay } from "./projectionEngine.js";
 import { compareAllModels, DEFAULT_PREFS as CMP_DEFAULT_PREFS, CRITERIA as CMP_CRITERIA, FIRM_FACTS } from "./firmCompareEngine.js";
@@ -6071,6 +6071,47 @@ async function chargerSerie(asset) {
   return out;
 }
 
+// ── Unites de temps courtes (M1, M5) ─────────────────────────────────
+// Le depot HISTDATA- est publie en M15 : M1 et M5 ne peuvent pas en etre
+// tires, agreger ne cree pas du detail. Elles viennent donc de la route
+// serveur Twelve Data, qui sert ces intervalles — pour les paires qu'elle
+// couvre (devises et metaux), et une seule fois par paire et par unite,
+// la reponse etant mise en cache 24 h cote CDN comme en memoire.
+const MINUTES_VERS_TD = { 1: "1min", 5: "5min" };
+
+async function chargerSerieCourte(paire, tfMinutes) {
+  const symbole = tdSymbolFor(paire);
+  const interval = MINUTES_VERS_TD[tfMinutes];
+  if (!symbole) throw new Error("Cette source ne couvre pas " + paire + " en " + (tfMinutes === 1 ? "M1" : "M5") + ".");
+  if (!interval) throw new Error("intervalle non gere");
+
+  const cle = "TD|" + paire + "|" + interval;
+  if (TRAIN_CACHE.has(cle)) return TRAIN_CACHE.get(cle);
+
+  // Fenetre passee tiree au sort, assez large pour le plafond de 5 000
+  // bougies par appel : ~3 jours en M1, ~17 jours en M5.
+  const jours = tfMinutes === 1 ? 7 : 24;
+  const reculMax = 500, reculMin = 20;
+  const finJ = reculMin + Math.floor(Math.random() * (reculMax - reculMin));
+  const fin = new Date(Date.now() - finJ * 86400000);
+  const debut = new Date(fin.getTime() - jours * 86400000);
+  const iso = (d) => d.toISOString().slice(0, 10);
+
+  const r = await fetch("/api/twelvedata?symbol=" + encodeURIComponent(symbole)
+    + "&interval=" + interval + "&start=" + iso(debut) + "&end=" + iso(fin));
+  if (!r.ok) {
+    let detail = "";
+    try { detail = (await r.json()).error || ""; } catch (e) { /* corps illisible */ }
+    throw new Error(detail || ("source indisponible (" + r.status + ")"));
+  }
+  const d = await r.json();
+  const brutes = (d.candles || []).filter(c => Array.isArray(c) && c.length >= 5);
+  if (brutes.length < 150) throw new Error("série trop courte renvoyée par la source");
+  const out = { brutes, baseMinutes: tfMinutes };
+  TRAIN_CACHE.set(cle, out);
+  return out;
+}
+
 // ── Choix de la fenetre de donnees ───────────────────────────────────
 // Combien de bougies de l'unite demandee un mois peut fournir. Zero quand
 // la source est plus grossiere que l'unite voulue : on ne fabrique pas du
@@ -6395,9 +6436,16 @@ function TrainerScreen({ onBack }) {
         // l'unite de temps demandee. Les tirer au sort avec les autres faisait
         // echouer un essai sur deux et basculait sur la serie de secours —
         // c'est l'origine du message "Donnees indisponibles".
-        const fenetre = choisirFenetre(catalogue, paire, tf, BESOIN);
-        if (!fenetre) throw new Error("aucune serie assez longue pour cette unite de temps");
-        const { brutes, baseMinutes } = await chargerFenetre(fenetre);
+        let brutes, baseMinutes;
+        if (MINUTES_VERS_TD[tf]) {
+          // M1 et M5 : le depot est en M15, ces unites viennent de la source
+          // serveur. Un echec remonte sa vraie raison, pas un message vague.
+          ({ brutes, baseMinutes } = await chargerSerieCourte(paire, tf));
+        } else {
+          const fenetre = choisirFenetre(catalogue, paire, tf, BESOIN);
+          if (!fenetre) throw new Error("aucune serie assez longue pour cette unite de temps");
+          ({ brutes, baseMinutes } = await chargerFenetre(fenetre));
+        }
         if (!vivant) return;
         const agregees = aggregateCandles(brutes, tf, baseMinutes);
         if (agregees.length < VISIBLE + RESERVE + 10) throw new Error("serie trop courte");
@@ -6410,7 +6458,11 @@ function TrainerScreen({ onBack }) {
         setSerie(c);
         const depart = pickStartIndex(c, VISIBLE, RESERVE);
         setIdx(depart); setCurseur(depart);
-        setErreur("Données indisponibles pour " + paire + " — série d'entraînement générée.");
+        // La vraie cause, pas un message passe-partout : "pas de données"
+        // et "cette source ne couvre pas cette paire" ne se corrigent pas
+        // de la meme facon.
+        setErreur((e && e.message ? e.message : "Données indisponibles")
+          + " — série d'entraînement générée en attendant.");
       }
       if (vivant) setChargement(false);
     })();
@@ -6451,8 +6503,10 @@ function TrainerScreen({ onBack }) {
   // Unites de temps reellement servables pour la paire courante : afficher
   // M5 quand la source est en M15 promettait un detail qui n'existe pas.
   const tfsDispo = useMemo(
-    () => TIMEFRAMES.filter(t => t.minutes >= 5)
-      .filter(t => !!choisirFenetre(catalogue, paire, t.minutes, BESOIN, () => 0)),
+    () => TIMEFRAMES.filter(t => MINUTES_VERS_TD[t.minutes]
+      // M1 et M5 : proposees seulement si la source serveur couvre la paire.
+      ? !!tdSymbolFor(paire)
+      : !!choisirFenetre(catalogue, paire, t.minutes, BESOIN, () => 0)),
     [catalogue, paire]);   // eslint-disable-line
 
   useEffect(() => {
@@ -6674,11 +6728,11 @@ function TrainerScreen({ onBack }) {
         </div>
 
         {/* Unites de temps — compactes */}
-        <div style={{ display: "flex", gap: 4, marginBottom: 9 }}>
+        <div style={{ display: "flex", gap: 3, marginBottom: 9 }}>
           {(tfsDispo.length ? tfsDispo : TIMEFRAMES.filter(t => t.minutes >= 5)).map(t => (
             <button key={t.key} onClick={() => setTf(t.minutes)}
               style={{
-                flex: 1, padding: "6px 2px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 800,
+                flex: 1, minWidth: 0, padding: "6px 1px", borderRadius: 8, cursor: "pointer", fontSize: 10.5, fontWeight: 800,
                 border: tf === t.minutes ? `1px solid ${TRAIN_ACCENT}73` : "1px solid rgba(255,255,255,0.1)",
                 background: tf === t.minutes ? "rgba(110,231,183,0.15)" : "rgba(255,255,255,0.04)",
                 color: tf === t.minutes ? TRAIN_ACCENT : "rgba(255,255,255,0.6)",
