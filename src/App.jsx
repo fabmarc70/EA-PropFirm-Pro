@@ -8699,15 +8699,64 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
   // Mesure la vraie hauteur rendue de la barre d'onglets fixe (Configuration/Challenge/Funded)
   // pour que le spacer en dessous compense EXACTEMENT — plus de gap ni de recouvrement,
   // quel que soit l'appareil (notch, Dynamic Island, safe-area variable).
+  // ══════════════════════════════════════════════════════════════════
+  // ESPACE SOUS LA BARRE D'ONGLETS (Configuration / Challenge / Funded)
+  // ------------------------------------------------------------------
+  // BUG CORRIGE : l'encoche etait comptee DEUX FOIS, d'ou un vide d'environ
+  // 60 pt entre la barre et le prix du challenge — invisible sur navigateur
+  // de bureau (env(safe-area-inset-top) y vaut 0), bien reel sur iPhone, et
+  // maximal en PWA installee ou l'encoche fait ~62 pt.
+  //
+  //   - Le conteneur principal de l'app reserve deja l'encoche :
+  //     paddingTop: calc(16px + env(safe-area-inset-top)).
+  //   - La barre d'onglets est en position fixed et reserve A NOUVEAU
+  //     l'encoche dans son propre paddingTop, donc dans sa hauteur.
+  //   - L'ancienne cale valait la hauteur TOTALE de la barre, ajoutee
+  //     par-dessus le padding du conteneur : encoche + encoche.
+  //
+  // Mesurer la hauteur de la barre etait donc la mauvaise grandeur. Ce qu'il
+  // faut, c'est l'ECART qui reste a combler : le bas de la barre moins la
+  // position ou le contenu commencerait sans cale. La cale etant en flux
+  // normal, sa propre hauteur ne deplace pas son `top` — la mesure est stable
+  // et ne peut pas s'auto-entretenir. Et comme la barre est `fixed`, son
+  // `bottom` ne depend pas du defilement : on ajoute scrollY au top de la cale
+  // pour comparer dans le meme repere, ce qui rend la mesure correcte meme si
+  // l'ecran n'est pas en haut. Cette formule s'adapte d'elle-meme a Safari, a
+  // la PWA installee, avec ou sans encoche, sans jamais supposer de valeur.
+  // ══════════════════════════════════════════════════════════════════
   const simTabBarRef = useRef(null);
-  const [simTabBarH, setSimTabBarH] = useState(null);
+  const simSpacerRef = useRef(null);
+  const [simSpacerH, setSimSpacerH] = useState(null);
   useEffect(() => {
-    const measure = () => { if (simTabBarRef.current) setSimTabBarH(simTabBarRef.current.getBoundingClientRect().height); };
+    const measure = () => {
+      const bar = simTabBarRef.current, sp = simSpacerRef.current;
+      if (!bar || !sp) return;
+      const barBottom = bar.getBoundingClientRect().bottom;
+      const spTopDoc = sp.getBoundingClientRect().top + (window.scrollY || 0);
+      setSimSpacerH(Math.max(0, Math.round(barBottom - spTopDoc)));
+    };
     measure();
+    // Re-mesures : apres le premier paint (polices, safe-area), puis sur
+    // rotation et redimensionnement.
+    const raf = requestAnimationFrame(measure);
+    const id = setTimeout(measure, 120);
     window.addEventListener("resize", measure);
     window.addEventListener("orientationchange", measure);
-    const id = setTimeout(measure, 50); // re-mesure après le premier paint (polices/safe-area)
-    return () => { window.removeEventListener("resize", measure); window.removeEventListener("orientationchange", measure); clearTimeout(id); };
+    // La hauteur de la barre peut changer (rotation, barre d'adresse Safari
+    // qui se replie) sans declencher d'evenement resize : on observe la barre.
+    let ro = null;
+    try {
+      if (typeof ResizeObserver !== "undefined" && simTabBarRef.current) {
+        ro = new ResizeObserver(measure);
+        ro.observe(simTabBarRef.current);
+      }
+    } catch (e) {}
+    return () => {
+      cancelAnimationFrame(raf); clearTimeout(id);
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("orientationchange", measure);
+      if (ro) try { ro.disconnect(); } catch (e) {}
+    };
   }, [tab]);
   const [copied, setCopied] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
@@ -9363,16 +9412,15 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
         </div>
       )}
 
-      {/* Spacer pour compenser le toggle fixed — hauteur EXACTE mesurée en temps réel
-          (zéro gap, zéro recouvrement). PAS de plafond arbitraire : en mode PWA "standalone"
-          (installée, plein écran), l'app doit réserver elle-même tout le safe-area-inset-top
-          (encoche/Dynamic Island) puisqu'il n'y a plus de barre d'adresse Safari pour
-          l'absorber — cette hauteur réelle peut légitimement dépasser ce qu'on verrait dans
-          un onglet Safari. Un plafond forcerait alors un recouvrement du contenu sous
-          l'encoche en mode standalone. La mesure réelle (getBoundingClientRect) s'adapte
-          déjà correctement aux deux contextes — inutile et risqué de la limiter. */}
+      {/* Cale sous la barre fixe. Sa hauteur n'est PAS celle de la barre mais
+          l'écart restant à combler (voir le commentaire du calcul plus haut) :
+          le conteneur principal de l'app réserve déjà l'encoche, la reprendre
+          ici entièrement la comptait deux fois et creusait un vide d'environ
+          60 pt sur iPhone. Valeur de repli avant la première mesure : 46 px,
+          la hauteur de la barre SANS l'encoche — celle-ci étant déjà absorbée
+          par le conteneur, l'ajouter de nouveau recréerait le bug. */}
       {(tab === "challenge" || tab === "bilan" || tab === "funded" || tab === "montecarlo") && (
-        <div style={{ height: isWide ? 0 : (simTabBarH != null ? simTabBarH : "calc(env(safe-area-inset-top, 8px) + 46px)") }} />
+        <div ref={simSpacerRef} style={{ height: isWide ? 0 : (simSpacerH != null ? simSpacerH : 46) }} />
       )}
 
       {/* ══ CARTES CONFIG — vue Configuration + Funded uniquement (PAS sur l'onglet Challenge/bilan, qui est un rapport de résultats) ══ */}
