@@ -8,7 +8,7 @@ import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthCh
   fbAddSetupWatch, fbListSetupWatches, fbDeleteSetupWatch, fbGetSetupConfig, fbSaveSetupConfig } from "./firebase.js";
 import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedData, loadRange, monthsInRange, getCoverage } from "./historicalData.js";
 import { runInvestmentProjection, aggregateByYear, compareStrategies as compareInvestmentStrategies } from "./investmentEngine.js";
-import { runPropFirmProjection, aggregateProjectionByYear, truthFromSimulator, truthFromJournal, buildScenarios, SCENARIO_PRESETS } from "./projectionEngine.js";
+import { runPropFirmProjection, aggregateProjectionByYear, truthFromSimulator, truthFromJournal, buildScenarios, SCENARIO_PRESETS, simulatorReplay } from "./projectionEngine.js";
 import { compareAllModels, DEFAULT_PREFS as CMP_DEFAULT_PREFS, CRITERIA as CMP_CRITERIA, FIRM_FACTS } from "./firmCompareEngine.js";
 import { runBacktest, runGridBacktest, listStrategies, aggregateCandles, TIMEFRAMES, filterByDateRange, SESSIONS, computePropFirmScore, MONEY_MANAGEMENT_MODES, TRADE_DIRECTIONS, listConfluenceFilters, WEEKDAYS, runWalkForward, analyzeFailure, optimizeStrategy } from "./backtestEngine.js";
 import {
@@ -6426,8 +6426,14 @@ function ProjectionScreen({ lastSim, journalFlat, journalAll, journalAccounts, p
 
   // Le temps deja ecoule depuis cette date est deduit du challenge en cours :
   // c'est exactement ce que represente "deja ecoule".
+  // REJEU : quand la source est le simulateur, la projection rejoue ses
+  // resultats reels (duree de chaque phase, payout de chaque mois) au lieu de
+  // les redeviner a partir d'un pourcentage moyen.
+  const replay = source === "simulator" ? simulatorReplay(lastSim) : null;
+
   const effectivePlanAvecDate = {
     ...effectivePlan,
+    replay: replay && replay.available ? replay : null,
     startChallengeMonthsElapsed: (effectivePlan.startStage === "inChallenge" && dateDepart && !form.startChallengeMonthsElapsedManuel)
       ? Math.round(moisEcoules)
       : effectivePlan.startChallengeMonthsElapsed,
@@ -6449,7 +6455,7 @@ function ProjectionScreen({ lastSim, journalFlat, journalAll, journalAccounts, p
   const chartData = result.months.map(m => ({
     month: m.month,
     label: monthToDate(m.month, dateDepart),
-    encaisse: m.takeHome,
+    encaisse: m.cashedIn,
     revenu: m.netIncome,
     cumul: m.cumulTakeHome,
     comptes: m.accounts,
@@ -6658,9 +6664,24 @@ function ProjectionScreen({ lastSim, journalFlat, journalAll, journalAccounts, p
                   <div key={m} style={{ background: atteint ? "rgba(34,211,238,0.10)" : "rgba(255,255,255,0.04)",
                     border: `1px solid ${atteint ? "rgba(34,211,238,0.3)" : "rgba(255,255,255,0.07)"}`,
                     borderRadius: 11, padding: "7px 8px", minWidth: 0 }}>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.5 }}>Mois {m}</div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: atteint ? PROJ_ACCENT : "#fff", whiteSpace: "nowrap" }}>{fmt(row.netIncome)}</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", whiteSpace: "nowrap" }}>{row.accounts.toFixed(1)} cpt</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.5 }}>{monthToDateShort(m, dateDepart)}</div>
+                    {/* Un mois sans compte funded ne rapporte rien : on affiche
+                        "rien" et le cout a cote, au lieu d'un "tu encaisses
+                        -25 $" qui n'a aucun sens. */}
+                    <div style={{ fontSize: 14, fontWeight: 800, color: atteint ? PROJ_ACCENT : row.cashedIn > 0 ? "#fff" : "rgba(255,255,255,0.45)", whiteSpace: "nowrap" }}>
+                      {row.cashedIn > 0 ? fmt(row.cashedIn) : "—"}
+                    </div>
+                    {/* Dire POURQUOI un mois ne rapporte rien : frais payes de
+                        sa poche, somme mise de cote pour racheter un compte, ou
+                        simplement pas encore de compte. Un tiret sans
+                        explication est exactement ce qui rend l'ecran opaque. */}
+                    <div style={{ fontSize: 9, color: row.outOfPocket > 0 ? "#fbbf24" : row.reserveRachat > 0 ? "#fbbf24" : "rgba(255,255,255,0.35)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {row.outOfPocket > 0
+                        ? "−" + fmt(row.outOfPocket) + " de frais"
+                        : row.reserveRachat > 0
+                          ? fmt(row.reserveRachat) + " mis de côté"
+                          : row.accounts.toFixed(1) + " cpt"}
+                    </div>
                   </div>
                 );
               });
@@ -6670,7 +6691,7 @@ function ProjectionScreen({ lastSim, journalFlat, journalAll, journalAccounts, p
             {result.months[0].accounts > 0.01 ? (
               <>
                 Tu es payé <b style={{ color: "#fff" }}>dès le premier mois</b> : {fmt(result.months[0].netIncome)} net, dont{" "}
-                <b style={{ color: "#6ee7b7" }}>{fmt(result.months[0].takeHome)}</b> dans ta poche
+                <b style={{ color: "#6ee7b7" }}>{fmt(result.months[0].cashedIn)}</b> dans ta poche
                 {result.months[0].reinvested > 0 || result.months[0].rebuyCost > 0
                   ? <> et {fmt(result.months[0].reinvested + result.months[0].rebuyCost)} réinjectés en challenges</> : null}.{" "}
               </>
@@ -6678,10 +6699,15 @@ function ProjectionScreen({ lastSim, journalFlat, journalAll, journalAccounts, p
               <>
                 Tu n'as pas encore de compte funded : les paiements commencent{" "}
                 <b style={{ color: "#fff" }}>{tl.firstPaidMonth ? monthToDate(tl.firstPaidMonth, dateDepart) : "au-delà de l'horizon"}</b>,
-                une fois le challenge passé.{" "}
+                une fois le challenge passé. D'ici là tu ne touches rien et tu paies
+                {" "}{fmt(result.months[0].outOfPocket)} de frais par mois.{" "}
               </>
             )}
             Ton objectif n'est pas le début des paiements : c'est le mois où ce montant mensuel franchit {fmt(effectivePlan.targetMonthlyIncome)}.
+            {result.months.some(m => m.reserveRachat > 0) && (
+              <> Certains mois tu n'encaisses rien : le revenu part en <b style={{ color: "#fbbf24" }}>réserve</b> pour
+              racheter un compte grillé — sans compte, il n'y a plus de revenu du tout.</>
+            )}
           </div>
         </div>
 
@@ -6724,11 +6750,21 @@ function ProjectionScreen({ lastSim, journalFlat, journalAll, journalAccounts, p
           </div>
           <div style={{ marginTop: 9, fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.55 }}>
             {activeTruth && activeTruth.available ? (
+              source === "simulator" && replay && replay.available ? (
+                <>
+                  Ce plan <b style={{ color: PROJ_ACCENT }}>rejoue ta simulation</b> telle quelle : challenge passé en
+                  {" "}<b style={{ color: "#fff" }}>{replay.challengeMonths.toFixed(1)} mois</b>
+                  {" "}({replay.phaseMonths.map(x => x.toFixed(1)).join(" + ")} par phase), puis les
+                  {" "}<b style={{ color: "#fff" }}>{replay.moisSimules} payouts mensuels réels</b> produits par la simulation —
+                  mois à zéro compris. Au-delà, on prolonge avec la moyenne des derniers mois ({fmt(replay.payoutMoyen)}).
+                </>
+              ) : (
               <>
                 <b style={{ color: PROJ_ACCENT }}>{activeTruth.monthlyReturnPct.toFixed(2)}%/mois</b> brut par compte,
                 mesuré sur <b style={{ color: "#fff" }}>{activeTruth.months} mois</b>
                 {" "}({activeTruth.winMonthsPct}% de mois gagnants). Ce chiffre fait foi — le plan ci-dessous ne fait que le projeter.
               </>
+              )
             ) : source === "manual" ? (
               <>Rendement saisi à la main. Dès que le journal ou le simulateur a des données, bascule dessus : une hypothèse ne vaut pas une mesure.</>
             ) : (
@@ -6759,7 +6795,10 @@ function ProjectionScreen({ lastSim, journalFlat, journalAll, journalAccounts, p
           {(() => {
             const pol = effectivePlan.payoutPolicy !== "fixed_share";
             const etapes = [
-              { n: 1, t: "Tes comptes produisent", d: `${s.finalAccounts.toFixed(1)} compte${s.finalAccounts >= 2 ? "s" : ""} au terme × ${effectivePlan.accountCapital.toLocaleString("fr-FR")} $ × ${effectivePlan.monthlyReturnPct.toFixed(2)} %/mois, dont tu gardes ${effectivePlan.profitSplitPct} %.` },
+              { n: 1, t: "Tes comptes produisent",
+                d: s.replayed
+                  ? `Les payouts rejouent ta simulation mois par mois : ${s.replayMonths} mois réels, puis la moyenne des derniers. Le challenge dure ${s.replayChallengeMonths.toFixed(1)} mois, comme dans ta simulation.`
+                  : `${effectivePlan.accountCapital.toLocaleString("fr-FR")} $ par compte × ${effectivePlan.monthlyReturnPct.toFixed(2)} %/mois, dont tu gardes ${effectivePlan.profitSplitPct} %. Tu passes de ${result.months[0].accounts.toFixed(1)} à ${s.finalAccounts.toFixed(1)} compte${s.finalAccounts >= 2 ? "s" : ""}.` },
               { n: 2, t: "On retire les charges", d: `${fmt(effectivePlan.monthlyCostFixed)} fixes + ${fmt(effectivePlan.monthlyCostPerAccount)} par compte, puis ${effectivePlan.taxRatePct} % d'impôt sur ce qui reste.` },
               { n: 3, t: "On remplace les comptes perdus", d: effectivePlan.rebuyLostAccounts === false
                   ? "Désactivé : un compte grillé n'est pas remplacé, ton parc se réduit."
@@ -9956,6 +9995,14 @@ function SimulatorScreen({ t = (k) => k, lang = "fr", tab = "challenge", setTab 
       onSimResult({
         allPassed, net, firmKey, modelKey, capital, ts: Date.now(),
         progression, phase1Pct, ddDayPct, ddTotPct, tradingDays,
+        // Jours de trading REELLEMENT necessaires a chaque phase, et statut de
+        // chacune. Sans cela, la projection devait redeviner la duree du
+        // challenge a partir d'un pourcentage moyen — et annoncait 11 mois la
+        // ou la simulation en avait mis 2. C'est la simulation qui fait foi.
+        phaseDays: phaseResults.map(ph => (ph && ph.tradingDays) || 0),
+        phaseStatus: phaseResults.map(ph => (ph && ph.status) || "none"),
+        challengeRewardAmount: +(challengeReward || 0).toFixed(2),
+        fundedMonthsPlanned: fundedMonths,
         phase1Target: model.phases[0].target * 100,
         dailyDDLimit: model.dailyDD * 100,
         totalDDLimit: model.totalDD * 100,

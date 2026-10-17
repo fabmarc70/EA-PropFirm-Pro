@@ -87,14 +87,24 @@ export function runPropFirmProjection(plan) {
     if (!(monthlyReturnPct > 0)) return Infinity;   // objectif hors de portee
     return Math.max(t / monthlyReturnPct, d);
   };
-  const p1Months = phaseMonths(plan.phase1TargetPct, plan.phase1MinDays);
-  const p2Months = num(plan.phase2TargetPct, 0) > 0 || num(plan.phase2MinDays, 0) > 0
-    ? phaseMonths(plan.phase2TargetPct, plan.phase2MinDays) : 0;
+  // REJEU : quand la simulation est la source, ses durees REELLES priment sur
+  // toute estimation. C'est elle qui fait foi — redeviner la duree a partir
+  // d'un pourcentage moyen annoncait 11 mois de phase 1 la ou la simulation
+  // en avait mis deux.
+  const replay = plan.replay && plan.replay.available ? plan.replay : null;
+  const p1Months = replay && replay.phaseMonths.length
+    ? replay.phaseMonths[0]
+    : phaseMonths(plan.phase1TargetPct, plan.phase1MinDays);
+  const p2Months = replay
+    ? (replay.phaseMonths[1] || 0)
+    : (num(plan.phase2TargetPct, 0) > 0 || num(plan.phase2MinDays, 0) > 0
+        ? phaseMonths(plan.phase2TargetPct, plan.phase2MinDays) : 0);
   const activationMonths = Math.max(0, num(plan.fundingDelayMonths, 0.5));
   const autoDurationRaw = p1Months + p2Months + activationMonths;
   const autoDuration = isFinite(autoDurationRaw) ? autoDurationRaw : null;
 
-  const useAuto = plan.autoChallengeDuration === true && autoDuration != null;
+  // En rejeu, la duree auto est TOUJOURS celle de la simulation.
+  const useAuto = (replay != null) || (plan.autoChallengeDuration === true && autoDuration != null);
   const challengeMonths = Math.max(1, Math.round(
     useAuto ? autoDuration : num(plan.challengeMonths, 2)
   ));
@@ -194,6 +204,7 @@ export function runPropFirmProjection(plan) {
   // Capacite maximale deja atteinte : sert de repere au rachat. Un trader qui
   // perd un compte ne reduit pas la voilure, il en rachete un.
   let peakAccounts = accounts;
+  let premierMoisFunded = null;   // 1er mois ou un compte produit (rejeu)
 
   for (let m = 1; m <= horizon; m++) {
     // ── 1. Les challenges arrives a echeance deviennent funded (en esperance)
@@ -220,7 +231,24 @@ export function runPropFirmProjection(plan) {
     //    produit ce revenu, pas celui qui reste une fois l'attrition passee —
     //    sinon la ligne affiche 0,9 compte a cote d'un revenu gagne sur 1.
     const accountsActive = accounts;
-    const grossPayout = accounts * accountCapital * (monthlyReturnPct / 100) * split;
+    // REJEU DES PAYOUTS REELS. En rejeu, le revenu brut d'un compte pour son
+    // k-ieme mois funded est le payout que la simulation a REELLEMENT produit
+    // ce mois-la — y compris les mois a zero et les gros mois. Ces payouts
+    // sont deja nets du profit split (la simulation l'applique), d'ou
+    // l'absence de multiplication par `split` ici.
+    // Au-dela des mois simules, on prolonge avec la moyenne des derniers mois
+    // observes : c'est dit a l'ecran, et c'est honnete.
+    // Approximation assumee : tous les comptes suivent le meme calendrier,
+    // date a partir du premier compte funded. Modeliser une suite par compte
+    // supposerait un historique propre a chacun, que la simulation ne produit
+    // pas.
+    if (replay && accounts > 0 && premierMoisFunded === null) premierMoisFunded = m;
+    const grossPayout = (replay && accounts > 0 && premierMoisFunded !== null)
+      ? accounts * (() => {
+          const k = m - premierMoisFunded;
+          return k < replay.payouts.length ? replay.payouts[k] : replay.payoutMoyen;
+        })()
+      : accounts * accountCapital * (monthlyReturnPct / 100) * split;
     const runningCosts = accounts * costPerAccount + costFixed;
     const beforeTax = grossPayout - runningCosts;
     // Pas d'impot sur un mois deficitaire.
@@ -370,6 +398,12 @@ export function runPropFirmProjection(plan) {
       rebuyCost: +rebuyCost.toFixed(2),
       reserveRachat: +reserveRachat.toFixed(2),
       takeHome: +takeHome.toFixed(2),
+      // "Encaisser" et "payer de sa poche" sont deux choses differentes. Un
+      // mois sans compte funded ne rapporte rien et coute les frais fixes :
+      // afficher "tu encaisses -25 $" n'a aucun sens. On separe donc ce qui
+      // RENTRE de ce qui SORT, et l'ecran peut dire les deux correctement.
+      cashedIn: +Math.max(0, takeHome).toFixed(2),
+      outOfPocket: +Math.max(0, -takeHome).toFixed(2),
       targetMet: targetIncome > 0 && takeHome >= targetIncome - 0.005,
       cumulTakeHome: +cumulTakeHome.toFixed(2),
       cumulNet: +cumulNet.toFixed(2),
@@ -419,6 +453,9 @@ export function runPropFirmProjection(plan) {
       cumulReinvested: +cumulReinvested.toFixed(2),
       targetMonthlyIncome: targetIncome,
       payoutPolicy,
+      replayed: replay != null,
+      replayMonths: replay ? replay.payouts.length : 0,
+      replayChallengeMonths: replay ? replay.challengeMonths : null,
       targetIncomeMonth,          // null si jamais atteint sur l'horizon
       targetCapital,
       targetCapitalMonth,
@@ -481,6 +518,57 @@ export function aggregateProjectionByYear(months) {
  * @param {object} lastSim L'objet remonte par le simulateur (onSimResult).
  * @returns {object|null}
  */
+// ══════════════════════════════════════════════════════════════════════════
+// REJEU DE LA SIMULATION
+// --------------------------------------------------------------------------
+// Le simulateur a DEJA produit un challenge (combien de jours par phase, passe
+// ou echoue) et un compte funded (le payout de chaque mois, un par un). La
+// projection n'a aucune raison de redeviner tout cela a partir d'un seul
+// pourcentage moyen : elle annoncait 11 mois de phase 1 la ou la simulation
+// en avait mis deux, et un revenu lisse la ou la simulation montre des mois
+// a zero et des mois a 900 $.
+//
+// Cette fonction extrait la chronologie REELLE pour que la projection la
+// rejoue telle quelle. Au-dela des mois simules, elle prolonge avec la
+// moyenne des derniers mois observes — faute de mieux, et c'est dit.
+// ══════════════════════════════════════════════════════════════════════════
+export function simulatorReplay(lastSim) {
+  if (!lastSim) return null;
+  const capital = num(lastSim.capital, 0);
+  if (capital <= 0) return null;
+
+  const TD_MOIS = 21; // jours de trading par mois, convention de l'app
+  const jours = Array.isArray(lastSim.phaseDays) ? lastSim.phaseDays.map(d => num(d, 0)) : [];
+  const statuts = Array.isArray(lastSim.phaseStatus) ? lastSim.phaseStatus : [];
+  const phaseMonths = jours.filter(d => d > 0).map(d => d / TD_MOIS);
+  const challengeMonths = phaseMonths.reduce((a, b) => a + b, 0);
+
+  const f = lastSim.funded;
+  const payouts = f && Array.isArray(f.data)
+    ? f.data.map(r => num(r.payout, 0))
+    : [];
+
+  // Prolongation au-dela des mois simules : moyenne des 6 derniers mois
+  // produits, ou de tous s'il y en a moins.
+  const queue = payouts.slice(-6);
+  const payoutMoyen = queue.length ? queue.reduce((a, b) => a + b, 0) / queue.length : 0;
+
+  return {
+    available: phaseMonths.length > 0 || payouts.length > 0,
+    capital,
+    passed: lastSim.allPassed === true,
+    phaseMonths,
+    phaseStatus: statuts,
+    challengeMonths: +challengeMonths.toFixed(2),
+    payouts,
+    payoutMoyen: +payoutMoyen.toFixed(2),
+    cumulPayout: num(f && f.cumulPayout, 0),
+    rewardAmount: num(lastSim.challengeRewardAmount, 0),
+    moisSimules: payouts.length,
+    label: `Simulateur — challenge en ${challengeMonths.toFixed(1)} mois, ${payouts.length} mois funded`,
+  };
+}
+
 export function truthFromSimulator(lastSim) {
   if (!lastSim || !lastSim.capital) return null;
   const capital = num(lastSim.capital, 0);
