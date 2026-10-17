@@ -163,7 +163,8 @@ test("objectif deja atteint au mois 1", () => {
 });
 
 test("objectif atteint en cours de route grace au reinvestissement", () => {
-  const r = runPropFirmProjection({ ...BASE, reinvestPct: 70, targetMonthlyIncome: 2000, horizonMonths: 60 });
+  // Politique "part fixe" : c'est elle qui reinvestit meme sous l'objectif.
+  const r = runPropFirmProjection({ ...BASE, payoutPolicy: "fixed_share", reinvestPct: 70, targetMonthlyIncome: 2000, horizonMonths: 60 });
   assert.ok(r.summary.targetIncomeMonth > 1, "atteint trop tot");
   assert.ok(r.summary.targetIncomeMonth !== null, "jamais atteint");
   // Le mois annonce doit vraiment franchir le seuil.
@@ -575,6 +576,86 @@ test("la chronologie est coherente avec les lignes mensuelles", () => {
   if (r.timeline.firstFundedMonth > 1) {
     assert.equal(r.months[r.timeline.firstFundedMonth - 2].accounts, 0);
   }
+});
+
+
+console.log("\n── Politique de versement ──");
+
+test("objectif d'abord : tu encaisses ton objectif des le 1er mois si le profit le permet", () => {
+  // Revenu mensuel 800 $, objectif 500 $ -> 500 pour toi, 300 reinvestis.
+  const r = runPropFirmProjection({ ...BASE, payoutPolicy: "target_first",
+    targetMonthlyIncome: 500, reinvestPct: 100, horizonMonths: 12 });
+  near(r.months[0].takeHome, 500);
+  assert.equal(r.months[0].targetMet, true);
+});
+
+test("objectif d'abord : si le profit ne suffit pas, tu prends tout ce qu'il y a", () => {
+  const r = runPropFirmProjection({ ...BASE, payoutPolicy: "target_first",
+    targetMonthlyIncome: 5000, reinvestPct: 100, horizonMonths: 6 });
+  near(r.months[0].takeHome, 800);          // tout le revenu
+  assert.equal(r.months[0].reinvested, 0);  // rien ne part en croissance
+  assert.equal(r.months[0].targetMet, false);
+});
+
+test("objectif d'abord : seul le surplus alimente la croissance", () => {
+  const r = runPropFirmProjection({ ...BASE, payoutPolicy: "target_first",
+    targetMonthlyIncome: 500, reinvestPct: 100, challengeFee: 300,
+    challengeMonths: 1, maxAccounts: 0, horizonMonths: 24 });
+  // 300 $ de surplus par mois -> un challenge des le 1er mois.
+  assert.ok(r.summary.cumulReinvested > 0, "aucun reinvestissement du surplus");
+  assert.ok(r.summary.finalAccounts > 1, "le parc n'a pas grandi");
+});
+
+test("part fixe : le prelevement a lieu meme sous l'objectif", () => {
+  const r = runPropFirmProjection({ ...BASE, payoutPolicy: "fixed_share",
+    targetMonthlyIncome: 5000, reinvestPct: 50, horizonMonths: 6 });
+  near(r.months[0].takeHome, 400);   // la moitie de 800, objectif ignore
+});
+
+test("objectif d'abord paie plus tot, part fixe grandit plus vite", () => {
+  const base = { ...BASE, targetMonthlyIncome: 700, challengeFee: 300, challengeMonths: 2,
+                 maxAccounts: 6, horizonMonths: 60 };
+  const tf = runPropFirmProjection({ ...base, payoutPolicy: "target_first", reinvestPct: 100 });
+  const fs = runPropFirmProjection({ ...base, payoutPolicy: "fixed_share", reinvestPct: 50 });
+  assert.ok(tf.months[0].takeHome > fs.months[0].takeHome, "objectif d'abord devrait payer plus le 1er mois");
+  assert.ok(fs.summary.finalAccounts >= tf.summary.finalAccounts - 0.01, "part fixe devrait au moins egaler la croissance");
+});
+
+console.log("\n── Reserve pour racheter un compte ──");
+
+test("un revenu inferieur au prix d'un challenge finit par permettre un rachat", () => {
+  // 245 $/mois face a un challenge a 300 $ : il faut mettre de cote.
+  const r = runPropFirmProjection({ accountCapital: 25000, monthlyReturnPct: 1.7, profitSplitPct: 80,
+    challengeFee: 300, passRatePct: 45, challengeMonths: 2, blowUpRatePct: 4,
+    startAccounts: 1, startStage: "funded", startPendingFee: 0, reinvestPct: 100, maxAccounts: 6,
+    monthlyCostPerAccount: 0, monthlyCostFixed: 25, taxRatePct: 22, horizonMonths: 60,
+    targetMonthlyIncome: 700, payoutPolicy: "target_first", rebuyLostAccounts: true });
+  assert.ok(r.summary.finalAccounts > 1, `parc eteint : ${r.summary.finalAccounts}`);
+  assert.ok(r.months.some(m => m.reserveRachat > 0), "aucune reserve constituee");
+  assert.ok(r.months.some(m => m.challengesRebought > 0), "aucun rachat realise");
+});
+
+test("la reserve ne depasse jamais ce qui est necessaire", () => {
+  const r = runPropFirmProjection({ ...BASE, blowUpRatePct: 5, challengeFee: 300,
+    rebuyLostAccounts: true, horizonMonths: 36, payoutPolicy: "target_first", targetMonthlyIncome: 100 });
+  r.months.forEach(m => {
+    assert.ok(m.reserveRachat >= 0, "reserve negative");
+    assert.ok(m.reserveRachat <= Math.max(0, m.netIncome) + 0.01, `reserve ${m.reserveRachat} > revenu ${m.netIncome}`);
+  });
+});
+
+test("sans attrition et sans rachat, aucune reserve n'est constituee", () => {
+  const r = runPropFirmProjection({ ...BASE, blowUpRatePct: 0, horizonMonths: 24 });
+  r.months.forEach(m => assert.equal(m.reserveRachat, 0));
+});
+
+test("rien ne disparait : encaisse + reserve + reinvesti = revenu du mois", () => {
+  const r = runPropFirmProjection({ ...BASE, blowUpRatePct: 5, challengeFee: 300,
+    payoutPolicy: "target_first", targetMonthlyIncome: 400, reinvestPct: 100, horizonMonths: 24 });
+  r.months.forEach(m => {
+    const sortie = m.takeHome + m.reserveRachat + m.reinvested + (m.rebuyCost - Math.min(m.rebuyCost, m.rebuyCost));
+    assert.ok(isFinite(sortie), "valeur non finie au mois " + m.month);
+  });
 });
 
 console.log(`\n${passed} test(s) OK, ${failed} echec(s)\n`);

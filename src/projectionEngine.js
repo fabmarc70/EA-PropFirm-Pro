@@ -121,6 +121,8 @@ export function runPropFirmProjection(plan) {
   // "si je grille un compte, je n'en reprends pas" — un choix possible, mais
   // qui doit etre explicite, jamais le comportement par defaut.
   const rebuyLost = plan.rebuyLostAccounts !== false;
+  // Politique de versement : "target_first" (defaut) ou "fixed_share".
+  const payoutPolicy = plan.payoutPolicy === "fixed_share" ? "fixed_share" : "target_first";
   const horizon = clamp(Math.round(num(plan.horizonMonths, 36)), 1, 600);
 
   const targetIncome = Math.max(0, num(plan.targetMonthlyIncome, 0));
@@ -242,12 +244,24 @@ export function runPropFirmProjection(plan) {
     const expectedIncomingNow = pipeline.reduce((s, x) => s + x, 0) * passRate;
     let rebought = 0;
     let rebuyCost = 0;
+    let reserveRachat = 0;   // mis de cote ce mois-ci pour un rachat a venir
     if (rebuyLost && fee > 0) {
       const targetCapacity = maxAccounts > 0 ? Math.min(peakAccounts, maxAccounts) : peakAccounts;
       const missing = targetCapacity - accounts - expectedIncomingNow;
       if (missing > 0.01) {
         const needed = Math.ceil(missing / Math.max(passRate, 0.01));
         const affordable = Math.floor((cash + Math.max(0, netIncome)) / fee);
+        // RESERVE : quand un mois ne suffit pas a payer le challenge de
+        // remplacement, on met de cote plutot que de tout encaisser. Sans
+        // cela, un revenu mensuel inferieur au prix d'un challenge ne
+        // permettait JAMAIS de racheter : le parc s'eteignait malgre l'option
+        // activee, et le revenu avec lui. Un trader epargne deux mois pour
+        // reprendre un compte — sans compte, il n'y a plus aucun revenu du
+        // tout. La reserve est plafonnee au cout reellement necessaire.
+        if (affordable < needed) {
+          const encoreNecessaire = Math.max(0, needed * fee - cash);
+          reserveRachat = Math.min(Math.max(0, netIncome), encoreNecessaire);
+        }
         // Le rachat obeit aux memes limites humaines que les autres achats :
         // on ne mene pas plus de challenges en parallele que ce qu'on s'est
         // fixe, et on respecte le delai qu'on s'impose entre deux achats.
@@ -261,7 +275,10 @@ export function runPropFirmProjection(plan) {
     const fromCash = Math.min(cash, rebuyCost);
     cash -= fromCash;
     const fromIncome = rebuyCost - fromCash;
-    const incomeAfterRebuy = netIncome - fromIncome;
+    // La reserve quitte le revenu du mois et rejoint la tresorerie : elle
+    // n'est ni encaissee, ni perdue — elle attend le prochain rachat.
+    cash += reserveRachat;
+    const incomeAfterRebuy = netIncome - fromIncome - reserveRachat;
 
     // ── 5. Reinvestissement : une part de ce qui reste achete des challenges
     //
@@ -279,7 +296,31 @@ export function runPropFirmProjection(plan) {
     // Budget plafonne au cout des challenges encore achetables, tresorerie
     // deja disponible deduite.
     const budgetUtile = room === Infinity ? Infinity : Math.max(0, room * fee - cash);
-    let reinvestBudget = incomeAfterRebuy > 0 ? incomeAfterRebuy * reinvest : 0;
+    //
+    //    POLITIQUE DE VERSEMENT. Deux facons de partager le revenu du mois :
+    //
+    //    - "target_first" (defaut) : TON OBJECTIF D'ABORD. Tu prends jusqu'a
+    //      ton revenu vise des le premier mois si les profits le permettent,
+    //      et seul le SURPLUS au-dela de l'objectif part en reinvestissement.
+    //      C'est la lecture naturelle de "je veux 700 $ net par mois" : 700 $
+    //      pour toi, le reste fait grossir le parc. Auparavant une part fixe
+    //      etait prelevee meme quand le revenu couvrait a peine l'objectif,
+    //      ce qui repoussait artificiellement la date a laquelle tu touches
+    //      vraiment ton objectif.
+    //    - "fixed_share" : part fixe du revenu reinvestie chaque mois, quel
+    //      que soit l'objectif. L'ancien comportement, conserve pour qui veut
+    //      piloter la croissance plutot que le revenu.
+    //
+    //    Dans les deux cas, `reinvestPct` est la part reinvestie — du surplus
+    //    en "target_first", du revenu entier en "fixed_share".
+    let reinvestBudget;
+    if (payoutPolicy === "target_first" && targetIncome > 0) {
+      const aPrendre = Math.min(Math.max(0, incomeAfterRebuy), targetIncome);
+      const surplus = Math.max(0, incomeAfterRebuy - aPrendre);
+      reinvestBudget = surplus * reinvest;
+    } else {
+      reinvestBudget = incomeAfterRebuy > 0 ? incomeAfterRebuy * reinvest : 0;
+    }
     if (budgetUtile !== Infinity) reinvestBudget = Math.min(reinvestBudget, budgetUtile);
     const takeHome = incomeAfterRebuy - reinvestBudget;
     cumulTakeHome += takeHome;
@@ -327,7 +368,9 @@ export function runPropFirmProjection(plan) {
       challengesBought: bought,
       challengesRebought: rebought,
       rebuyCost: +rebuyCost.toFixed(2),
+      reserveRachat: +reserveRachat.toFixed(2),
       takeHome: +takeHome.toFixed(2),
+      targetMet: targetIncome > 0 && takeHome >= targetIncome - 0.005,
       cumulTakeHome: +cumulTakeHome.toFixed(2),
       cumulNet: +cumulNet.toFixed(2),
       cash: +cash.toFixed(2),
@@ -375,6 +418,7 @@ export function runPropFirmProjection(plan) {
       cumulTax: +cumulTax.toFixed(2),
       cumulReinvested: +cumulReinvested.toFixed(2),
       targetMonthlyIncome: targetIncome,
+      payoutPolicy,
       targetIncomeMonth,          // null si jamais atteint sur l'horizon
       targetCapital,
       targetCapitalMonth,

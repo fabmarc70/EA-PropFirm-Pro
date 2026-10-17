@@ -5939,9 +5939,31 @@ function monthsToText(n) {
   return y + (y > 1 ? " ans" : " an") + " et " + mo + " mois";
 }
 
+// Arrondi "propre" vers le haut pour une borne d'axe : 756 devient 800, 1 240
+// devient 1 500. Des graduations rondes se lisent d'un coup d'oeil, ce qui
+// n'est pas le cas d'un 756 issu d'un calcul de marge.
+function niceCeil(v) {
+  if (!isFinite(v) || v <= 0) return 0;
+  const mag = Math.pow(10, Math.floor(Math.log10(v)));
+  const pas = v / mag > 5 ? mag : v / mag > 2 ? mag / 2 : mag / 4;
+  return Math.ceil(v / pas) * pas;
+}
+
+// Date calendaire COURTE ("avr. 27") pour les axes, ou la place manque.
+function monthToDateShort(n, base) {
+  const d = base ? new Date(base) : new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + n);
+  return d.toLocaleDateString("fr-FR", { month: "short" }).replace(".", "") + " " + String(d.getFullYear()).slice(2);
+}
+
 // Date calendaire correspondant au Nieme mois de projection.
-function monthToDate(n) {
-  const d = new Date();
+// `base` : date de depart reelle du parcours (premier jour du journal, ou
+// date saisie). Sans elle, tout le calendrier partait d'aujourd'hui, meme
+// quand le challenge avait commence des mois plus tot — les echeances
+// annoncees etaient alors systematiquement trop tardives.
+function monthToDate(n, base) {
+  const d = base ? new Date(base) : new Date();
   d.setDate(1);
   d.setMonth(d.getMonth() + n);
   return d.toLocaleDateString("fr-FR", { month: "short", year: "numeric" });
@@ -6257,7 +6279,35 @@ function ComparatorScreen({ lastSim, journalFlat, profile, onBack }) {
   );
 }
 
-function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
+// Premier jour reellement saisi dans un journal : sert de date de depart au
+// parcours. Un plan qui demarre "aujourd'hui" alors que le trader a commence
+// il y a trois mois decale tout le calendrier.
+function premierJourJournal(journalFlat) {
+  const mois = Object.keys(journalFlat || {}).sort();
+  for (const mk of mois) {
+    const jours = Object.keys(journalFlat[mk] || {}).map(Number).filter(n => n > 0).sort((a, b) => a - b);
+    if (jours.length) {
+      const [y, m] = mk.split("-").map(Number);
+      if (isFinite(y) && isFinite(m)) return new Date(y, m - 1, jours[0]);
+    }
+  }
+  return null;
+}
+
+// Nombre de mois (fractionnaires) ecoules entre une date et aujourd'hui.
+function moisDepuis(date) {
+  if (!date) return 0;
+  const now = new Date();
+  return Math.max(0, (now - date) / (1000 * 60 * 60 * 24 * 30.44));
+}
+
+function dateToISO(d) {
+  if (!d || isNaN(d)) return "";
+  const p = (n) => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+
+function ProjectionScreen({ lastSim, journalFlat, journalAll, journalAccounts, profile, onBack }) {
   // ── Le plan personnel est persistant ET synchronise dans le cloud, comme
   //    les stratégies d'investissement : c'est une donnée de progression.
   const [plans, setPlans] = useCloudSyncedState("eapropfirm_projection_plans", "projectionPlans", [], (local, cloud) => {
@@ -6269,10 +6319,32 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
     return Array.from(byId.values());
   });
 
+  // ── QUEL JOURNAL ? ──────────────────────────────────────────────────────
+  // Un trader tient plusieurs journaux (un par compte). La projection doit
+  // dire LEQUEL elle prend comme verite, et le laisser choisir — sinon elle
+  // projette silencieusement le mauvais compte.
+  const comptesJournal = (Array.isArray(journalAccounts) && journalAccounts.length
+    ? journalAccounts : [{ id: "default", customName: null }])
+    .filter(a => a && !a.archived);
+  const [journalAccountId, setJournalAccountId] = useState(() => {
+    try { return localStorage.getItem("eapropfirm_dash_selected_account") || "default"; } catch (e) { return "default"; }
+  });
+  const nomCompte = (a) => a.customName || (a.id === "default" ? "Compte principal" : a.id);
+
+  // Vue aplatie du journal choisi. Repli sur la vue deja fournie si le
+  // journal multi-comptes n'est pas disponible.
+  const journalChoisi = (() => {
+    if (!journalAll || !Object.keys(journalAll).length) return journalFlat || {};
+    const flat = filterJournalByAccount(journalAll, journalAccountId);
+    return Object.keys(flat).length ? flat : {};
+  })();
+
   // ── SOURCE DE VERITE ────────────────────────────────────────────────────
   const simTruth = truthFromSimulator(lastSim);
-  const journalCapital = (lastSim && lastSim.capital) || (profile && profile.capital) || 25000;
-  const journalTruth = truthFromJournal(journalFlat, journalCapital);
+  const compteActif = comptesJournal.find(a => a.id === journalAccountId);
+  const journalCapital = (compteActif && compteActif.capital)
+    || (lastSim && lastSim.capital) || (profile && profile.capital) || 25000;
+  const journalTruth = truthFromJournal(journalChoisi, journalCapital);
 
   const defaultSource = journalTruth.available ? "journal" : (simTruth && simTruth.available ? "simulator" : "manual");
   const [source, setSource] = useState(defaultSource);
@@ -6292,7 +6364,11 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
     blowUpRatePct: 4,
     startAccounts: 1,
     startPendingFee: 0,
-    reinvestPct: 50,
+    // "Mon objectif d'abord" par defaut : tu encaisses ton objectif des que le
+    // profit le permet, et seul le surplus finance la croissance. C'est la
+    // lecture naturelle de "je veux X $ net par mois".
+    payoutPolicy: "target_first",
+    reinvestPct: 100,   // part du SURPLUS reinvestie en mode "objectif d'abord"
     maxAccounts: 6,
     monthlyCostPerAccount: addons.ea ? (Number(addons.eaFee) || 0) : 0,
     monthlyCostFixed: addons.vps ? (Number(addons.vpsMonthly) || 0) : 0,
@@ -6338,9 +6414,28 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
     monthlyReturnPct: truthReturn != null ? truthReturn : form.monthlyReturnPct,
   };
 
-  const result = runPropFirmProjection(effectivePlan);
+  // ── DATE DE DEPART DU PARCOURS ──────────────────────────────────────────
+  // Deduite du premier jour reellement saisi dans le journal choisi (ou, a
+  // defaut, du simulateur), et modifiable a la main. Un plan qui demarre
+  // "aujourd'hui" alors que le challenge a commence il y a trois mois decale
+  // tout le calendrier et annonce une date d'objectif fausse.
+  const dateAutoJournal = premierJourJournal(journalChoisi);
+  const dateAuto = source === "journal" ? dateAutoJournal : null;
+  const dateDepart = form.startDateISO ? new Date(form.startDateISO + "T00:00:00") : dateAuto;
+  const moisEcoules = dateDepart ? moisDepuis(dateDepart) : 0;
+
+  // Le temps deja ecoule depuis cette date est deduit du challenge en cours :
+  // c'est exactement ce que represente "deja ecoule".
+  const effectivePlanAvecDate = {
+    ...effectivePlan,
+    startChallengeMonthsElapsed: (effectivePlan.startStage === "inChallenge" && dateDepart && !form.startChallengeMonthsElapsedManuel)
+      ? Math.round(moisEcoules)
+      : effectivePlan.startChallengeMonthsElapsed,
+  };
+
+  const result = runPropFirmProjection(effectivePlanAvecDate);
   const tl = result.timeline;
-  const scenarios = buildScenarios(effectivePlan);
+  const scenarios = buildScenarios(effectivePlanAvecDate);
   const yearly = aggregateProjectionByYear(result.months);
   const s = result.summary;
 
@@ -6348,13 +6443,26 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
   const [showPlan, setShowPlan] = useState(true);
   const [detailGrain, setDetailGrain] = useState("month"); // "month" | "year" 
 
+  // Le graphique montre d'abord CE QUE TU ENCAISSES (takeHome), pas le revenu
+  // brut du mois : c'est la grandeur sur laquelle porte l'objectif. L'ecart
+  // entre les deux courbes est exactement ce qui repart en croissance.
   const chartData = result.months.map(m => ({
     month: m.month,
-    label: monthToDate(m.month),
+    label: monthToDate(m.month, dateDepart),
+    encaisse: m.takeHome,
     revenu: m.netIncome,
     cumul: m.cumulTakeHome,
     comptes: m.accounts,
   }));
+
+  // Pas des reperes de l'axe du temps : assez de dates pour se situer, jamais
+  // assez pour qu'elles se chevauchent. Mesure a l'ecran : au-dela de 6
+  // libelles sur une largeur de telephone, ils se collent les uns aux autres.
+  const tickStep = (() => {
+    const n = result.months.length;
+    for (const step of [3, 6, 12, 24, 36]) if (n / step <= 6) return step;
+    return 60;
+  })();
 
   const objectifAtteint = s.targetIncomeMonth != null;
 
@@ -6392,7 +6500,7 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
           {objectifAtteint ? (
             <>
               <div style={{ fontSize: 28, fontWeight: 900, color: PROJ_ACCENT, lineHeight: 1.05, letterSpacing: -0.5 }}>
-                {monthToDate(s.targetIncomeMonth)}
+                {monthToDate(s.targetIncomeMonth, dateDepart)}
               </div>
               <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.68)", marginTop: 5, lineHeight: 1.5 }}>
                 Soit dans <b style={{ color: "#fff" }}>{monthsToText(s.targetIncomeMonth)}</b> — au rythme de{" "}
@@ -6411,6 +6519,75 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
               </div>
             </>
           )}
+        </div>
+
+        {/* ── COURBE ───────────────────────────────────────────────── */}
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
+            Revenu mensuel net
+          </div>
+          <ResponsiveContainer width="100%" height={180}>
+            <ComposedChart data={chartData} margin={{ top: 6, right: 6, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="projGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={PROJ_ACCENT} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={PROJ_ACCENT} stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
+              {/* Axe MENSUEL date : un repere tous les 6 mois, en mois reels
+                  ("avr. 27") plutot que "An 2". On lit directement quand les
+                  choses arrivent, sans conversion mentale. */}
+              <XAxis dataKey="month" tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 9 }}
+                tickFormatter={m => (m % tickStep === 0 ? monthToDateShort(m, dateDepart) : "")}
+                axisLine={false} tickLine={false} interval={0} minTickGap={0} />
+              {/* DEUX AXES : sans cela le cumul (6 chiffres) ecrase le revenu
+                  mensuel (4 chiffres) et la courbe utile devient une ligne plate
+                  collee a zero — defaut constate a l'ecran, pas en theorie. */}
+              {/* L'echelle de gauche inclut TOUJOURS l'objectif : sinon, quand
+                  il est encore loin, la ligne d'objectif sort du cadre et la
+                  question "suis-je loin du but ?" — la seule qui compte ici —
+                  n'a plus de reponse visuelle. */}
+              <YAxis yAxisId="left" tick={{ fill: PROJ_ACCENT, fontSize: 9 }}
+                domain={[
+                  (min) => Math.min(0, min),
+                  (max) => niceCeil(Math.max(max, effectivePlan.targetMonthlyIncome || 0) * 1.08),
+                ]}
+                tickFormatter={v => (Math.abs(v) >= 1000 ? Math.round(v / 1000) + "k" : Math.round(v))}
+                axisLine={false} tickLine={false} width={34} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fill: "#6ee7b7", fontSize: 9 }}
+                tickFormatter={v => (Math.abs(v) >= 1000 ? Math.round(v / 1000) + "k" : Math.round(v))}
+                axisLine={false} tickLine={false} width={34} />
+              <Tooltip
+                contentStyle={{ background: "rgba(14,18,24,0.96)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, fontSize: 11 }}
+                labelFormatter={(m) => monthToDate(m, dateDepart) + " — mois " + m}
+                formatter={(v, n) => [
+                  n === "comptes" ? Number(v).toFixed(1) + " comptes" : fmt(v),
+                  n === "encaisse" ? "Encaissé ce mois" : n === "revenu" ? "Revenu net total" : n === "cumul" ? "Cumul encaissé" : "Comptes",
+                ]}
+              />
+              <Area yAxisId="left" type="monotone" dataKey="encaisse" stroke={PROJ_ACCENT} strokeWidth={2.2} fill="url(#projGrad)" dot={false} />
+              <Line yAxisId="left" type="monotone" dataKey="revenu" stroke="rgba(255,255,255,0.35)" strokeWidth={1.2} dot={false} />
+              <Line yAxisId="right" type="monotone" dataKey="cumul" stroke="#6ee7b7" strokeWidth={1.6} dot={false} strokeDasharray="4 3" />
+              {effectivePlan.targetMonthlyIncome > 0 && (
+                <ReferenceLine yAxisId="left" y={effectivePlan.targetMonthlyIncome} stroke="#fbbf24" strokeDasharray="3 3" strokeWidth={1.2} />
+              )}
+              {objectifAtteint && (
+                <ReferenceDot yAxisId="left" x={s.targetIncomeMonth} y={result.months[s.targetIncomeMonth - 1].takeHome}
+                  r={4} fill="#fbbf24" stroke="#000" strokeWidth={1.5} />
+              )}
+            </ComposedChart>
+          </ResponsiveContainer>
+          <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 9.5, color: "rgba(255,255,255,0.4)", flexWrap: "wrap" }}>
+            <span><span style={{ display: "inline-block", width: 8, height: 2, background: PROJ_ACCENT, verticalAlign: "middle", marginRight: 4 }} />Ce que tu encaisses</span>
+            <span><span style={{ display: "inline-block", width: 8, height: 2, background: "rgba(255,255,255,0.45)", verticalAlign: "middle", marginRight: 4 }} />Revenu net total</span>
+            <span><span style={{ display: "inline-block", width: 8, height: 2, background: "#6ee7b7", verticalAlign: "middle", marginRight: 4 }} />Cumul encaissé</span>
+            <span><span style={{ display: "inline-block", width: 8, height: 2, background: "#fbbf24", verticalAlign: "middle", marginRight: 4 }} />Objectif</span>
+          </div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 7, lineHeight: 1.5 }}>
+            L'écart entre les deux courbes du haut, c'est ce qui repart en nouveaux challenges au lieu d'aller dans ta poche.
+            Axe de gauche : par mois. Axe de droite : le cumul depuis le début.
+          </div>
         </div>
 
         {/* ── CHRONOLOGIE DU PARCOURS ──────────────────────────────
@@ -6434,9 +6611,9 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
               tl.startStage !== "funded" && tl.usedAuto && tl.phase1Months != null
                 ? { l: "Phase 1", d: `${tl.phase1Months.toFixed(1)} mois à ton rythme`, on: true } : null,
               tl.startStage !== "funded" && tl.usedAuto && tl.phase2Months ? { l: "Phase 2", d: `${tl.phase2Months.toFixed(1)} mois`, on: true } : null,
-              { l: "1er compte funded", d: tl.firstFundedMonth ? monthToDate(tl.firstFundedMonth) : "non atteint sur l'horizon", on: !!tl.firstFundedMonth },
-              { l: "1er euro encaissé", d: tl.firstPaidMonth ? monthToDate(tl.firstPaidMonth) : "non atteint", on: !!tl.firstPaidMonth },
-              { l: `Objectif ${fmt(effectivePlan.targetMonthlyIncome)}/mois`, d: s.targetIncomeMonth ? monthToDate(s.targetIncomeMonth) : "hors de portée sur l'horizon", on: !!s.targetIncomeMonth },
+              { l: "1er compte funded", d: tl.firstFundedMonth ? monthToDate(tl.firstFundedMonth, dateDepart) : "non atteint sur l'horizon", on: !!tl.firstFundedMonth },
+              { l: "1er euro encaissé", d: tl.firstPaidMonth ? monthToDate(tl.firstPaidMonth, dateDepart) : "non atteint", on: !!tl.firstPaidMonth },
+              { l: `Objectif ${fmt(effectivePlan.targetMonthlyIncome)}/mois`, d: s.targetIncomeMonth ? monthToDate(s.targetIncomeMonth, dateDepart) : "hors de portée sur l'horizon", on: !!s.targetIncomeMonth },
             ].filter(Boolean);
             return etapes.map((e, i) => (
               <div key={i} style={{ display: "flex", gap: 10 }}>
@@ -6500,7 +6677,7 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
             ) : (
               <>
                 Tu n'as pas encore de compte funded : les paiements commencent{" "}
-                <b style={{ color: "#fff" }}>{tl.firstPaidMonth ? monthToDate(tl.firstPaidMonth) : "au-delà de l'horizon"}</b>,
+                <b style={{ color: "#fff" }}>{tl.firstPaidMonth ? monthToDate(tl.firstPaidMonth, dateDepart) : "au-delà de l'horizon"}</b>,
                 une fois le challenge passé.{" "}
               </>
             )}
@@ -6563,7 +6740,7 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
         {/* ── KPI ──────────────────────────────────────────────────── */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
           <ProjKpi label="Revenu au terme" value={fmt(s.finalMonthlyNet) + "/m"} color={PROJ_ACCENT}
-            sub={monthToDate(s.horizonMonths)} />
+            sub={monthToDate(s.horizonMonths, dateDepart)} />
           <ProjKpi label="Comptes au terme" value={s.finalAccounts.toFixed(1)} color="#fff"
             sub={fmt(s.finalCapitalUnderManagement) + " gérés"} />
           <ProjKpi label="Cumul encaissé" value={fmt(s.cumulTakeHome)} color="#6ee7b7"
@@ -6572,54 +6749,52 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
             sub={"impôts " + fmt(s.cumulTax)} />
         </div>
 
-        {/* ── COURBE ───────────────────────────────────────────────── */}
+        {/* ── COMMENT CA MARCHE ────────────────────────────────────
+            L'utilisateur doit pouvoir comprendre la mecanique d'un coup
+            d'oeil, sans deduire la regle a partir d'une courbe. ── */}
         <div className="card" style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-            Revenu mensuel net
+          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 9 }}>
+            Comment ce plan fonctionne
           </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <ComposedChart data={chartData} margin={{ top: 6, right: 6, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="projGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={PROJ_ACCENT} stopOpacity={0.35} />
-                  <stop offset="100%" stopColor={PROJ_ACCENT} stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
-              <XAxis dataKey="month" tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 9 }}
-                tickFormatter={m => (m % 12 === 0 ? "An " + (m / 12) : "")}
-                axisLine={false} tickLine={false} interval={0} />
-              {/* DEUX AXES : sans cela le cumul (6 chiffres) ecrase le revenu
-                  mensuel (4 chiffres) et la courbe utile devient une ligne plate
-                  collee a zero — defaut constate a l'ecran, pas en theorie. */}
-              <YAxis yAxisId="left" tick={{ fill: PROJ_ACCENT, fontSize: 9 }}
-                tickFormatter={v => (Math.abs(v) >= 1000 ? Math.round(v / 1000) + "k" : Math.round(v))}
-                axisLine={false} tickLine={false} width={34} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fill: "#6ee7b7", fontSize: 9 }}
-                tickFormatter={v => (Math.abs(v) >= 1000 ? Math.round(v / 1000) + "k" : Math.round(v))}
-                axisLine={false} tickLine={false} width={34} />
-              <Tooltip
-                contentStyle={{ background: "rgba(14,18,24,0.96)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, fontSize: 11 }}
-                labelFormatter={(m) => monthToDate(m) + " — mois " + m}
-                formatter={(v, n) => [n === "comptes" ? Number(v).toFixed(1) + " comptes" : fmt(v), n === "revenu" ? "Net / mois" : n === "cumul" ? "Cumul encaissé" : "Comptes"]}
-              />
-              <Area yAxisId="left" type="monotone" dataKey="revenu" stroke={PROJ_ACCENT} strokeWidth={2} fill="url(#projGrad)" dot={false} />
-              <Line yAxisId="right" type="monotone" dataKey="cumul" stroke="#6ee7b7" strokeWidth={1.6} dot={false} strokeDasharray="4 3" />
-              {effectivePlan.targetMonthlyIncome > 0 && (
-                <ReferenceLine yAxisId="left" y={effectivePlan.targetMonthlyIncome} stroke="#fbbf24" strokeDasharray="3 3" strokeWidth={1.2} />
-              )}
-              {objectifAtteint && (
-                <ReferenceDot yAxisId="left" x={s.targetIncomeMonth} y={result.months[s.targetIncomeMonth - 1].netIncome}
-                  r={4} fill="#fbbf24" stroke="#000" strokeWidth={1.5} />
-              )}
-            </ComposedChart>
-          </ResponsiveContainer>
-          <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 9.5, color: "rgba(255,255,255,0.4)", flexWrap: "wrap" }}>
-            <span><span style={{ display: "inline-block", width: 8, height: 2, background: PROJ_ACCENT, verticalAlign: "middle", marginRight: 4 }} />Net / mois</span>
-            <span><span style={{ display: "inline-block", width: 8, height: 2, background: "#6ee7b7", verticalAlign: "middle", marginRight: 4 }} />Cumul encaissé</span>
-            <span><span style={{ display: "inline-block", width: 8, height: 2, background: "#fbbf24", verticalAlign: "middle", marginRight: 4 }} />Objectif</span>
-          </div>
+          {(() => {
+            const pol = effectivePlan.payoutPolicy !== "fixed_share";
+            const etapes = [
+              { n: 1, t: "Tes comptes produisent", d: `${s.finalAccounts.toFixed(1)} compte${s.finalAccounts >= 2 ? "s" : ""} au terme × ${effectivePlan.accountCapital.toLocaleString("fr-FR")} $ × ${effectivePlan.monthlyReturnPct.toFixed(2)} %/mois, dont tu gardes ${effectivePlan.profitSplitPct} %.` },
+              { n: 2, t: "On retire les charges", d: `${fmt(effectivePlan.monthlyCostFixed)} fixes + ${fmt(effectivePlan.monthlyCostPerAccount)} par compte, puis ${effectivePlan.taxRatePct} % d'impôt sur ce qui reste.` },
+              { n: 3, t: "On remplace les comptes perdus", d: effectivePlan.rebuyLostAccounts === false
+                  ? "Désactivé : un compte grillé n'est pas remplacé, ton parc se réduit."
+                  : `${effectivePlan.blowUpRatePct} %/mois de risque de griller un compte. Le rachat passe avant ta poche — sans compte, plus aucun revenu.` },
+              { n: 4, t: pol ? "Tu encaisses ton objectif" : "Tu prélèves ta part fixe",
+                d: pol
+                  ? `Jusqu'à ${fmt(effectivePlan.targetMonthlyIncome)} par mois pour toi, dès que le profit le permet.`
+                  : `${effectivePlan.reinvestPct} % repartent en challenges, le reste est pour toi.` },
+              { n: 5, t: pol ? "Le surplus fait grossir le parc" : "Le parc grossit",
+                d: pol
+                  ? `${effectivePlan.reinvestPct} % de ce qui dépasse l'objectif achète de nouveaux challenges (${fmt(effectivePlan.challengeFee)} pièce, ${effectivePlan.passRatePct} % de réussite, ${effectivePlan.challengeMonths} mois).`
+                  : `Chaque ${fmt(effectivePlan.challengeFee)} accumulés achètent un challenge (${effectivePlan.passRatePct} % de réussite, ${effectivePlan.challengeMonths} mois).` },
+            ];
+            return etapes.map(e => (
+              <div key={e.n} style={{ display: "flex", gap: 9, marginBottom: 8 }}>
+                <div style={{ width: 19, height: 19, borderRadius: 10, flexShrink: 0, background: "rgba(34,211,238,0.14)", border: `1px solid ${PROJ_ACCENT}55`, color: PROJ_ACCENT, fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{e.n}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 700, color: "#fff" }}>{e.t}</div>
+                  <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", lineHeight: 1.45 }}>{e.d}</div>
+                </div>
+              </div>
+            ));
+          })()}
         </div>
+
+        {/* Piege de la politique "objectif d'abord" : sans surplus, pas de
+            croissance. A dire explicitement plutot que de laisser une courbe
+            plate inexpliquee. */}
+        {effectivePlan.payoutPolicy !== "fixed_share" && s.cumulReinvested === 0 && !objectifAtteint && (
+          <div style={{ background: "rgba(251,191,36,0.09)", border: "1px solid rgba(251,191,36,0.28)", borderRadius: 14, padding: "11px 13px", marginBottom: 12, fontSize: 11.5, lineHeight: 1.55, color: "rgba(255,255,255,0.78)" }}>
+            <b style={{ color: "#fbbf24" }}>Ton parc ne grandira pas.</b> Avec « mon objectif d'abord », seul ce qui dépasse
+            {" "}{fmt(effectivePlan.targetMonthlyIncome)}/mois achète de nouveaux challenges — et tu n'atteins jamais ce seuil,
+            donc il n'y a jamais de surplus. Baisse l'objectif, ou passe en « part fixe » pour réinvestir malgré tout.
+          </div>
+        )}
 
         {/* ── PLAN PERSONNEL ───────────────────────────────────────── */}
         <div className="card" style={{ marginBottom: 12 }}>
@@ -6635,6 +6810,79 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
               <ProjField label="Revenu net visé" value={form.targetMonthlyIncome} onChange={v => set({ targetMonthlyIncome: v })} suffix="$/mois" step={100}
                 hint="Le seuil à partir duquel tu n'as plus besoin d'autre revenu." />
               <ProjField label="Horizon" value={form.horizonMonths} onChange={v => set({ horizonMonths: v })} suffix="mois" step={6} min={1} max={600} />
+            </div>
+
+            {/* Politique de versement : la decision qui change tout le reste. */}
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 5 }}>
+              Que faire du revenu chaque mois
+            </div>
+            <div style={{ display: "flex", gap: 5, background: "rgba(255,255,255,0.05)", borderRadius: 11, padding: 4 }}>
+              {[
+                { k: "target_first", l: "Mon objectif d'abord" },
+                { k: "fixed_share", l: "Part fixe" },
+              ].map(o => {
+                const actif = (form.payoutPolicy || "target_first") === o.k;
+                return (
+                  <button key={o.k} onClick={() => set({ payoutPolicy: o.k })}
+                    style={{
+                      flex: 1, padding: "9px 4px", borderRadius: 8, cursor: "pointer", fontSize: 11.5, fontWeight: 800, border: "none",
+                      background: actif ? "rgba(34,211,238,0.16)" : "transparent",
+                      color: actif ? PROJ_ACCENT : "rgba(255,255,255,0.55)",
+                    }}>{o.l}</button>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", marginTop: 6, marginBottom: 4, lineHeight: 1.5 }}>
+              {(form.payoutPolicy || "target_first") === "target_first"
+                ? <>Tu encaisses jusqu'à <b style={{ color: "#fff" }}>{fmt(form.targetMonthlyIncome)}</b> dès le premier mois si le profit le permet. Seul ce qu'il y a <b>au-delà</b> repart en nouveaux challenges.</>
+                : <>Une part fixe du revenu repart en challenges chaque mois, <b>même si tu n'as pas atteint ton objectif</b>. Tu grandis plus vite, tu encaisses moins tôt.</>}
+            </div>
+
+            {/* Quel journal sert de reference — un trader en tient plusieurs. */}
+            {comptesJournal.length > 1 && (
+              <>
+                <div style={{ fontSize: 10, fontWeight: 800, color: PROJ_ACCENT, textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 6px" }}>Quel journal sert de référence</div>
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 4 }}>
+                  {comptesJournal.map(a => {
+                    const actif = a.id === journalAccountId;
+                    return (
+                      <button key={a.id} onClick={() => setJournalAccountId(a.id)}
+                        style={{
+                          padding: "7px 11px", borderRadius: 9, cursor: "pointer", fontSize: 11.5, fontWeight: 800,
+                          border: actif ? `1px solid ${PROJ_ACCENT}73` : "1px solid rgba(255,255,255,0.1)",
+                          background: actif ? "rgba(34,211,238,0.15)" : "rgba(255,255,255,0.04)",
+                          color: actif ? PROJ_ACCENT : "rgba(255,255,255,0.6)",
+                        }}>{nomCompte(a)}</button>
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 4, lineHeight: 1.45 }}>
+                  {journalTruth.available
+                    ? `${journalTruth.months} mois ${journalTruth.months > 1 ? "saisis" : "saisi"} sur ce compte.`
+                    : "Aucune donnée sur ce compte — choisis-en un autre ou bascule sur le simulateur."}
+                </div>
+              </>
+            )}
+
+            {/* Date de depart : deduite du journal, modifiable. */}
+            <div style={{ fontSize: 10, fontWeight: 800, color: PROJ_ACCENT, textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 6px" }}>Date de départ du parcours</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <input type="date" value={form.startDateISO || dateToISO(dateAuto) || ""}
+                onChange={e => set({ startDateISO: e.target.value || null })}
+                style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 10, padding: "9px 10px", color: "#fff", fontSize: 13, fontWeight: 700 }} />
+              {form.startDateISO && (
+                <button onClick={() => set({ startDateISO: null })}
+                  style={{ padding: "9px 11px", borderRadius: 10, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                    color: PROJ_ACCENT, fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Auto</button>
+              )}
+            </div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", lineHeight: 1.45, marginBottom: 4 }}>
+              {form.startDateISO
+                ? <>Date saisie à la main. « Auto » reprend le premier jour de ton journal.</>
+                : dateAuto
+                  ? <>Reprise du <b style={{ color: "rgba(255,255,255,0.7)" }}>premier jour saisi</b> dans ce journal ({dateAuto.toLocaleDateString("fr-FR")}), soit {Math.round(moisEcoules)} mois écoulé{Math.round(moisEcoules) > 1 ? "s" : ""}.</>
+                  : <>Aucune date dans le journal : le parcours démarre aujourd'hui. Saisis-en une si ton challenge a déjà commencé.</>}
             </div>
 
             <div style={{ fontSize: 10, fontWeight: 800, color: PROJ_ACCENT, textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 8px" }}>Où j'en suis aujourd'hui</div>
@@ -6668,8 +6916,11 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
                     ))}
                   </div>
                 </div>
-                <ProjField label="Déjà écoulé" value={form.startChallengeMonthsElapsed} onChange={v => set({ startChallengeMonthsElapsed: v })} suffix="mois" step={1}
-                  hint="Seul le temps restant compte dans la projection." />
+                <ProjField label="Déjà écoulé" value={effectivePlanAvecDate.startChallengeMonthsElapsed}
+                  onChange={v => set({ startChallengeMonthsElapsed: v, startChallengeMonthsElapsedManuel: true })} suffix="mois" step={1}
+                  hint={form.startChallengeMonthsElapsedManuel
+                    ? "Saisi à la main. Seul le temps restant compte."
+                    : "Calculé depuis la date de départ. Seul le temps restant compte."} />
               </div>
             )}
 
@@ -6744,8 +6995,12 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
 
             <div style={{ fontSize: 10, fontWeight: 800, color: PROJ_ACCENT, textTransform: "uppercase", letterSpacing: 1, margin: "14px 0 8px" }}>Stratégie de croissance</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "0 12px" }}>
-              <ProjField label="Réinvestissement" value={form.reinvestPct} onChange={v => set({ reinvestPct: v })} suffix="%" step={5} min={0} max={100}
-                hint="Part du net réinjectée en nouveaux challenges. Le reste, tu l'encaisses." />
+              <ProjField
+                label={(form.payoutPolicy || "target_first") === "target_first" ? "Part du surplus réinvestie" : "Réinvestissement"}
+                value={form.reinvestPct} onChange={v => set({ reinvestPct: v })} suffix="%" step={5} min={0} max={100}
+                hint={(form.payoutPolicy || "target_first") === "target_first"
+                  ? "Ce qui dépasse ton objectif : combien repart en challenges."
+                  : "Part du net réinjectée en nouveaux challenges. Le reste, tu l'encaisses."} />
               <ProjField label="Plafond de comptes" value={form.maxAccounts} onChange={v => set({ maxAccounts: v })} suffix="cpt" step={1}
                 hint="0 = illimité. Au-delà, plus aucun challenge n'est acheté." />
               <ProjField label="Taux de réussite challenge" value={form.passRatePct} onChange={v => set({ passRatePct: v })} suffix="%" step={5} min={0} max={100}
@@ -6813,7 +7068,7 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
                     <div>
                       <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 9.5 }}>Objectif</div>
                       <div style={{ color: ss.targetIncomeMonth ? "#fff" : "#ef4444", fontWeight: 800 }}>
-                        {ss.targetIncomeMonth ? monthToDate(ss.targetIncomeMonth) : "Hors portée"}
+                        {ss.targetIncomeMonth ? monthToDate(ss.targetIncomeMonth, dateDepart) : "Hors portée"}
                       </div>
                     </div>
                     <div>
@@ -6865,7 +7120,7 @@ function ProjectionScreen({ lastSim, journalFlat, profile, onBack }) {
                         <tr key={mo.month} style={{ borderTop: "1px solid rgba(255,255,255,0.06)",
                           background: premier ? "rgba(251,191,36,0.10)" : "transparent" }}>
                           <td style={{ padding: "6px 6px 6px 0", fontWeight: 700, color: "#fff", whiteSpace: "nowrap" }}>
-                            {monthToDate(mo.month)}
+                            {monthToDate(mo.month, dateDepart)}
                             {premier && <span style={{ color: "#fbbf24", fontSize: 9, marginLeft: 4 }}>objectif</span>}
                           </td>
                           <td style={{ padding: "6px", textAlign: "right", color: "rgba(255,255,255,0.65)" }}>{mo.accounts.toFixed(1)}</td>
@@ -7778,6 +8033,23 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
   })();
   const journalStats = journalAnalyze(journalRaw);
 
+  // Journal COMPLET (tous les comptes) + liste des comptes : le module de
+  // projection doit pouvoir choisir lui-meme sur quel journal il se base,
+  // puisqu'un trader en tient plusieurs.
+  const journalAllAccounts = (() => {
+    try {
+      const r = localStorage.getItem('eapropfirm_journal');
+      return migrateJournalToMultiAccount(r ? JSON.parse(r) : {});
+    } catch (e) { return {}; }
+  })();
+  const journalAccountsList = (() => {
+    try {
+      const r = localStorage.getItem('eapropfirm_journal_accounts');
+      const parsed = r ? JSON.parse(r) : [];
+      return parsed.length ? parsed : [{ id: "default", customName: null, color: "#6ee7b7", capital: null }];
+    } catch (e) { return [{ id: "default", customName: null, color: "#6ee7b7", capital: null }]; }
+  })();
+
   // Read backtest data
   const backtestRaw = (() => { try { const r=localStorage.getItem('eapropfirm_trades'); const d=r?JSON.parse(r):null; return d&&d.trades&&d.trades.length?d:null; } catch(e){return null;} })();
   const backtestStats = backtestRaw ? backtestAnalyze(backtestRaw) : null;
@@ -8368,7 +8640,8 @@ function CoachScreen({ t, lang, lastSim, profile, goto, premiumAccess = true, re
   }
 
   if (mode === 'projection') {
-    return <ProjectionScreen lastSim={lastSim} journalFlat={journalRaw} profile={profile} onBack={() => setMode(null)} />;
+    return <ProjectionScreen lastSim={lastSim} journalFlat={journalRaw} journalAll={journalAllAccounts}
+      journalAccounts={journalAccountsList} profile={profile} onBack={() => setMode(null)} />;
   }
 
   if (mode === 'comparator') {
