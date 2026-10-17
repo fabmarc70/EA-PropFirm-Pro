@@ -6055,37 +6055,107 @@ function CandleChart({ candles, width, height, entry, stop, target, revealFrom }
   return <canvas ref={ref} style={{ width, height, display: "block" }} />;
 }
 
+// ── Cache des series par (paire, mois) : un fichier fait ~85 Ko et la bande
+//    d'actifs en charge plusieurs. Sans cache, changer d'unite de temps
+//    retelechargerait tout a chaque fois.
+const TRAIN_CACHE = new Map();
+async function chargerSerie(asset) {
+  const cle = asset.pair + "|" + asset.period;
+  if (TRAIN_CACHE.has(cle)) return TRAIN_CACHE.get(cle);
+  const r = await fetch(asset.url);
+  if (!r.ok) throw new Error("telechargement impossible");
+  const ds = await r.json();
+  const brutes = (ds.candles || ds.data || []).filter(c => Array.isArray(c) && c.length >= 5);
+  const out = { brutes, baseMinutes: ds.baseMinutes || asset.baseMinutes || 1 };
+  TRAIN_CACHE.set(cle, out);
+  return out;
+}
+
+// Prix formate selon l'ordre de grandeur : 4 decimales sur une paire de
+// devises, aucune sur un indice a cinq chiffres.
+function fmtPrix(v) {
+  if (v == null || !isFinite(v)) return "—";
+  const abs = Math.abs(v);
+  const d = abs >= 1000 ? 2 : abs >= 100 ? 3 : abs >= 10 ? 4 : 5;
+  return v.toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+
+// Courbe miniature d'une vignette d'actif.
+function MiniSpark({ values, color, width = 92, height = 30 }) {
+  if (!values || values.length < 2) return <div style={{ width, height }} />;
+  const min = Math.min(...values), max = Math.max(...values);
+  const span = max - min || 1;
+  const pts = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * width;
+    const y = height - ((v - min) / span) * (height - 4) - 2;
+    return x.toFixed(1) + "," + y.toFixed(1);
+  }).join(" ");
+  return (
+    <svg width={width} height={height} style={{ display: "block" }} aria-hidden="true">
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Petit champ numerique compact : trois tiennent sur une ligne, la ou les
+// champs pleine largeur poussaient les boutons d'achat hors de l'ecran.
+function MiniStepper({ label, value, onChange, suffix, step, min, max }) {
+  const set = (v) => onChange(Math.max(min, Math.min(max, +v.toFixed(2))));
+  const Btn = ({ children, onClick }) => (
+    <button onClick={onClick} style={{
+      width: 26, height: 26, flexShrink: 0, borderRadius: 7, cursor: "pointer",
+      background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
+      color: "rgba(255,255,255,0.75)", fontSize: 14, fontWeight: 800, lineHeight: 1, padding: 0,
+    }}>{children}</button>
+  );
+  return (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3, textAlign: "center" }}>{label}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <Btn onClick={() => set(value - step)}>−</Btn>
+        <div style={{ flex: 1, minWidth: 0, textAlign: "center", fontSize: 13, fontWeight: 800, color: "#fff", whiteSpace: "nowrap" }}>
+          {value}{suffix}
+        </div>
+        <Btn onClick={() => set(value + step)}>+</Btn>
+      </div>
+    </div>
+  );
+}
+
 function TrainerScreen({ onBack }) {
   const VISIBLE = 70;        // bougies de contexte affichees
   const RESERVE = 60;        // bougies cachees gardees pour resoudre le trade
   const MAX_BOUGIES = 40;    // duree de vie maximale d'un trade
+  const SPREAD_PCT = 0.02;   // ecart achat/vente, en % du prix
 
-  const [serie, setSerie] = useState(null);      // toutes les bougies
-  const [source, setSource] = useState(null);     // libelle de la source
+  const [catalogue, setCatalogue] = useState([]);   // tous les datasets
+  const [paire, setPaire] = useState(null);
+  const [serie, setSerie] = useState(null);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState(null);
-  const [tf, setTf] = useState(60);               // minutes
-  const [idx, setIdx] = useState(0);              // derniere bougie visible
+  const [tf, setTf] = useState(60);
+  const [idx, setIdx] = useState(0);
   const [position, setPosition] = useState(null);
   const [resultat, setResultat] = useState(null);
   const [risque, setRisque] = useState(1);
   const [rr, setRr] = useState(2);
   const [stopPct, setStopPct] = useState(0.6);
   const [largeur, setLargeur] = useState(360);
+  const [ouvrirPaires, setOuvrirPaires] = useState(false);
+  const [veille, setVeille] = useState({});          // pair -> {closes, last, varPct}
   const boite = useRef(null);
 
-  // Historique des trades : persistant et synchronise, comme le journal.
   const [session, setSession] = useCloudSyncedState("eapropfirm_trainer", "trainerSession",
-    { balance: 10000, trades: [] },
+    { balance: 10000, trades: [], watch: null },
     (local, cloud) => {
-      // Fusion : on garde la session qui contient le plus de trades, jamais
-      // un ecrasement qui ferait disparaitre un entrainement.
       const nl = (local && local.trades || []).length, nc = (cloud && cloud.trades || []).length;
       return nc > nl ? cloud : (local || cloud);
     });
 
   const trades = (session && session.trades) || [];
   const stats = trainerStats(trades, 10000);
+  const DEFAUT_VEILLE = ["XAUUSD", "NAS100", "US30", "EURUSD", "GBPUSD"];
+  const watch = (session && session.watch) || DEFAUT_VEILLE;
 
   useEffect(() => {
     const mesure = () => { if (boite.current) setLargeur(boite.current.clientWidth); };
@@ -6094,57 +6164,103 @@ function TrainerScreen({ onBack }) {
     return () => window.removeEventListener("resize", mesure);
   }, []);
 
-  // ── Chargement des bougies ────────────────────────────────────────────
-  // On tente les vraies donnees historiques ; en cas d'echec (hors ligne,
-  // depot indisponible), on bascule sur une serie de secours EN LE DISANT.
-  const charger = async (minutes) => {
-    setChargement(true); setErreur(null); setPosition(null); setResultat(null);
-    try {
-      const liste = await listAvailableDatasets();
-      const paires = [...new Set((liste.assets || []).map(a => a.pair))];
-      if (!paires.length) throw new Error("aucun jeu de donnees");
-      const paire = paires[Math.floor(Math.random() * paires.length)];
-      const mois = (liste.assets || []).filter(a => a.pair === paire);
-      const choix = mois[Math.floor(Math.random() * mois.length)];
-      const r = await fetch(choix.url);
-      if (!r.ok) throw new Error("telechargement impossible");
-      const ds = await r.json();
-      const brutes = (ds.candles || ds.data || []).filter(c => Array.isArray(c) && c.length >= 5);
-      if (brutes.length < VISIBLE + RESERVE + 10) throw new Error("serie trop courte");
-      const agregees = aggregateCandles(brutes, minutes, ds.baseMinutes || choix.baseMinutes || 1);
-      if (agregees.length < VISIBLE + RESERVE + 10) throw new Error("serie trop courte apres agregation");
-      setSerie(agregees);
-      setSource(paire + " · " + (TIMEFRAMES.find(t => t.minutes === minutes)?.label || minutes + "m"));
-      setIdx(pickStartIndex(agregees, VISIBLE, RESERVE));
-    } catch (e) {
-      const c = syntheticCandles(Date.now() % 100000, 600);
-      setSerie(c);
-      setSource("Série d'entraînement (données historiques indisponibles)");
-      setIdx(pickStartIndex(c, VISIBLE, RESERVE));
-      setErreur("Données de marché indisponibles — série d'entraînement générée.");
-    }
-    setChargement(false);
-  };
+  // ── Catalogue des actifs disponibles ─────────────────────────────────
+  useEffect(() => {
+    let vivant = true;
+    listAvailableDatasets()
+      .then(l => { if (vivant) { setCatalogue(l.assets || []); } })
+      .catch(() => { if (vivant) setCatalogue([]); });
+    return () => { vivant = false; };
+  }, []);
 
-  useEffect(() => { charger(tf); /* eslint-disable-next-line */ }, [tf]);
+  const paires = [...new Set(catalogue.map(a => a.pair))].sort();
 
-  const visibles = serie ? serie.slice(Math.max(0, idx - VISIBLE + 1), idx + 1 + (resultat ? Math.min(MAX_BOUGIES, (resultat.exitIndex - idx)) : 0)) : [];
-  const prixCourant = serie && serie[idx] ? serie[idx][4] : null;
+  // Paire par defaut : la premiere de la veille qui existe, sinon la premiere
+  // du catalogue.
+  useEffect(() => {
+    if (paire || !paires.length) return;
+    setPaire(watch.find(p => paires.includes(p)) || paires[0]);
+  }, [paires.length]);   // eslint-disable-line
+
+  // ── Chargement de la serie de la paire choisie ────────────────────────
+  useEffect(() => {
+    if (!paire || !catalogue.length) return;
+    let vivant = true;
+    (async () => {
+      setChargement(true); setErreur(null); setPosition(null); setResultat(null);
+      try {
+        const mois = catalogue.filter(a => a.pair === paire);
+        const choix = mois[Math.floor(Math.random() * mois.length)];
+        const { brutes, baseMinutes } = await chargerSerie(choix);
+        if (!vivant) return;
+        const agregees = aggregateCandles(brutes, tf, baseMinutes);
+        if (agregees.length < VISIBLE + RESERVE + 10) throw new Error("serie trop courte");
+        setSerie(agregees);
+        setIdx(pickStartIndex(agregees, VISIBLE, RESERVE));
+      } catch (e) {
+        if (!vivant) return;
+        const c = syntheticCandles(Date.now() % 100000, 600);
+        setSerie(c);
+        setIdx(pickStartIndex(c, VISIBLE, RESERVE));
+        setErreur("Données indisponibles pour " + paire + " — série d'entraînement générée.");
+      }
+      if (vivant) setChargement(false);
+    })();
+    return () => { vivant = false; };
+  }, [paire, tf, catalogue.length]);   // eslint-disable-line
+
+  // ── Vignettes de veille, chargees en arriere-plan, deux par deux ──────
+  //    Telecharger les 24 paires d'un coup bloquerait l'ecran pour rien :
+  //    seules les paires surveillees sont chargees, et seulement une fois.
+  useEffect(() => {
+    if (!catalogue.length) return;
+    let vivant = true;
+    (async () => {
+      const aFaire = watch.filter(p => !veille[p] && catalogue.some(a => a.pair === p));
+      for (let i = 0; i < aFaire.length; i += 2) {
+        const lot = aFaire.slice(i, i + 2);
+        const res = await Promise.all(lot.map(async (p) => {
+          try {
+            const mois = catalogue.filter(a => a.pair === p);
+            const { brutes } = await chargerSerie(mois[mois.length - 1]);
+            const closes = brutes.slice(-60).map(c => c[4]);
+            const last = closes[closes.length - 1];
+            const first = closes[0];
+            return [p, { closes, last, varPct: first ? ((last - first) / first) * 100 : 0 }];
+          } catch (e) { return [p, null]; }
+        }));
+        if (!vivant) return;
+        setVeille(v => {
+          const n = { ...v };
+          res.forEach(([p, d]) => { if (d) n[p] = d; });
+          return n;
+        });
+      }
+    })();
+    return () => { vivant = false; };
+  }, [catalogue.length, watch.join(",")]);   // eslint-disable-line
+
+  const visibles = serie
+    ? serie.slice(Math.max(0, idx - VISIBLE + 1), idx + 1 + (resultat ? Math.max(0, resultat.exitIndex - idx) : 0))
+    : [];
+  const prixMid = serie && serie[idx] ? serie[idx][4] : null;
+  // Achat a l'offre, vente a la demande : l'ecart est reel et se paie.
+  const spread = prixMid ? prixMid * (SPREAD_PCT / 100) : 0;
+  const prixAchat = prixMid != null ? prixMid + spread / 2 : null;
+  const prixVente = prixMid != null ? prixMid - spread / 2 : null;
   const debutReveal = resultat ? VISIBLE : null;
 
   const prendrePosition = (side) => {
-    if (!serie || !prixCourant || position || resultat) return;
-    const p = openPosition({ side, entryPrice: prixCourant, balance: stats.balance, riskPct: risque, stopPct, rr });
+    if (!serie || prixMid == null || resultat) return;
+    const entree = side === "long" ? prixAchat : prixVente;
+    const p = openPosition({ side, entryPrice: entree, balance: stats.balance, riskPct: risque, stopPct, rr });
     if (!p) return;
     const resolu = resolvePosition(p, serie, idx + 1, MAX_BOUGIES);
     setPosition(p);
     setResultat(resolu);
     setSession({
-      balance: 10000,
-      trades: [...trades, {
-        ...resolu, ts: Date.now(), source,
-        tf, riskPct: risque, stopPct, rrCible: rr,
-      }],
+      ...(session || {}), balance: 10000,
+      trades: [...trades, { ...resolu, ts: Date.now(), source: paire + " · " + (TIMEFRAMES.find(t => t.minutes === tf)?.label || tf), tf, riskPct: risque, stopPct, rrCible: rr }],
     });
   };
 
@@ -6159,39 +6275,79 @@ function TrainerScreen({ onBack }) {
     : r === "stop_ambigu" ? "Stop touché (la bougie a touché les deux niveaux)"
     : r === "manuel" ? "Clôture manuelle" : "Sortie en fin de période";
 
+  const enJeu = stats.balance * risque / 100;
+
   return (
     <div style={{ fontFamily: "-apple-system, sans-serif", color: "#fff" }}>
       <ReportHeader title="Entraînement" subtitle="Prends des trades sur de vraies bougies" onBack={onBack} />
       <div style={{ padding: "0 16px 28px" }}>
 
-        {/* Solde et performance de la session */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(74px, 1fr))", gap: 7, marginBottom: 12 }}>
+        {/* Solde et performance — la 4e tuile ouvre le choix de l'actif */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 10 }}>
           {[
             { l: "Solde", v: fmt(stats.balance), c: stats.balance >= 10000 ? TRAIN_ACCENT : "#ef4444" },
             { l: "Trades", v: String(stats.trades), c: "#fff" },
             { l: "Winrate", v: stats.winrate == null ? "—" : stats.winrate + "%", c: "#fff" },
-            { l: "Espérance", v: stats.expectancyR == null ? "—" : (stats.expectancyR > 0 ? "+" : "") + stats.expectancyR + "R", c: (stats.expectancyR || 0) >= 0 ? TRAIN_ACCENT : "#ef4444" },
           ].map(k => (
-            <div key={k.l} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 11, padding: "7px 8px", minWidth: 0 }}>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.5 }}>{k.l}</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: k.c, whiteSpace: "nowrap" }}>{k.v}</div>
+            <div key={k.l} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 11, padding: "6px 7px", minWidth: 0 }}>
+              <div style={{ fontSize: 8.5, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.4 }}>{k.l}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: k.c, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{k.v}</div>
             </div>
           ))}
+          <button onClick={() => setOuvrirPaires(true)}
+            style={{ background: "rgba(110,231,183,0.10)", border: `1px solid ${TRAIN_ACCENT}44`, borderRadius: 11, padding: "6px 7px", minWidth: 0, cursor: "pointer", textAlign: "left" }}>
+            <div style={{ fontSize: 8.5, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 0.4 }}>Actif</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: TRAIN_ACCENT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {paire || "…"}
+            </div>
+          </button>
+        </div>
+
+        {/* Bande d'actifs surveilles */}
+        <div style={{ display: "flex", gap: 7, overflowX: "auto", marginBottom: 10, paddingBottom: 2, WebkitOverflowScrolling: "touch" }}>
+          {watch.map(p => {
+            const d = veille[p];
+            const actif = p === paire;
+            const hausse = d ? d.varPct >= 0 : true;
+            const col = hausse ? TRAIN_ACCENT : "#ef4444";
+            return (
+              <button key={p} onClick={() => setPaire(p)}
+                style={{
+                  flex: "0 0 auto", width: 112, textAlign: "left", cursor: "pointer", padding: "8px 9px", borderRadius: 13,
+                  background: actif ? "rgba(110,231,183,0.08)" : "rgba(255,255,255,0.035)",
+                  border: actif ? `1.5px solid ${TRAIN_ACCENT}66` : "1px solid rgba(255,255,255,0.07)",
+                }}>
+                <div style={{ fontSize: 11.5, fontWeight: 800, color: "#fff" }}>{p}</div>
+                <div style={{ height: 30, margin: "3px 0" }}>
+                  {d ? <MiniSpark values={d.closes} color={col} width={94} height={30} />
+                     : <div style={{ height: 30, display: "flex", alignItems: "center", fontSize: 9, color: "rgba(255,255,255,0.25)" }}>chargement…</div>}
+                </div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: "rgba(255,255,255,0.8)", whiteSpace: "nowrap" }}>
+                  {d ? fmtPrix(d.last) : "—"}
+                </div>
+                <div style={{ fontSize: 9.5, fontWeight: 700, color: d ? col : "rgba(255,255,255,0.3)" }}>
+                  {d ? (d.varPct >= 0 ? "+" : "") + d.varPct.toFixed(2) + " %" : " "}
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         {/* Graphique */}
-        <div ref={boite} className="card" style={{ marginBottom: 10, padding: 10 }}>
+        <div ref={boite} className="card" style={{ marginBottom: 8, padding: 9 }}>
           {chargement ? (
-            <div style={{ height: 230, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+            <div style={{ height: 190, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
               Chargement des bougies…
             </div>
           ) : (
             <>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-                <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)" }}>{source}</span>
-                <span style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{prixCourant != null ? prixCourant.toFixed(prixCourant >= 1000 ? 0 : 2) : "—"}</span>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)" }}>
+                  {paire} · {TIMEFRAMES.find(t => t.minutes === tf)?.label || tf}
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{fmtPrix(prixMid)}</span>
               </div>
-              <CandleChart candles={visibles} width={largeur - 20} height={230}
+              <CandleChart candles={visibles} width={largeur - 18} height={190}
                 entry={position ? position.entryPrice : null}
                 stop={position ? position.stop : null}
                 target={position ? position.target : null}
@@ -6200,12 +6356,12 @@ function TrainerScreen({ onBack }) {
           )}
         </div>
 
-        {/* Unites de temps */}
-        <div style={{ display: "flex", gap: 4, marginBottom: 12, overflowX: "auto" }}>
+        {/* Unites de temps — compactes */}
+        <div style={{ display: "flex", gap: 4, marginBottom: 9 }}>
           {TIMEFRAMES.filter(t => t.minutes >= 5).map(t => (
             <button key={t.key} onClick={() => setTf(t.minutes)}
               style={{
-                flex: "1 0 auto", padding: "7px 10px", borderRadius: 9, cursor: "pointer", fontSize: 11.5, fontWeight: 800,
+                flex: 1, padding: "6px 2px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 800,
                 border: tf === t.minutes ? `1px solid ${TRAIN_ACCENT}73` : "1px solid rgba(255,255,255,0.1)",
                 background: tf === t.minutes ? "rgba(110,231,183,0.15)" : "rgba(255,255,255,0.04)",
                 color: tf === t.minutes ? TRAIN_ACCENT : "rgba(255,255,255,0.6)",
@@ -6213,73 +6369,85 @@ function TrainerScreen({ onBack }) {
           ))}
         </div>
 
-        {/* Décision ou résultat */}
         {!resultat ? (
-          <div className="card" style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: "#fff", marginBottom: 2 }}>Où va le marché ?</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginBottom: 10 }}>La suite est cachée. Décide, puis vérifie.</div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "0 12px" }}>
-              <ProjField label="Risque" value={risque} onChange={v => setRisque(v)} suffix="%" step={0.5} min={0.1} max={10} />
-              <ProjField label="Stop" value={stopPct} onChange={v => setStopPct(v)} suffix="%" step={0.1} min={0.1} max={10} />
-              <ProjField label="Objectif" value={rr} onChange={v => setRr(v)} suffix="R" step={0.5} min={0.5} max={10} />
+          <>
+            {/* Reglages sur UNE ligne */}
+            <div style={{ display: "flex", gap: 10, marginBottom: 8 }}>
+              <MiniStepper label="Risque" value={risque} onChange={setRisque} suffix=" %" step={0.5} min={0.1} max={10} />
+              <MiniStepper label="Stop" value={stopPct} onChange={setStopPct} suffix=" %" step={0.1} min={0.1} max={10} />
+              <MiniStepper label="Objectif" value={rr} onChange={setRr} suffix=" R" step={0.5} min={0.5} max={10} />
             </div>
-            <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)", marginBottom: 10 }}>
-              {fmt2(stats.balance * risque / 100)} en jeu · {fmt2(stats.balance * risque / 100 * rr)} si l'objectif est touché
+            <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)", textAlign: "center", marginBottom: 8 }}>
+              {fmt2(enJeu)} en jeu · {fmt2(enJeu * rr)} si l'objectif est touché
             </div>
 
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => prendrePosition("long")} disabled={chargement}
-                style={{ flex: 1, padding: "14px 8px", borderRadius: 13, cursor: "pointer",
-                  background: "rgba(110,231,183,0.12)", border: `1.5px solid ${TRAIN_ACCENT}66`, color: TRAIN_ACCENT }}>
-                <div style={{ fontSize: 15, fontWeight: 900 }}>Acheter</div>
-                <div style={{ fontSize: 10, opacity: 0.75 }}>Ça monte</div>
-              </button>
+            {/* Capsule Vendre / Acheter */}
+            <div style={{ display: "flex", alignItems: "stretch", borderRadius: 26, overflow: "hidden", marginBottom: 8, opacity: chargement ? 0.5 : 1 }}>
               <button onClick={() => prendrePosition("short")} disabled={chargement}
-                style={{ flex: 1, padding: "14px 8px", borderRadius: 13, cursor: "pointer",
-                  background: "rgba(239,68,68,0.12)", border: "1.5px solid rgba(239,68,68,0.45)", color: "#ef4444" }}>
-                <div style={{ fontSize: 15, fontWeight: 900 }}>Vendre</div>
-                <div style={{ fontSize: 10, opacity: 0.75 }}>Ça baisse</div>
+                style={{ flex: 1, border: "none", cursor: "pointer", padding: "11px 12px", textAlign: "left",
+                  background: "rgba(239,68,68,0.9)", color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                  <path d="M12 5v14M6 13l6 6 6-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: "block", fontSize: 11, opacity: 0.85 }}>Vendre</span>
+                  <span style={{ display: "block", fontSize: 15, fontWeight: 800, whiteSpace: "nowrap" }}>{fmtPrix(prixVente)}</span>
+                </span>
+              </button>
+              <div style={{ flexShrink: 0, background: "#10141c", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 11px" }}>
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", lineHeight: 1.1 }}>{risque} %</span>
+                <span style={{ fontSize: 11.5, fontWeight: 800, color: "#fff", lineHeight: 1.3 }}>1:{rr}</span>
+              </div>
+              <button onClick={() => prendrePosition("long")} disabled={chargement}
+                style={{ flex: 1, border: "none", cursor: "pointer", padding: "11px 12px", textAlign: "right",
+                  background: "rgba(16,185,129,0.9)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: "block", fontSize: 11, opacity: 0.85 }}>Acheter</span>
+                  <span style={{ display: "block", fontSize: 15, fontWeight: 800, whiteSpace: "nowrap" }}>{fmtPrix(prixAchat)}</span>
+                </span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                  <path d="M12 19V5M6 11l6-6 6 6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               </button>
             </div>
             <button onClick={passer} disabled={chargement}
-              style={{ width: "100%", marginTop: 9, padding: 10, borderRadius: 11, background: "none",
-                border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              style={{ width: "100%", padding: 9, borderRadius: 11, background: "none", border: "none",
+                color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>
               Je reste dehors
             </button>
-          </div>
+          </>
         ) : (
           <div className="card" style={{ marginBottom: 12, border: `1px solid ${resultat.win ? TRAIN_ACCENT + "55" : "rgba(239,68,68,0.4)"}` }}>
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 1 }}>{raisonTexte(resultat.reason)}</div>
-            <div style={{ fontSize: 30, fontWeight: 900, color: resultat.win ? TRAIN_ACCENT : "#ef4444", lineHeight: 1.15, marginTop: 2 }}>
+            <div style={{ fontSize: 28, fontWeight: 900, color: resultat.win ? TRAIN_ACCENT : "#ef4444", lineHeight: 1.15, marginTop: 2 }}>
               {resultat.pnl >= 0 ? "+" : ""}{fmt2(resultat.pnl)}
             </div>
-            <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>
-              {resultat.rMultiple >= 0 ? "+" : ""}{resultat.rMultiple}R · {resultat.side === "long" ? "Achat" : "Vente"} à {resultat.entryPrice.toFixed(resultat.entryPrice >= 1000 ? 0 : 2)}, sortie à {resultat.exitPrice.toFixed(resultat.exitPrice >= 1000 ? 0 : 2)}
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>
+              {resultat.rMultiple >= 0 ? "+" : ""}{resultat.rMultiple}R · {resultat.side === "long" ? "Achat" : "Vente"} à {fmtPrix(resultat.entryPrice)} → {fmtPrix(resultat.exitPrice)}
             </div>
             <button onClick={passer}
-              style={{ width: "100%", marginTop: 12, padding: 13, borderRadius: 12, background: TRAIN_ACCENT, border: "none", color: "#000", fontSize: 13.5, fontWeight: 800, cursor: "pointer" }}>
+              style={{ width: "100%", marginTop: 11, padding: 13, borderRadius: 12, background: TRAIN_ACCENT, border: "none", color: "#000", fontSize: 13.5, fontWeight: 800, cursor: "pointer" }}>
               Trade suivant
             </button>
           </div>
         )}
 
         {erreur && (
-          <div style={{ background: "rgba(251,191,36,0.09)", border: "1px solid rgba(251,191,36,0.28)", borderRadius: 12, padding: "9px 11px", marginBottom: 12, fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
+          <div style={{ background: "rgba(251,191,36,0.09)", border: "1px solid rgba(251,191,36,0.28)", borderRadius: 12, padding: "9px 11px", margin: "10px 0", fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
             {erreur}
           </div>
         )}
 
-        {/* Performance detaillee */}
+        {/* Performance */}
         {stats.trades > 0 && (
-          <div className="card" style={{ marginBottom: 12 }}>
+          <div className="card" style={{ marginTop: 12, marginBottom: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1 }}>Performance</span>
-              <button onClick={() => { if (confirm("Effacer tous les trades d'entraînement ?")) setSession({ balance: 10000, trades: [] }); }}
+              <button onClick={() => { if (confirm("Effacer tous les trades d'entraînement ?")) setSession({ ...(session || {}), balance: 10000, trades: [] }); }}
                 style={{ background: "none", border: "none", color: "#ef4444", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0 }}>Réinitialiser</button>
             </div>
 
-            <ResponsiveContainer width="100%" height={120}>
+            <ResponsiveContainer width="100%" height={110}>
               <AreaChart data={stats.equity.map((v, i) => ({ i, v }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="trainGrad" x1="0" y1="0" x2="0" y2="1">
@@ -6288,16 +6456,12 @@ function TrainerScreen({ onBack }) {
                   </linearGradient>
                 </defs>
                 <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <YAxis tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 9 }} width={38}
+                <YAxis tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 9 }} width={40}
                   domain={["dataMin", "dataMax"]}
-                  // Format adaptatif : un solde qui varie de quelques centaines
-                  // affichait "10k 10k 10k" — trois fois la meme graduation,
-                  // donc aucune information.
                   tickFormatter={v => {
                     const etendue = Math.max(...stats.equity) - Math.min(...stats.equity);
                     if (etendue >= 2000) return Math.round(v / 1000) + "k";
-                    if (etendue >= 100) return Math.round(v).toLocaleString("fr-FR");
-                    return v.toFixed(0);
+                    return Math.round(v).toLocaleString("fr-FR");
                   }}
                   axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ background: "rgba(14,18,24,0.96)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, fontSize: 11 }}
@@ -6309,11 +6473,11 @@ function TrainerScreen({ onBack }) {
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(84px, 1fr))", gap: 7, marginTop: 10 }}>
               {[
+                { l: "Espérance", v: (stats.expectancyR > 0 ? "+" : "") + stats.expectancyR + "R" },
                 { l: "Profit factor", v: stats.profitFactor == null ? "—" : stats.profitFactor },
                 { l: "Gagnants", v: stats.wins + " / " + stats.trades },
                 { l: "Drawdown max", v: stats.maxDDPct + " %" },
                 { l: "Meilleur", v: "+" + stats.bestR + "R" },
-                { l: "Pire", v: stats.worstR + "R" },
                 { l: "Pire série", v: stats.pireSerie + " perte" + (stats.pireSerie > 1 ? "s" : "") },
               ].map(k => (
                 <div key={k.l} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 9, padding: "6px 8px", minWidth: 0 }}>
@@ -6346,10 +6510,55 @@ function TrainerScreen({ onBack }) {
         )}
 
         <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.3)", lineHeight: 1.5, marginTop: 10 }}>
-          Quand une bougie touche le stop et l'objectif, le résultat retenu est le stop : sans donnée plus fine,
-          supposer l'inverse flatterait tes statistiques.
+          Tu achètes au prix le plus haut et tu vends au plus bas : l'écart se paie, comme chez un vrai courtier.
+          Quand une bougie touche le stop et l'objectif, le stop est retenu.
         </div>
       </div>
+
+      {/* Choix de l'actif */}
+      {ouvrirPaires && (
+        <div onClick={() => setOuvrirPaires(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end" }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: "var(--app-max-w)", margin: "0 auto", background: "#0d1118",
+              borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: "16px 16px calc(20px + env(safe-area-inset-bottom))",
+              maxHeight: "72vh", overflowY: "auto", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", marginBottom: 3 }}>Choisir un actif</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginBottom: 12 }}>
+              {paires.length} actifs disponibles · appuie longuement pour l'ajouter à ta veille
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: 7 }}>
+              {paires.map(p => {
+                const actif = p === paire;
+                const surveille = watch.includes(p);
+                return (
+                  <button key={p}
+                    onClick={() => { setPaire(p); setOuvrirPaires(false); }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      const n = surveille ? watch.filter(x => x !== p) : [...watch, p];
+                      setSession({ ...(session || {}), watch: n.length ? n : DEFAUT_VEILLE });
+                    }}
+                    style={{
+                      padding: "10px 8px", borderRadius: 11, cursor: "pointer", fontSize: 12, fontWeight: 800,
+                      border: actif ? `1px solid ${TRAIN_ACCENT}73` : "1px solid rgba(255,255,255,0.1)",
+                      background: actif ? "rgba(110,231,183,0.15)" : "rgba(255,255,255,0.04)",
+                      color: actif ? TRAIN_ACCENT : "rgba(255,255,255,0.75)", position: "relative",
+                    }}>
+                    {p}
+                    {surveille && <span style={{ position: "absolute", top: 5, right: 6, width: 5, height: 5, borderRadius: 3, background: TRAIN_ACCENT }} />}
+                  </button>
+                );
+              })}
+            </div>
+            <button onClick={() => setOuvrirPaires(false)}
+              style={{ width: "100%", marginTop: 14, padding: 12, borderRadius: 12, background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
