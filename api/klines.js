@@ -16,6 +16,7 @@
 // Ex : /api/klines?symbol=BTCUSD&interval=1m&limit=200
 // ══════════════════════════════════════════════════════════════════════════
 
+import { applyNativeCors } from "./_lib/cors.js";
 const UA = {
   "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
   "Accept": "application/json",
@@ -77,6 +78,7 @@ async function coinbase(sym, interval, limit) {
 }
 
 export default async function handler(req, res) {
+  if (applyNativeCors(req, res)) return;
   const symbol = String(req.query.symbol || "").toUpperCase();
   const interval = String(req.query.interval || "1m");
   const limit = Math.max(50, Math.min(MAX_LIMIT, parseInt(req.query.limit, 10) || 300));

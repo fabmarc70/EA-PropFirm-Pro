@@ -4,8 +4,9 @@ import { fbSignInGoogle, fbSignInApple, fbSignUpEmail, fbSignInEmail, fbOnAuthCh
   fbAddWatchlistItem, fbListWatchlist, fbDeleteWatchlistItem,
   fbAddPriceAlert, fbListPriceAlerts, fbDeletePriceAlert, fbSetPriceAlertActive,
   fbAddOpenPosition, fbListOpenPositions, fbCloseOpenPositionManually, fbDeleteOpenPosition,
-  fbSavePushSubscription, fbListPendingJournalEntries, fbDeletePendingJournalEntry,
+  fbSavePushSubscription, fbSaveNativePushToken, fbListPendingJournalEntries, fbDeletePendingJournalEntry,
   fbAddSetupWatch, fbListSetupWatches, fbDeleteSetupWatch, fbGetSetupConfig, fbSaveSetupConfig } from "./firebase.js";
+import { isNative, nativePlatform, nativeGetPushToken, nativeShareBlob, nativeRequestLocalNotifPermission, nativeFireLocalNotification } from "./native.js";
 import { listAvailableDatasets, downloadCandles, idbListCached, clearAllCachedData, loadRange, monthsInRange, getCoverage, tdSymbolFor} from "./historicalData.js";
 import { runInvestmentProjection, aggregateByYear, compareStrategies as compareInvestmentStrategies } from "./investmentEngine.js";
 import { runPropFirmProjection, aggregateProjectionByYear, truthFromSimulator, truthFromJournal, buildScenarios, SCENARIO_PRESETS, simulatorReplay } from "./projectionEngine.js";
@@ -17464,6 +17465,7 @@ function saveNotifPref(pref) {
 }
 // Demande la permission de notification
 async function requestNotifPermission() {
+  if (isNative) return nativeRequestLocalNotifPermission();
   if (typeof Notification === "undefined") return "unsupported";
   if (Notification.permission === "granted") return "granted";
   if (Notification.permission === "denied") return "denied";
@@ -17472,6 +17474,7 @@ async function requestNotifPermission() {
 }
 // Envoie une notification (via service worker si dispo, sinon directe)
 async function fireNotification(title, body) {
+  if (isNative) return nativeFireLocalNotification(title, body);
   if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
   const options = {
     body,
@@ -18714,7 +18717,9 @@ function DashboardScreen({ t, lang, user, profile, lastSim, goto, loadConfig, pr
                   // Partage natif (menu iOS/Android) si disponible ET si le fichier est
                   // partageable — sinon repli sur un téléchargement classique, pour que
                   // le bouton fonctionne dans tous les cas (desktop, navigateur ancien).
-                  if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
+                  if (isNative) {
+                    await nativeShareBlob(blob, fichier.name, "Ma performance du mois");
+                  } else if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
                     await navigator.share({ files: [fichier], title: "Ma performance du mois" });
                   } else {
                     const url = URL.createObjectURL(blob);
@@ -20040,6 +20045,16 @@ function WatchAlertsSection({ t, onPositionsClosed }) {
   // ── Abonnement Web Push : demande la permission navigateur, s'abonne, sauvegarde côté Firestore ──
   const [testPushMsg, setTestPushMsg] = useState("");
   const subscribeToPush = async () => {
+    if (isNative) {
+      setPushStatus("subscribing");
+      try {
+        const r = await nativeGetPushToken();
+        if (r.status !== "granted") { setPushStatus(r.status); return; }
+        await fbSaveNativePushToken(r.token, nativePlatform);
+        setPushStatus("subscribed");
+      } catch (e) { setPushStatus("error"); }
+      return;
+    }
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) { setPushStatus("unsupported"); return; }
     setPushStatus("subscribing");
     try {

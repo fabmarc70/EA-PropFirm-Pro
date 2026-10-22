@@ -1,0 +1,204 @@
+# ══════════════════════════════════════════════════════════════════
+# BUILD DES APPS NATIVES (Capacitor) — Android + iOS
+#
+# Lancement : onglet Actions > "Mobile build" > Run workflow, ou push d'un
+# tag mobile-v* (ex: mobile-v1.0.0).
+#
+# Secrets GitHub utilisés (tous optionnels : sans eux, le build tourne quand
+# même en version de test non signée) :
+#   Firebase (connexion Google/Apple + notifications natives)
+#     GOOGLE_SERVICES_JSON_BASE64        android/app/google-services.json en base64
+#     GOOGLE_SERVICE_INFO_PLIST_BASE64   GoogleService-Info.plist en base64
+#   Android (signature Play Store)
+#     ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+#     ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+#   iOS (signature + envoi TestFlight)
+#     APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8_BASE64
+# ══════════════════════════════════════════════════════════════════
+name: Mobile build
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["mobile-v*"]
+    branches: ["claude/capacitor-mobile"]
+
+concurrency:
+  group: mobile-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      APP_BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Dépendances + build web
+        run: |
+          npm ci
+          npm run build
+          npx cap sync android
+
+      - name: Configuration Firebase (google-services.json)
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > android/app/google-services.json
+            echo "google-services.json installé"
+          else
+            echo "::warning::GOOGLE_SERVICES_JSON_BASE64 absent : build de vérification de compilation uniquement. Sans google-services.json, Firebase n'est pas initialisé et l'app Android n'est pas utilisable."
+          fi
+
+      - name: Keystore de signature
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+          else
+            echo "::warning::ANDROID_KEYSTORE_BASE64 absent : seul l'APK de test (debug) est produit"
+          fi
+
+      - name: Build APK de test (debug)
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Build release signé (AAB Play Store + APK)
+        if: env.ANDROID_KEYSTORE_PATH != ''
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew bundleRelease assembleRelease --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ github.run_number }}
+          path: |
+            android/app/build/outputs/apk/**/*.apk
+            android/app/build/outputs/bundle/**/*.aab
+          if-no-files-found: error
+
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      APP_BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Xcode le plus récent
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - name: Dépendances + build web
+        run: |
+          npm ci
+          npm run build
+          npx cap sync ios
+
+      - name: Configuration Firebase (GoogleService-Info.plist)
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
+        run: |
+          if [ -z "$GOOGLE_SERVICE_INFO_PLIST_BASE64" ]; then
+            echo "::warning::GOOGLE_SERVICE_INFO_PLIST_BASE64 absent : connexion Google et push natifs inactifs dans ce build"
+            exit 0
+          fi
+          PLIST=ios/App/App/GoogleService-Info.plist
+          echo "$GOOGLE_SERVICE_INFO_PLIST_BASE64" | base64 -d > "$PLIST"
+          # Ajout du fichier à la cible App (ressource embarquée dans le bundle)
+          sudo gem install xcodeproj --no-document >/dev/null
+          ruby -e '
+            require "xcodeproj"
+            p = Xcodeproj::Project.open("ios/App/App.xcodeproj")
+            t = p.targets.find { |x| x.name == "App" }
+            g = p.main_group.find_subpath("App", false)
+            unless g.files.any? { |f| f.path == "GoogleService-Info.plist" }
+              ref = g.new_file("GoogleService-Info.plist")
+              t.resources_build_phase.add_file_reference(ref)
+            end
+            p.save'
+          # Schéma d'URL de retour Google Sign-In (REVERSED_CLIENT_ID)
+          REVERSED=$(/usr/libexec/PlistBuddy -c "Print :REVERSED_CLIENT_ID" "$PLIST")
+          INFO=ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" "$INFO" || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" "$INFO"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" "$INFO"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string $REVERSED" "$INFO"
+
+      - name: Mode de build
+        env:
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$ASC_KEY_P8_BASE64" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            echo "IOS_SIGNED=1" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Identifiants Apple absents : build de vérification non signé (simulateur)"
+          fi
+
+      - name: Build de vérification (simulateur, non signé)
+        if: env.IOS_SIGNED != '1'
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO build | tail -40
+          cd build/dd/Build/Products/Debug-iphonesimulator && zip -qr "$GITHUB_WORKSPACE/App-simulator.zip" App.app
+
+      - name: Archive signée + envoi TestFlight
+        if: env.IOS_SIGNED == '1'
+        env:
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          KEY="$RUNNER_TEMP/AuthKey.p8"
+          echo "$ASC_KEY_P8_BASE64" | base64 -d > "$KEY"
+          AUTH="-allowProvisioningUpdates -authenticationKeyPath $KEY -authenticationKeyID $ASC_KEY_ID -authenticationKeyIssuerID $ASC_ISSUER_ID"
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath build/App.xcarchive \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION="$APP_BUILD_NUMBER" \
+            $AUTH archive | tail -40
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath build/App.xcarchive \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath build/export $AUTH | tail -20
+
+      - uses: actions/upload-artifact@v4
+        if: env.IOS_SIGNED != '1'
+        with:
+          name: ios-simulator-${{ github.run_number }}
+          path: App-simulator.zip

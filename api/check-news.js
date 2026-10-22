@@ -16,6 +16,7 @@
 import { initializeApp, cert, getApps, getApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import webpush from "web-push";
+import { sendNativePush } from "./_lib/nativePush.js";
 
 function initFirebaseAdmin() {
   if (getApps().length) return getApp();
@@ -93,6 +94,7 @@ async function sendPush(db, uid, payload) {
   const subsSnap = await db.collection("users").doc(uid).collection("pushSubscriptions").get();
   let sent = 0;
   for (const doc of subsSnap.docs) {
+    if (doc.data().fcmToken) { if (await sendNativePush(doc, payload)) sent++; continue; }
     const sub = doc.data().subscription;
     if (!sub || !sub.endpoint || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) {
       await doc.ref.delete().catch(() => {}); continue;

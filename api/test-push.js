@@ -15,6 +15,7 @@
 
 import { initializeApp, cert, getApps, getApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { applyNativeCors } from "./_lib/cors.js";
 
 function initFirebaseAdmin() {
   if (getApps().length) return getApp();
@@ -25,6 +26,7 @@ function initFirebaseAdmin() {
 }
 
 export default async function handler(req, res) {
+  if (applyNativeCors(req, res)) return;
   const uid = (req.query?.uid || req.body?.uid || "").trim();
   if (!uid) return res.status(400).json({ error: "uid manquant." });
 

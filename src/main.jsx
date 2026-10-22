@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import { registerSW } from 'virtual:pwa-register';
+import { isNative, installNativeApiFetch, initNativeShell } from './native.js';
 
 // ══════════════════════════════════════════════════════════════════
 // MISE À JOUR PWA — CAUSE DU DÉLAI CONSTATÉ : l'enregistrement par défaut
@@ -40,15 +41,23 @@ function showUpdateBanner(onReload) {
   document.getElementById("eapfp-update-btn").addEventListener("click", onReload);
 }
 
-const updateSW = registerSW({
-  onRegisteredSW(swUrl, registration) {
-    if (registration) {
-      setInterval(() => { registration.update(); }, 60 * 1000);
-    }
-  },
-  onNeedRefresh() { showUpdateBanner(() => updateSW(true)); },
-  onOfflineReady() {},
-});
+// App native (iOS/Android) : les fichiers sont embarqués dans l'app et mis à
+// jour par le store — pas de service worker (non supporté en capacitor://
+// sur iOS, et inutile ici). Les appels /api/* sont redirigés vers Vercel.
+if (isNative) {
+  installNativeApiFetch();
+  initNativeShell();
+} else {
+  const updateSW = registerSW({
+    onRegisteredSW(swUrl, registration) {
+      if (registration) {
+        setInterval(() => { registration.update(); }, 60 * 1000);
+      }
+    },
+    onNeedRefresh() { showUpdateBanner(() => updateSW(true)); },
+    onOfflineReady() {},
+  });
+}
 
 // ══════════════════════════════════════════════════════════════════
 // Garde-fou global : sans cela, une exception JS sur N'IMPORTE QUEL

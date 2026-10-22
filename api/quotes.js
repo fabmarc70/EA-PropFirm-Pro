@@ -21,6 +21,7 @@
 // par actif : le premier qui répond gagne (les symboles de matières
 // premières au comptant ne sont pas toujours servis, les contrats à terme
 // le sont toujours).
+import { applyNativeCors } from "./_lib/cors.js";
 const YAHOO = {
   EURUSD: ["EURUSD=X"], GBPUSD: ["GBPUSD=X"], AUDUSD: ["AUDUSD=X"], NZDUSD: ["NZDUSD=X"],
   USDJPY: ["USDJPY=X"], USDCAD: ["USDCAD=X"], USDCHF: ["USDCHF=X"],
@@ -233,6 +234,7 @@ async function stooqCourbe(sym) {
 }
 
 export default async function handler(req, res) {
+  if (applyNativeCors(req, res)) return;
   const brut = String(req.query.symbols || "").toUpperCase();
   const demandes = brut.split(",").map(s => s.trim()).filter(Boolean).slice(0, MAX_SYMBOLS);
 

@@ -15,6 +15,7 @@
 import { initializeApp, cert, getApps, getApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import webpush from "web-push";
+import { sendNativePush } from "./_lib/nativePush.js";
 import { toTwelveDataSymbol } from "./_lib/tdSymbols.js";
 
 function initFirebaseAdmin() {
@@ -70,6 +71,11 @@ async function sendPush(db, uid, payload) {
   const subsSnap = await db.collection("users").doc(uid).collection("pushSubscriptions").get();
   const results = [];
   for (const doc of subsSnap.docs) {
+    if (doc.data().fcmToken) {
+      const ok = await sendNativePush(doc, payload);
+      results.push(ok ? { ok: true } : { ok: false, error: "Envoi FCM échoué." });
+      continue;
+    }
     const sub = doc.data().subscription;
     // Garde contre un abonnement mal formé (sauvegarde partielle côté client,
     // ex: sub.toJSON() qui aurait échoué à mi-chemin) — la librairie web-push

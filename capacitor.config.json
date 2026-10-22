@@ -1,0 +1,44 @@
+{
+  "appId": "com.eapropfirmpro.app",
+  "appName": "EA PropFirm Pro",
+  "webDir": "dist",
+  "backgroundColor": "#080810",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#080810"
+  },
+  "android": {
+    "backgroundColor": "#080810"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 600,
+      "backgroundColor": "#080810",
+      "showSpinner": false
+    },
+    "FirebaseAuthentication": {
+      "skipNativeAuth": true,
+      "providers": ["google.com", "apple.com"]
+    },
+    "FirebaseMessaging": {
+      "presentationOptions": ["alert", "badge", "sound"]
+    },
+    "LocalNotifications": {
+      "iconColor": "#6ee7b7"
+    }
+  },
+  "experimental": {
+    "ios": {
+      "spm": {
+        "swiftToolsVersion": "6.1",
+        "packageOptions": {
+          "@capacitor-firebase/authentication": { "symlink": true },
+          "@capacitor-firebase/messaging": { "symlink": true }
+        },
+        "packageTraits": {
+          "@capacitor-firebase/authentication": ["Google"]
+        }
+      }
+    }
+  }
+}

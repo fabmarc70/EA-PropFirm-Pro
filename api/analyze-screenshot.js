@@ -17,6 +17,7 @@
 // fausse confiance serait pire qu'une absence de valeur.
 // ══════════════════════════════════════════════════════════════════
 
+import { applyNativeCors } from "./_lib/cors.js";
 const EXTRACTION_PROMPT = `Tu analyses une capture d'écran d'une plateforme de trading (MT4, MT5, TradingView, ou similaire) montrant un ordre ouvert ou en cours de placement.
 
 Extrait UNIQUEMENT ce qui est visible avec certitude dans l'image. Réponds STRICTEMENT en JSON valide, sans markdown ni texte autour, avec ce format exact :
@@ -38,6 +39,7 @@ Règles strictes :
 - direction "buy" si achat/long, "sell" si vente/short.`;
 
 export default async function handler(req, res) {
+  if (applyNativeCors(req, res)) return;
   if (req.method !== "POST") return res.status(405).json({ error: "Méthode non autorisée." });
 
   const apiKey = process.env.GEMINI_KEY;

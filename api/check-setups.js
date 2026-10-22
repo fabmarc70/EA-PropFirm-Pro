@@ -18,6 +18,7 @@
 import { initializeApp, cert, getApps, getApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import webpush from "web-push";
+import { sendNativePush } from "./_lib/nativePush.js";
 import { toTwelveDataSymbol } from "./_lib/tdSymbols.js";
 
 function initFirebaseAdmin() {
@@ -118,6 +119,7 @@ function evaluateEmaPullbackLive(candles, emaPeriod = 200, maxPullbackBars = 30,
 async function sendPush(db, uid, payload) {
   const subsSnap = await db.collection("users").doc(uid).collection("pushSubscriptions").get();
   for (const doc of subsSnap.docs) {
+    if (doc.data().fcmToken) { await sendNativePush(doc, payload); continue; }
     const sub = doc.data().subscription;
     if (!sub || !sub.endpoint || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) { await doc.ref.delete().catch(() => {}); continue; }
     try { await webpush.sendNotification(sub, JSON.stringify(payload)); }

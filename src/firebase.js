@@ -9,6 +9,9 @@
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
+  initializeAuth,
+  indexedDBLocalPersistence,
+  signInWithCredential,
   GoogleAuthProvider,
   OAuthProvider,
   signInWithPopup,
@@ -19,6 +22,7 @@ import {
   updateProfile,
   deleteUser,
 } from "firebase/auth";
+import { isNative } from "./native.js";
 import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, addDoc, getDocs, updateDoc, query, where, serverTimestamp } from "firebase/firestore";
 
 // ══════════════════════════════════════════════════════════════════
@@ -63,7 +67,13 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+// App native : getAuth() charge le gestionnaire popup/redirect (iframe
+// gapi) qui ne fonctionne pas en capacitor:// et bloque l'initialisation.
+// initializeAuth avec persistance IndexedDB seule évite ce chargement — la
+// connexion Google/Apple passe par le SDK natif (voir fbSignInGoogle).
+export const auth = isNative
+  ? initializeAuth(app, { persistence: indexedDBLocalPersistence })
+  : getAuth(app);
 export const db = getFirestore(app);
 
 // Analytics : chargé en différé, sans bloquer si non supporté (iOS standalone etc.)
@@ -76,11 +86,29 @@ const googleProvider = new GoogleAuthProvider();
 const appleProvider = new OAuthProvider("apple.com");
 
 // ── API simple consommée par l'app ──
+// App native : Google refuse la connexion OAuth dans une WebView
+// (disallowed_useragent). Le SDK natif ouvre l'écran système Google/Apple,
+// renvoie un jeton, et on connecte le SDK web avec ce jeton : la session
+// Firebase (Firestore, règles RLS…) reste strictement la même que sur le web.
+async function nativeSignIn(providerId) {
+  const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication");
+  const res = providerId === "google.com"
+    ? await FirebaseAuthentication.signInWithGoogle()
+    : await FirebaseAuthentication.signInWithApple();
+  const c = res.credential || {};
+  const credential = providerId === "google.com"
+    ? GoogleAuthProvider.credential(c.idToken || null, c.accessToken || null)
+    : new OAuthProvider("apple.com").credential({ idToken: c.idToken, rawNonce: c.nonce });
+  const out = await signInWithCredential(auth, credential);
+  return out.user;
+}
 export async function fbSignInGoogle() {
+  if (isNative) return nativeSignIn("google.com");
   const res = await signInWithPopup(auth, googleProvider);
   return res.user;
 }
 export async function fbSignInApple() {
+  if (isNative) return nativeSignIn("apple.com");
   const res = await signInWithPopup(auth, appleProvider);
   return res.user;
 }
@@ -96,7 +124,13 @@ export async function fbSignInEmail(email, password) {
 export function fbOnAuthChange(callback) {
   return onAuthStateChanged(auth, callback);
 }
-export function fbSignOut() {
+export async function fbSignOut() {
+  if (isNative) {
+    try {
+      const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication");
+      await FirebaseAuthentication.signOut();
+    } catch (e) {}
+  }
   return signOut(auth);
 }
 // Convertit un user Firebase vers le format interne de l'app
@@ -356,6 +390,17 @@ export async function fbSavePushSubscription(subscription) {
   const id = btoa(subscription.endpoint).replace(/[^a-zA-Z0-9]/g, "").slice(0, 120);
   await setDoc(doc(db, "users", uid, "pushSubscriptions", id), {
     subscription, createdAt: serverTimestamp(),
+  });
+}
+// App native : jeton FCM de l'appareil, rangé dans la MÊME sous-collection
+// que les abonnements Web Push pour que les crons serveur (check-alerts,
+// check-news, check-setups, test-push) le trouvent sans autre changement.
+// Le champ fcmToken distingue les deux (voir api/_lib/nativePush.js).
+export async function fbSaveNativePushToken(token, platform) {
+  const uid = requireUid();
+  const id = "fcm_" + token.replace(/[^a-zA-Z0-9]/g, "").slice(-110);
+  await setDoc(doc(db, "users", uid, "pushSubscriptions", id), {
+    fcmToken: token, platform, createdAt: serverTimestamp(),
   });
 }
 export async function fbRemovePushSubscription(endpoint) {

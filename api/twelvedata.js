@@ -13,9 +13,11 @@
 // Ex : /api/twelvedata?symbol=EUR/USD&interval=15min&start=2023-05-01&end=2023-05-31
 // ══════════════════════════════════════════════════════════════════
 
+import { applyNativeCors } from "./_lib/cors.js";
 const ALLOWED_INTERVALS = ["1min", "5min", "15min", "30min", "45min", "1h", "2h", "4h", "1day", "1week", "1month"];
 
 export default async function handler(req, res) {
+  if (applyNativeCors(req, res)) return;
   const apiKey = process.env.TWELVE_DATA_API_KEY;
   if (!apiKey) {
     return res.status(500).json({
